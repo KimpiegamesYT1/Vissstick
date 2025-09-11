@@ -22,6 +22,7 @@ const client = new Client({
 
 let lastStatus = null;
 let lastMessage = null;
+let isInitialized = false;
 
 // Check API functie
 async function checkStatus() {
@@ -35,6 +36,14 @@ async function checkStatus() {
     const channel = await client.channels.fetch(CHANNEL_ID);
 
     if (!channel) return console.error("Kanaal niet gevonden!");
+
+    // Bij eerste keer alleen status opslaan, geen bericht sturen
+    if (!isInitialized) {
+      lastStatus = isOpen;
+      isInitialized = true;
+      console.log("Initiële status opgehaald:", isOpen ? "open" : "dicht");
+      return;
+    }
 
     // Alleen iets doen als status is veranderd
     if (lastStatus !== isOpen) {
