@@ -41,9 +41,15 @@ function predictOpeningTime(isOpen) {
   Object.entries(hokData.openingTimes).forEach(([date, data]) => {
     if (getWeekDay(date) === currentDay) {
       if (isOpen) {
-        data.closeTimes.forEach(time => relevantTimes.push(time));
+        // Voor sluittijd, pak de laatste tijd van de dag
+        if (data.closeTimes.length > 0) {
+          relevantTimes.push(data.closeTimes[data.closeTimes.length - 1]);
+        }
       } else {
-        data.openTimes.forEach(time => relevantTimes.push(time));
+        // Voor openingstijd, pak de eerste tijd van de dag
+        if (data.openTimes.length > 0) {
+          relevantTimes.push(data.openTimes[0]);
+        }
       }
     }
   });
