@@ -3,9 +3,31 @@ const { Client, GatewayIntentBits } = require("discord.js");
 // Import fetch for Node.js 18+
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const config = require('./config.json');
+const fs = require('fs').promises;
+const path = require('path');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, API_URL, ROLE_ID } = config;
+const dataPath = path.join(__dirname, 'data.json');
+
+// Load data from file
+async function loadHokData() {
+  try {
+    const data = await fs.readFile(dataPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    // If file doesn't exist, return default structure
+    return {
+      openingTimes: {},
+      MAX_DAYS: 56
+    };
+  }
+}
+
+// Save data to file
+async function saveHokData(data) {
+  await fs.writeFile(dataPath, JSON.stringify(data, null, 2));
+}
 
 // Data structure voor openingstijden
 const hokData = {
@@ -21,16 +43,22 @@ function getWeekDay(dateStr) {
   return new Date(dateStr).getDay();
 }
 
-function cleanOldData() {
+async function cleanOldData(hokData) {
   const dates = Object.keys(hokData.openingTimes).sort();
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - hokData.MAX_DAYS);
   
+  let modified = false;
   dates.forEach(date => {
     if (new Date(date) < cutoffDate) {
       delete hokData.openingTimes[date];
+      modified = true;
     }
   });
+  
+  if (modified) {
+    await saveHokData(hokData);
+  }
 }
 
 function predictOpeningTime(isOpen) {
@@ -87,6 +115,7 @@ let isInitialized = false;
 // Check API functie
 async function checkStatus() {
   try {
+    const hokData = await loadHokData();
     const res = await fetch(API_URL);
     const data = await res.json();
 
@@ -122,7 +151,8 @@ async function checkStatus() {
         hokData.openingTimes[dateKey].closeTimes.push(currentTime);
       }
       
-      cleanOldData();
+      await saveHokData(hokData);
+      await cleanOldData(hokData);
 
       // Verwijder vorig bericht als het bestaat
       if (lastMessage) {
@@ -161,6 +191,7 @@ async function checkStatus() {
 // Reactie handler
 client.on('messageCreate', async (message) => {
   if (message.content === '!hokstats') {
+    const hokData = await loadHokData();
     const stats = Object.entries(hokData.openingTimes)
       .sort()
       .map(([date, times]) => {
