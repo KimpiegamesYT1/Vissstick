@@ -61,7 +61,7 @@ async function cleanOldData(hokData) {
   }
 }
 
-function predictOpeningTime(isOpen) {
+async function predictOpeningTime(isOpen, hokData) {
   const currentDay = new Date().getDay();
   let relevantTimes = [];
   
@@ -128,6 +128,12 @@ async function checkStatus() {
 
     if (!channel) return console.error("Kanaal niet gevonden!");
 
+    // Update bot status
+    client.user.setActivity(
+      isOpen ? 'Hok is open 📗' : 'Hok is dicht 📕',
+      { type: 'WATCHING' }
+    );
+
     // Bij eerste keer alleen status opslaan
     if (!isInitialized) {
       lastStatus = isOpen;
@@ -167,7 +173,7 @@ async function checkStatus() {
       await channel.setName(isOpen ? "📗-hok-is-open" : "📕-hok-is-dicht");
 
       // Voorspel volgende tijd
-      const predictedTime = predictOpeningTime(isOpen);
+      const predictedTime = predictOpeningTime(isOpen, hokData);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
 
       // Nieuw bericht sturen
@@ -189,22 +195,6 @@ async function checkStatus() {
 }
 
 // Reactie handler
-client.on('messageCreate', async (message) => {
-  if (message.content === '!hokstats') {
-    const hokData = await loadHokData();
-    const stats = Object.entries(hokData.openingTimes)
-      .sort()
-      .map(([date, times]) => {
-        return `**${date}**:\n` +
-               `📗 Open: ${times.openTimes.join(', ') || 'geen'}\n` +
-               `📕 Dicht: ${times.closeTimes.join(', ') || 'geen'}`;
-      })
-      .join('\n\n');
-    
-    message.channel.send(stats || 'Nog geen data beschikbaar');
-  }
-});
-
 client.on('messageReactionAdd', async (reaction, user) => {
   if (user.bot) return;
   
@@ -236,9 +226,142 @@ client.on('messageReactionAdd', async (reaction, user) => {
   }
 });
 
+// Replace the messageCreate handler with slash commands
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const { commandName } = interaction;
+
+  if (commandName === 'hokhistorie') {
+    const hokData = await loadHokData();
+    const stats = Object.entries(hokData.openingTimes)
+      .sort()
+      .map(([date, times]) => {
+        return `**${date}**:\n` +
+               `📗 Open: ${times.openTimes.join(', ') || 'geen'}\n` +
+               `📕 Dicht: ${times.closeTimes.join(', ') || 'geen'}`;
+      })
+      .join('\n\n');
+    
+    await interaction.reply(stats || 'Nog geen data beschikbaar');
+  }
+
+  if (commandName === 'hokstatus') {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      
+      if (!data || !data.payload) {
+        await interaction.reply('❌ Kon status niet ophalen');
+        return;
+      }
+
+      const isOpen = data.payload.open === 1;
+      const hokData = await loadHokData();
+      const predictedTime = predictOpeningTime(isOpen, hokData);
+      const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
+      
+      await interaction.reply(
+        isOpen 
+          ? `✅ Het hok is momenteel **open**!${predictionMsg}` 
+          : `❌ Het hok is momenteel **dicht**!${predictionMsg}`
+      );
+    } catch (err) {
+      console.error("Fout bij ophalen status:", err);
+      await interaction.reply('❌ Fout bij ophalen van de status');
+    }
+  }
+
+  if (commandName === 'hokupdate') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', ephemeral: true });
+      return;
+    }
+
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      
+      if (!data || !data.payload) {
+        await interaction.reply({ content: '❌ Kon status niet ophalen', ephemeral: true });
+        return;
+      }
+
+      const isOpen = data.payload.open === 1;
+      const channel = await client.channels.fetch(CHANNEL_ID);
+      const hokData = await loadHokData();
+      
+      // Update bot status
+      client.user.setActivity(
+        isOpen ? 'Hok is open 📗' : 'Hok is dicht 📕',
+        { type: 'WATCHING' }
+      );
+      
+      // Update channel name
+      await channel.setName(isOpen ? "📗-hok-is-open" : "📕-hok-is-dicht");
+      
+      // Remove old message if exists
+      if (lastMessage) {
+        try {
+          await lastMessage.delete();
+        } catch (err) {
+          console.error("Kon vorig bericht niet verwijderen:", err);
+        }
+      }
+
+      // Send new message
+      const predictedTime = predictOpeningTime(isOpen, hokData);
+      const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
+
+      const message = await channel.send(
+        isOpen 
+          ? `✅ Het <@&${ROLE_ID}> is nu **open**!${predictionMsg}` 
+          : `❌ Het <@&${ROLE_ID}> is nu **dicht**!${predictionMsg}`
+      );
+      
+      await message.react('🔔');
+      lastMessage = message;
+      lastStatus = isOpen;
+
+      await interaction.reply({ content: '✅ Hok status succesvol geüpdatet!', ephemeral: true });
+    } catch (err) {
+      console.error("Fout bij updaten status:", err);
+      await interaction.reply({ content: '❌ Fout bij updaten van de status', ephemeral: true });
+    }
+  }
+});
+
 // Start de bot
-client.once("clientReady", () => {
+client.once("clientReady", async () => {
   console.log(`Bot ingelogd als ${client.user.tag}`);
+  
+  // Set initial bot status
+  client.user.setActivity('Hok status laden...', { type: 'WATCHING' });
+  
+  // Register slash commands
+  const commands = [
+    {
+      name: 'hokhistorie',
+      description: 'Toont de openingstijden geschiedenis van het hok'
+    },
+    {
+      name: 'hokstatus',
+      description: 'Toont de huidige status van het hok'
+    },
+    {
+      name: 'hokupdate',
+      description: 'Update het hok status bericht (alleen voor administrators)'
+    }
+  ];
+
+  try {
+    console.log('Registreer slash commands...');
+    await client.application.commands.set(commands);
+    console.log('Slash commands geregistreerd!');
+  } catch (error) {
+    console.error('Fout bij registreren commands:', error);
+  }
+
   checkStatus();
   setInterval(checkStatus, 60 * 1000); // elke minuut checken
 });
