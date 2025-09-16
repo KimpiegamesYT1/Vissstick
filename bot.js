@@ -1,5 +1,5 @@
 // installeer eerst met: npm install discord.js node-fetch
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, ActivityType } = require("discord.js");
 // Import fetch for Node.js 18+
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const config = require('./config.json');
@@ -131,7 +131,7 @@ async function checkStatus() {
     // Update bot status
     client.user.setActivity(
       isOpen ? 'Hok is open 📗' : 'Hok is dicht 📕',
-      { type: 'WATCHING' }
+      { type: ActivityType.Watching }
     );
 
     // Bij eerste keer alleen status opslaan
@@ -294,7 +294,7 @@ client.on('interactionCreate', async (interaction) => {
       // Update bot status
       client.user.setActivity(
         isOpen ? 'Hok is open 📗' : 'Hok is dicht 📕',
-        { type: 'WATCHING' }
+        { type: ActivityType.Watching }
       );
       
       // Update channel name
@@ -336,7 +336,7 @@ client.once("clientReady", async () => {
   console.log(`Bot ingelogd als ${client.user.tag}`);
   
   // Set initial bot status
-  client.user.setActivity('Hok status laden...', { type: 'WATCHING' });
+  client.user.setActivity('Hok status laden...', { type: ActivityType.Watching });
   
   // Register slash commands
   const commands = [
