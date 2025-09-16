@@ -61,7 +61,7 @@ async function cleanOldData(hokData) {
   }
 }
 
-async function predictOpeningTime(isOpen, hokData) {
+function predictOpeningTime(isOpen, hokData) {
   const currentDay = new Date().getDay();
   let relevantTimes = [];
   
@@ -274,7 +274,7 @@ client.on('interactionCreate', async (interaction) => {
 
   if (commandName === 'hokupdate') {
     if (!interaction.member.permissions.has('Administrator')) {
-      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', ephemeral: true });
+      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
       return;
     }
 
@@ -283,7 +283,7 @@ client.on('interactionCreate', async (interaction) => {
       const data = await res.json();
       
       if (!data || !data.payload) {
-        await interaction.reply({ content: '❌ Kon status niet ophalen', ephemeral: true });
+        await interaction.reply({ content: '❌ Kon status niet ophalen', flags: 64 });
         return;
       }
 
@@ -323,10 +323,10 @@ client.on('interactionCreate', async (interaction) => {
       lastMessage = message;
       lastStatus = isOpen;
 
-      await interaction.reply({ content: '✅ Hok status succesvol geüpdatet!', ephemeral: true });
+      await interaction.reply({ content: '✅ Hok status succesvol geüpdatet!', flags: 64 });
     } catch (err) {
       console.error("Fout bij updaten status:", err);
-      await interaction.reply({ content: '❌ Fout bij updaten van de status', ephemeral: true });
+      await interaction.reply({ content: '❌ Fout bij updaten van de status', flags: 64 });
     }
   }
 });
