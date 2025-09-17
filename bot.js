@@ -5,9 +5,11 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 const config = require('./config.json');
 const fs = require('fs').promises;
 const path = require('path');
+const cron = require('node-cron');
+const quiz = require('./quiz.js');
 
 // Config wordt nu geïmporteerd uit config.json
-const { TOKEN, CHANNEL_ID, API_URL, ROLE_ID } = config;
+const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, API_URL, ROLE_ID } = config;
 const dataPath = path.join(__dirname, 'data.json');
 
 // Load data from file
@@ -198,6 +200,9 @@ async function checkStatus() {
 client.on('messageReactionAdd', async (reaction, user) => {
   if (user.bot) return;
   
+  // Handle quiz reactions
+  await quiz.handleQuizReaction(reaction, user, true);
+  
   if (reaction.message.id === lastMessage?.id && reaction.emoji.name === '🔔') {
     try {
       const guild = reaction.message.guild;
@@ -224,6 +229,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
       console.error("Fout bij toevoegen rol:", err);
     }
   }
+});
+
+// Handle reaction removal for quiz
+client.on('messageReactionRemove', async (reaction, user) => {
+  if (user.bot) return;
+  await quiz.handleQuizReaction(reaction, user, false);
 });
 
 // Replace the messageCreate handler with slash commands
@@ -329,6 +340,26 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.reply({ content: '❌ Fout bij updaten van de status', flags: 64 });
     }
   }
+
+  if (commandName === 'testquiz') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+      return;
+    }
+
+    await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID);
+    await interaction.reply({ content: '✅ Test quiz gestart!', flags: 64 });
+  }
+
+  if (commandName === 'resetquiz') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+      return;
+    }
+
+    await quiz.resetUsedQuestions();
+    await interaction.reply({ content: '✅ Quiz vragen zijn gereset! Alle vragen kunnen weer gebruikt worden.', flags: 64 });
+  }
 });
 
 // Start de bot
@@ -338,6 +369,22 @@ client.once("clientReady", async () => {
   // Set initial bot status
   client.user.setActivity('Hok status laden...', { type: ActivityType.Watching });
   
+  // Schedule daily quiz at 8:00
+  cron.schedule('0 8 * * *', () => {
+    console.log('Starting daily quiz...');
+    quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID);
+  }, {
+    timezone: "Europe/Amsterdam"
+  });
+
+  // Schedule quiz results at 15:00
+  cron.schedule('0 15 * * *', () => {
+    console.log('Ending daily quiz...');
+    quiz.endDailyQuiz(client, QUIZ_CHANNEL_ID);
+  }, {
+    timezone: "Europe/Amsterdam"
+  });
+
   // Register slash commands
   const commands = [
     {
@@ -351,6 +398,14 @@ client.once("clientReady", async () => {
     {
       name: 'hokupdate',
       description: 'Update het hok status bericht (alleen voor administrators)'
+    },
+    {
+      name: 'testquiz',
+      description: 'Start een test quiz (alleen voor administrators)'
+    },
+    {
+      name: 'resetquiz',
+      description: 'Reset de gebruikte quiz vragen (alleen voor administrators)'
     }
   ];
 

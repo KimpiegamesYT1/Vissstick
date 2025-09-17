@@ -1,0 +1,1042 @@
+[
+  {
+    "vraag": "Wat is de maximale theoretische doorvoer van een PCIe 5.0 x16 slot?",
+    "opties": {
+      "A": "32 GB/s",
+      "B": "64 GB/s",
+      "C": "128 GB/s",
+      "D": "256 GB/s"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke cryptografische hash functie wordt gebruikt in Bitcoin mining?",
+    "opties": {
+      "A": "SHA-1",
+      "B": "SHA-256",
+      "C": "MD5",
+      "D": "Blake2"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de Big O notatie van de Quicksort algoritme in het slechtste geval?",
+    "opties": {
+      "A": "O(n)",
+      "B": "O(n log n)",
+      "C": "O(n²)",
+      "D": "O(2ⁿ)"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "In welke laag van het OSI model werkt ARP (Address Resolution Protocol)?",
+    "opties": {
+      "A": "Laag 2 - Data Link",
+      "B": "Laag 3 - Network",
+      "C": "Laag 4 - Transport",
+      "D": "Laag 5 - Session"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "Wat is de standaard poort voor LDAPS (LDAP over SSL)?",
+    "opties": {
+      "A": "389",
+      "B": "636",
+      "C": "993",
+      "D": "995"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke Intel processor architectuur introduceerde de x86-64 instructie set?",
+    "opties": {
+      "A": "Pentium 4",
+      "B": "Core 2",
+      "C": "Pentium D",
+      "D": "AMD introduceerde dit eerst"
+    },
+    "antwoord": "D"
+  },
+  {
+    "vraag": "Wat is de maximale grootte van een UDP datagram volgens RFC 768?",
+    "opties": {
+      "A": "1500 bytes",
+      "B": "8192 bytes",
+      "C": "65507 bytes",
+      "D": "65535 bytes"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Welke van deze is GEEN onderdeel van de CAP theorem?",
+    "opties": {
+      "A": "Consistency",
+      "B": "Availability",
+      "C": "Partition tolerance",
+      "D": "Concurrency"
+    },
+    "antwoord": "D"
+  },
+  {
+    "vraag": "In SQL, wat doet de COALESCE functie?",
+    "opties": {
+      "A": "Combineert twee tabellen",
+      "B": "Retourneert de eerste niet-NULL waarde",
+      "C": "Converteert datatypes",
+      "D": "Comprimeert data"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de standaard subnet mask voor een /27 netwerk?",
+    "opties": {
+      "A": "255.255.255.192",
+      "B": "255.255.255.224",
+      "C": "255.255.255.240",
+      "D": "255.255.255.248"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke programmeertaal werd oorspronkelijk gebruikt om UNIX te schrijven?",
+    "opties": {
+      "A": "Assembly",
+      "B": "B",
+      "C": "C",
+      "D": "FORTRAN"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Wat is de tijdscomplexiteit van het invoegen in een balanced binary search tree?",
+    "opties": {
+      "A": "O(1)",
+      "B": "O(log n)",
+      "C": "O(n)",
+      "D": "O(n log n)"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In welk jaar werd de eerste RFC (Request for Comments) gepubliceerd?",
+    "opties": {
+      "A": "1969",
+      "B": "1971",
+      "C": "1973",
+      "D": "1975"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "Wat is de maximum transmission unit (MTU) voor Ethernet frames?",
+    "opties": {
+      "A": "1024 bytes",
+      "B": "1500 bytes",
+      "C": "2048 bytes",
+      "D": "4096 bytes"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke van deze is een voorbeeld van een NoSQL document database?",
+    "opties": {
+      "A": "Redis",
+      "B": "Cassandra",
+      "C": "Neo4j",
+      "D": "MongoDB"
+    },
+    "antwoord": "D"
+  },
+  {
+    "vraag": "In Git, wat doet de 'git rebase' commando?",
+    "opties": {
+      "A": "Maakt een nieuwe branch",
+      "B": "Verplaatst commits naar een nieuwe base",
+      "C": "Verwijdert uncommitted changes",
+      "D": "Comprimeert de repository"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de standaard character encoding voor HTML5?",
+    "opties": {
+      "A": "ASCII",
+      "B": "ISO-8859-1",
+      "C": "UTF-8",
+      "D": "UTF-16"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Welke RAID configuratie biedt striping zonder redundantie?",
+    "opties": {
+      "A": "RAID 0",
+      "B": "RAID 1",
+      "C": "RAID 5",
+      "D": "RAID 10"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "In IPv6, hoeveel bits heeft een adres?",
+    "opties": {
+      "A": "64",
+      "B": "96",
+      "C": "128",
+      "D": "256"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Wat is de rol van een DNS SOA record?",
+    "opties": {
+      "A": "Mail server informatie",
+      "B": "IP adres mapping",
+      "C": "Zone authority informatie",
+      "D": "Alias definitie"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Welke encryptie wordt gebruikt door WPA3?",
+    "opties": {
+      "A": "AES-CCMP",
+      "B": "AES-GCMP",
+      "C": "TKIP",
+      "D": "WEP"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In de context van machine learning, wat betekent 'overfitting'?",
+    "opties": {
+      "A": "Model is te simpel",
+      "B": "Model presteert slecht op training data",
+      "C": "Model presteert slecht op nieuwe data",
+      "D": "Model heeft te veel parameters"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Wat is de standaard poort voor SSH?",
+    "opties": {
+      "A": "21",
+      "B": "22",
+      "C": "23",
+      "D": "25"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke van deze is een property van ACID transacties?",
+    "opties": {
+      "A": "Accessibility",
+      "B": "Atomicity",
+      "C": "Availability",
+      "D": "Adaptability"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In CPU architectuur, wat betekent 'pipelining'?",
+    "opties": {
+      "A": "Parallel uitvoering van instructies",
+      "B": "Sequentiële uitvoering van instructies",
+      "C": "Overlapping van instructie fasen",
+      "D": "Cache optimalisatie"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Wat is de basis van RSA encryptie?",
+    "opties": {
+      "A": "Elliptische krommen",
+      "B": "Discrete logaritmen",
+      "C": "Factorization van grote priemgetallen",
+      "D": "Hash functies"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "In een B+ tree, waar worden data records opgeslagen?",
+    "opties": {
+      "A": "Alleen in leaf nodes",
+      "B": "Alleen in internal nodes",
+      "C": "In alle nodes",
+      "D": "In de root node"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "Wat is de functie van een load balancer?",
+    "opties": {
+      "A": "Encryptie van data",
+      "B": "Distributie van network traffic",
+      "C": "Database replicatie",
+      "D": "Memory management"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke HTTP status code betekent 'Internal Server Error'?",
+    "opties": {
+      "A": "404",
+      "B": "500",
+      "C": "502",
+      "D": "503"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In containerization, wat is de rol van een Docker registry?",
+    "opties": {
+      "A": "Container orchestration",
+      "B": "Image storage en distributie",
+      "C": "Resource monitoring",
+      "D": "Network configuration"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de maximale waarde van een 16-bit signed integer?",
+    "opties": {
+      "A": "32767",
+      "B": "32768",
+      "C": "65535",
+      "D": "65536"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "In JavaScript, wat is het verschil tussen '==' en '==='?",
+    "opties": {
+      "A": "Geen verschil",
+      "B": "=== controleert ook type",
+      "C": "== is sneller",
+      "D": "=== is deprecated"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke sorting algoritme heeft de beste average-case tijd complexiteit?",
+    "opties": {
+      "A": "Bubble Sort",
+      "B": "Insertion Sort",
+      "C": "Merge Sort",
+      "D": "Selection Sort"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Wat is de standaard poort voor HTTPS?",
+    "opties": {
+      "A": "80",
+      "B": "443",
+      "C": "8080",
+      "D": "8443"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In cloud computing, wat betekent 'IaaS'?",
+    "opties": {
+      "A": "Internet as a Service",
+      "B": "Infrastructure as a Service",
+      "C": "Integration as a Service",
+      "D": "Intelligence as a Service"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke van deze is GEEN principe van Object-Oriented Programming?",
+    "opties": {
+      "A": "Encapsulation",
+      "B": "Inheritance",
+      "C": "Polymorphism",
+      "D": "Compilation"
+    },
+    "antwoord": "D"
+  },
+  {
+    "vraag": "In SQL, wat doet een LEFT JOIN?",
+    "opties": {
+      "A": "Retourneert alleen matching records",
+      "B": "Retourneert alle records van de linker tabel",
+      "C": "Retourneert alle records van de rechter tabel",
+      "D": "Retourneert alle records van beide tabellen"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de functie van een CDN (Content Delivery Network)?",
+    "opties": {
+      "A": "Database backup",
+      "B": "Content caching dichter bij gebruikers",
+      "C": "Network security",
+      "D": "Code deployment"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In multithreading, wat is een 'race condition'?",
+    "opties": {
+      "A": "Snelle code executie",
+      "B": "Thread competitie voor resources",
+      "C": "Parallelle processing",
+      "D": "Thread synchronisatie"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke layer van de TCP/IP stack correspondeert met de Physical layer van OSI?",
+    "opties": {
+      "A": "Application",
+      "B": "Transport",
+      "C": "Internet",
+      "D": "Network Access"
+    },
+    "antwoord": "D"
+  },
+  {
+    "vraag": "Wat is de primary key constraint in relationele databases?",
+    "opties": {
+      "A": "Kan NULL waarden bevatten",
+      "B": "Moet uniek zijn per tabel",
+      "C": "Kan duplicate waarden hebben",
+      "D": "Is optioneel"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In regex, wat betekent het '^' symbool?",
+    "opties": {
+      "A": "Einde van string",
+      "B": "Begin van string",
+      "C": "Willekeurig karakter",
+      "D": "Herhaling"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke data structure gebruikt LIFO (Last In, First Out) principe?",
+    "opties": {
+      "A": "Queue",
+      "B": "Stack",
+      "C": "Array",
+      "D": "Linked List"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In cybersecurity, wat is 'social engineering'?",
+    "opties": {
+      "A": "Software ontwikkeling",
+      "B": "Network configuratie",
+      "C": "Manipulatie van mensen voor informatie",
+      "D": "Database optimalisatie"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Wat is de functie van DNS CNAME records?",
+    "opties": {
+      "A": "IP adres mapping",
+      "B": "Mail server info",
+      "C": "Alias naar andere domeinnaam",
+      "D": "Name server info"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "In software development, wat betekent 'CI/CD'?",
+    "opties": {
+      "A": "Code Integration/Code Deployment",
+      "B": "Continuous Integration/Continuous Deployment",
+      "C": "Central Integration/Central Deployment",
+      "D": "Custom Integration/Custom Deployment"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke van deze is een symmetrische encryptie algoritme?",
+    "opties": {
+      "A": "RSA",
+      "B": "AES",
+      "C": "Elliptic Curve",
+      "D": "Diffie-Hellman"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In virtualization, wat is een hypervisor?",
+    "opties": {
+      "A": "Operating system",
+      "B": "Virtual machine manager",
+      "C": "Network protocol",
+      "D": "Storage system"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de standaard timeout voor TCP connection establishment?",
+    "opties": {
+      "A": "30 seconden",
+      "B": "60 seconden",
+      "C": "75 seconden",
+      "D": "120 seconden"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "In machine learning, wat is een 'neural network'?",
+    "opties": {
+      "A": "Network topology",
+      "B": "Database schema",
+      "C": "Mathematical model gebaseerd op biologische neuronen",
+      "D": "Programming paradigm"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Welke HTTP method is idempotent?",
+    "opties": {
+      "A": "POST",
+      "B": "GET",
+      "C": "PATCH",
+      "D": "Alle bovenstaande"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In distributed systems, wat is 'eventual consistency'?",
+    "opties": {
+      "A": "Immediate consistency",
+      "B": "Strong consistency",
+      "C": "Consistency bereikt na enige tijd",
+      "D": "No consistency"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Wat is de primary functie van een compiler?",
+    "opties": {
+      "A": "Code debugging",
+      "B": "Code execution",
+      "C": "Source code naar machine code vertaling",
+      "D": "Code formatting"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "In networking, wat is een VLAN?",
+    "opties": {
+      "A": "Virtual Local Area Network",
+      "B": "Variable Length Access Network",
+      "C": "Verified Link Access Network",
+      "D": "Virtual Link Area Network"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "Welke van deze is een graph traversal algoritme?",
+    "opties": {
+      "A": "Dijkstra",
+      "B": "Depth-First Search",
+      "C": "A*",
+      "D": "Alle bovenstaande"
+    },
+    "antwoord": "D"
+  },
+  {
+    "vraag": "In cloud computing, wat betekent 'elasticity'?",
+    "opties": {
+      "A": "Data flexibility",
+      "B": "Network speed",
+      "C": "Automatisch schalen van resources",
+      "D": "Security features"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "Wat is de functie van een reverse proxy?",
+    "opties": {
+      "A": "Client-side caching",
+      "B": "Server-side load balancing",
+      "C": "Database optimization",
+      "D": "Network encryption"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In SQL, wat is de verschil tussen DELETE en TRUNCATE?",
+    "opties": {
+      "A": "Geen verschil",
+      "B": "TRUNCATE is sneller en reset auto-increment",
+      "C": "DELETE is sneller",
+      "D": "TRUNCATE kan gefilterd worden"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke consistentie model gebruikt eventual consistency?",
+    "opties": {
+      "A": "Strong consistency",
+      "B": "Weak consistency",
+      "C": "Sequential consistency",
+      "D": "Causal consistency"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In software architecture, wat is microservices pattern?",
+    "opties": {
+      "A": "Monolithic architecture",
+      "B": "Kleine, independent services",
+      "C": "Client-server model",
+      "D": "Layered architecture"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de functie van een message queue?",
+    "opties": {
+      "A": "Real-time communication",
+      "B": "Asynchronous message passing",
+      "C": "Database storage",
+      "D": "File system management"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In cryptography, wat is een digital signature?",
+    "opties": {
+      "A": "Data encryption method",
+      "B": "Authentication en non-repudiation mechanisme",
+      "C": "Password hashing",
+      "D": "Key exchange protocol"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke van deze is een NoSQL database type?",
+    "opties": {
+      "A": "Document store",
+      "B": "Key-value store",
+      "C": "Column family",
+      "D": "Alle bovenstaande"
+    },
+    "antwoord": "D"
+  },
+  {
+    "vraag": "In agile development, wat is een 'sprint'?",
+    "opties": {
+      "A": "Bug fix sessie",
+      "B": "Time-boxed development periode",
+      "C": "Code review proces",
+      "D": "Testing phase"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de Big O notatie voor binary search?",
+    "opties": {
+      "A": "O(1)",
+      "B": "O(log n)",
+      "C": "O(n)",
+      "D": "O(n²)"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In networking, wat is NAT (Network Address Translation)?",
+    "opties": {
+      "A": "Protocol voor routing",
+      "B": "IP adres conversie tussen netwerken",
+      "C": "Encryption method",
+      "D": "Network monitoring tool"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke van deze is een functional programming concept?",
+    "opties": {
+      "A": "Inheritance",
+      "B": "Immutability",
+      "C": "Polymorphism",
+      "D": "Encapsulation"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In database design, wat is denormalization?",
+    "opties": {
+      "A": "Removing redundancy",
+      "B": "Adding redundancy voor performance",
+      "C": "Data validation",
+      "D": "Index optimization"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de rol van een API Gateway?",
+    "opties": {
+      "A": "Database access",
+      "B": "API management en routing",
+      "C": "File storage",
+      "D": "User authentication"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In concurrent programming, wat is een semaphore?",
+    "opties": {
+      "A": "Data structure",
+      "B": "Synchronization primitive",
+      "C": "Algorithm",
+      "D": "Protocol"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke layer van het OSI model handelt routing af?",
+    "opties": {
+      "A": "Layer 2 - Data Link",
+      "B": "Layer 3 - Network",
+      "C": "Layer 4 - Transport",
+      "D": "Layer 5 - Session"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In software testing, wat is 'unit testing'?",
+    "opties": {
+      "A": "Testing van hele applicatie",
+      "B": "Testing van individuele componenten",
+      "C": "Performance testing",
+      "D": "User interface testing"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de functie van garbage collection?",
+    "opties": {
+      "A": "Code optimization",
+      "B": "Automatic memory management",
+      "C": "Error handling",
+      "D": "Performance monitoring"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In web development, wat is CORS?",
+    "opties": {
+      "A": "Code Organization and Review System",
+      "B": "Cross-Origin Resource Sharing",
+      "C": "Content Organization and Rendering Standard",
+      "D": "Client-Origin Request Security"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke data structure heeft O(1) average case voor search, insert en delete?",
+    "opties": {
+      "A": "Array",
+      "B": "Linked List",
+      "C": "Hash Table",
+      "D": "Binary Tree"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "In cybersecurity, wat is een 'zero-day' exploit?",
+    "opties": {
+      "A": "Oude bekende vulnerability",
+      "B": "Exploit voor onbekende vulnerability",
+      "C": "Dagelijkse security scan",
+      "D": "Preventieve security measure"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de functie van Docker containers?",
+    "opties": {
+      "A": "Virtual machines",
+      "B": "Application isolation en portability",
+      "C": "Database management",
+      "D": "Network configuration"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In machine learning, wat is 'supervised learning'?",
+    "opties": {
+      "A": "Learning zonder data",
+      "B": "Learning met labeled training data",
+      "C": "Learning met unlabeled data",
+      "D": "Learning met minimal data"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke protocol wordt gebruikt voor secure email transmission?",
+    "opties": {
+      "A": "SMTP",
+      "B": "POP3",
+      "C": "IMAP",
+      "D": "SMTPS"
+    },
+    "antwoord": "D"
+  },
+  {
+    "vraag": "In software design, wat is het Single Responsibility Principle?",
+    "opties": {
+      "A": "Een class mag maar één methode hebben",
+      "B": "Een class moet maar één reden hebben om te veranderen",
+      "C": "Een class mag maar één instance hebben",
+      "D": "Een class mag maar één parameter hebben"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de standaard encoding voor JSON?",
+    "opties": {
+      "A": "ASCII",
+      "B": "UTF-8",
+      "C": "UTF-16",
+      "D": "ISO-8859-1"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In distributed systems, wat is 'sharding'?",
+    "opties": {
+      "A": "Data replication",
+      "B": "Horizontal data partitioning",
+      "C": "Vertical data partitioning",
+      "D": "Data compression"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke van deze is een creational design pattern?",
+    "opties": {
+      "A": "Observer",
+      "B": "Singleton",
+      "C": "Strategy",
+      "D": "Command"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In networking, wat betekent QoS?",
+    "opties": {
+      "A": "Quality of Service",
+      "B": "Queue of Systems",
+      "C": "Quota of Storage",
+      "D": "Query of Servers"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "Wat is de functie van een blockchain?",
+    "opties": {
+      "A": "Database optimization",
+      "B": "Distributed immutable ledger",
+      "C": "Network protocol",
+      "D": "Encryption method"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In programming, wat is recursion?",
+    "opties": {
+      "A": "Loop structure",
+      "B": "Function die zichzelf aanroept",
+      "C": "Variable declaration",
+      "D": "Error handling"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke HTTP header wordt gebruikt voor caching control?",
+    "opties": {
+      "A": "Content-Type",
+      "B": "Cache-Control",
+      "C": "Authorization",
+      "D": "Accept"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In database systems, wat is MVCC?",
+    "opties": {
+      "A": "Multi-Version Concurrency Control",
+      "B": "Multi-Value Cache Control",
+      "C": "Multi-Vendor Configuration Control",
+      "D": "Multi-Variable Consistency Check"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "Welke sorting algoritme is het meest efficient voor kleine datasets?",
+    "opties": {
+      "A": "Quick Sort",
+      "B": "Merge Sort",
+      "C": "Insertion Sort",
+      "D": "Heap Sort"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "In cloud computing, wat is serverless computing?",
+    "opties": {
+      "A": "Computing zonder servers",
+      "B": "Function-as-a-Service model",
+      "C": "Client-side computing",
+      "D": "Peer-to-peer computing"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de functie van een webhook?",
+    "opties": {
+      "A": "Database trigger",
+      "B": "HTTP callback mechanisme",
+      "C": "Authentication method",
+      "D": "Caching strategy"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In artificial intelligence, wat is 'deep learning'?",
+    "opties": {
+      "A": "Shallow neural networks",
+      "B": "Neural networks met vele lagen",
+      "C": "Database learning",
+      "D": "Rule-based systems"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke van deze is een characteristic van functional programming?",
+    "opties": {
+      "A": "Mutable state",
+      "B": "Side effects",
+      "C": "Pure functions",
+      "D": "Object inheritance"
+    },
+    "antwoord": "C"
+  },
+  {
+    "vraag": "In networking, wat is BGP?",
+    "opties": {
+      "A": "Border Gateway Protocol",
+      "B": "Bandwidth Gateway Protocol",
+      "C": "Basic Gateway Protocol",
+      "D": "Binary Gateway Protocol"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "Wat is de maximum aantal characters in een tweet (origineel)?",
+    "opties": {
+      "A": "140",
+      "B": "280",
+      "C": "160",
+      "D": "200"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "In software engineering, wat is technical debt?",
+    "opties": {
+      "A": "Financial cost van software",
+      "B": "Time cost van poor code choices",
+      "C": "Hardware requirements",
+      "D": "User interface complexity"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Welke data structure gebruikt BFS (Breadth-First Search)?",
+    "opties": {
+      "A": "Stack",
+      "B": "Queue",
+      "C": "Priority Queue",
+      "D": "Deque"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In cybersecurity, wat is penetration testing?",
+    "opties": {
+      "A": "Performance testing",
+      "B": "Security vulnerability assessment",
+      "C": "Code review",
+      "D": "User acceptance testing"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de functie van Kubernetes?",
+    "opties": {
+      "A": "Database management",
+      "B": "Container orchestration",
+      "C": "Web development",
+      "D": "Mobile app development"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In machine learning, wat is 'reinforcement learning'?",
+    "opties": {
+      "A": "Learning door trial and error",
+      "B": "Learning met labeled data",
+      "C": "Learning met unlabeled data",
+      "D": "Learning zonder data"
+    },
+    "antwoord": "A"
+  },
+  {
+    "vraag": "Welke principle staat centraal in DevOps?",
+    "opties": {
+      "A": "Code quality",
+      "B": "Collaboration tussen development en operations",
+      "C": "Security first",
+      "D": "Cost reduction"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In web security, wat is XSS?",
+    "opties": {
+      "A": "XML Security Standard",
+      "B": "Cross-Site Scripting",
+      "C": "eXtended Security System",
+      "D": "eXternal Style Sheets"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "Wat is de primary purpose van version control systems?",
+    "opties": {
+      "A": "Code compilation",
+      "B": "Track changes in source code",
+      "C": "Code deployment",
+      "D": "Performance monitoring"
+    },
+    "antwoord": "B"
+  },
+  {
+    "vraag": "In database design, wat is een foreign key?",
+    "opties": {
+      "A": "Unique identifier in tabel",
+      "B": "Link naar primary key van andere tabel",
+      "C": "Encrypted field",
+      "D": "Index field"
+    },
+    "antwoord": "B"
+  }
+]
