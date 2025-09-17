@@ -117,12 +117,7 @@ async function startDailyQuiz(client, channelId) {
       await message.react(EMOJI_MAP[letter]);
     }
 
-    // Mark question as used
-    const usedQuestions = await loadUsedQuestions();
-    usedQuestions.push(randomQuiz);
-    await saveUsedQuestions(usedQuestions);
-
-    // Save active quiz
+    // Save active quiz (don't mark as used yet)
     const quizData = await loadQuizData();
     quizData.activeQuizzes[channelId] = {
       messageId: message.id,
@@ -131,7 +126,7 @@ async function startDailyQuiz(client, channelId) {
     };
     await saveQuizData(quizData);
 
-    console.log(`Dagelijkse quiz gestart! ${availableQuestions.length - 1} vragen over.`);
+    console.log(`Dagelijkse quiz gestart! ${availableQuestions.length} vragen over.`);
   } catch (error) {
     console.error('Fout bij starten quiz:', error);
   }
@@ -150,13 +145,19 @@ async function handleQuizReaction(reaction, user, added) {
   if (!emojiLetter) return;
 
   if (added) {
-    // User added reaction
+    // User added reaction - remove their reaction immediately and save their answer
+    try {
+      await reaction.users.remove(user.id);
+    } catch (err) {
+      console.error('Kon reactie niet verwijderen:', err);
+    }
+    
     activeQuiz.responses[user.id] = {
       answer: emojiLetter,
       username: user.username
     };
   } else {
-    // User removed reaction
+    // User removed reaction (this shouldn't happen often since we remove reactions immediately)
     delete activeQuiz.responses[user.id];
   }
 
@@ -208,6 +209,11 @@ async function endDailyQuiz(client, channelId) {
     // Update message and remove reactions
     await message.edit({ embeds: [embed] });
     await message.reactions.removeAll();
+
+    // Now mark the question as used
+    const usedQuestions = await loadUsedQuestions();
+    usedQuestions.push(activeQuiz.quiz);
+    await saveUsedQuestions(usedQuestions);
 
     // Clean up
     delete quizData.activeQuizzes[channelId];
