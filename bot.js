@@ -368,17 +368,17 @@ client.once("clientReady", async () => {
   
   // Set initial bot status
   client.user.setActivity('Hok status laden...', { type: ActivityType.Watching });
-  
-  // Schedule daily quiz at 8:00
-  cron.schedule('0 8 * * *', () => {
+
+  // Schedule daily quiz at 7:00
+  cron.schedule('0 7 * * *', () => {
     console.log('Starting daily quiz...');
     quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID);
   }, {
     timezone: "Europe/Amsterdam"
   });
 
-  // Schedule quiz results at 15:00
-  cron.schedule('0 15 * * *', () => {
+  // Schedule quiz results at 11:00
+  cron.schedule('0 11 * * *', () => {
     console.log('Ending daily quiz...');
     quiz.endDailyQuiz(client, QUIZ_CHANNEL_ID);
   }, {
