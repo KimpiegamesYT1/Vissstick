@@ -64,12 +64,23 @@ async function cleanOldData(hokData) {
 }
 
 function predictOpeningTime(isOpen, hokData) {
-  const currentDay = new Date().getDay();
+  let targetDay;
+  
+  if (isOpen) {
+    // Als hok open is, voorspel sluittijd voor vandaag
+    targetDay = new Date().getDay();
+  } else {
+    // Als hok dicht is, voorspel openingstijd voor morgen
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    targetDay = tomorrow.getDay();
+  }
+  
   let relevantTimes = [];
   
-  // Verzamel alle tijden voor dezelfde weekdag
+  // Verzamel alle tijden voor de doeldag
   Object.entries(hokData.openingTimes).forEach(([date, data]) => {
-    if (getWeekDay(date) === currentDay) {
+    if (getWeekDay(date) === targetDay) {
       if (isOpen) {
         // Voor sluittijd, pak de laatste tijd van de dag
         if (data.closeTimes.length > 0) {
