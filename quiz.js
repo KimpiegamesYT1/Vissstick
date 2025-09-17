@@ -107,7 +107,7 @@ async function startDailyQuiz(client, channelId) {
       )
       .setColor('#0099ff')
       .setFooter({ 
-        text: `Reageer met de juiste emoji! Antwoord wordt om 15:00 bekendgemaakt. (${availableQuestions.length}/${allQuestions.length} vragen over)` 
+        text: `Reageer met de juiste emoji! Antwoord wordt om 11:00 bekendgemaakt. (${availableQuestions.length}/${allQuestions.length} vragen over)` 
       });
 
     const message = await channel.send({ embeds: [embed] });
