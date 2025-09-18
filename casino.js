@@ -552,13 +552,13 @@ function createCasinoMenu(playerData, userId) {
         .setDisabled(!canClaimTokens(playerData)),
       new ButtonBuilder()
         .setCustomId('casino_slots')
-        .setLabel(`Slots (${CASINO_CONFIG.SLOT_COST} tokens)`)
+        .setLabel('Slots')
         .setEmoji(EMOJIS.SLOTS)
         .setStyle(ButtonStyle.Primary)
         .setDisabled(playerData.tokens < CASINO_CONFIG.SLOT_COST),
       new ButtonBuilder()
         .setCustomId('casino_roulette')
-        .setLabel(`Roulette (${CASINO_CONFIG.ROULETTE_MIN_BET}+ tokens)`)
+        .setLabel('Roulette')
         .setEmoji(EMOJIS.ROULETTE)
         .setStyle(ButtonStyle.Primary)
         .setDisabled(playerData.tokens < CASINO_CONFIG.ROULETTE_MIN_BET)
@@ -568,7 +568,7 @@ function createCasinoMenu(playerData, userId) {
     .addComponents(
       new ButtonBuilder()
         .setCustomId('casino_blackjack')
-        .setLabel(`Blackjack (${CASINO_CONFIG.BLACKJACK_MIN_BET}+ tokens)`)
+        .setLabel('Blackjack')
         .setEmoji(EMOJIS.BLACKJACK)
         .setStyle(ButtonStyle.Primary)
         .setDisabled(playerData.tokens < CASINO_CONFIG.BLACKJACK_MIN_BET),
