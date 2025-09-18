@@ -599,9 +599,9 @@ async function playSlots(userId) {
   playerData.tokens -= CASINO_CONFIG.SLOT_COST;
   playerData.gamesPlayed++;
   
-  // Slot symbols with different rarities (betere kansen)
+  // Slot symbols with different rarities (meer realistische balans)
   const symbols = ['🍒', '🍊', '🍋', '🍇', '🔔', '⭐', '💎'];
-  const weights = [25, 20, 18, 15, 10, 7, 5]; // Betere verdeling, meer kans op wins
+  const weights = [35, 25, 20, 12, 5, 2, 1]; // Meer realistische verdeling - meer verlies kansen
   
   function getRandomSymbol() {
     const totalWeight = weights.reduce((a, b) => a + b, 0);
@@ -620,15 +620,23 @@ async function playSlots(userId) {
   
   // Check for wins
   if (result[0] === result[1] && result[1] === result[2]) {
-    // Three of a kind
+    // Three of a kind - meer gebalanceerde uitbetalingen
     const symbolIndex = symbols.indexOf(result[0]);
-    const multipliers = [15, 20, 25, 40, 75, 150, 750]; // Hogere uitbetalingen
+    const multipliers = [8, 12, 18, 25, 50, 100, 500]; // Lagere uitbetalingen voor balans
     winnings = CASINO_CONFIG.SLOT_COST * multipliers[symbolIndex];
     winType = 'JACKPOT! Drie van hetzelfde!';
   } else if (result[0] === result[1] || result[1] === result[2] || result[0] === result[2]) {
-    // Two of a kind
-    winnings = CASINO_CONFIG.SLOT_COST * 3; // Betere uitbetaling voor two of a kind
+    // Two of a kind - kleinere winst
+    winnings = CASINO_CONFIG.SLOT_COST * 2; // Terug naar 2x (was 3x)
     winType = 'Twee van hetzelfde!';
+  } else if (result.includes('🍒') && result.includes('🍊')) {
+    // Special combo: Cherry + Orange = kleine win
+    winnings = CASINO_CONFIG.SLOT_COST * 1.5;
+    winType = 'Lucky Fruit Combo!';
+  } else if (result.includes('⭐')) {
+    // Any star = tiny win
+    winnings = CASINO_CONFIG.SLOT_COST * 1;
+    winType = 'Lucky Star!';
   }
   
   if (winnings > 0) {
