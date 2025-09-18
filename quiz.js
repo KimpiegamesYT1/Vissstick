@@ -196,7 +196,7 @@ async function handleQuizReaction(reaction, user, added) {
     // Send confirmation message that only the user can see (ephemeral-like via DM or temporary message)
     try {
       const confirmationMessage = await reaction.message.channel.send(
-        `<@${user.id}> Je hebt geantwoord: **${emojiLetter}** ${EMOJI_MAP[emojiLetter]}`
+        `<@${user.id}> Je hebt geantwoord: **${emojiLetter}**`
       );
       // Delete the confirmation message after 3 seconds
       setTimeout(() => {
