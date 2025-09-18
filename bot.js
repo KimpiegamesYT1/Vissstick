@@ -7,7 +7,6 @@ const fs = require('fs').promises;
 const path = require('path');
 const cron = require('node-cron');
 const quiz = require('./quiz.js');
-const casino = require('./casino.js');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, API_URL, ROLE_ID } = config;
@@ -251,122 +250,123 @@ client.on('messageReactionRemove', async (reaction, user) => {
 
 // Replace the messageCreate handler with slash commands
 client.on('interactionCreate', async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-    const { commandName } = interaction;
+  if (!interaction.isChatInputCommand()) return;
 
-    if (commandName === 'hokhistorie') {
-      const hokData = await loadHokData();
-      const stats = Object.entries(hokData.openingTimes)
-        .sort()
-        .map(([date, times]) => {
-          return `**${date}**:\n` +
-                 `📗 Open: ${times.openTimes.join(', ') || 'geen'}\n` +
-                 `📕 Dicht: ${times.closeTimes.join(', ') || 'geen'}`;
-        })
-        .join('\n\n');
+  const { commandName } = interaction;
+
+  if (commandName === 'hokhistorie') {
+    const hokData = await loadHokData();
+    const stats = Object.entries(hokData.openingTimes)
+      .sort()
+      .map(([date, times]) => {
+        return `**${date}**:\n` +
+               `📗 Open: ${times.openTimes.join(', ') || 'geen'}\n` +
+               `📕 Dicht: ${times.closeTimes.join(', ') || 'geen'}`;
+      })
+      .join('\n\n');
+    
+    await interaction.reply(stats || 'Nog geen data beschikbaar');
+  }
+
+  if (commandName === 'hokstatus') {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
       
-      await interaction.reply(stats || 'Nog geen data beschikbaar');
-    }
-
-    if (commandName === 'hokstatus') {
-      try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        
-        if (!data || !data.payload) {
-          await interaction.reply('❌ Kon status niet ophalen');
-          return;
-        }
-
-        const isOpen = data.payload.open === 1;
-        const hokData = await loadHokData();
-        const predictedTime = predictOpeningTime(isOpen, hokData);
-        const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
-        
-        await interaction.reply(
-          isOpen 
-            ? `✅ Het hok is momenteel **open**!${predictionMsg}` 
-            : `❌ Het hok is momenteel **dicht**!${predictionMsg}`
-        );
-      } catch (err) {
-        console.error("Fout bij ophalen status:", err);
-        await interaction.reply('❌ Fout bij ophalen van de status');
-      }
-    }
-
-    if (commandName === 'hokupdate') {
-      if (!interaction.member.permissions.has('Administrator')) {
-        await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+      if (!data || !data.payload) {
+        await interaction.reply('❌ Kon status niet ophalen');
         return;
       }
 
-      try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        
-        if (!data || !data.payload) {
-          await interaction.reply({ content: '❌ Kon status niet ophalen', flags: 64 });
-          return;
-        }
+      const isOpen = data.payload.open === 1;
+      const hokData = await loadHokData();
+      const predictedTime = predictOpeningTime(isOpen, hokData);
+      const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
+      
+      await interaction.reply(
+        isOpen 
+          ? `✅ Het hok is momenteel **open**!${predictionMsg}` 
+          : `❌ Het hok is momenteel **dicht**!${predictionMsg}`
+      );
+    } catch (err) {
+      console.error("Fout bij ophalen status:", err);
+      await interaction.reply('❌ Fout bij ophalen van de status');
+    }
+  }
 
-        const isOpen = data.payload.open === 1;
-        const channel = await client.channels.fetch(CHANNEL_ID);
-        const hokData = await loadHokData();
-        
-        // Update bot status
-        client.user.setActivity(
-          isOpen ? 'Hok is open 📗' : 'Hok is dicht 📕',
-          { type: ActivityType.Watching }
-        );
-        
-        // Update channel name
-        await channel.setName(isOpen ? "📗-hok-is-open" : "📕-hok-is-dicht");
-        
-        // Remove old message if exists
-        if (lastMessage) {
-          try {
-            await lastMessage.delete();
-          } catch (err) {
-            console.error("Kon vorig bericht niet verwijderen:", err);
-          }
-        }
-
-        // Send new message
-        const predictedTime = predictOpeningTime(isOpen, hokData);
-        const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
-
-        const message = await channel.send(
-          isOpen 
-            ? `✅ Het <@&${ROLE_ID}> is nu **open**!${predictionMsg}` 
-            : `❌ Het <@&${ROLE_ID}> is nu **dicht**!${predictionMsg}`
-        );
-        
-        await message.react('🔔');
-        lastMessage = message;
-        lastStatus = isOpen;
-
-        await interaction.reply({ content: '✅ Hok status succesvol geüpdatet!', flags: 64 });
-      } catch (err) {
-        console.error("Fout bij updaten status:", err);
-        await interaction.reply({ content: '❌ Fout bij updaten van de status', flags: 64 });
-      }
+  if (commandName === 'hokupdate') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+      return;
     }
 
-    if (commandName === 'testquiz') {
-      if (!interaction.member.permissions.has('Administrator')) {
-        await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      
+      if (!data || !data.payload) {
+        await interaction.reply({ content: '❌ Kon status niet ophalen', flags: 64 });
         return;
       }
 
-      await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, 1); // 1 minuut timeout voor test quiz
-      await interaction.reply({ content: '✅ Test quiz gestart! Resultaten worden automatisch getoond na 1 minuut.', flags: 64 });
+      const isOpen = data.payload.open === 1;
+      const channel = await client.channels.fetch(CHANNEL_ID);
+      const hokData = await loadHokData();
+      
+      // Update bot status
+      client.user.setActivity(
+        isOpen ? 'Hok is open 📗' : 'Hok is dicht 📕',
+        { type: ActivityType.Watching }
+      );
+      
+      // Update channel name
+      await channel.setName(isOpen ? "📗-hok-is-open" : "📕-hok-is-dicht");
+      
+      // Remove old message if exists
+      if (lastMessage) {
+        try {
+          await lastMessage.delete();
+        } catch (err) {
+          console.error("Kon vorig bericht niet verwijderen:", err);
+        }
+      }
+
+      // Send new message
+      const predictedTime = predictOpeningTime(isOpen, hokData);
+      const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
+
+      const message = await channel.send(
+        isOpen 
+          ? `✅ Het <@&${ROLE_ID}> is nu **open**!${predictionMsg}` 
+          : `❌ Het <@&${ROLE_ID}> is nu **dicht**!${predictionMsg}`
+      );
+      
+      await message.react('🔔');
+      lastMessage = message;
+      lastStatus = isOpen;
+
+      await interaction.reply({ content: '✅ Hok status succesvol geüpdatet!', flags: 64 });
+    } catch (err) {
+      console.error("Fout bij updaten status:", err);
+      await interaction.reply({ content: '❌ Fout bij updaten van de status', flags: 64 });
+    }
+  }
+
+  if (commandName === 'testquiz') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+      return;
     }
 
-    if (commandName === 'resetquiz') {
-      if (!interaction.member.permissions.has('Administrator')) {
-        await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
-        return;
-      }
+    await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, 1); // 1 minuut timeout voor test quiz
+    await interaction.reply({ content: '✅ Test quiz gestart! Resultaten worden automatisch getoond na 1 minuut.', flags: 64 });
+  }
+
+  if (commandName === 'resetquiz') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+      return;
+    }
 
       await quiz.resetUsedQuestions();
       await interaction.reply({ content: '✅ Quiz vragen zijn gereset! Alle vragen kunnen weer gebruikt worden.', flags: 64 });
@@ -375,9 +375,6 @@ client.on('interactionCreate', async (interaction) => {
     if (commandName === 'casino') {
       const playerData = await casino.getPlayerData(interaction.user.id);
       const casinoMenu = casino.createCasinoMenu(playerData, interaction.user.id);
-      // Store the original user ID in the message for button verification
-      casinoMenu.allowedMentions = { parse: [] };
-      casinoMenu.content = `<@${interaction.user.id}>`;
       await interaction.reply(casinoMenu);
     }
   }
@@ -386,36 +383,10 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
     const userId = interaction.user.id;
     
-    // Check if this is a casino button and verify the user
-    if (interaction.customId.startsWith('casino_') || interaction.customId.startsWith('roulette_') || interaction.customId.startsWith('upgrade_') || interaction.customId.startsWith('blackjack_')) {
-      // Get the original message to check who initiated the casino
-      const originalMessage = interaction.message;
-      let authorizedUserId = null;
-      
-      // Extract the user ID from the message content (format: <@userId>)
-      if (originalMessage.content) {
-        const userMention = originalMessage.content.match(/<@(\d+)>/);
-        if (userMention) {
-          authorizedUserId = userMention[1];
-        }
-      }
-      
-      // If we can't find the authorized user or if it's a different user, deny access
-      if (!authorizedUserId || userId !== authorizedUserId) {
-        await interaction.reply({ 
-          content: '❌ Je kunt alleen reageren op je eigen casino spel! Gebruik `/casino` om je eigen spel te starten.', 
-          flags: 64 
-        });
-        return;
-      }
-    }
-    
     try {
       if (interaction.customId === 'casino_menu') {
         const playerData = await casino.getPlayerData(userId);
         const casinoMenu = casino.createCasinoMenu(playerData, userId);
-        casinoMenu.content = `<@${userId}>`;
-        casinoMenu.allowedMentions = { parse: [] };
         await interaction.update(casinoMenu);
         
       } else if (interaction.customId === 'casino_collect') {
@@ -423,49 +394,29 @@ client.on('interactionCreate', async (interaction) => {
         if (result.success) {
           const playerData = await casino.getPlayerData(userId);
           const casinoMenu = casino.createCasinoMenu(playerData, userId);
-          casinoMenu.content = `<@${userId}>`;
-          casinoMenu.allowedMentions = { parse: [] };
           await interaction.update(casinoMenu);
           
           if (result.tokensAdded > 0) {
             await interaction.followUp({ 
               content: `${casino.EMOJIS.COLLECT} Je hebt ${result.tokensAdded} tokens verzameld! ${result.maxReached ? '(Maximum bereikt!)' : ''}`, 
-              flags: 64 
+              ephemeral: true 
             });
           }
         } else {
-          await interaction.reply({ content: result.message, flags: 64 });
+          await interaction.reply({ content: result.message, ephemeral: true });
         }
         
-      } else if (interaction.customId === 'casino_slots_interface') {
-        const result = await casino.showSlotsInterface(userId);
-        await interaction.update(result);
-        
-      } else if (interaction.customId.startsWith('casino_slots_bet_')) {
-        const betAmount = parseInt(interaction.customId.split('_')[3]);
-        const result = await casino.showSlotsInterface(userId, betAmount);
-        await interaction.update(result);
-        
-      } else if (interaction.customId.startsWith('casino_slots_play_')) {
-        const betAmount = parseInt(interaction.customId.split('_')[3]);
-        const result = await casino.playSlots(userId, betAmount);
+      } else if (interaction.customId === 'casino_slots') {
+        const result = await casino.playSlots(userId);
         if (result.error) {
-          await interaction.reply({ content: result.error, flags: 64 });
+          await interaction.reply({ content: result.error, ephemeral: true });
         } else {
           await interaction.update(result);
         }
         
-      } else if (interaction.customId === 'casino_slots') {
-        // Legacy slots button - redirect to interface
-        const result = await casino.showSlotsInterface(userId);
-        await interaction.update(result);
-        
       } else if (interaction.customId === 'casino_roulette') {
-        // Always get fresh player data for accurate token counts
         const playerData = await casino.getPlayerData(userId);
         const rouletteMenu = casino.createRouletteMenu(playerData);
-        rouletteMenu.content = `<@${userId}>`;
-        rouletteMenu.allowedMentions = { parse: [] };
         await interaction.update(rouletteMenu);
         
       } else if (interaction.customId.startsWith('roulette_')) {
@@ -473,19 +424,10 @@ client.on('interactionCreate', async (interaction) => {
         const betType = parts[1]; // red, black, lucky
         const betAmount = parseInt(parts[2]); // bet amount
         
-        // Double-check token balance before playing
-        const playerData = await casino.getPlayerData(userId);
-        if (playerData.tokens < betAmount) {
-          await interaction.reply({ content: `❌ Niet genoeg tokens! Je hebt ${playerData.tokens} tokens, maar je probeert ${betAmount} tokens in te zetten.`, flags: 64 });
-          return;
-        }
-        
         const result = await casino.playRoulette(userId, betType, betAmount);
         if (result.error) {
-          await interaction.reply({ content: result.error, flags: 64 });
+          await interaction.reply({ content: result.error, ephemeral: true });
         } else {
-          result.content = `<@${userId}>`;
-          result.allowedMentions = { parse: [] };
           await interaction.update(result);
           
           // Send big win notification if it's a jackpot
@@ -500,7 +442,7 @@ client.on('interactionCreate', async (interaction) => {
       } else if (interaction.customId === 'casino_wheel') {
         const result = await casino.spinDailyWheel(userId);
         if (result.error) {
-          await interaction.reply({ content: result.error, flags: 64 });
+          await interaction.reply({ content: result.error, ephemeral: true });
         } else {
           await interaction.update(result);
           
@@ -514,11 +456,8 @@ client.on('interactionCreate', async (interaction) => {
         }
         
       } else if (interaction.customId === 'casino_upgrades') {
-        // Get fresh player data for accurate token balance
         const playerData = await casino.getPlayerData(userId);
         const upgradesMenu = casino.createUpgradesMenu(playerData);
-        upgradesMenu.content = `<@${userId}>`;
-        upgradesMenu.allowedMentions = { parse: [] };
         await interaction.update(upgradesMenu);
         
       } else if (interaction.customId.startsWith('upgrade_')) {
@@ -528,62 +467,15 @@ client.on('interactionCreate', async (interaction) => {
         if (result.success) {
           const upgradesMenu = casino.createUpgradesMenu(result.playerData);
           await interaction.update(upgradesMenu);
-          await interaction.followUp({ content: `${casino.EMOJIS.UPGRADE} ${result.message}`, flags: 64 });
+          await interaction.followUp({ content: `${casino.EMOJIS.UPGRADE} ${result.message}`, ephemeral: true });
         } else {
-          await interaction.reply({ content: result.message, flags: 64 });
-        }
-        
-      } else if (interaction.customId === 'casino_blackjack') {
-        // Show blackjack betting menu with fresh player data
-        const playerData = await casino.getPlayerData(userId);
-        const blackjackMenu = casino.createBlackjackMenu(playerData);
-        blackjackMenu.content = `<@${userId}>`;
-        blackjackMenu.allowedMentions = { parse: [] };
-        await interaction.update(blackjackMenu);
-        
-      } else if (interaction.customId.startsWith('blackjack_bet_')) {
-        const betAmount = parseInt(interaction.customId.split('_')[2]);
-        
-        // Double-check token balance before playing
-        const playerData = await casino.getPlayerData(userId);
-        if (playerData.tokens < betAmount) {
-          await interaction.reply({ content: `❌ Niet genoeg tokens! Je hebt ${playerData.tokens} tokens, maar je probeert ${betAmount} tokens in te zetten.`, flags: 64 });
-          return;
-        }
-        
-        const result = await casino.startBlackjack(userId, betAmount);
-        if (result.error) {
-          await interaction.reply({ content: result.error, flags: 64 });
-        } else {
-          result.content = `<@${userId}>`;
-          result.allowedMentions = { parse: [] };
-          await interaction.update(result);
-        }
-        
-      } else if (interaction.customId === 'blackjack_hit') {
-        const result = await casino.blackjackHit(userId);
-        if (result.error) {
-          await interaction.reply({ content: result.error, flags: 64 });
-        } else {
-          result.content = `<@${userId}>`;
-          result.allowedMentions = { parse: [] };
-          await interaction.update(result);
-        }
-        
-      } else if (interaction.customId === 'blackjack_stand') {
-        const result = await casino.blackjackStand(userId);
-        if (result.error) {
-          await interaction.reply({ content: result.error, flags: 64 });
-        } else {
-          result.content = `<@${userId}>`;
-          result.allowedMentions = { parse: [] };
-          await interaction.update(result);
+          await interaction.reply({ content: result.message, ephemeral: true });
         }
       }
     } catch (error) {
       console.error('Casino interaction error:', error);
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: 'Er is een fout opgetreden!', flags: 64 });
+        await interaction.reply({ content: 'Er is een fout opgetreden!', ephemeral: true });
       }
     }
   }
@@ -633,10 +525,6 @@ client.once("clientReady", async () => {
     {
       name: 'resetquiz',
       description: 'Reset de gebruikte quiz vragen (alleen voor administrators)'
-    },
-    {
-      name: 'casino',
-      description: 'Open het Lucky Hour Casino!'
     }
   ];
 
