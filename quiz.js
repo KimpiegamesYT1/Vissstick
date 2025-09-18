@@ -103,10 +103,10 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
       .setTitle('📝 Dagelijkse Quiz!')
       .setDescription(randomQuiz.vraag)
       .addFields(
-        Object.entries(randomQuiz.opties).map(([letter, option], index) => ({
+        Object.entries(randomQuiz.opties).map(([letter, option]) => ({
           name: `${EMOJI_MAP[letter]} ${letter}`,
           value: option,
-          inline: index < 2 // A en B inline, C en D inline (2 per rij)
+          inline: false // Alle antwoorden onder elkaar
         }))
       )
       .setColor('#0099ff')
@@ -195,10 +195,10 @@ async function handleQuizReaction(reaction, user, added) {
       .setTitle('📝 Dagelijkse Quiz!')
       .setDescription(activeQuiz.quiz.vraag)
       .addFields(
-        Object.entries(activeQuiz.quiz.opties).map(([letter, option], index) => ({
+        Object.entries(activeQuiz.quiz.opties).map(([letter, option]) => ({
           name: `${EMOJI_MAP[letter]} ${letter}`,
           value: option,
-          inline: index < 2 // A en B inline, C en D inline (2 per rij)
+          inline: false // Alle antwoorden onder elkaar
         }))
       )
       .setColor('#0099ff')
