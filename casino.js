@@ -545,12 +545,6 @@ function createCasinoMenu(playerData, userId) {
   const row1 = new ActionRowBuilder()
     .addComponents(
       new ButtonBuilder()
-        .setCustomId('casino_collect')
-        .setLabel(`Claim ${CASINO_CONFIG.FREE_TOKENS_AMOUNT * playerData.tokenMultiplier} Tokens`)
-        .setEmoji(EMOJIS.COLLECT)
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(!canClaimTokens(playerData)),
-      new ButtonBuilder()
         .setCustomId('casino_slots')
         .setLabel('Slots')
         .setEmoji(EMOJIS.SLOTS)
@@ -561,17 +555,23 @@ function createCasinoMenu(playerData, userId) {
         .setLabel('Roulette')
         .setEmoji(EMOJIS.ROULETTE)
         .setStyle(ButtonStyle.Primary)
-        .setDisabled(playerData.tokens < CASINO_CONFIG.ROULETTE_MIN_BET)
-    );
-
-  const row2 = new ActionRowBuilder()
-    .addComponents(
+        .setDisabled(playerData.tokens < CASINO_CONFIG.ROULETTE_MIN_BET),
       new ButtonBuilder()
         .setCustomId('casino_blackjack')
         .setLabel('Blackjack')
         .setEmoji(EMOJIS.BLACKJACK)
         .setStyle(ButtonStyle.Primary)
-        .setDisabled(playerData.tokens < CASINO_CONFIG.BLACKJACK_MIN_BET),
+        .setDisabled(playerData.tokens < CASINO_CONFIG.BLACKJACK_MIN_BET)
+    );
+
+  const row2 = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId('casino_collect')
+        .setLabel(`Claim ${CASINO_CONFIG.FREE_TOKENS_AMOUNT * playerData.tokenMultiplier} Tokens`)
+        .setEmoji(EMOJIS.COLLECT)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(!canClaimTokens(playerData)),
       new ButtonBuilder()
         .setCustomId('casino_wheel')
         .setLabel(canDailyWheel ? 'Daily Wheel (Gratis!)' : 'Daily Wheel (24u wachten)')
