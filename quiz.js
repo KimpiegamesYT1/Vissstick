@@ -192,6 +192,19 @@ async function handleQuizReaction(reaction, user, added) {
       answer: emojiLetter,
       username: user.username
     };
+    
+    // Send confirmation message that only the user can see (ephemeral-like via DM or temporary message)
+    try {
+      const confirmationMessage = await reaction.message.channel.send(
+        `<@${user.id}> Je hebt geantwoord: **${emojiLetter}** ${EMOJI_MAP[emojiLetter]}`
+      );
+      // Delete the confirmation message after 3 seconds
+      setTimeout(() => {
+        confirmationMessage.delete().catch(err => console.error('Kon bevestigingsbericht niet verwijderen:', err));
+      }, 3000);
+    } catch (err) {
+      console.error('Kon bevestigingsbericht niet sturen:', err);
+    }
   } else {
     // User removed reaction - remove their stored answer
     delete activeQuiz.responses[user.id];
@@ -202,12 +215,11 @@ async function handleQuizReaction(reaction, user, added) {
   // Update the original message footer with current response count
   try {
     const { all: allQuestions, available: availableQuestions } = await loadQuizList();
-    const totalResponses = Object.keys(activeQuiz.responses).length;
     
     // Different footer text for test quiz vs regular quiz
     const footerText = activeQuiz.isTestQuiz 
-      ? `Test quiz eindigt na ${activeQuiz.timeoutMinutes} minuten. ${availableQuestions.length} vragen over | ${totalResponses} antwoorden`
-      : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over | ${totalResponses} antwoorden`;
+      ? `Test quiz eindigt na ${activeQuiz.timeoutMinutes} minuten. ${availableQuestions.length} vragen over`
+      : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over`;
     
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
@@ -265,7 +277,7 @@ async function endDailyQuiz(client, channelId) {
     Object.keys(activeQuiz.quiz.opties).forEach(letter => {
       const users = responsesByAnswer[letter] || [];
       const isCorrect = letter === correctAnswer;
-      const letterDisplay = isCorrect ? `**"${letter}"**` : `"${letter}"`;
+      const letterDisplay = isCorrect ? `**${letter}**` : letter;
       description += `${letterDisplay}: ${users.join(', ') || 'Niemand'}\n`;
     });
 
