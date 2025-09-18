@@ -70,7 +70,7 @@ async function loadQuizList() {
 }
 
 // Start daily quiz
-async function startDailyQuiz(client, channelId) {
+async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
   try {
     const channel = await client.channels.fetch(channelId);
     if (!channel) return console.error('Quiz kanaal niet gevonden!');
@@ -94,7 +94,11 @@ async function startDailyQuiz(client, channelId) {
     // Select random quiz from available questions
     const randomQuiz = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
     
-    // Create embed
+    // Create embed with appropriate footer message
+    const footerText = timeoutMinutes 
+      ? `Reageer met de juiste emoji! Test quiz eindigt na ${timeoutMinutes} minuten. (${availableQuestions.length}/${allQuestions.length} vragen over)`
+      : `Reageer met de juiste emoji! Antwoord wordt om 11:00 bekendgemaakt. (${availableQuestions.length}/${allQuestions.length} vragen over)`;
+
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
       .setDescription(randomQuiz.vraag)
@@ -106,9 +110,7 @@ async function startDailyQuiz(client, channelId) {
         }))
       )
       .setColor('#0099ff')
-      .setFooter({ 
-        text: `Reageer met de juiste emoji! Antwoord wordt om 11:00 bekendgemaakt. (${availableQuestions.length}/${allQuestions.length} vragen over)` 
-      });
+      .setFooter({ text: footerText });
 
     const message = await channel.send({ embeds: [embed] });
 
@@ -122,11 +124,22 @@ async function startDailyQuiz(client, channelId) {
     quizData.activeQuizzes[channelId] = {
       messageId: message.id,
       quiz: randomQuiz,
-      responses: {}
+      responses: {},
+      isTestQuiz: timeoutMinutes !== null
     };
     await saveQuizData(quizData);
 
-    console.log(`Dagelijkse quiz gestart! ${availableQuestions.length} vragen over.`);
+    // Set timeout for test quiz
+    if (timeoutMinutes) {
+      setTimeout(async () => {
+        console.log(`Test quiz timeout na ${timeoutMinutes} minuten`);
+        await endDailyQuiz(client, channelId);
+      }, timeoutMinutes * 60 * 1000);
+      
+      console.log(`Test quiz gestart! Eindigt automatisch na ${timeoutMinutes} minuten.`);
+    } else {
+      console.log(`Dagelijkse quiz gestart! ${availableQuestions.length} vragen over.`);
+    }
   } catch (error) {
     console.error('Fout bij starten quiz:', error);
   }
@@ -162,6 +175,34 @@ async function handleQuizReaction(reaction, user, added) {
   }
 
   await saveQuizData(quizData);
+
+  // Update the original message footer with current response count
+  try {
+    const { all: allQuestions, available: availableQuestions } = await loadQuizList();
+    const totalResponses = Object.keys(activeQuiz.responses).length;
+    
+    // Different footer text for test quiz vs regular quiz
+    const footerText = activeQuiz.isTestQuiz 
+      ? `Reageer met de juiste emoji! Test quiz eindigt na 5 minuten. (${availableQuestions.length}/${allQuestions.length} vragen over) | ${totalResponses} antwoorden`
+      : `Reageer met de juiste emoji! Antwoord wordt om 11:00 bekendgemaakt. (${availableQuestions.length}/${allQuestions.length} vragen over) | ${totalResponses} antwoorden`;
+    
+    const embed = new EmbedBuilder()
+      .setTitle('📝 Dagelijkse Quiz!')
+      .setDescription(activeQuiz.quiz.vraag)
+      .addFields(
+        Object.entries(activeQuiz.quiz.opties).map(([letter, option]) => ({
+          name: `${EMOJI_MAP[letter]} ${letter}`,
+          value: option,
+          inline: true
+        }))
+      )
+      .setColor('#0099ff')
+      .setFooter({ text: footerText });
+
+    await reaction.message.edit({ embeds: [embed] });
+  } catch (err) {
+    console.error('Kon bericht niet updaten:', err);
+  }
 }
 
 // End daily quiz (show results)
@@ -173,7 +214,6 @@ async function endDailyQuiz(client, channelId) {
     if (!activeQuiz) return;
 
     const channel = await client.channels.fetch(channelId);
-    const message = await channel.messages.fetch(activeQuiz.messageId);
 
     // Create results embed
     const correctAnswer = activeQuiz.quiz.antwoord;
@@ -188,27 +228,28 @@ async function endDailyQuiz(client, channelId) {
       responsesByAnswer[response.answer].push(response.username);
     });
 
+    // Build description with new layout
+    let description = `**Vraag:** ${activeQuiz.quiz.vraag}\n\n`;
+    description += `**Juiste antwoord:** ${correctAnswer} - ${correctOption}\n\n`;
+
+    // Add answer options with participants
+    Object.keys(activeQuiz.quiz.opties).forEach(letter => {
+      const users = responsesByAnswer[letter] || [];
+      const isCorrect = letter === correctAnswer;
+      const letterDisplay = isCorrect ? `**"${letter}"**` : `"${letter}"`;
+      description += `${letterDisplay}: ${users.join(', ') || 'Niemand'}\n`;
+    });
+
     const embed = new EmbedBuilder()
       .setTitle('📊 Quiz Resultaten')
-      .setDescription(`**Vraag:** ${activeQuiz.quiz.vraag}\n\n**Juiste antwoord:** ${EMOJI_MAP[correctAnswer]} ${correctAnswer} - ${correctOption}`)
+      .setDescription(description)
       .setColor('#00ff00');
-
-    // Add response fields
-    Object.entries(responsesByAnswer).forEach(([letter, users]) => {
-      const isCorrect = letter === correctAnswer;
-      embed.addFields({
-        name: `${EMOJI_MAP[letter]} ${letter} ${isCorrect ? '✅' : '❌'}`,
-        value: users.join(', ') || 'Niemand',
-        inline: true
-      });
-    });
 
     const totalResponses = Object.keys(activeQuiz.responses).length;
     embed.setFooter({ text: `Totaal aantal deelnemers: ${totalResponses}` });
 
-    // Update message and remove reactions
-    await message.edit({ embeds: [embed] });
-    await message.reactions.removeAll();
+    // Send new message with results (don't update the original)
+    await channel.send({ embeds: [embed] });
 
     // Now mark the question as used
     const usedQuestions = await loadUsedQuestions();
