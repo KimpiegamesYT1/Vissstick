@@ -369,9 +369,9 @@ async function finishBlackjack(userId, action) {
 
 // Casino configuration
 const CASINO_CONFIG = {
-  FREE_TOKENS_AMOUNT: 10,
+  FREE_TOKENS_AMOUNT: 25, // Meer gratis tokens per uur
   FREE_TOKENS_INTERVAL: 3600000, // 1 hour in milliseconds
-  MAX_TOKENS_DEFAULT: 100,
+  MAX_TOKENS_DEFAULT: 200, // Veel hoger startlimiet
   SLOT_COST: 5,
   ROULETTE_MIN_BET: 1,
   BLACKJACK_MIN_BET: 2,
@@ -434,7 +434,7 @@ async function getPlayerData(userId) {
   
   if (!casinoData.players[userId]) {
     casinoData.players[userId] = {
-      tokens: 25, // Starting tokens
+      tokens: 100, // Veel meer starting tokens
       lastTokenClaim: 0,
       maxTokens: CASINO_CONFIG.MAX_TOKENS_DEFAULT,
       tokenMultiplier: 1,
@@ -451,6 +451,32 @@ async function getPlayerData(userId) {
       }
     };
     await saveCasinoData(casinoData);
+  } else {
+    // Upgrade bestaande spelers naar nieuwe economie
+    const player = casinoData.players[userId];
+    let updated = false;
+    
+    // Geef bestaande spelers meer tokens als ze vastzitten
+    if (player.tokens < 75 && player.maxTokens < 200) {
+      player.tokens = Math.max(player.tokens, 100);
+      updated = true;
+    }
+    
+    // Update max tokens naar nieuwe standaard
+    if (player.maxTokens < CASINO_CONFIG.MAX_TOKENS_DEFAULT) {
+      player.maxTokens = CASINO_CONFIG.MAX_TOKENS_DEFAULT + (player.upgrades.vaultSize * 100);
+      updated = true;
+    }
+    
+    // Fix token multiplier naar nieuwe berekening
+    if (player.upgrades && player.upgrades.tokenMultiplier > 0) {
+      player.tokenMultiplier = 1 + (player.upgrades.tokenMultiplier * 0.75);
+      updated = true;
+    }
+    
+    if (updated) {
+      await saveCasinoData(casinoData);
+    }
   }
   
   return casinoData.players[userId];
@@ -573,9 +599,9 @@ async function playSlots(userId) {
   playerData.tokens -= CASINO_CONFIG.SLOT_COST;
   playerData.gamesPlayed++;
   
-  // Slot symbols with different rarities
+  // Slot symbols with different rarities (betere kansen)
   const symbols = ['🍒', '🍊', '🍋', '🍇', '🔔', '⭐', '💎'];
-  const weights = [30, 25, 20, 15, 7, 2, 1]; // Higher = more common
+  const weights = [25, 20, 18, 15, 10, 7, 5]; // Betere verdeling, meer kans op wins
   
   function getRandomSymbol() {
     const totalWeight = weights.reduce((a, b) => a + b, 0);
@@ -596,12 +622,12 @@ async function playSlots(userId) {
   if (result[0] === result[1] && result[1] === result[2]) {
     // Three of a kind
     const symbolIndex = symbols.indexOf(result[0]);
-    const multipliers = [10, 15, 20, 30, 50, 100, 500]; // Based on rarity
+    const multipliers = [15, 20, 25, 40, 75, 150, 750]; // Hogere uitbetalingen
     winnings = CASINO_CONFIG.SLOT_COST * multipliers[symbolIndex];
     winType = 'JACKPOT! Drie van hetzelfde!';
   } else if (result[0] === result[1] || result[1] === result[2] || result[0] === result[2]) {
     // Two of a kind
-    winnings = CASINO_CONFIG.SLOT_COST * 2;
+    winnings = CASINO_CONFIG.SLOT_COST * 3; // Betere uitbetaling voor two of a kind
     winType = 'Twee van hetzelfde!';
   }
   
@@ -782,14 +808,14 @@ async function spinDailyWheel(userId) {
   
   playerData.lastDailyWheel = Date.now();
   
-  // Wheel prizes with different probabilities
+  // Wheel prizes with different probabilities (betere prijzen)
   const prizes = [
-    { type: 'tokens', amount: 50, chance: 30, display: '50 Tokens' },
-    { type: 'tokens', amount: 25, chance: 40, display: '25 Tokens' },
-    { type: 'tokens', amount: 100, chance: 15, display: '100 Tokens' },
-    { type: 'multiplier', amount: 2, chance: 8, display: '2x Token Boost (1u)' },
-    { type: 'tokens', amount: 200, chance: 5, display: '200 Tokens' },
-    { type: 'jackpot', amount: 500, chance: 2, display: 'JACKPOT! 500 Tokens' }
+    { type: 'tokens', amount: 75, chance: 30, display: '75 Tokens' },
+    { type: 'tokens', amount: 50, chance: 25, display: '50 Tokens' },
+    { type: 'tokens', amount: 125, chance: 20, display: '125 Tokens' },
+    { type: 'multiplier', amount: 2, chance: 10, display: '2x Token Boost (1u)' },
+    { type: 'tokens', amount: 200, chance: 10, display: '200 Tokens' },
+    { type: 'jackpot', amount: 500, chance: 5, display: 'JACKPOT! 500 Tokens' }
   ];
   
   let random = Math.random() * 100;
@@ -833,9 +859,9 @@ async function spinDailyWheel(userId) {
 // Upgrades menu
 function createUpgradesMenu(playerData) {
   const upgradeCosts = {
-    tokenMultiplier: [100, 250, 500, 1000],
-    vaultSize: [150, 300, 600, 1200],
-    autoCollector: 2000
+    tokenMultiplier: [75, 150, 350, 750], // Betaalbaar met vault
+    vaultSize: [100, 200, 450, 900], // Eerste upgrade is betaalbaar!
+    autoCollector: 500 // Veel lager, meer bereikbaar
   };
   
   const tokenMultLevel = playerData.upgrades.tokenMultiplier;
@@ -847,12 +873,12 @@ function createUpgradesMenu(playerData) {
     .addFields(
       { 
         name: `${EMOJIS.TOKENS} Token Multiplier (Level ${tokenMultLevel})`, 
-        value: tokenMultLevel >= 4 ? 'MAX LEVEL' : `Kost: ${upgradeCosts.tokenMultiplier[tokenMultLevel]} tokens\nEffect: +0.5x tokens per uur`, 
+        value: tokenMultLevel >= 4 ? 'MAX LEVEL' : `Kost: ${upgradeCosts.tokenMultiplier[tokenMultLevel]} tokens\nEffect: +0.75x tokens per uur`, 
         inline: false 
       },
       { 
         name: `🏦 Vault Size (Level ${vaultLevel})`, 
-        value: vaultLevel >= 4 ? 'MAX LEVEL' : `Kost: ${upgradeCosts.vaultSize[vaultLevel]} tokens\nEffect: +50 max tokens`, 
+        value: vaultLevel >= 4 ? 'MAX LEVEL' : `Kost: ${upgradeCosts.vaultSize[vaultLevel]} tokens\nEffect: +100 max tokens`, 
         inline: false 
       },
       { 
@@ -901,9 +927,9 @@ function createUpgradesMenu(playerData) {
 async function purchaseUpgrade(userId, upgradeType) {
   const playerData = await getPlayerData(userId);
   const upgradeCosts = {
-    tokenMultiplier: [100, 250, 500, 1000],
-    vaultSize: [150, 300, 600, 1200],
-    autoCollector: 2000
+    tokenMultiplier: [75, 150, 350, 750], // Betaalbaar met vault
+    vaultSize: [100, 200, 450, 900], // Eerste upgrade is betaalbaar!
+    autoCollector: 500 // Veel lager, meer bereikbaar
   };
   
   let cost, success = false, message = '';
@@ -917,7 +943,7 @@ async function purchaseUpgrade(userId, upgradeType) {
       if (playerData.tokens >= cost) {
         playerData.tokens -= cost;
         playerData.upgrades.tokenMultiplier++;
-        playerData.tokenMultiplier = 1 + (playerData.upgrades.tokenMultiplier * 0.5);
+        playerData.tokenMultiplier = 1 + (playerData.upgrades.tokenMultiplier * 0.75); // Betere multiplier bonus
         success = true;
         message = `Token Multiplier geüpgraded naar level ${playerData.upgrades.tokenMultiplier}!`;
       } else {
@@ -933,7 +959,7 @@ async function purchaseUpgrade(userId, upgradeType) {
       if (playerData.tokens >= cost) {
         playerData.tokens -= cost;
         playerData.upgrades.vaultSize++;
-        playerData.maxTokens = CASINO_CONFIG.MAX_TOKENS_DEFAULT + (playerData.upgrades.vaultSize * 50);
+        playerData.maxTokens = CASINO_CONFIG.MAX_TOKENS_DEFAULT + (playerData.upgrades.vaultSize * 100); // Meer capaciteit per upgrade
         success = true;
         message = `Vault Size geüpgraded naar level ${playerData.upgrades.vaultSize}!`;
       } else {
