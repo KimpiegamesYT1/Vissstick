@@ -437,22 +437,28 @@ client.on('interactionCreate', async (interaction) => {
           await interaction.reply({ content: result.message, flags: 64 });
         }
         
-      } else if (interaction.customId === 'casino_slots') {
-        // Double-check token balance before playing
-        const playerData = await casino.getPlayerData(userId);
-        if (playerData.tokens < 5) {
-          await interaction.reply({ content: '❌ Niet genoeg tokens voor slots! (5 tokens vereist)', flags: 64 });
-          return;
-        }
+      } else if (interaction.customId === 'casino_slots_interface') {
+        const result = await casino.showSlotsInterface(userId);
+        await interaction.update(result);
         
-        const result = await casino.playSlots(userId);
+      } else if (interaction.customId.startsWith('casino_slots_bet_')) {
+        const betAmount = parseInt(interaction.customId.split('_')[3]);
+        const result = await casino.showSlotsInterface(userId, betAmount);
+        await interaction.update(result);
+        
+      } else if (interaction.customId.startsWith('casino_slots_play_')) {
+        const betAmount = parseInt(interaction.customId.split('_')[3]);
+        const result = await casino.playSlots(userId, betAmount);
         if (result.error) {
           await interaction.reply({ content: result.error, flags: 64 });
         } else {
-          result.content = `<@${userId}>`;
-          result.allowedMentions = { parse: [] };
           await interaction.update(result);
         }
+        
+      } else if (interaction.customId === 'casino_slots') {
+        // Legacy slots button - redirect to interface
+        const result = await casino.showSlotsInterface(userId);
+        await interaction.update(result);
         
       } else if (interaction.customId === 'casino_roulette') {
         // Always get fresh player data for accurate token counts

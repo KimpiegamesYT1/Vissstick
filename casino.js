@@ -372,7 +372,7 @@ const CASINO_CONFIG = {
   FREE_TOKENS_AMOUNT: 25, // Meer gratis tokens per uur
   FREE_TOKENS_INTERVAL: 3600000, // 1 hour in milliseconds
   MAX_TOKENS_DEFAULT: 200, // Veel hoger startlimiet
-  SLOT_COST: 5,
+  SLOT_COST: 10, // Verhoogd van 5 naar 10
   ROULETTE_MIN_BET: 1,
   BLACKJACK_MIN_BET: 2,
   DAILY_WHEEL_COOLDOWN: 86400000, // 24 hours
@@ -545,11 +545,11 @@ function createCasinoMenu(playerData, userId) {
   const row1 = new ActionRowBuilder()
     .addComponents(
       new ButtonBuilder()
-        .setCustomId('casino_slots')
+        .setCustomId('casino_slots_interface')
         .setLabel('Slots')
         .setEmoji(EMOJIS.SLOTS)
         .setStyle(ButtonStyle.Primary)
-        .setDisabled(playerData.tokens < CASINO_CONFIG.SLOT_COST),
+        .setDisabled(playerData.tokens < 1),
       new ButtonBuilder()
         .setCustomId('casino_roulette')
         .setLabel('Roulette')
@@ -589,19 +589,24 @@ function createCasinoMenu(playerData, userId) {
 }
 
 // Slot machine game
-async function playSlots(userId) {
+async function playSlots(userId, betAmount = 10) {
   const playerData = await getPlayerData(userId);
   
-  if (playerData.tokens < CASINO_CONFIG.SLOT_COST) {
+  // Valideer inzet
+  if (betAmount < 1 || betAmount > 100) {
+    return { error: 'Inzet moet tussen 1 en 100 tokens zijn!' };
+  }
+  
+  if (playerData.tokens < betAmount) {
     return { error: 'Niet genoeg tokens!' };
   }
   
-  playerData.tokens -= CASINO_CONFIG.SLOT_COST;
+  playerData.tokens -= betAmount;
   playerData.gamesPlayed++;
   
-  // Slot symbols with different rarities (meer realistische balans)
+  // Slot symbols with different rarities (nog meer balans tegen de speler)
   const symbols = ['🍒', '🍊', '🍋', '🍇', '🔔', '⭐', '💎'];
-  const weights = [35, 25, 20, 12, 5, 2, 1]; // Meer realistische verdeling - meer verlies kansen
+  const weights = [50, 30, 12, 5, 2, 1, 0.5]; // Nog zwaarder tegen de speler
   
   function getRandomSymbol() {
     const totalWeight = weights.reduce((a, b) => a + b, 0);
@@ -622,20 +627,20 @@ async function playSlots(userId) {
   if (result[0] === result[1] && result[1] === result[2]) {
     // Three of a kind - meer gebalanceerde uitbetalingen
     const symbolIndex = symbols.indexOf(result[0]);
-    const multipliers = [8, 12, 18, 25, 50, 100, 500]; // Lagere uitbetalingen voor balans
-    winnings = CASINO_CONFIG.SLOT_COST * multipliers[symbolIndex];
+    const multipliers = [5, 7, 10, 15, 30, 60, 250]; // Nog lagere uitbetalingen
+    winnings = betAmount * multipliers[symbolIndex];
     winType = 'JACKPOT! Drie van hetzelfde!';
   } else if (result[0] === result[1] || result[1] === result[2] || result[0] === result[2]) {
     // Two of a kind - kleinere winst
-    winnings = CASINO_CONFIG.SLOT_COST * 2; // Terug naar 2x (was 3x)
+    winnings = betAmount * 2; // Terug naar 2x (was 3x)
     winType = 'Twee van hetzelfde!';
   } else if (result.includes('🍒') && result.includes('🍊')) {
     // Special combo: Cherry + Orange = kleine win
-    winnings = CASINO_CONFIG.SLOT_COST * 1.5;
+    winnings = betAmount * 1.5;
     winType = 'Lucky Fruit Combo!';
   } else if (result.includes('⭐')) {
     // Any star = tiny win
-    winnings = CASINO_CONFIG.SLOT_COST * 1;
+    winnings = betAmount * 1;
     winType = 'Lucky Star!';
   }
   
@@ -646,7 +651,7 @@ async function playSlots(userId) {
       playerData.biggestWin = winnings;
     }
   } else {
-    playerData.totalLosses += CASINO_CONFIG.SLOT_COST;
+    playerData.totalLosses += betAmount;
   }
   
   await updatePlayerData(userId, playerData);
@@ -655,7 +660,7 @@ async function playSlots(userId) {
     .setTitle('🎰 Slot Machine')
     .setDescription(`**${result.join(' | ')}**\n\n${winType || 'Helaas, geen winst!'}`)
     .addFields(
-      { name: 'Inzet', value: `${CASINO_CONFIG.SLOT_COST} tokens`, inline: true },
+      { name: 'Inzet', value: `${betAmount} tokens`, inline: true },
       { name: 'Winst', value: `${winnings} tokens`, inline: true },
       { name: 'Saldo', value: `${playerData.tokens} tokens`, inline: true }
     )
@@ -664,11 +669,11 @@ async function playSlots(userId) {
   const row = new ActionRowBuilder()
     .addComponents(
       new ButtonBuilder()
-        .setCustomId('casino_slots')
+        .setCustomId(`casino_slots_play_${betAmount}`)
         .setLabel('Opnieuw spelen')
         .setEmoji(EMOJIS.SPIN)
         .setStyle(ButtonStyle.Primary)
-        .setDisabled(playerData.tokens < CASINO_CONFIG.SLOT_COST),
+        .setDisabled(playerData.tokens < betAmount),
       new ButtonBuilder()
         .setCustomId('casino_menu')
         .setLabel('Terug naar menu')
@@ -676,7 +681,52 @@ async function playSlots(userId) {
         .setStyle(ButtonStyle.Secondary)
     );
   
-  return { embeds: [embed], components: [row] };
+  return { embeds: [embed], components: [row], betAmount };
+}
+
+// Slot machine interface met variabele inzet
+async function showSlotsInterface(userId, currentBet = 10) {
+  const playerData = await getPlayerData(userId);
+  
+  const embed = new EmbedBuilder()
+    .setTitle('🎰 Slot Machine')
+    .setDescription(`Kies je inzet en draai aan de slots!\n\n**Huidige inzet:** ${currentBet} tokens\n**Je saldo:** ${playerData.tokens} tokens`)
+    .addFields(
+      { name: 'Uitbetalingen (per inzet)', value: '🍒🍒🍒: 5x\n🍊🍊🍊: 7x\n🍋🍋🍋: 10x\n🍇🍇🍇: 15x\n🔔🔔🔔: 30x\n⭐⭐⭐: 60x\n💎💎💎: 250x', inline: true },
+      { name: 'Andere winsten', value: 'Twee van hetzelfde: 2x\nFruit combo: 1.5x\nLucky star: 1x', inline: true }
+    )
+    .setColor('#FFD700');
+
+  const row1 = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`casino_slots_bet_${Math.max(1, currentBet - 10)}`)
+        .setLabel('-10')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(currentBet <= 10),
+      new ButtonBuilder()
+        .setCustomId(`casino_slots_play_${currentBet}`)
+        .setLabel(`Speel (${currentBet} tokens)`)
+        .setEmoji('🎰')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(playerData.tokens < currentBet),
+      new ButtonBuilder()
+        .setCustomId(`casino_slots_bet_${Math.min(100, currentBet + 10)}`)
+        .setLabel('+10')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(currentBet >= 100)
+    );
+
+  const row2 = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId('casino_menu')
+        .setLabel('Terug naar menu')
+        .setEmoji(EMOJIS.BACK)
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+  return { embeds: [embed], components: [row1, row2] };
 }
 
 // Roulette game
@@ -1012,5 +1062,6 @@ module.exports = {
   blackjackHit,
   blackjackStand,
   finishBlackjack,
+  showSlotsInterface,
   EMOJIS
 };
