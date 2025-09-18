@@ -375,6 +375,9 @@ client.on('interactionCreate', async (interaction) => {
     if (commandName === 'casino') {
       const playerData = await casino.getPlayerData(interaction.user.id);
       const casinoMenu = casino.createCasinoMenu(playerData, interaction.user.id);
+      // Store the original user ID in the message for button verification
+      casinoMenu.allowedMentions = { parse: [] };
+      casinoMenu.content = `<@${interaction.user.id}>`;
       await interaction.reply(casinoMenu);
     }
   }
@@ -383,10 +386,36 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
     const userId = interaction.user.id;
     
+    // Check if this is a casino button and verify the user
+    if (interaction.customId.startsWith('casino_') || interaction.customId.startsWith('roulette_') || interaction.customId.startsWith('upgrade_') || interaction.customId.startsWith('blackjack_')) {
+      // Get the original message to check who initiated the casino
+      const originalMessage = interaction.message;
+      let authorizedUserId = null;
+      
+      // Extract the user ID from the message content (format: <@userId>)
+      if (originalMessage.content) {
+        const userMention = originalMessage.content.match(/<@(\d+)>/);
+        if (userMention) {
+          authorizedUserId = userMention[1];
+        }
+      }
+      
+      // If we can't find the authorized user or if it's a different user, deny access
+      if (!authorizedUserId || userId !== authorizedUserId) {
+        await interaction.reply({ 
+          content: '❌ Je kunt alleen reageren op je eigen casino spel! Gebruik `/casino` om je eigen spel te starten.', 
+          ephemeral: true 
+        });
+        return;
+      }
+    }
+    
     try {
       if (interaction.customId === 'casino_menu') {
         const playerData = await casino.getPlayerData(userId);
         const casinoMenu = casino.createCasinoMenu(playerData, userId);
+        casinoMenu.content = `<@${userId}>`;
+        casinoMenu.allowedMentions = { parse: [] };
         await interaction.update(casinoMenu);
         
       } else if (interaction.customId === 'casino_collect') {
@@ -394,6 +423,8 @@ client.on('interactionCreate', async (interaction) => {
         if (result.success) {
           const playerData = await casino.getPlayerData(userId);
           const casinoMenu = casino.createCasinoMenu(playerData, userId);
+          casinoMenu.content = `<@${userId}>`;
+          casinoMenu.allowedMentions = { parse: [] };
           await interaction.update(casinoMenu);
           
           if (result.tokensAdded > 0) {
@@ -470,6 +501,48 @@ client.on('interactionCreate', async (interaction) => {
           await interaction.followUp({ content: `${casino.EMOJIS.UPGRADE} ${result.message}`, ephemeral: true });
         } else {
           await interaction.reply({ content: result.message, ephemeral: true });
+        }
+        
+      } else if (interaction.customId === 'casino_blackjack') {
+        // Start blackjack with default bet
+        const result = await casino.startBlackjack(userId, 2);
+        if (result.error) {
+          await interaction.reply({ content: result.error, ephemeral: true });
+        } else {
+          result.content = `<@${userId}>`;
+          result.allowedMentions = { parse: [] };
+          await interaction.update(result);
+        }
+        
+      } else if (interaction.customId.startsWith('blackjack_bet_')) {
+        const betAmount = parseInt(interaction.customId.split('_')[2]);
+        const result = await casino.startBlackjack(userId, betAmount);
+        if (result.error) {
+          await interaction.reply({ content: result.error, ephemeral: true });
+        } else {
+          result.content = `<@${userId}>`;
+          result.allowedMentions = { parse: [] };
+          await interaction.update(result);
+        }
+        
+      } else if (interaction.customId === 'blackjack_hit') {
+        const result = await casino.blackjackHit(userId);
+        if (result.error) {
+          await interaction.reply({ content: result.error, ephemeral: true });
+        } else {
+          result.content = `<@${userId}>`;
+          result.allowedMentions = { parse: [] };
+          await interaction.update(result);
+        }
+        
+      } else if (interaction.customId === 'blackjack_stand') {
+        const result = await casino.blackjackStand(userId);
+        if (result.error) {
+          await interaction.reply({ content: result.error, ephemeral: true });
+        } else {
+          result.content = `<@${userId}>`;
+          result.allowedMentions = { parse: [] };
+          await interaction.update(result);
         }
       }
     } catch (error) {

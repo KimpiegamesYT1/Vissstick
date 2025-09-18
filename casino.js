@@ -4,6 +4,310 @@ const path = require('path');
 
 const casinoDataPath = path.join(__dirname, 'casino-data.json');
 
+// Blackjack game state storage
+const blackjackGames = new Map();
+
+// Card values and suits for blackjack
+const BLACKJACK_CARDS = {
+  suits: ['♠️', '♥️', '♦️', '♣️'],
+  ranks: ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'],
+  values: { 'A': 11, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10 }
+};
+
+// Create a new deck
+function createDeck() {
+  const deck = [];
+  for (const suit of BLACKJACK_CARDS.suits) {
+    for (const rank of BLACKJACK_CARDS.ranks) {
+      deck.push({ suit, rank, value: BLACKJACK_CARDS.values[rank] });
+    }
+  }
+  return shuffleDeck(deck);
+}
+
+// Shuffle deck
+function shuffleDeck(deck) {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+// Calculate hand value (handling Aces)
+function calculateHandValue(hand) {
+  let value = 0;
+  let aces = 0;
+  
+  for (const card of hand) {
+    if (card.rank === 'A') {
+      aces++;
+      value += 11;
+    } else {
+      value += card.value;
+    }
+  }
+  
+  // Convert Aces from 11 to 1 if needed
+  while (value > 21 && aces > 0) {
+    value -= 10;
+    aces--;
+  }
+  
+  return value;
+}
+
+// Format hand for display
+function formatHand(hand, hideFirst = false) {
+  if (hideFirst && hand.length > 0) {
+    return '🂠 ' + hand.slice(1).map(card => `${card.rank}${card.suit}`).join(' ');
+  }
+  return hand.map(card => `${card.rank}${card.suit}`).join(' ');
+}
+
+// Start blackjack game
+async function startBlackjack(userId, betAmount) {
+  const playerData = await getPlayerData(userId);
+  
+  if (playerData.tokens < betAmount) {
+    return { error: 'Niet genoeg tokens!' };
+  }
+  
+  if (betAmount < CASINO_CONFIG.BLACKJACK_MIN_BET) {
+    return { error: `Minimum inzet is ${CASINO_CONFIG.BLACKJACK_MIN_BET} tokens!` };
+  }
+  
+  playerData.tokens -= betAmount;
+  playerData.gamesPlayed++;
+  
+  const deck = createDeck();
+  const playerHand = [deck.pop(), deck.pop()];
+  const dealerHand = [deck.pop(), deck.pop()];
+  
+  const gameState = {
+    deck,
+    playerHand,
+    dealerHand,
+    betAmount,
+    gameOver: false,
+    playerValue: calculateHandValue(playerHand),
+    dealerValue: calculateHandValue([dealerHand[0]]) // Only show first card
+  };
+  
+  blackjackGames.set(userId, gameState);
+  
+  // Check for natural blackjack
+  if (gameState.playerValue === 21) {
+    return await finishBlackjack(userId, 'blackjack');
+  }
+  
+  await updatePlayerData(userId, playerData);
+  
+  const embed = new EmbedBuilder()
+    .setTitle('🃏 Blackjack Tafel')
+    .setDescription('**Welkom bij Blackjack!**\nKom zo dicht mogelijk bij 21 zonder eroverheen te gaan!')
+    .addFields(
+      { name: '🎯 Jouw hand', value: `${formatHand(playerHand)} = **${gameState.playerValue}**`, inline: false },
+      { name: '🏦 Dealer hand', value: `${formatHand(dealerHand, true)} = **${calculateHandValue([dealerHand[0]])}** + ?`, inline: false },
+      { name: '💰 Inzet', value: `${betAmount} tokens`, inline: true },
+      { name: '🪙 Resterende tokens', value: `${playerData.tokens}`, inline: true }
+    )
+    .setColor('#2F3136')
+    .setFooter({ text: 'Hit = nieuwe kaart, Stand = stoppen met huidige hand' });
+  
+  const row = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId('blackjack_hit')
+        .setLabel('Hit')
+        .setEmoji('👆')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('blackjack_stand')
+        .setLabel('Stand')
+        .setEmoji('✋')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('casino_menu')
+        .setLabel('Opgeven')
+        .setEmoji('❌')
+        .setStyle(ButtonStyle.Danger)
+    );
+  
+  return { embeds: [embed], components: [row] };
+}
+
+// Handle blackjack hit
+async function blackjackHit(userId) {
+  const gameState = blackjackGames.get(userId);
+  if (!gameState || gameState.gameOver) {
+    return { error: 'Geen actieve blackjack game!' };
+  }
+  
+  const newCard = gameState.deck.pop();
+  gameState.playerHand.push(newCard);
+  gameState.playerValue = calculateHandValue(gameState.playerHand);
+  
+  if (gameState.playerValue > 21) {
+    return await finishBlackjack(userId, 'bust');
+  }
+  
+  if (gameState.playerValue === 21) {
+    return await finishBlackjack(userId, 'stand');
+  }
+  
+  const playerData = await getPlayerData(userId);
+  
+  const embed = new EmbedBuilder()
+    .setTitle('🃏 Blackjack - Hit!')
+    .setDescription(`Je trok: **${newCard.rank}${newCard.suit}**`)
+    .addFields(
+      { name: '🎯 Jouw hand', value: `${formatHand(gameState.playerHand)} = **${gameState.playerValue}**`, inline: false },
+      { name: '🏦 Dealer hand', value: `${formatHand(gameState.dealerHand, true)} = **${calculateHandValue([gameState.dealerHand[0]])}** + ?`, inline: false },
+      { name: '💰 Inzet', value: `${gameState.betAmount} tokens`, inline: true },
+      { name: '🪙 Resterende tokens', value: `${playerData.tokens}`, inline: true }
+    )
+    .setColor('#2F3136')
+    .setFooter({ text: 'Nog een kaart of stoppen?' });
+  
+  const row = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId('blackjack_hit')
+        .setLabel('Hit')
+        .setEmoji('👆')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('blackjack_stand')
+        .setLabel('Stand')
+        .setEmoji('✋')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('casino_menu')
+        .setLabel('Opgeven')
+        .setEmoji('❌')
+        .setStyle(ButtonStyle.Danger)
+    );
+  
+  return { embeds: [embed], components: [row] };
+}
+
+// Handle blackjack stand
+async function blackjackStand(userId) {
+  const gameState = blackjackGames.get(userId);
+  if (!gameState || gameState.gameOver) {
+    return { error: 'Geen actieve blackjack game!' };
+  }
+  
+  return await finishBlackjack(userId, 'stand');
+}
+
+// Finish blackjack game
+async function finishBlackjack(userId, action) {
+  const gameState = blackjackGames.get(userId);
+  if (!gameState) {
+    return { error: 'Geen actieve blackjack game!' };
+  }
+  
+  gameState.gameOver = true;
+  
+  // Dealer plays (if player didn't bust)
+  if (action !== 'bust') {
+    while (calculateHandValue(gameState.dealerHand) < 17) {
+      gameState.dealerHand.push(gameState.deck.pop());
+    }
+  }
+  
+  const finalPlayerValue = calculateHandValue(gameState.playerHand);
+  const finalDealerValue = calculateHandValue(gameState.dealerHand);
+  
+  let result = '';
+  let winnings = 0;
+  let resultColor = '#FF0000';
+  
+  if (action === 'bust') {
+    result = '💥 **BUST!** Je ging over 21!';
+    resultColor = '#FF0000';
+  } else if (action === 'blackjack') {
+    result = '🎉 **BLACKJACK!** Perfect 21!';
+    winnings = Math.floor(gameState.betAmount * 2.5); // 3:2 payout
+    resultColor = '#FFD700';
+  } else if (finalDealerValue > 21) {
+    result = '🎉 **JE WINT!** Dealer ging bust!';
+    winnings = gameState.betAmount * 2;
+    resultColor = '#00FF00';
+  } else if (finalPlayerValue > finalDealerValue) {
+    result = '🎉 **JE WINT!** Hogere hand dan dealer!';
+    winnings = gameState.betAmount * 2;
+    resultColor = '#00FF00';
+  } else if (finalPlayerValue === finalDealerValue) {
+    result = '🤝 **GELIJKSPEL!** Inzet teruggekregen!';
+    winnings = gameState.betAmount;
+    resultColor = '#FFFF00';
+  } else {
+    result = '😞 **VERLOREN!** Dealer had betere hand!';
+    resultColor = '#FF0000';
+  }
+  
+  const playerData = await getPlayerData(userId);
+  
+  if (winnings > 0) {
+    const tokenResult = addTokensWithLimit(playerData, winnings);
+    if (winnings > gameState.betAmount) { // Only count as win if more than bet back
+      playerData.totalWins += winnings - gameState.betAmount;
+      if (winnings - gameState.betAmount > playerData.biggestWin) {
+        playerData.biggestWin = winnings - gameState.betAmount;
+      }
+    }
+  } else {
+    playerData.totalLosses += gameState.betAmount;
+  }
+  
+  await updatePlayerData(userId, playerData);
+  blackjackGames.delete(userId);
+  
+  const embed = new EmbedBuilder()
+    .setTitle('🃏 Blackjack Resultaat')
+    .setDescription(result)
+    .addFields(
+      { name: '🎯 Jouw hand', value: `${formatHand(gameState.playerHand)} = **${finalPlayerValue}**`, inline: false },
+      { name: '🏦 Dealer hand', value: `${formatHand(gameState.dealerHand)} = **${finalDealerValue}**`, inline: false },
+      { name: '💰 Inzet', value: `${gameState.betAmount} tokens`, inline: true },
+      { name: '🎁 Winst', value: `${winnings} tokens`, inline: true },
+      { name: '🪙 Nieuwe saldo', value: `${playerData.tokens} tokens`, inline: true }
+    )
+    .setColor(resultColor);
+  
+  const row = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId('blackjack_bet_2')
+        .setLabel('Nieuwe ronde (2 tokens)')
+        .setEmoji('🎮')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(playerData.tokens < 2),
+      new ButtonBuilder()
+        .setCustomId('blackjack_bet_5')
+        .setLabel('Nieuwe ronde (5 tokens)')
+        .setEmoji('🎮')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(playerData.tokens < 5),
+      new ButtonBuilder()
+        .setCustomId('blackjack_bet_10')
+        .setLabel('Nieuwe ronde (10 tokens)')
+        .setEmoji('🎮')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(playerData.tokens < 10),
+      new ButtonBuilder()
+        .setCustomId('casino_menu')
+        .setLabel('Terug naar menu')
+        .setEmoji(EMOJIS.BACK)
+        .setStyle(ButtonStyle.Secondary)
+    );
+  
+  return { embeds: [embed], components: [row] };
+}
+
 // Casino configuration
 const CASINO_CONFIG = {
   FREE_TOKENS_AMOUNT: 10,
@@ -33,6 +337,22 @@ const EMOJIS = {
   JACKPOT: '💎',
   WIN: '🎉'
 };
+
+// Helper function to add tokens with vault limit check
+function addTokensWithLimit(playerData, tokensToAdd) {
+  const oldTokens = playerData.tokens;
+  const newTokens = Math.min(playerData.tokens + tokensToAdd, playerData.maxTokens);
+  const actualTokensAdded = newTokens - oldTokens;
+  const tokensLost = tokensToAdd - actualTokensAdded;
+  
+  playerData.tokens = newTokens;
+  
+  return {
+    tokensAdded: actualTokensAdded,
+    tokensLost: tokensLost,
+    maxReached: newTokens >= playerData.maxTokens
+  };
+}
 
 // Load casino data
 async function loadCasinoData() {
@@ -125,35 +445,35 @@ function createCasinoMenu(playerData, userId) {
   
   const embed = new EmbedBuilder()
     .setTitle('🎰 Lucky Hour Casino')
-    .setDescription(`Welkom in het casino, <@${userId}>!`)
+    .setDescription(`Welkom in het casino, <@${userId}>!\n\n**🎮 Beschikbare Spellen:**\n• **Slots** (${CASINO_CONFIG.SLOT_COST} tokens) - Match 3 symbolen voor winst!\n• **Roulette** (min. ${CASINO_CONFIG.ROULETTE_MIN_BET} token) - Gok op rood, zwart of lucky number!\n• **Blackjack** (min. ${CASINO_CONFIG.BLACKJACK_MIN_BET} tokens) - Kom zo dicht mogelijk bij 21!\n• **Daily Wheel** (gratis, 1x per dag) - Spin het gelukswiel!\n\n💡 **Tip:** Upgrade je kluis en token multiplier voor meer winst!`)
     .addFields(
       { name: `${EMOJIS.TOKENS} Tokens`, value: `${playerData.tokens}/${playerData.maxTokens}`, inline: true },
-      { name: '⏰ Volgende gratis tokens', value: nextClaimTime, inline: true },
-      { name: '🎮 Games gespeeld', value: playerData.gamesPlayed.toString(), inline: true },
-      { name: '🏆 Totale winst', value: playerData.totalWins.toString(), inline: true },
-      { name: '💔 Totaal verlies', value: playerData.totalLosses.toString(), inline: true },
-      { name: '💰 Grootste winst', value: playerData.biggestWin.toString(), inline: true }
+      { name: '⏰ Gratis tokens', value: nextClaimTime, inline: true },
+      { name: '💰 Token multiplier', value: `${playerData.tokenMultiplier}x`, inline: true },
+      { name: '� Games gespeeld', value: playerData.gamesPlayed.toString(), inline: true },
+      { name: '🏆 Totale winst', value: `${playerData.totalWins} tokens`, inline: true },
+      { name: '� Grootste winst', value: `${playerData.biggestWin} tokens`, inline: true }
     )
     .setColor('#FFD700')
-    .setFooter({ text: 'Kies een optie hieronder!' });
+    .setFooter({ text: 'Veel geluk en speel verantwoord! 🍀' });
 
   const row1 = new ActionRowBuilder()
     .addComponents(
       new ButtonBuilder()
         .setCustomId('casino_collect')
-        .setLabel('Claim Tokens')
+        .setLabel(`Claim ${CASINO_CONFIG.FREE_TOKENS_AMOUNT * playerData.tokenMultiplier} Tokens`)
         .setEmoji(EMOJIS.COLLECT)
         .setStyle(ButtonStyle.Success)
         .setDisabled(!canClaimTokens(playerData)),
       new ButtonBuilder()
         .setCustomId('casino_slots')
-        .setLabel('Slots')
+        .setLabel(`Slots (${CASINO_CONFIG.SLOT_COST} tokens)`)
         .setEmoji(EMOJIS.SLOTS)
         .setStyle(ButtonStyle.Primary)
         .setDisabled(playerData.tokens < CASINO_CONFIG.SLOT_COST),
       new ButtonBuilder()
         .setCustomId('casino_roulette')
-        .setLabel('Roulette')
+        .setLabel(`Roulette (${CASINO_CONFIG.ROULETTE_MIN_BET}+ tokens)`)
         .setEmoji(EMOJIS.ROULETTE)
         .setStyle(ButtonStyle.Primary)
         .setDisabled(playerData.tokens < CASINO_CONFIG.ROULETTE_MIN_BET)
@@ -163,19 +483,19 @@ function createCasinoMenu(playerData, userId) {
     .addComponents(
       new ButtonBuilder()
         .setCustomId('casino_blackjack')
-        .setLabel('Blackjack')
+        .setLabel(`Blackjack (${CASINO_CONFIG.BLACKJACK_MIN_BET}+ tokens)`)
         .setEmoji(EMOJIS.BLACKJACK)
         .setStyle(ButtonStyle.Primary)
         .setDisabled(playerData.tokens < CASINO_CONFIG.BLACKJACK_MIN_BET),
       new ButtonBuilder()
         .setCustomId('casino_wheel')
-        .setLabel('Daily Wheel')
+        .setLabel(canDailyWheel ? 'Daily Wheel (Gratis!)' : 'Daily Wheel (24u wachten)')
         .setEmoji(EMOJIS.WHEEL)
-        .setStyle(ButtonStyle.Secondary)
+        .setStyle(canDailyWheel ? ButtonStyle.Success : ButtonStyle.Secondary)
         .setDisabled(!canDailyWheel),
       new ButtonBuilder()
         .setCustomId('casino_upgrades')
-        .setLabel('Upgrades')
+        .setLabel('Shop & Upgrades')
         .setEmoji(EMOJIS.UPGRADE)
         .setStyle(ButtonStyle.Secondary)
     );
@@ -227,7 +547,7 @@ async function playSlots(userId) {
   }
   
   if (winnings > 0) {
-    playerData.tokens += winnings;
+    const tokenResult = addTokensWithLimit(playerData, winnings);
     playerData.totalWins += winnings;
     if (winnings > playerData.biggestWin) {
       playerData.biggestWin = winnings;
@@ -269,14 +589,15 @@ async function playSlots(userId) {
 // Roulette game
 function createRouletteMenu(playerData) {
   const embed = new EmbedBuilder()
-    .setTitle('🔴 Roulette')
-    .setDescription('Plaats je inzet!')
+    .setTitle('🔴 Roulette Tafel')
+    .setDescription('**Welkom bij de roulette tafel!**\n\nKies je inzet en waag je kans!\n\n🔴 **Rood** = nummers 1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36\n⚫ **Zwart** = alle andere nummers (behalve 0)\n🟢 **0** = huis wint\n🍀 **Lucky Number 7** = 36x uitbetaling!')
     .addFields(
-      { name: 'Je tokens', value: `${playerData.tokens}`, inline: true },
-      { name: 'Min. inzet', value: `${CASINO_CONFIG.ROULETTE_MIN_BET}`, inline: true },
-      { name: 'Uitbetalingen', value: 'Rood/Zwart: 2x\nSpecifiek getal: 36x', inline: false }
+      { name: '💰 Je tokens', value: `${playerData.tokens}`, inline: true },
+      { name: '💵 Min. inzet', value: `${CASINO_CONFIG.ROULETTE_MIN_BET} token`, inline: true },
+      { name: '💎 Uitbetalingen', value: 'Rood/Zwart: **2x**\nLucky Number 7: **36x**', inline: true }
     )
-    .setColor('#FF0000');
+    .setColor('#FF0000')
+    .setFooter({ text: 'Plaats je inzet en laat het wiel draaien! 🎲' });
   
   const row1 = new ActionRowBuilder()
     .addComponents(
@@ -349,7 +670,7 @@ async function playRoulette(userId, betType, betAmount) {
   }
   
   if (won) {
-    playerData.tokens += winnings;
+    const tokenResult = addTokensWithLimit(playerData, winnings);
     playerData.totalWins += winnings;
     if (winnings > playerData.biggestWin) {
       playerData.biggestWin = winnings;
@@ -424,7 +745,7 @@ async function spinDailyWheel(userId) {
   }
   
   if (selectedPrize.type === 'tokens' || selectedPrize.type === 'jackpot') {
-    playerData.tokens = Math.min(playerData.tokens + selectedPrize.amount, playerData.maxTokens);
+    const tokenResult = addTokensWithLimit(playerData, selectedPrize.amount);
   }
   
   await updatePlayerData(userId, playerData);
@@ -593,5 +914,9 @@ module.exports = {
   spinDailyWheel,
   createUpgradesMenu,
   purchaseUpgrade,
+  startBlackjack,
+  blackjackHit,
+  blackjackStand,
+  finishBlackjack,
   EMOJIS
 };
