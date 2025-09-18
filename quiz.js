@@ -192,19 +192,6 @@ async function handleQuizReaction(reaction, user, added) {
       answer: emojiLetter,
       username: user.username
     };
-    
-    // Send confirmation message that only the user can see (ephemeral-like via DM or temporary message)
-    try {
-      const confirmationMessage = await reaction.message.channel.send(
-        `<@${user.id}> Je hebt geantwoord: **${emojiLetter}**`
-      );
-      // Delete the confirmation message after 3 seconds
-      setTimeout(() => {
-        confirmationMessage.delete().catch(err => console.error('Kon bevestigingsbericht niet verwijderen:', err));
-      }, 3000);
-    } catch (err) {
-      console.error('Kon bevestigingsbericht niet sturen:', err);
-    }
   } else {
     // User removed reaction - remove their stored answer
     delete activeQuiz.responses[user.id];
