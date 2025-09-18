@@ -404,7 +404,7 @@ client.on('interactionCreate', async (interaction) => {
       if (!authorizedUserId || userId !== authorizedUserId) {
         await interaction.reply({ 
           content: '❌ Je kunt alleen reageren op je eigen casino spel! Gebruik `/casino` om je eigen spel te starten.', 
-          ephemeral: true 
+          flags: 64 
         });
         return;
       }
@@ -430,24 +430,36 @@ client.on('interactionCreate', async (interaction) => {
           if (result.tokensAdded > 0) {
             await interaction.followUp({ 
               content: `${casino.EMOJIS.COLLECT} Je hebt ${result.tokensAdded} tokens verzameld! ${result.maxReached ? '(Maximum bereikt!)' : ''}`, 
-              ephemeral: true 
+              flags: 64 
             });
           }
         } else {
-          await interaction.reply({ content: result.message, ephemeral: true });
+          await interaction.reply({ content: result.message, flags: 64 });
         }
         
       } else if (interaction.customId === 'casino_slots') {
+        // Double-check token balance before playing
+        const playerData = await casino.getPlayerData(userId);
+        if (playerData.tokens < 5) {
+          await interaction.reply({ content: '❌ Niet genoeg tokens voor slots! (5 tokens vereist)', flags: 64 });
+          return;
+        }
+        
         const result = await casino.playSlots(userId);
         if (result.error) {
-          await interaction.reply({ content: result.error, ephemeral: true });
+          await interaction.reply({ content: result.error, flags: 64 });
         } else {
+          result.content = `<@${userId}>`;
+          result.allowedMentions = { parse: [] };
           await interaction.update(result);
         }
         
       } else if (interaction.customId === 'casino_roulette') {
+        // Always get fresh player data for accurate token counts
         const playerData = await casino.getPlayerData(userId);
         const rouletteMenu = casino.createRouletteMenu(playerData);
+        rouletteMenu.content = `<@${userId}>`;
+        rouletteMenu.allowedMentions = { parse: [] };
         await interaction.update(rouletteMenu);
         
       } else if (interaction.customId.startsWith('roulette_')) {
@@ -455,10 +467,19 @@ client.on('interactionCreate', async (interaction) => {
         const betType = parts[1]; // red, black, lucky
         const betAmount = parseInt(parts[2]); // bet amount
         
+        // Double-check token balance before playing
+        const playerData = await casino.getPlayerData(userId);
+        if (playerData.tokens < betAmount) {
+          await interaction.reply({ content: `❌ Niet genoeg tokens! Je hebt ${playerData.tokens} tokens, maar je probeert ${betAmount} tokens in te zetten.`, flags: 64 });
+          return;
+        }
+        
         const result = await casino.playRoulette(userId, betType, betAmount);
         if (result.error) {
-          await interaction.reply({ content: result.error, ephemeral: true });
+          await interaction.reply({ content: result.error, flags: 64 });
         } else {
+          result.content = `<@${userId}>`;
+          result.allowedMentions = { parse: [] };
           await interaction.update(result);
           
           // Send big win notification if it's a jackpot
@@ -473,7 +494,7 @@ client.on('interactionCreate', async (interaction) => {
       } else if (interaction.customId === 'casino_wheel') {
         const result = await casino.spinDailyWheel(userId);
         if (result.error) {
-          await interaction.reply({ content: result.error, ephemeral: true });
+          await interaction.reply({ content: result.error, flags: 64 });
         } else {
           await interaction.update(result);
           
@@ -487,8 +508,11 @@ client.on('interactionCreate', async (interaction) => {
         }
         
       } else if (interaction.customId === 'casino_upgrades') {
+        // Get fresh player data for accurate token balance
         const playerData = await casino.getPlayerData(userId);
         const upgradesMenu = casino.createUpgradesMenu(playerData);
+        upgradesMenu.content = `<@${userId}>`;
+        upgradesMenu.allowedMentions = { parse: [] };
         await interaction.update(upgradesMenu);
         
       } else if (interaction.customId.startsWith('upgrade_')) {
@@ -498,27 +522,32 @@ client.on('interactionCreate', async (interaction) => {
         if (result.success) {
           const upgradesMenu = casino.createUpgradesMenu(result.playerData);
           await interaction.update(upgradesMenu);
-          await interaction.followUp({ content: `${casino.EMOJIS.UPGRADE} ${result.message}`, ephemeral: true });
+          await interaction.followUp({ content: `${casino.EMOJIS.UPGRADE} ${result.message}`, flags: 64 });
         } else {
-          await interaction.reply({ content: result.message, ephemeral: true });
+          await interaction.reply({ content: result.message, flags: 64 });
         }
         
       } else if (interaction.customId === 'casino_blackjack') {
-        // Start blackjack with default bet
-        const result = await casino.startBlackjack(userId, 2);
-        if (result.error) {
-          await interaction.reply({ content: result.error, ephemeral: true });
-        } else {
-          result.content = `<@${userId}>`;
-          result.allowedMentions = { parse: [] };
-          await interaction.update(result);
-        }
+        // Show blackjack betting menu with fresh player data
+        const playerData = await casino.getPlayerData(userId);
+        const blackjackMenu = casino.createBlackjackMenu(playerData);
+        blackjackMenu.content = `<@${userId}>`;
+        blackjackMenu.allowedMentions = { parse: [] };
+        await interaction.update(blackjackMenu);
         
       } else if (interaction.customId.startsWith('blackjack_bet_')) {
         const betAmount = parseInt(interaction.customId.split('_')[2]);
+        
+        // Double-check token balance before playing
+        const playerData = await casino.getPlayerData(userId);
+        if (playerData.tokens < betAmount) {
+          await interaction.reply({ content: `❌ Niet genoeg tokens! Je hebt ${playerData.tokens} tokens, maar je probeert ${betAmount} tokens in te zetten.`, flags: 64 });
+          return;
+        }
+        
         const result = await casino.startBlackjack(userId, betAmount);
         if (result.error) {
-          await interaction.reply({ content: result.error, ephemeral: true });
+          await interaction.reply({ content: result.error, flags: 64 });
         } else {
           result.content = `<@${userId}>`;
           result.allowedMentions = { parse: [] };
@@ -528,7 +557,7 @@ client.on('interactionCreate', async (interaction) => {
       } else if (interaction.customId === 'blackjack_hit') {
         const result = await casino.blackjackHit(userId);
         if (result.error) {
-          await interaction.reply({ content: result.error, ephemeral: true });
+          await interaction.reply({ content: result.error, flags: 64 });
         } else {
           result.content = `<@${userId}>`;
           result.allowedMentions = { parse: [] };
@@ -538,7 +567,7 @@ client.on('interactionCreate', async (interaction) => {
       } else if (interaction.customId === 'blackjack_stand') {
         const result = await casino.blackjackStand(userId);
         if (result.error) {
-          await interaction.reply({ content: result.error, ephemeral: true });
+          await interaction.reply({ content: result.error, flags: 64 });
         } else {
           result.content = `<@${userId}>`;
           result.allowedMentions = { parse: [] };
@@ -548,7 +577,7 @@ client.on('interactionCreate', async (interaction) => {
     } catch (error) {
       console.error('Casino interaction error:', error);
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: 'Er is een fout opgetreden!', ephemeral: true });
+        await interaction.reply({ content: 'Er is een fout opgetreden!', flags: 64 });
       }
     }
   }

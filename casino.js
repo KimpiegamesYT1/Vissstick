@@ -57,24 +57,83 @@ function calculateHandValue(hand) {
   return value;
 }
 
-// Format hand for display
+// Format hand for display with better visibility
 function formatHand(hand, hideFirst = false) {
   if (hideFirst && hand.length > 0) {
-    return '🂠 ' + hand.slice(1).map(card => `${card.rank}${card.suit}`).join(' ');
+    const hiddenCard = '🂠';
+    const visibleCards = hand.slice(1).map(card => `${card.rank}${card.suit}`);
+    return `${hiddenCard} ${visibleCards.join(' ')}`;
   }
   return hand.map(card => `${card.rank}${card.suit}`).join(' ');
 }
 
-// Start blackjack game
+// Get hand description for clarity
+function getHandDescription(hand, value) {
+  const cardCount = hand.length;
+  let description = '';
+  
+  if (value === 21 && cardCount === 2) {
+    description = ' **🎉 BLACKJACK!**';
+  } else if (value > 21) {
+    description = ' **💥 BUST!**';
+  } else if (value === 21) {
+    description = ' **🎯 Perfect 21!**';
+  }
+  
+  return description;
+}
+
+// Create blackjack bet selection menu
+function createBlackjackMenu(playerData) {
+  const embed = new EmbedBuilder()
+    .setTitle('🃏 Blackjack Tafel')
+    .setDescription('**Welkom bij Blackjack!**\n\nHet doel is om zo dicht mogelijk bij 21 te komen zonder eroverheen te gaan.\n\n📋 **Spelregels:**\n• Kaarten 2-10 = face value\n• J, Q, K = 10 punten\n• Aas = 11 of 1 (automatisch)\n• Dealer stopt bij 17\n• Blackjack (21 met 2 kaarten) = 2.5x uitbetaling')
+    .addFields(
+      { name: '💰 Je tokens', value: `${playerData.tokens}`, inline: true },
+      { name: '💵 Min. inzet', value: `${CASINO_CONFIG.BLACKJACK_MIN_BET} tokens`, inline: true },
+      { name: '🎯 Kies je inzet', value: 'Selecteer hieronder hoeveel je wilt inzetten!', inline: false }
+    )
+    .setColor('#2F3136')
+    .setFooter({ text: 'Veel succes aan de blackjack tafel! 🍀' });
+
+  const row = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId('blackjack_bet_2')
+        .setLabel('Inzet: 2 tokens')
+        .setEmoji('🪙')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(playerData.tokens < 2),
+      new ButtonBuilder()
+        .setCustomId('blackjack_bet_5')
+        .setLabel('Inzet: 5 tokens')
+        .setEmoji('🪙')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(playerData.tokens < 5),
+      new ButtonBuilder()
+        .setCustomId('blackjack_bet_10')
+        .setLabel('Inzet: 10 tokens')
+        .setEmoji('🪙')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(playerData.tokens < 10),
+      new ButtonBuilder()
+        .setCustomId('casino_menu')
+        .setLabel('Terug')
+        .setEmoji(EMOJIS.BACK)
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+  return { embeds: [embed], components: [row] };
+}
 async function startBlackjack(userId, betAmount) {
   const playerData = await getPlayerData(userId);
   
   if (playerData.tokens < betAmount) {
-    return { error: 'Niet genoeg tokens!' };
+    return { error: `❌ Niet genoeg tokens! Je hebt ${playerData.tokens} tokens, maar je probeert ${betAmount} tokens in te zetten.` };
   }
   
   if (betAmount < CASINO_CONFIG.BLACKJACK_MIN_BET) {
-    return { error: `Minimum inzet is ${CASINO_CONFIG.BLACKJACK_MIN_BET} tokens!` };
+    return { error: `❌ Minimum inzet is ${CASINO_CONFIG.BLACKJACK_MIN_BET} tokens!` };
   }
   
   playerData.tokens -= betAmount;
@@ -914,6 +973,7 @@ module.exports = {
   spinDailyWheel,
   createUpgradesMenu,
   purchaseUpgrade,
+  createBlackjackMenu,
   startBlackjack,
   blackjackHit,
   blackjackStand,
