@@ -103,10 +103,10 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
       .setTitle('📝 Dagelijkse Quiz!')
       .setDescription(randomQuiz.vraag)
       .addFields(
-        Object.entries(randomQuiz.opties).map(([letter, option]) => ({
+        Object.entries(randomQuiz.opties).map(([letter, option], index) => ({
           name: `${EMOJI_MAP[letter]} ${letter}`,
           value: option,
-          inline: true
+          inline: index < 2 // A en B inline, C en D inline (2 per rij)
         }))
       )
       .setColor('#0099ff')
@@ -132,8 +132,13 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     // Set timeout for test quiz
     if (timeoutMinutes) {
       setTimeout(async () => {
-        console.log(`Test quiz timeout na ${timeoutMinutes} minuten`);
-        await endDailyQuiz(client, channelId);
+        try {
+          console.log(`Test quiz timeout na ${timeoutMinutes} minuten`);
+          await endDailyQuiz(client, channelId);
+          console.log('Quiz succesvol beëindigd via timeout');
+        } catch (error) {
+          console.error('Fout bij timeout beëindigen quiz:', error);
+        }
       }, timeoutMinutes * 60 * 1000);
       
       console.log(`Test quiz gestart! Eindigt automatisch na ${timeoutMinutes} minuten.`);
@@ -190,10 +195,10 @@ async function handleQuizReaction(reaction, user, added) {
       .setTitle('📝 Dagelijkse Quiz!')
       .setDescription(activeQuiz.quiz.vraag)
       .addFields(
-        Object.entries(activeQuiz.quiz.opties).map(([letter, option]) => ({
+        Object.entries(activeQuiz.quiz.opties).map(([letter, option], index) => ({
           name: `${EMOJI_MAP[letter]} ${letter}`,
           value: option,
-          inline: true
+          inline: index < 2 // A en B inline, C en D inline (2 per rij)
         }))
       )
       .setColor('#0099ff')
@@ -208,13 +213,19 @@ async function handleQuizReaction(reaction, user, added) {
 // End daily quiz (show results)
 async function endDailyQuiz(client, channelId) {
   try {
+    console.log(`Starting endDailyQuiz for channel ${channelId}`);
     const quizData = await loadQuizData();
     const activeQuiz = quizData.activeQuizzes[channelId];
     
-    if (!activeQuiz) return;
+    if (!activeQuiz) {
+      console.log('No active quiz found!');
+      return;
+    }
 
+    console.log('Active quiz found, fetching channel...');
     const channel = await client.channels.fetch(channelId);
 
+    console.log('Channel fetched, creating results embed...');
     // Create results embed
     const correctAnswer = activeQuiz.quiz.antwoord;
     const correctOption = activeQuiz.quiz.opties[correctAnswer];
@@ -248,14 +259,17 @@ async function endDailyQuiz(client, channelId) {
     const totalResponses = Object.keys(activeQuiz.responses).length;
     embed.setFooter({ text: `Totaal aantal deelnemers: ${totalResponses}` });
 
+    console.log('Sending results message...');
     // Send new message with results (don't update the original)
     await channel.send({ embeds: [embed] });
 
+    console.log('Marking question as used...');
     // Now mark the question as used
     const usedQuestions = await loadUsedQuestions();
     usedQuestions.push(activeQuiz.quiz);
     await saveUsedQuestions(usedQuestions);
 
+    console.log('Cleaning up quiz data...');
     // Clean up
     delete quizData.activeQuizzes[channelId];
     await saveQuizData(quizData);
