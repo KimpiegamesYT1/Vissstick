@@ -358,8 +358,8 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, 5); // 5 minuten timeout voor test quiz
-    await interaction.reply({ content: '✅ Test quiz gestart! Resultaten worden automatisch getoond na 5 minuten.', flags: 64 });
+    await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, 1); // 1 minuut timeout voor test quiz
+    await interaction.reply({ content: '✅ Test quiz gestart! Resultaten worden automatisch getoond na 1 minuut.', flags: 64 });
   }
 
   if (commandName === 'resetquiz') {

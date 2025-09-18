@@ -125,7 +125,8 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
       messageId: message.id,
       quiz: randomQuiz,
       responses: {},
-      isTestQuiz: timeoutMinutes !== null
+      isTestQuiz: timeoutMinutes !== null,
+      timeoutMinutes: timeoutMinutes
     };
     await saveQuizData(quizData);
 
@@ -163,19 +164,36 @@ async function handleQuizReaction(reaction, user, added) {
   if (!emojiLetter) return;
 
   if (added) {
-    // User added reaction - remove their reaction immediately and save their answer
+    // Check if user already has an answer
+    const previousAnswer = activeQuiz.responses[user.id]?.answer;
+    
+    // Always remove the user's reaction immediately
     try {
       await reaction.users.remove(user.id);
     } catch (err) {
       console.error('Kon reactie niet verwijderen:', err);
     }
     
+    // If user had a different answer before, remove that reaction too
+    if (previousAnswer && previousAnswer !== emojiLetter) {
+      try {
+        const previousEmoji = EMOJI_MAP[previousAnswer];
+        const previousReaction = reaction.message.reactions.cache.find(r => r.emoji.name === previousEmoji);
+        if (previousReaction) {
+          await previousReaction.users.remove(user.id);
+        }
+      } catch (err) {
+        console.error('Kon vorige reactie niet verwijderen:', err);
+      }
+    }
+    
+    // Save the new answer
     activeQuiz.responses[user.id] = {
       answer: emojiLetter,
       username: user.username
     };
   } else {
-    // User removed reaction (this shouldn't happen often since we remove reactions immediately)
+    // User removed reaction - remove their stored answer
     delete activeQuiz.responses[user.id];
   }
 
@@ -188,7 +206,7 @@ async function handleQuizReaction(reaction, user, added) {
     
     // Different footer text for test quiz vs regular quiz
     const footerText = activeQuiz.isTestQuiz 
-      ? `Test quiz eindigt na 5 minuten. ${availableQuestions.length} vragen over | ${totalResponses} antwoorden`
+      ? `Test quiz eindigt na ${activeQuiz.timeoutMinutes} minuten. ${availableQuestions.length} vragen over | ${totalResponses} antwoorden`
       : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over | ${totalResponses} antwoorden`;
     
     const embed = new EmbedBuilder()
