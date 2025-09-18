@@ -96,8 +96,8 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     
     // Create embed with appropriate footer message
     const footerText = timeoutMinutes 
-      ? `Reageer met de juiste emoji! Test quiz eindigt na ${timeoutMinutes} minuten. (${availableQuestions.length}/${allQuestions.length} vragen over)`
-      : `Reageer met de juiste emoji! Antwoord wordt om 11:00 bekendgemaakt. (${availableQuestions.length}/${allQuestions.length} vragen over)`;
+      ? `Test quiz eindigt na ${timeoutMinutes} minuten. ${availableQuestions.length} vragen over`
+      : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over`;
 
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
@@ -183,8 +183,8 @@ async function handleQuizReaction(reaction, user, added) {
     
     // Different footer text for test quiz vs regular quiz
     const footerText = activeQuiz.isTestQuiz 
-      ? `Reageer met de juiste emoji! Test quiz eindigt na 5 minuten. (${availableQuestions.length}/${allQuestions.length} vragen over) | ${totalResponses} antwoorden`
-      : `Reageer met de juiste emoji! Antwoord wordt om 11:00 bekendgemaakt. (${availableQuestions.length}/${allQuestions.length} vragen over) | ${totalResponses} antwoorden`;
+      ? `Test quiz eindigt na 5 minuten. ${availableQuestions.length} vragen over | ${totalResponses} antwoorden`
+      : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over | ${totalResponses} antwoorden`;
     
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
