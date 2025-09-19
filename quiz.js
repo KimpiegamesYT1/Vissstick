@@ -195,16 +195,13 @@ async function updateQuizMessage(message, channelId) {
       .setColor('#0099ff')
       .setFooter({ text: footerText });
 
-    // Create updated buttons - highlight selected answers
+    // Create updated buttons - keep simple without counters or color changes
     const buttons = Object.keys(updatedActiveQuiz.quiz.opties).map(letter => {
-      const userAnswers = Object.values(updatedActiveQuiz.responses)
-        .filter(response => response.answer === letter);
-      
       return new ButtonBuilder()
         .setCustomId(`quiz_${letter}`)
-        .setLabel(`${letter}: ${updatedActiveQuiz.quiz.opties[letter]} (${userAnswers.length})`)
+        .setLabel(`${letter}: ${updatedActiveQuiz.quiz.opties[letter]}`)
         .setEmoji(EMOJI_MAP[letter])
-        .setStyle(userAnswers.length > 0 ? ButtonStyle.Success : ButtonStyle.Primary);
+        .setStyle(ButtonStyle.Primary); // Always keep primary blue color
     });
 
     // Split buttons into rows
