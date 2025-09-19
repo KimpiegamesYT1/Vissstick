@@ -301,5 +301,7 @@ module.exports = {
   startDailyQuiz,
   handleQuizReaction,
   endDailyQuiz,
-  resetUsedQuestions
+  resetUsedQuestions,
+  loadQuizData,
+  saveQuizData
 };

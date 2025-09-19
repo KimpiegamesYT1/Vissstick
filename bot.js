@@ -63,6 +63,48 @@ async function cleanOldData(hokData) {
   }
 }
 
+// Load active quizzes on bot startup
+async function loadActiveQuizzes() {
+  try {
+    const quizData = await quiz.loadQuizData();
+    
+    for (const [channelId, quizInfo] of Object.entries(quizData.activeQuizzes)) {
+      try {
+        const channel = await client.channels.fetch(channelId);
+        if (channel) {
+          const message = await channel.messages.fetch(quizInfo.messageId);
+          if (message) {
+            activeQuizMessages.set(quizInfo.messageId, message);
+            console.log(`Herladen actieve quiz in kanaal ${channelId}`);
+            
+            // Reset timeout for test quizzes if they have one
+            if (quizInfo.isTestQuiz && quizInfo.timeoutMinutes) {
+              // Calculate remaining time (simplified - assumes quiz was started recently)
+              setTimeout(async () => {
+                try {
+                  console.log(`Test quiz timeout na herstart`);
+                  await quiz.endDailyQuiz(client, channelId);
+                } catch (error) {
+                  console.error('Fout bij timeout na herstart:', error);
+                }
+              }, quizInfo.timeoutMinutes * 60 * 1000);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Kon quiz bericht niet herladen voor kanaal ${channelId}:`, error);
+        // Clean up invalid quiz reference
+        delete quizData.activeQuizzes[channelId];
+      }
+    }
+    
+    // Save cleaned up quiz data
+    await quiz.saveQuizData(quizData);
+  } catch (error) {
+    console.error('Fout bij laden actieve quizzes:', error);
+  }
+}
+
 function predictOpeningTime(isOpen, hokData) {
   let targetDay;
   
@@ -124,6 +166,7 @@ const client = new Client({
 let lastStatus = null;
 let lastMessage = null;
 let isInitialized = false;
+let activeQuizMessages = new Map(); // Store active quiz message references
 
 // Check API functie
 async function checkStatus() {
@@ -358,8 +401,15 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, 1); // 1 minuut timeout voor test quiz
-    await interaction.reply({ content: '✅ Test quiz gestart! Resultaten worden automatisch getoond na 1 minuut.', flags: 64 });
+    const timeoutMinutes = interaction.options.getInteger('tijd') || 1; // Default 1 minuut
+    
+    if (timeoutMinutes < 1 || timeoutMinutes > 60) {
+      await interaction.reply({ content: '❌ Tijd moet tussen 1 en 60 minuten zijn!', flags: 64 });
+      return;
+    }
+
+    await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, timeoutMinutes);
+    await interaction.reply({ content: `✅ Test quiz gestart! Resultaten worden automatisch getoond na ${timeoutMinutes} minuut${timeoutMinutes === 1 ? '' : 'en'}.`, flags: 64 });
   }
 
   if (commandName === 'resetquiz') {
@@ -412,7 +462,17 @@ client.once("clientReady", async () => {
     },
     {
       name: 'testquiz',
-      description: 'Start een test quiz (alleen voor administrators)'
+      description: 'Start een test quiz (alleen voor administrators)',
+      options: [
+        {
+          name: 'tijd',
+          description: 'Aantal minuten voordat de quiz eindigt (1-60, standaard: 1)',
+          type: 4, // INTEGER type
+          required: false,
+          min_value: 1,
+          max_value: 60
+        }
+      ]
     },
     {
       name: 'resetquiz',
@@ -430,6 +490,9 @@ client.once("clientReady", async () => {
 
   checkStatus();
   setInterval(checkStatus, 60 * 1000); // elke minuut checken
+  
+  // Load active quizzes after startup
+  await loadActiveQuizzes();
 });
 
 client.login(TOKEN);
