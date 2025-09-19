@@ -163,6 +163,15 @@ const client = new Client({
   ],
 });
 
+// Global error handler
+client.on('error', (error) => {
+  console.error('Discord client error:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 let lastStatus = null;
 let lastMessage = null;
 let isInitialized = false;
@@ -343,12 +352,15 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // Defer the reply immediately to prevent timeout
+    await interaction.deferReply({ ephemeral: true });
+
     try {
       const res = await fetch(API_URL);
       const data = await res.json();
       
       if (!data || !data.payload) {
-        await interaction.reply({ content: '❌ Kon status niet ophalen', flags: 64 });
+        await interaction.editReply({ content: '❌ Kon status niet ophalen' });
         return;
       }
 
@@ -388,10 +400,10 @@ client.on('interactionCreate', async (interaction) => {
       lastMessage = message;
       lastStatus = isOpen;
 
-      await interaction.reply({ content: '✅ Hok status succesvol geüpdatet!', flags: 64 });
+      await interaction.editReply({ content: '✅ Hok status succesvol geüpdatet!' });
     } catch (err) {
       console.error("Fout bij updaten status:", err);
-      await interaction.reply({ content: '❌ Fout bij updaten van de status', flags: 64 });
+      await interaction.editReply({ content: '❌ Fout bij updaten van de status' });
     }
   }
 
@@ -408,8 +420,16 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, timeoutMinutes);
-    await interaction.reply({ content: `✅ Test quiz gestart! Resultaten worden automatisch getoond na ${timeoutMinutes} minuut${timeoutMinutes === 1 ? '' : 'en'}.`, flags: 64 });
+    // Defer the reply immediately to prevent timeout
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, timeoutMinutes);
+      await interaction.editReply({ content: `✅ Test quiz gestart! Resultaten worden automatisch getoond na ${timeoutMinutes} minuut${timeoutMinutes === 1 ? '' : 'en'}.` });
+    } catch (error) {
+      console.error('Fout bij starten test quiz:', error);
+      await interaction.editReply({ content: '❌ Er is een fout opgetreden bij het starten van de test quiz.' });
+    }
   }
 
   if (commandName === 'resetquiz') {
@@ -418,9 +438,17 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // Defer the reply immediately to prevent timeout
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
       await quiz.resetUsedQuestions();
-      await interaction.reply({ content: '✅ Quiz vragen zijn gereset! Alle vragen kunnen weer gebruikt worden.', flags: 64 });
+      await interaction.editReply({ content: '✅ Quiz vragen zijn gereset! Alle vragen kunnen weer gebruikt worden.' });
+    } catch (error) {
+      console.error('Fout bij resetten quiz vragen:', error);
+      await interaction.editReply({ content: '❌ Er is een fout opgetreden bij het resetten van de quiz vragen.' });
     }
+  }
 });
 
 // Start de bot
