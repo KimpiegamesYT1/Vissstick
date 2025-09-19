@@ -113,7 +113,7 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     const buttons = Object.keys(randomQuiz.opties).map(letter => 
       new ButtonBuilder()
         .setCustomId(`quiz_${letter}`)
-        .setLabel(`${letter}: ${randomQuiz.opties[letter]}`)
+        .setLabel(randomQuiz.opties[letter])
         .setEmoji(EMOJI_MAP[letter])
         .setStyle(ButtonStyle.Primary)
     );
@@ -199,7 +199,7 @@ async function updateQuizMessage(message, channelId) {
     const buttons = Object.keys(updatedActiveQuiz.quiz.opties).map(letter => {
       return new ButtonBuilder()
         .setCustomId(`quiz_${letter}`)
-        .setLabel(`${letter}: ${updatedActiveQuiz.quiz.opties[letter]}`)
+        .setLabel(updatedActiveQuiz.quiz.opties[letter])
         .setEmoji(EMOJI_MAP[letter])
         .setStyle(ButtonStyle.Primary); // Always keep primary blue color
     });
@@ -323,7 +323,7 @@ async function endDailyQuiz(client, channelId) {
       const disabledButtons = Object.keys(activeQuiz.quiz.opties).map(letter => 
         new ButtonBuilder()
           .setCustomId(`quiz_${letter}_disabled`)
-          .setLabel(`${letter}: ${activeQuiz.quiz.opties[letter]}`)
+          .setLabel(activeQuiz.quiz.opties[letter])
           .setEmoji(EMOJI_MAP[letter])
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(true)
