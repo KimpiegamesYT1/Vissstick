@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -106,24 +106,33 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
       .setDescription(randomQuiz.vraag)
-      .addFields(
-        Object.entries(randomQuiz.opties).map(([letter, option]) => ({
-          name: `${EMOJI_MAP[letter]} ${letter}`,
-          value: option,
-          inline: false // Alle antwoorden onder elkaar
-        }))
-      )
       .setColor('#0099ff')
       .setFooter({ text: footerText });
 
-    const message = await channel.send({ embeds: [embed] });
+    // Create button components
+    const buttons = Object.keys(randomQuiz.opties).map(letter => 
+      new ButtonBuilder()
+        .setCustomId(`quiz_${letter}`)
+        .setLabel(`${letter}: ${randomQuiz.opties[letter]}`)
+        .setEmoji(EMOJI_MAP[letter])
+        .setStyle(ButtonStyle.Primary)
+    );
+
+    // Split buttons into rows (max 5 buttons per row)
+    const actionRows = [];
+    for (let i = 0; i < buttons.length; i += 5) {
+      const row = new ActionRowBuilder()
+        .addComponents(buttons.slice(i, i + 5));
+      actionRows.push(row);
+    }
+
+    const message = await channel.send({ 
+      embeds: [embed], 
+      components: actionRows 
+    });
     console.log(`Quiz bericht verzonden met ID: ${message.id}`);
 
-    // Add reactions
-    for (const letter of Object.keys(randomQuiz.opties)) {
-      await message.react(EMOJI_MAP[letter]);
-      console.log(`Reactie toegevoegd: ${letter} (${EMOJI_MAP[letter]})`);
-    }
+    // No need to add reactions anymore - buttons handle this
 
     // Save active quiz (don't mark as used yet)
     const quizData = await loadQuizData();
@@ -164,98 +173,131 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
   }
 }
 
-// Handle quiz reactions
-async function handleQuizReaction(reaction, user, added) {
-  if (user.bot) return;
+// Helper function to update quiz message
+async function updateQuizMessage(message, channelId) {
+  try {
+    const updatedQuizData = await loadQuizData();
+    const updatedActiveQuiz = updatedQuizData.activeQuizzes[channelId];
+    
+    if (!updatedActiveQuiz) return;
+    
+    const { all: allQuestions, available: availableQuestions } = await loadQuizList();
+    const responseCount = Object.keys(updatedActiveQuiz.responses).length;
+    
+    // Different footer text for test quiz vs regular quiz
+    const footerText = updatedActiveQuiz.isTestQuiz 
+      ? `Test quiz eindigt na ${updatedActiveQuiz.timeoutMinutes} minuten. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`
+      : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`;
+    
+    const embed = new EmbedBuilder()
+      .setTitle('📝 Dagelijkse Quiz!')
+      .setDescription(updatedActiveQuiz.quiz.vraag)
+      .setColor('#0099ff')
+      .setFooter({ text: footerText });
+
+    // Create updated buttons - highlight selected answers
+    const buttons = Object.keys(updatedActiveQuiz.quiz.opties).map(letter => {
+      const userAnswers = Object.values(updatedActiveQuiz.responses)
+        .filter(response => response.answer === letter);
+      
+      return new ButtonBuilder()
+        .setCustomId(`quiz_${letter}`)
+        .setLabel(`${letter}: ${updatedActiveQuiz.quiz.opties[letter]} (${userAnswers.length})`)
+        .setEmoji(EMOJI_MAP[letter])
+        .setStyle(userAnswers.length > 0 ? ButtonStyle.Success : ButtonStyle.Primary);
+    });
+
+    // Split buttons into rows
+    const actionRows = [];
+    for (let i = 0; i < buttons.length; i += 5) {
+      const row = new ActionRowBuilder()
+        .addComponents(buttons.slice(i, i + 5));
+      actionRows.push(row);
+    }
+
+    await message.edit({ 
+      embeds: [embed], 
+      components: actionRows 
+    });
+  } catch (err) {
+    console.error('Fout bij updaten quiz bericht:', err);
+  }
+}
+
+// Handle quiz button interactions
+async function handleQuizButton(interaction) {
+  console.log(`handleQuizButton aangeroepen: customId=${interaction.customId}`);
+  
+  if (!interaction.customId.startsWith('quiz_')) {
+    console.log('CustomId start niet met quiz_');
+    return false;
+  }
+
+  const letter = interaction.customId.split('_')[1];
+  const user = interaction.user;
+
+  console.log(`Quiz button geklikt: ${user.username} -> ${letter}`);
 
   try {
     const quizData = await loadQuizData();
-    const activeQuiz = quizData.activeQuizzes[reaction.message.channelId];
+    const activeQuiz = quizData.activeQuizzes[interaction.channelId];
     
-    if (!activeQuiz || activeQuiz.messageId !== reaction.message.id) return;
+    if (!activeQuiz || activeQuiz.messageId !== interaction.message.id) {
+      await interaction.reply({ 
+        content: '❌ Deze quiz is niet meer actief!', 
+        ephemeral: true 
+      });
+      return true;
+    }
 
-    const emojiLetter = Object.keys(EMOJI_MAP).find(key => EMOJI_MAP[key] === reaction.emoji.name);
-    if (!emojiLetter) return;
-
-    console.log(`Quiz reactie ontvangen: ${user.username} -> ${emojiLetter} (${added ? 'toegevoegd' : 'verwijderd'})`);
-
-    if (added) {
-      // Check if user already has an answer
-      const previousAnswer = activeQuiz.responses[user.id]?.answer;
-      
-      // Save the new answer FIRST before removing reactions
-      activeQuiz.responses[user.id] = {
-        answer: emojiLetter,
-        username: user.username
-      };
-      
-      // Save immediately to prevent data loss
-      await saveQuizData(quizData);
-      console.log(`Antwoord opgeslagen: ${user.username} = ${emojiLetter}`);
-      
-      // Then remove reactions (with delay to ensure save completed)
-      setTimeout(async () => {
-        try {
-          await reaction.users.remove(user.id);
-          
-          // If user had a different answer before, remove that reaction too
-          if (previousAnswer && previousAnswer !== emojiLetter) {
-            const previousEmoji = EMOJI_MAP[previousAnswer];
-            const previousReaction = reaction.message.reactions.cache.find(r => r.emoji.name === previousEmoji);
-            if (previousReaction) {
-              await previousReaction.users.remove(user.id);
-            }
-          }
-        } catch (err) {
-          console.error('Kon reactie niet verwijderen:', err);
-        }
-      }, 100); // 100ms delay
-      
-    } else {
-      // User removed reaction - remove their stored answer
+    // Check if user already has an answer
+    const previousAnswer = activeQuiz.responses[user.id]?.answer;
+    
+    if (previousAnswer === letter) {
+      // User clicked same button - remove their answer
       delete activeQuiz.responses[user.id];
       await saveQuizData(quizData);
       console.log(`Antwoord verwijderd: ${user.username}`);
+      
+      await interaction.reply({ 
+        content: `❌ Antwoord **${letter}** verwijderd!`, 
+        ephemeral: true 
+      });
+    } else {
+      // Save the new answer
+      activeQuiz.responses[user.id] = {
+        answer: letter,
+        username: user.username
+      };
+      
+      await saveQuizData(quizData);
+      console.log(`Antwoord opgeslagen: ${user.username} = ${letter}`);
+      
+      const optionText = activeQuiz.quiz.opties[letter];
+      await interaction.reply({ 
+        content: `✅ Antwoord **${letter}: ${optionText}** opgeslagen!`, 
+        ephemeral: true 
+      });
     }
+
+    // Update the message footer with current response count
+    setTimeout(async () => {
+      try {
+        await updateQuizMessage(interaction.message, interaction.channelId);
+      } catch (err) {
+        console.error('Kon quiz bericht niet updaten:', err);
+      }
+    }, 100);
+
+    return true;
   } catch (error) {
-    console.error('Fout bij verwerken quiz reactie:', error);
-    return;
+    console.error('Fout bij verwerken quiz button:', error);
+    await interaction.reply({ 
+      content: '❌ Er is een fout opgetreden bij het verwerken van je antwoord!', 
+      ephemeral: true 
+    });
+    return true;
   }
-
-  // Update the original message footer with current response count
-  setTimeout(async () => {
-    try {
-      const updatedQuizData = await loadQuizData();
-      const updatedActiveQuiz = updatedQuizData.activeQuizzes[reaction.message.channelId];
-      
-      if (!updatedActiveQuiz) return;
-      
-      const { all: allQuestions, available: availableQuestions } = await loadQuizList();
-      const responseCount = Object.keys(updatedActiveQuiz.responses).length;
-      
-      // Different footer text for test quiz vs regular quiz
-      const footerText = updatedActiveQuiz.isTestQuiz 
-        ? `Test quiz eindigt na ${updatedActiveQuiz.timeoutMinutes} minuten. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`
-        : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`;
-      
-      const embed = new EmbedBuilder()
-        .setTitle('📝 Dagelijkse Quiz!')
-        .setDescription(updatedActiveQuiz.quiz.vraag)
-        .addFields(
-          Object.entries(updatedActiveQuiz.quiz.opties).map(([letter, option]) => ({
-            name: `${EMOJI_MAP[letter]} ${letter}`,
-            value: option,
-            inline: false // Alle antwoorden onder elkaar
-          }))
-        )
-        .setColor('#0099ff')
-        .setFooter({ text: footerText });
-
-      await reaction.message.edit({ embeds: [embed] });
-    } catch (err) {
-      console.error('Kon bericht niet updaten:', err);
-    }
-  }, 200); // Wait a bit longer to ensure data is saved
 }
 
 // End daily quiz (show results)
@@ -274,6 +316,36 @@ async function endDailyQuiz(client, channelId) {
     const channel = await client.channels.fetch(channelId);
 
     console.log('Channel fetched, creating results embed...');
+    
+    // First disable all buttons on the original quiz message
+    try {
+      const quizChannel = await client.channels.fetch(channelId);
+      const quizMessage = await quizChannel.messages.fetch(activeQuiz.messageId);
+      
+      // Create disabled buttons
+      const disabledButtons = Object.keys(activeQuiz.quiz.opties).map(letter => 
+        new ButtonBuilder()
+          .setCustomId(`quiz_${letter}_disabled`)
+          .setLabel(`${letter}: ${activeQuiz.quiz.opties[letter]}`)
+          .setEmoji(EMOJI_MAP[letter])
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(true)
+      );
+
+      const disabledRows = [];
+      for (let i = 0; i < disabledButtons.length; i += 5) {
+        const row = new ActionRowBuilder()
+          .addComponents(disabledButtons.slice(i, i + 5));
+        disabledRows.push(row);
+      }
+
+      await quizMessage.edit({ components: disabledRows });
+      console.log('Quiz buttons disabled');
+    } catch (err) {
+      console.error('Kon quiz buttons niet disablen:', err);
+    }
+    
+    // Create results embed
     // Create results embed
     const correctAnswer = activeQuiz.quiz.antwoord;
     const correctOption = activeQuiz.quiz.opties[correctAnswer];
@@ -330,7 +402,7 @@ async function endDailyQuiz(client, channelId) {
 
 module.exports = {
   startDailyQuiz,
-  handleQuizReaction,
+  handleQuizButton,
   endDailyQuiz,
   resetUsedQuestions,
   loadQuizData,

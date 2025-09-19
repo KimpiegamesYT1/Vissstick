@@ -100,6 +100,7 @@ async function loadActiveQuizzes() {
     
     // Save cleaned up quiz data
     await quiz.saveQuizData(quizData);
+    console.log(`${Object.keys(quizData.activeQuizzes).length} actieve quizzes herladen`);
   } catch (error) {
     console.error('Fout bij laden actieve quizzes:', error);
   }
@@ -259,13 +260,11 @@ async function checkStatus() {
   }
 }
 
-// Reactie handler
+// Reactie handler (alleen voor hok notificaties)
 client.on('messageReactionAdd', async (reaction, user) => {
   if (user.bot) return;
   
-  // Handle quiz reactions
-  await quiz.handleQuizReaction(reaction, user, true);
-  
+  // Only handle bell reactions for hok notifications
   if (reaction.message.id === lastMessage?.id && reaction.emoji.name === '🔔') {
     try {
       const guild = reaction.message.guild;
@@ -294,14 +293,28 @@ client.on('messageReactionAdd', async (reaction, user) => {
   }
 });
 
-// Handle reaction removal for quiz
+// Reaction removal handler (niet meer nodig voor quiz)
 client.on('messageReactionRemove', async (reaction, user) => {
-  if (user.bot) return;
-  await quiz.handleQuizReaction(reaction, user, false);
+  // Quiz reactions zijn nu buttons - dit is alleen voor toekomstige functionaliteit
 });
 
 // Replace the messageCreate handler with slash commands
 client.on('interactionCreate', async (interaction) => {
+  // Handle button interactions (for quiz)
+  if (interaction.isButton()) {
+    console.log(`Button interaction ontvangen: ${interaction.customId} van ${interaction.user.username}`);
+    const handled = await quiz.handleQuizButton(interaction);
+    if (handled) {
+      console.log('Quiz button succesvol afgehandeld');
+      return;
+    }
+    
+    // Handle other buttons here if needed in the future
+    console.log('Button interaction niet afgehandeld door quiz module');
+    return;
+  }
+
+  // Handle slash commands
   if (!interaction.isChatInputCommand()) return;
 
   const { commandName } = interaction;
