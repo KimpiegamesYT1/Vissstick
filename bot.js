@@ -622,8 +622,8 @@ client.once("clientReady", async () => {
     timezone: "Europe/Amsterdam"
   });
 
-  // Schedule quiz results at 11:00
-  cron.schedule('0 11 * * *', () => {
+  // Schedule quiz results at 17:00
+  cron.schedule('0 17 * * *', () => {
     console.log('Ending daily quiz...');
     quiz.endDailyQuiz(client, QUIZ_CHANNEL_ID);
   }, {
