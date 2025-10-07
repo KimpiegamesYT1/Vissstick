@@ -368,16 +368,112 @@ client.on('interactionCreate', async (interaction) => {
 
   if (commandName === 'hokhistorie') {
     const hokData = await loadHokData();
-    const stats = Object.entries(hokData.openingTimes)
-      .sort()
-      .map(([date, times]) => {
-        return `**${date}**:\n` +
-               `📗 Open: ${times.openTimes.join(', ') || 'geen'}\n` +
-               `📕 Dicht: ${times.closeTimes.join(', ') || 'geen'}`;
-      })
-      .join('\n\n');
     
-    await interaction.reply(stats || 'Nog geen data beschikbaar');
+    if (Object.keys(hokData.openingTimes).length === 0) {
+      await interaction.reply('📊 Nog geen data beschikbaar');
+      return;
+    }
+
+    // Sorteer op datum (nieuwste eerst)
+    const sortedEntries = Object.entries(hokData.openingTimes)
+      .sort((a, b) => new Date(b[0]) - new Date(a[0]));
+
+    // Functie om dag van de week te krijgen
+    const getDayName = (dateStr) => {
+      const days = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
+      return days[new Date(dateStr).getDay()];
+    };
+
+    // Functie om totale open tijd te berekenen
+    const calculateOpenDuration = (openTimes, closeTimes) => {
+      if (openTimes.length === 0 || closeTimes.length === 0) return null;
+      
+      const parseTime = (time) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        return hours * 60 + minutes;
+      };
+
+      const firstOpen = parseTime(openTimes[0]);
+      const lastClose = parseTime(closeTimes[closeTimes.length - 1]);
+      const totalMinutes = lastClose - firstOpen;
+      
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      
+      return `${hours}u ${minutes}m`;
+    };
+
+    // Maak een mooie output per dag
+    const stats = sortedEntries.map(([date, times]) => {
+      const dayName = getDayName(date);
+      const formattedDate = new Date(date).toLocaleDateString('nl-NL', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      });
+      
+      let output = `**${dayName} ${formattedDate}**\n`;
+      
+      // Toon openingstijden
+      if (times.openTimes.length > 0) {
+        if (times.openTimes.length === 1) {
+          output += `📗 Geopend om **${times.openTimes[0]}**\n`;
+        } else {
+          output += `📗 Geopend: ${times.openTimes.join(', ')}\n`;
+        }
+      } else {
+        output += `📗 Niet geopend\n`;
+      }
+      
+      // Toon sluitingstijden
+      if (times.closeTimes.length > 0) {
+        if (times.closeTimes.length === 1) {
+          output += `📕 Gesloten om **${times.closeTimes[0]}**\n`;
+        } else {
+          output += `📕 Gesloten: ${times.closeTimes.join(', ')}\n`;
+        }
+      } else {
+        output += `📕 Nog niet gesloten\n`;
+      }
+      
+      // Bereken en toon totale open tijd
+      const duration = calculateOpenDuration(times.openTimes, times.closeTimes);
+      if (duration) {
+        output += `⏱️ Totaal open: **${duration}**`;
+      }
+      
+      return output;
+    }).join('\n\n');
+
+    // Splits in meerdere berichten als het te lang is (Discord limiet is 2000 karakters)
+    const maxLength = 1900;
+    if (stats.length > maxLength) {
+      const messages = [];
+      const entries = stats.split('\n\n');
+      let currentMessage = '📊 **Hok Geschiedenis**\n\n';
+      
+      for (const entry of entries) {
+        if ((currentMessage + entry + '\n\n').length > maxLength) {
+          messages.push(currentMessage);
+          currentMessage = entry + '\n\n';
+        } else {
+          currentMessage += entry + '\n\n';
+        }
+      }
+      if (currentMessage.trim()) {
+        messages.push(currentMessage);
+      }
+      
+      // Stuur eerste bericht als reply
+      await interaction.reply(messages[0]);
+      
+      // Stuur rest als follow-ups
+      for (let i = 1; i < messages.length; i++) {
+        await interaction.followUp(messages[i]);
+      }
+    } else {
+      await interaction.reply(`📊 **Hok Geschiedenis**\n\n${stats}`);
+    }
   }
 
   if (commandName === 'hokstatus') {
