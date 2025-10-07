@@ -101,7 +101,7 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     // Create embed with appropriate footer message
     const footerText = timeoutMinutes 
       ? `Test quiz eindigt na ${timeoutMinutes} minuten. ${availableQuestions.length} vragen over • 0 antwoorden`
-      : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over • 0 antwoorden`;
+      : `Antwoord wordt om 17:00 bekendgemaakt. ${availableQuestions.length} vragen over • 0 antwoorden`;
 
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
@@ -187,7 +187,7 @@ async function updateQuizMessage(message, channelId) {
     // Different footer text for test quiz vs regular quiz
     const footerText = updatedActiveQuiz.isTestQuiz 
       ? `Test quiz eindigt na ${updatedActiveQuiz.timeoutMinutes} minuten. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`
-      : `Antwoord wordt om 11:00 bekendgemaakt. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`;
+      : `Antwoord wordt om 17:00 bekendgemaakt. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`;
     
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
