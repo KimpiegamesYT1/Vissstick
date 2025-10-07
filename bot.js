@@ -12,6 +12,13 @@ const quiz = require('./quiz.js');
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, API_URL, ROLE_ID } = config;
 const dataPath = path.join(__dirname, 'data.json');
 
+// Check interval configuratie (in milliseconden)
+const CHECK_INTERVALS = {
+  OPEN: 5 * 60 * 1000,      // 5 minuten als hok open is
+  CLOSED: 1 * 60 * 1000,    // 1 minuut als hok dicht is
+  NIGHT: 15 * 60 * 1000     // 15 minuten tussen 22:00 en 05:00
+};
+
 // Load data from file
 async function loadHokData() {
   try {
@@ -177,6 +184,7 @@ let lastStatus = null;
 let lastMessage = null;
 let isInitialized = false;
 let activeQuizMessages = new Map(); // Store active quiz message references
+let checkInterval = null; // Store current interval ID
 
 // Check API functie
 async function checkStatus() {
@@ -205,7 +213,17 @@ async function checkStatus() {
       lastStatus = isOpen;
       isInitialized = true;
       console.log("Initiële status opgehaald:", isOpen ? "open" : "dicht");
+      updateCheckInterval(isOpen); // Set interval based on initial status
       return;
+    }
+
+    // Check of interval moet worden aangepast (door tijd of status)
+    const currentInterval = getCheckInterval(isOpen);
+    const activeInterval = checkInterval ? currentInterval : null;
+    
+    // Update interval als status veranderd is of als we van/naar nacht periode gaan
+    if (lastStatus !== isOpen || activeInterval !== currentInterval) {
+      updateCheckInterval(isOpen);
     }
 
     // Alleen iets doen als status is veranderd
@@ -258,6 +276,35 @@ async function checkStatus() {
   } catch (err) {
     console.error("Fout bij ophalen API:", err);
   }
+}
+
+// Functie om te bepalen of het nacht is (22:00 - 05:00)
+function isNightTime() {
+  const hour = new Date().getHours();
+  return hour >= 22 || hour < 5;
+}
+
+// Functie om het juiste check interval te bepalen
+function getCheckInterval(isOpen) {
+  if (isNightTime()) {
+    return CHECK_INTERVALS.NIGHT;
+  }
+  return isOpen ? CHECK_INTERVALS.OPEN : CHECK_INTERVALS.CLOSED;
+}
+
+// Functie om het check interval te updaten
+function updateCheckInterval(isOpen) {
+  const newInterval = getCheckInterval(isOpen);
+  
+  // Als het interval veranderd is, reset het
+  if (checkInterval) {
+    clearInterval(checkInterval);
+  }
+  
+  checkInterval = setInterval(checkStatus, newInterval);
+  
+  const intervalMinutes = newInterval / (60 * 1000);
+  console.log(`Check interval ingesteld op ${intervalMinutes} ${intervalMinutes === 1 ? 'minuut' : 'minuten'} (${isNightTime() ? 'nacht' : isOpen ? 'open' : 'dicht'})`);
 }
 
 // Reactie handler (alleen voor hok notificaties)
@@ -530,7 +577,7 @@ client.once("clientReady", async () => {
   }
 
   checkStatus();
-  setInterval(checkStatus, 60 * 1000); // elke minuut checken
+  // Interval wordt nu dynamisch ingesteld in checkStatus() na eerste check
   
   // Load active quizzes after startup
   await loadActiveQuizzes();
