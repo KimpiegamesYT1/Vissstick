@@ -2,7 +2,7 @@ const { ActivityType } = require("discord.js");
 const fs = require('fs').promises;
 const path = require('path');
 
-const dataPath = path.join(__dirname, 'data.json');
+const dataPath = path.join(__dirname, '..', 'data.json');
 
 // Check interval configuratie (in milliseconden)
 const CHECK_INTERVALS = {

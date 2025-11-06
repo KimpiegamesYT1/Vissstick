@@ -2,10 +2,10 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const fs = require('fs').promises;
 const path = require('path');
 
-const quizDataPath = path.join(__dirname, 'quiz-data.json');
-const quizListPath = path.join(__dirname, 'quizlijst.json');
-const usedQuestionsPath = path.join(__dirname, 'used-questions.json');
-const quizScoresPath = path.join(__dirname, 'quiz-scores.json');
+const quizDataPath = path.join(__dirname, '..', 'quiz-data.json');
+const quizListPath = path.join(__dirname, '..', 'quizlijst.json');
+const usedQuestionsPath = path.join(__dirname, '..', 'used-questions.json');
+const quizScoresPath = path.join(__dirname, '..', 'quiz-scores.json');
 
 const EMOJI_MAP = {
   'A': '🇦',
