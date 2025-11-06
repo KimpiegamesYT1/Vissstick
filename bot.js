@@ -212,9 +212,17 @@ client.once("clientReady", async () => {
   });
 
   // Schedule monthly scoreboard on last day of month at 18:00
-  cron.schedule('0 18 L * *', async () => {
-    console.log('Showing monthly scoreboard...');
-    await showMonthlyScoreboard(client, QUIZ_CHANNEL_ID);
+  // Check daily at 18:00 if it's the last day of the month
+  cron.schedule('0 18 28-31 * *', async () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Check if tomorrow is the first day of next month (meaning today is last day)
+    if (tomorrow.getDate() === 1) {
+      console.log('Showing monthly scoreboard...');
+      await showMonthlyScoreboard(client, QUIZ_CHANNEL_ID);
+    }
   }, {
     timezone: "Europe/Amsterdam"
   });
