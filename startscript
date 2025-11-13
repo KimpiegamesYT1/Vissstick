@@ -59,7 +59,7 @@ fi
 
 echo ""
 echo ">>> Stap 3: Update dependencies"
-npm install --production
+npm install --omit=dev
 echo "✓ Dependencies geïnstalleerd"
 
 echo ""
