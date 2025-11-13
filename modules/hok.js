@@ -126,6 +126,116 @@ function getAllHokHistory(limitDays = 180) {
 }
 
 /**
+ * Genereer een dagelijkse heatmap voor een specifieke weekdag
+ * Toont wanneer het hok meestal open/dicht is per uur
+ */
+function generateDailyHeatmap(weekday, currentHour = null) {
+  const db = getDatabase();
+  
+  // Haal data van laatste 6 maanden voor deze weekdag
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const cutoffDateKey = sixMonthsAgo.toISOString().split('T')[0];
+  
+  const logs = db.prepare(`
+    SELECT date_key, time_logged, is_opening
+    FROM hok_status_log
+    WHERE date_key >= ?
+    ORDER BY date_key, time_logged
+  `).all(cutoffDateKey);
+  
+  // Filter op weekdag
+  const relevantLogs = logs.filter(log => getWeekDay(log.date_key) === weekday);
+  
+  // Groepeer per datum
+  const dayLogs = {};
+  relevantLogs.forEach(log => {
+    if (!dayLogs[log.date_key]) {
+      dayLogs[log.date_key] = [];
+    }
+    dayLogs[log.date_key].push(log);
+  });
+  
+  // Tel voor elk uur hoeveel keer het hok open was
+  const hourStats = new Array(24).fill(0).map(() => ({ open: 0, total: 0 }));
+  
+  Object.entries(dayLogs).forEach(([date, logs]) => {
+    // Sorteer logs op tijd
+    logs.sort((a, b) => a.time_logged.localeCompare(b.time_logged));
+    
+    // Bepaal status voor elk uur
+    let isOpen = false;
+    let logIndex = 0;
+    
+    for (let hour = 0; hour < 24; hour++) {
+      const hourStr = hour.toString().padStart(2, '0');
+      
+      // Update status gebaseerd op logs in dit uur
+      while (logIndex < logs.length && logs[logIndex].time_logged.startsWith(hourStr)) {
+        isOpen = logs[logIndex].is_opening === 1;
+        logIndex++;
+      }
+      
+      hourStats[hour].total++;
+      if (isOpen) {
+        hourStats[hour].open++;
+      }
+    }
+  });
+  
+  // Genereer heatmap string
+  const days = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
+  let heatmap = `📊 **${days[weekday]}** Hok Patroon (laatste 6 maanden)\\n\\n`;
+  
+  // Twee regels: emojis en tijden
+  let emojiLine = '';
+  let timeLine = '';
+  
+  for (let hour = 0; hour < 24; hour++) {
+    const stat = hourStats[hour];
+    let emoji;
+    
+    if (stat.total === 0) {
+      emoji = '⚪'; // Geen data
+    } else {
+      const openPercentage = stat.open / stat.total;
+      if (openPercentage >= 0.8) {
+        emoji = '🟢'; // Meestal open (80%+)
+      } else if (openPercentage >= 0.5) {
+        emoji = '🟡'; // Soms open (50-80%)
+      } else if (openPercentage >= 0.2) {
+        emoji = '🟠'; // Zelden open (20-50%)
+      } else {
+        emoji = '🔴'; // Meestal dicht (<20%)
+      }
+    }
+    
+    // Markeer huidige uur
+    if (currentHour !== null && hour === currentHour) {
+      emoji = '🔷'; // Indicator: we zijn hier nu
+    }
+    
+    emojiLine += emoji;
+    
+    // Voeg tijd toe (alleen elk 3e uur voor leesbaarheid)
+    if (hour % 3 === 0) {
+      timeLine += hour.toString().padStart(2, '0');
+    } else {
+      timeLine += '  ';
+    }
+  }
+  
+  heatmap += emojiLine + '\\n';
+  heatmap += timeLine + '\\n\\n';
+  heatmap += '🟢 Meestal open  🟡 Soms open  🔴 Meestal dicht\\n';
+  if (currentHour !== null) {
+    heatmap += '🔷 Huidige tijd\\n';
+  }
+  
+  return heatmap;
+}
+
+/**
  * Voorspel openings/sluitingstijd op basis van historische data (laatste 6 maanden)
  * Gebruikt weighted average: recente data weegt zwaarder mee
  * - Laatste maand: 100% gewicht
@@ -430,6 +540,7 @@ module.exports = {
   cleanOldHokLogs,
   getHokLogsForDate,
   getAllHokHistory,
+  generateDailyHeatmap,
   predictOpeningTime,
   updateHokState,
   getHokState,

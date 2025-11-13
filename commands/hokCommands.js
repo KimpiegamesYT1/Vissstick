@@ -156,11 +156,17 @@ async function handleHokCommands(interaction, client, config, hokState) {
       const predictedTime = hok.predictOpeningTime(isOpen);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
       
-      await interaction.reply(
-        isOpen 
-          ? `✅ Het hok is momenteel **open**!${predictionMsg}` 
-          : `❌ Het hok is momenteel **dicht**!${predictionMsg}`
-      );
+      // Genereer heatmap voor vandaag
+      const now = new Date();
+      const currentWeekday = now.getDay();
+      const currentHour = now.getHours();
+      const heatmap = hok.generateDailyHeatmap(currentWeekday, currentHour);
+      
+      const statusMsg = isOpen 
+        ? `✅ Het hok is momenteel **open**!${predictionMsg}` 
+        : `❌ Het hok is momenteel **dicht**!${predictionMsg}`;
+      
+      await interaction.reply(`${statusMsg}\n\n${heatmap}`);
     } catch (err) {
       console.error("Fout bij ophalen status:", err);
       await interaction.reply('❌ Fout bij ophalen van de status');
