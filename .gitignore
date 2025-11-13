@@ -1,7 +1,14 @@
 config.json
+node_modules/
+
+# Database file
+bot.db
+bot.db-shm
+bot.db-wal
+
+# Legacy JSON files (deprecated)
 quizlijst.json
 quiz-scores.json
 quiz-data.json
 used-questions.json
 data.json
-node_modules/

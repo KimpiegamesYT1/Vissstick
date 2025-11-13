@@ -22,15 +22,15 @@ async function handleHokCommands(interaction, client, config, hokState) {
   const { API_URL, CHANNEL_ID, ROLE_ID } = config;
 
   if (commandName === 'hokhistorie') {
-    const hokData = await hok.loadHokData();
+    const hokHistory = hok.getAllHokHistory(56);
     
-    if (Object.keys(hokData.openingTimes).length === 0) {
+    if (Object.keys(hokHistory).length === 0) {
       await interaction.reply('📊 Nog geen data beschikbaar');
-      return;
+      return true;
     }
 
     // Sorteer op datum (nieuwste eerst)
-    const sortedEntries = Object.entries(hokData.openingTimes)
+    const sortedEntries = Object.entries(hokHistory)
       .sort((a, b) => new Date(b[0]) - new Date(a[0]));
 
     // Functie om dag van de week te krijgen
@@ -144,8 +144,7 @@ async function handleHokCommands(interaction, client, config, hokState) {
       }
 
       const isOpen = data.payload.open === 1;
-      const hokData = await hok.loadHokData();
-      const predictedTime = hok.predictOpeningTime(isOpen, hokData);
+      const predictedTime = hok.predictOpeningTime(isOpen);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
       
       await interaction.reply(
@@ -181,7 +180,6 @@ async function handleHokCommands(interaction, client, config, hokState) {
 
       const isOpen = data.payload.open === 1;
       const channel = await client.channels.fetch(CHANNEL_ID);
-      const hokData = await hok.loadHokData();
       const { ActivityType } = require('discord.js');
       
       // Update bot status
@@ -203,7 +201,7 @@ async function handleHokCommands(interaction, client, config, hokState) {
       }
 
       // Send new message
-      const predictedTime = hok.predictOpeningTime(isOpen, hokData);
+      const predictedTime = hok.predictOpeningTime(isOpen);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
 
       const message = await channel.send(
@@ -218,6 +216,9 @@ async function handleHokCommands(interaction, client, config, hokState) {
         hokState.lastMessage = message;
         hokState.lastStatus = isOpen;
       }
+      
+      // Update database state
+      hok.updateHokState(isOpen, message.id);
 
       await interaction.editReply({ content: '✅ Hok status succesvol geüpdatet!' });
     } catch (err) {

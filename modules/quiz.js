@@ -1,11 +1,10 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const fs = require('fs').promises;
-const path = require('path');
+/**
+ * Quiz module - volledig omgebouwd naar SQLite database
+ * Alle quiz functionaliteit met veilige database operaties
+ */
 
-const quizDataPath = path.join(__dirname, '..', 'quiz-data.json');
-const quizListPath = path.join(__dirname, '..', 'quizlijst.json');
-const usedQuestionsPath = path.join(__dirname, '..', 'used-questions.json');
-const quizScoresPath = path.join(__dirname, '..', 'quiz-scores.json');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { getDatabase } = require('../database');
 
 const EMOJI_MAP = {
   'A': '🇦',
@@ -14,172 +13,312 @@ const EMOJI_MAP = {
   'D': '🇩'
 };
 
-// Load used questions
-async function loadUsedQuestions() {
-  try {
-    const data = await fs.readFile(usedQuestionsPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-// Save used questions
-async function saveUsedQuestions(usedQuestions) {
-  await fs.writeFile(usedQuestionsPath, JSON.stringify(usedQuestions, null, 2));
-}
-
-// Reset used questions (for admin command)
-async function resetUsedQuestions() {
-  await saveUsedQuestions([]);
-}
-
-// Load quiz scores
-async function loadQuizScores() {
-  try {
-    const data = await fs.readFile(quizScoresPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    return { monthly: {}, allTime: {} };
-  }
-}
-
-// Save quiz scores
-async function saveQuizScores(scores) {
-  await fs.writeFile(quizScoresPath, JSON.stringify(scores, null, 2));
-}
-
-// Get current month key (YYYY-MM)
+/**
+ * Get current month key (YYYY-MM)
+ */
 function getCurrentMonthKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// Update scores after quiz ends
-async function updateScores(responses, correctAnswer) {
-  const scores = await loadQuizScores();
-  const monthKey = getCurrentMonthKey();
+/**
+ * Haal een random ongebruikte quiz vraag op
+ */
+function getRandomUnusedQuestion() {
+  const db = getDatabase();
   
-  // Initialize month if needed
-  if (!scores.monthly[monthKey]) {
-    scores.monthly[monthKey] = {};
+  // Tel totaal aantal vragen
+  const totalCount = db.prepare('SELECT COUNT(*) as count FROM quiz_questions').get().count;
+  
+  // Haal alle ongebruikte vragen op
+  const unusedQuestions = db.prepare(`
+    SELECT * FROM quiz_questions 
+    WHERE is_used = 0
+  `).all();
+  
+  if (unusedQuestions.length === 0) {
+    return { question: null, totalCount, availableCount: 0 };
   }
   
-  // Update scores for each user
-  Object.entries(responses).forEach(([userId, response]) => {
-    const isCorrect = response.answer === correctAnswer;
-    
-    // Update monthly scores
-    if (!scores.monthly[monthKey][userId]) {
-      scores.monthly[monthKey][userId] = {
-        username: response.username,
-        correct: 0,
-        total: 0
-      };
-    }
-    scores.monthly[monthKey][userId].total += 1;
-    if (isCorrect) {
-      scores.monthly[monthKey][userId].correct += 1;
-    }
-    
-    // Update all-time scores
-    if (!scores.allTime[userId]) {
-      scores.allTime[userId] = {
-        username: response.username,
-        correct: 0,
-        total: 0
-      };
-    }
-    scores.allTime[userId].total += 1;
-    if (isCorrect) {
-      scores.allTime[userId].correct += 1;
-    }
+  // Selecteer random vraag
+  const randomIndex = Math.floor(Math.random() * unusedQuestions.length);
+  const question = unusedQuestions[randomIndex];
+  
+  return { 
+    question, 
+    totalCount, 
+    availableCount: unusedQuestions.length 
+  };
+}
+
+/**
+ * Markeer een vraag als gebruikt
+ */
+function markQuestionAsUsed(questionId) {
+  const db = getDatabase();
+  
+  const stmt = db.prepare(`
+    UPDATE quiz_questions 
+    SET is_used = 1, used_date = datetime('now')
+    WHERE id = ?
+  `);
+  
+  stmt.run(questionId);
+}
+
+/**
+ * Reset alle gebruikte vragen
+ */
+function resetUsedQuestions() {
+  const db = getDatabase();
+  
+  const stmt = db.prepare(`
+    UPDATE quiz_questions 
+    SET is_used = 0, used_date = NULL
+  `);
+  
+  const result = stmt.run();
+  return result.changes;
+}
+
+/**
+ * Sla een actieve quiz op
+ */
+function saveActiveQuiz(channelId, messageId, questionId, isTestQuiz = false, timeoutMinutes = null) {
+  const db = getDatabase();
+  
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO active_quizzes 
+    (channel_id, message_id, question_id, is_test_quiz, timeout_minutes)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(channelId, messageId, questionId, isTestQuiz ? 1 : 0, timeoutMinutes);
+}
+
+/**
+ * Haal actieve quiz op voor een kanaal
+ */
+function getActiveQuiz(channelId) {
+  const db = getDatabase();
+  
+  const quiz = db.prepare(`
+    SELECT 
+      aq.*,
+      qq.vraag,
+      qq.optie_a,
+      qq.optie_b,
+      qq.optie_c,
+      qq.optie_d,
+      qq.correct_antwoord
+    FROM active_quizzes aq
+    JOIN quiz_questions qq ON aq.question_id = qq.id
+    WHERE aq.channel_id = ?
+  `).get(channelId);
+  
+  if (!quiz) return null;
+  
+  // Haal ook alle responses op
+  const responses = db.prepare(`
+    SELECT user_id, username, answer, submitted_at
+    FROM quiz_responses
+    WHERE channel_id = ?
+  `).all(channelId);
+  
+  // Converteer naar object met user_id als key
+  const responsesObj = {};
+  responses.forEach(r => {
+    responsesObj[r.user_id] = {
+      answer: r.answer,
+      username: r.username,
+      submitted_at: r.submitted_at
+    };
   });
   
-  await saveQuizScores(scores);
+  return {
+    ...quiz,
+    responses: responsesObj,
+    opties: {
+      A: quiz.optie_a,
+      B: quiz.optie_b,
+      C: quiz.optie_c,
+      D: quiz.optie_d
+    }
+  };
 }
 
-// Load quiz data (active quizzes)
-async function loadQuizData() {
-  try {
-    const data = await fs.readFile(quizDataPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    return { activeQuizzes: {} };
-  }
+/**
+ * Sla een quiz response op
+ */
+function saveQuizResponse(channelId, userId, username, answer) {
+  const db = getDatabase();
+  
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO quiz_responses 
+    (channel_id, user_id, username, answer)
+    VALUES (?, ?, ?, ?)
+  `);
+  
+  stmt.run(channelId, userId, username, answer);
 }
 
-// Save quiz data
-async function saveQuizData(data) {
-  await fs.writeFile(quizDataPath, JSON.stringify(data, null, 2));
+/**
+ * Verwijder een quiz response
+ */
+function deleteQuizResponse(channelId, userId) {
+  const db = getDatabase();
+  
+  const stmt = db.prepare(`
+    DELETE FROM quiz_responses
+    WHERE channel_id = ? AND user_id = ?
+  `);
+  
+  stmt.run(channelId, userId);
 }
 
-// Load quiz questions (excluding used ones)
-async function loadQuizList() {
-  try {
-    const allQuestions = JSON.parse(await fs.readFile(quizListPath, 'utf8'));
-    const usedQuestions = await loadUsedQuestions();
-    
-    // Filter out used questions by comparing the full question object
-    const availableQuestions = allQuestions.filter(question => {
-      return !usedQuestions.some(used => 
-        used.vraag === question.vraag && 
-        JSON.stringify(used.opties) === JSON.stringify(question.opties)
-      );
+/**
+ * Tel aantal responses voor een quiz
+ */
+function countQuizResponses(channelId) {
+  const db = getDatabase();
+  
+  const result = db.prepare(`
+    SELECT COUNT(*) as count
+    FROM quiz_responses
+    WHERE channel_id = ?
+  `).get(channelId);
+  
+  return result.count;
+}
+
+/**
+ * Update scores na afloop van een quiz
+ */
+function updateScores(responses, correctAnswer) {
+  const db = getDatabase();
+  const monthKey = getCurrentMonthKey();
+  
+  const monthlyStmt = db.prepare(`
+    INSERT INTO quiz_scores (user_id, username, month_key, correct_count, total_count)
+    VALUES (?, ?, ?, ?, 1)
+    ON CONFLICT(user_id, month_key) DO UPDATE SET
+      correct_count = correct_count + ?,
+      total_count = total_count + 1,
+      username = excluded.username,
+      last_updated = datetime('now')
+  `);
+  
+  const allTimeStmt = db.prepare(`
+    INSERT INTO quiz_scores (user_id, username, month_key, correct_count, total_count)
+    VALUES (?, ?, 'all-time', ?, 1)
+    ON CONFLICT(user_id, month_key) DO UPDATE SET
+      correct_count = correct_count + ?,
+      total_count = total_count + 1,
+      username = excluded.username,
+      last_updated = datetime('now')
+  `);
+  
+  // Transaction voor atomiciteit
+  const transaction = db.transaction((responses) => {
+    Object.entries(responses).forEach(([userId, response]) => {
+      const isCorrect = response.answer === correctAnswer ? 1 : 0;
+      
+      // Update monthly scores
+      monthlyStmt.run(userId, response.username, monthKey, isCorrect, isCorrect);
+      
+      // Update all-time scores
+      allTimeStmt.run(userId, response.username, isCorrect, isCorrect);
     });
-    
-    return { all: allQuestions, available: availableQuestions };
-  } catch (error) {
-    console.error('Fout bij laden quizlijst:', error);
-    return { all: [], available: [] };
-  }
+  });
+  
+  transaction(responses);
 }
 
-// Start daily quiz
+/**
+ * Haal quiz scores op voor een specifieke maand
+ */
+function getQuizScores(monthKey = null) {
+  const db = getDatabase();
+  
+  const key = monthKey || getCurrentMonthKey();
+  
+  const scores = db.prepare(`
+    SELECT user_id, username, correct_count, total_count
+    FROM quiz_scores
+    WHERE month_key = ?
+    ORDER BY correct_count DESC, total_count ASC
+  `).all(key);
+  
+  return scores;
+}
+
+/**
+ * Verwijder een actieve quiz en alle responses
+ */
+function deleteActiveQuiz(channelId) {
+  const db = getDatabase();
+  
+  // Responses worden automatisch verwijderd door CASCADE
+  const stmt = db.prepare(`
+    DELETE FROM active_quizzes
+    WHERE channel_id = ?
+  `);
+  
+  stmt.run(channelId);
+}
+
+/**
+ * Start daily quiz
+ */
 async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
   try {
     const channel = await client.channels.fetch(channelId);
     if (!channel) return console.error('Quiz kanaal niet gevonden!');
 
-    const { all: allQuestions, available: availableQuestions } = await loadQuizList();
+    const { question, totalCount, availableCount } = getRandomUnusedQuestion();
     
-    if (allQuestions.length === 0) return console.error('Geen quiz vragen beschikbaar!');
+    if (totalCount === 0) {
+      return console.error('Geen quiz vragen beschikbaar in database!');
+    }
     
     // Check if all questions have been used
-    if (availableQuestions.length === 0) {
+    if (!question) {
       const embed = new EmbedBuilder()
         .setTitle('📝 Dagelijkse Quiz')
         .setDescription('🎉 **Alle quiz vragen zijn gebruikt!**\n\nEr zijn geen nieuwe vragen meer beschikbaar. Een administrator kan de vragenlijst resetten met `/resetquiz`.')
         .setColor('#ffa500')
-        .setFooter({ text: `Totaal aantal vragen: ${allQuestions.length}` });
+        .setFooter({ text: `Totaal aantal vragen: ${totalCount}` });
 
       await channel.send({ embeds: [embed] });
       return console.log('Alle quiz vragen zijn gebruikt!');
     }
 
-    // Select random quiz from available questions
-    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-    const randomQuiz = availableQuestions[randomIndex];
-    
-    console.log(`Quiz selectie: ${randomIndex + 1}/${availableQuestions.length} beschikbare vragen`);
-    console.log(`Geselecteerde vraag: "${randomQuiz.vraag.substring(0, 50)}..."`);
+    console.log(`Quiz selectie: ${availableCount} beschikbare vragen`);
+    console.log(`Geselecteerde vraag ID: ${question.id} - "${question.vraag.substring(0, 50)}..."`);
     
     // Create embed with appropriate footer message
     const footerText = timeoutMinutes 
-      ? `Test quiz eindigt na ${timeoutMinutes} minuten. ${availableQuestions.length} vragen over • 0 antwoorden`
-      : `Antwoord wordt om 17:00 bekendgemaakt. ${availableQuestions.length} vragen over • 0 antwoorden`;
+      ? `Test quiz eindigt na ${timeoutMinutes} minuten. ${availableCount} vragen over • 0 antwoorden`
+      : `Antwoord wordt om 17:00 bekendgemaakt. ${availableCount} vragen over • 0 antwoorden`;
 
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
-      .setDescription(randomQuiz.vraag)
+      .setDescription(question.vraag)
       .setColor('#0099ff')
       .setFooter({ text: footerText });
 
     // Create button components
-    const buttons = Object.keys(randomQuiz.opties).map(letter => 
+    const opties = {
+      A: question.optie_a,
+      B: question.optie_b,
+      C: question.optie_c,
+      D: question.optie_d
+    };
+
+    const buttons = Object.keys(opties).map(letter => 
       new ButtonBuilder()
         .setCustomId(`quiz_${letter}`)
-        .setLabel(randomQuiz.opties[letter])
+        .setLabel(opties[letter])
         .setEmoji(EMOJI_MAP[letter])
         .setStyle(ButtonStyle.Primary)
     );
@@ -198,25 +337,9 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     });
     console.log(`Quiz bericht verzonden met ID: ${message.id}`);
 
-    // No need to add reactions anymore - buttons handle this
-
-    // Save active quiz (don't mark as used yet)
-    const quizData = await loadQuizData();
-    quizData.activeQuizzes[channelId] = {
-      messageId: message.id,
-      quiz: randomQuiz,
-      responses: {},
-      isTestQuiz: timeoutMinutes !== null,
-      timeoutMinutes: timeoutMinutes
-    };
-    
-    try {
-      await saveQuizData(quizData);
-      console.log(`Quiz data opgeslagen voor kanaal ${channelId}`);
-    } catch (error) {
-      console.error('Fout bij opslaan quiz data:', error);
-      throw error;
-    }
+    // Save active quiz in database
+    saveActiveQuiz(channelId, message.id, question.id, timeoutMinutes !== null, timeoutMinutes);
+    console.log(`Quiz data opgeslagen in database voor kanaal ${channelId}`);
 
     // Set timeout for test quiz
     if (timeoutMinutes) {
@@ -232,42 +355,43 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
       
       console.log(`Test quiz gestart! Eindigt automatisch na ${timeoutMinutes} minuten.`);
     } else {
-      console.log(`Dagelijkse quiz gestart! ${availableQuestions.length} vragen over.`);
+      console.log(`Dagelijkse quiz gestart! ${availableCount} vragen over.`);
     }
   } catch (error) {
     console.error('Fout bij starten quiz:', error);
   }
 }
 
-// Helper function to update quiz message
+/**
+ * Helper function to update quiz message
+ */
 async function updateQuizMessage(message, channelId) {
   try {
-    const updatedQuizData = await loadQuizData();
-    const updatedActiveQuiz = updatedQuizData.activeQuizzes[channelId];
+    const activeQuiz = getActiveQuiz(channelId);
     
-    if (!updatedActiveQuiz) return;
+    if (!activeQuiz) return;
     
-    const { all: allQuestions, available: availableQuestions } = await loadQuizList();
-    const responseCount = Object.keys(updatedActiveQuiz.responses).length;
+    const { availableCount } = getRandomUnusedQuestion();
+    const responseCount = Object.keys(activeQuiz.responses).length;
     
     // Different footer text for test quiz vs regular quiz
-    const footerText = updatedActiveQuiz.isTestQuiz 
-      ? `Test quiz eindigt na ${updatedActiveQuiz.timeoutMinutes} minuten. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`
-      : `Antwoord wordt om 17:00 bekendgemaakt. ${availableQuestions.length} vragen over • ${responseCount} antwoorden`;
+    const footerText = activeQuiz.is_test_quiz 
+      ? `Test quiz eindigt na ${activeQuiz.timeout_minutes} minuten. ${availableCount} vragen over • ${responseCount} antwoorden`
+      : `Antwoord wordt om 17:00 bekendgemaakt. ${availableCount} vragen over • ${responseCount} antwoorden`;
     
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
-      .setDescription(updatedActiveQuiz.quiz.vraag)
+      .setDescription(activeQuiz.vraag)
       .setColor('#0099ff')
       .setFooter({ text: footerText });
 
-    // Create updated buttons - keep simple without counters or color changes
-    const buttons = Object.keys(updatedActiveQuiz.quiz.opties).map(letter => {
+    // Create updated buttons
+    const buttons = Object.keys(activeQuiz.opties).map(letter => {
       return new ButtonBuilder()
         .setCustomId(`quiz_${letter}`)
-        .setLabel(updatedActiveQuiz.quiz.opties[letter])
+        .setLabel(activeQuiz.opties[letter])
         .setEmoji(EMOJI_MAP[letter])
-        .setStyle(ButtonStyle.Primary); // Always keep primary blue color
+        .setStyle(ButtonStyle.Primary);
     });
 
     // Split buttons into rows
@@ -287,7 +411,9 @@ async function updateQuizMessage(message, channelId) {
   }
 }
 
-// Handle quiz button interactions
+/**
+ * Handle quiz button interactions
+ */
 async function handleQuizButton(interaction) {
   console.log(`handleQuizButton aangeroepen: customId=${interaction.customId}`);
   
@@ -302,10 +428,9 @@ async function handleQuizButton(interaction) {
   console.log(`Quiz button geklikt: ${user.username} -> ${letter}`);
 
   try {
-    const quizData = await loadQuizData();
-    const activeQuiz = quizData.activeQuizzes[interaction.channelId];
+    const activeQuiz = getActiveQuiz(interaction.channelId);
     
-    if (!activeQuiz || activeQuiz.messageId !== interaction.message.id) {
+    if (!activeQuiz || activeQuiz.message_id !== interaction.message.id) {
       await interaction.reply({ 
         content: '❌ Deze quiz is niet meer actief!', 
         ephemeral: true 
@@ -318,8 +443,7 @@ async function handleQuizButton(interaction) {
     
     if (previousAnswer === letter) {
       // User clicked same button - remove their answer
-      delete activeQuiz.responses[user.id];
-      await saveQuizData(quizData);
+      deleteQuizResponse(interaction.channelId, user.id);
       console.log(`Antwoord verwijderd: ${user.username}`);
       
       await interaction.reply({ 
@@ -328,15 +452,10 @@ async function handleQuizButton(interaction) {
       });
     } else {
       // Save the new answer
-      activeQuiz.responses[user.id] = {
-        answer: letter,
-        username: user.username
-      };
-      
-      await saveQuizData(quizData);
+      saveQuizResponse(interaction.channelId, user.id, user.username, letter);
       console.log(`Antwoord opgeslagen: ${user.username} = ${letter}`);
       
-      const optionText = activeQuiz.quiz.opties[letter];
+      const optionText = activeQuiz.opties[letter];
       await interaction.reply({ 
         content: `✅ Antwoord **${letter}: ${optionText}** opgeslagen!`, 
         ephemeral: true 
@@ -363,12 +482,13 @@ async function handleQuizButton(interaction) {
   }
 }
 
-// End daily quiz (show results)
+/**
+ * End daily quiz (show results)
+ */
 async function endDailyQuiz(client, channelId) {
   try {
     console.log(`Starting endDailyQuiz for channel ${channelId}`);
-    const quizData = await loadQuizData();
-    const activeQuiz = quizData.activeQuizzes[channelId];
+    const activeQuiz = getActiveQuiz(channelId);
     
     if (!activeQuiz) {
       console.log('No active quiz found!');
@@ -383,13 +503,13 @@ async function endDailyQuiz(client, channelId) {
     // First disable all buttons on the original quiz message
     try {
       const quizChannel = await client.channels.fetch(channelId);
-      const quizMessage = await quizChannel.messages.fetch(activeQuiz.messageId);
+      const quizMessage = await quizChannel.messages.fetch(activeQuiz.message_id);
       
       // Create disabled buttons
-      const disabledButtons = Object.keys(activeQuiz.quiz.opties).map(letter => 
+      const disabledButtons = Object.keys(activeQuiz.opties).map(letter => 
         new ButtonBuilder()
           .setCustomId(`quiz_${letter}_disabled`)
-          .setLabel(activeQuiz.quiz.opties[letter])
+          .setLabel(activeQuiz.opties[letter])
           .setEmoji(EMOJI_MAP[letter])
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(true)
@@ -409,9 +529,8 @@ async function endDailyQuiz(client, channelId) {
     }
     
     // Create results embed
-    // Create results embed
-    const correctAnswer = activeQuiz.quiz.antwoord;
-    const correctOption = activeQuiz.quiz.opties[correctAnswer];
+    const correctAnswer = activeQuiz.correct_antwoord;
+    const correctOption = activeQuiz.opties[correctAnswer];
     
     // Group responses by answer
     const responsesByAnswer = {};
@@ -422,12 +541,12 @@ async function endDailyQuiz(client, channelId) {
       responsesByAnswer[response.answer].push(response.username);
     });
 
-    // Build description with new layout
-    let description = `**Vraag:** ${activeQuiz.quiz.vraag}\n\n`;
+    // Build description with layout
+    let description = `**Vraag:** ${activeQuiz.vraag}\n\n`;
     description += `**Juiste antwoord:** ${correctAnswer} - ${correctOption}\n\n`;
 
     // Add answer options with participants
-    Object.keys(activeQuiz.quiz.opties).forEach(letter => {
+    Object.keys(activeQuiz.opties).forEach(letter => {
       const users = responsesByAnswer[letter] || [];
       const isCorrect = letter === correctAnswer;
       const letterDisplay = isCorrect ? `**${letter}**` : letter;
@@ -443,23 +562,19 @@ async function endDailyQuiz(client, channelId) {
     embed.setFooter({ text: `Totaal aantal deelnemers: ${totalResponses}` });
 
     console.log('Sending results message...');
-    // Send new message with results (don't update the original)
     await channel.send({ embeds: [embed] });
 
     console.log('Updating scores...');
     // Update scores for all participants
-    await updateScores(activeQuiz.responses, correctAnswer);
+    updateScores(activeQuiz.responses, correctAnswer);
 
     console.log('Marking question as used...');
-    // Now mark the question as used
-    const usedQuestions = await loadUsedQuestions();
-    usedQuestions.push(activeQuiz.quiz);
-    await saveUsedQuestions(usedQuestions);
+    // Mark the question as used
+    markQuestionAsUsed(activeQuiz.question_id);
 
     console.log('Cleaning up quiz data...');
-    // Clean up
-    delete quizData.activeQuizzes[channelId];
-    await saveQuizData(quizData);
+    // Clean up - responses worden automatisch verwijderd door CASCADE
+    deleteActiveQuiz(channelId);
 
     console.log('Quiz beëindigd en resultaten getoond!');
   } catch (error) {
@@ -467,13 +582,27 @@ async function endDailyQuiz(client, channelId) {
   }
 }
 
+/**
+ * Load active quizzes (voor bot startup)
+ */
+function loadActiveQuizzes() {
+  const db = getDatabase();
+  
+  const quizzes = db.prepare(`
+    SELECT channel_id, message_id, question_id, is_test_quiz, timeout_minutes
+    FROM active_quizzes
+  `).all();
+  
+  return quizzes;
+}
+
 module.exports = {
   startDailyQuiz,
   handleQuizButton,
   endDailyQuiz,
   resetUsedQuestions,
-  loadQuizData,
-  saveQuizData,
-  loadQuizScores,
-  getCurrentMonthKey
+  getQuizScores,
+  getCurrentMonthKey,
+  loadActiveQuizzes,
+  getActiveQuiz
 };

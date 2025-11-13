@@ -4,51 +4,77 @@ set -e
 BOT_DIR="/opt/discord-bot"
 BACKUP_DIR="/root/discord-bot-backup"
 
-# Bestanden die gebackupt moeten worden
-BACKUP_FILES=(
-    "config.json"
-    "data.json"
-    "quiz-data.json"
-    "used-questions.json"
-    "quizlijst.json"
-    "quiz-scores.json"
-)
+echo "=== Vissstick Discord Bot Deployment Script ==="
+echo ""
 
-# Ga naar /opt zodat we niet in BOT_DIR zitten bij verwijderen
-cd /opt
-
-echo ">>> Stap 1: Maak backup van belangrijke bestanden"
+echo ">>> Stap 1: Backup maken van belangrijke bestanden"
 mkdir -p "$BACKUP_DIR"
 
-for file in "${BACKUP_FILES[@]}"; do
-    if [ -f "$BOT_DIR/$file" ]; then
-        cp "$BOT_DIR/$file" "$BACKUP_DIR/$file"
-        echo "✓ Backup gemaakt: $file"
-    else
-        echo "⚠ Geen $file gevonden om te backuppen"
-    fi
-done
+# Backup database (BELANGRIJK!)
+if [ -f "$BOT_DIR/bot.db" ]; then
+    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    cp "$BOT_DIR/bot.db" "$BACKUP_DIR/bot.db.backup-$TIMESTAMP"
+    echo "✓ Database backup: bot.db.backup-$TIMESTAMP"
+fi
 
+# Backup config
+if [ -f "$BOT_DIR/config.json" ]; then
+    cp "$BOT_DIR/config.json" "$BACKUP_DIR/config.json"
+    echo "✓ Config backup: config.json"
+fi
 
+cd /opt
 
-echo ">>> Stap 2: Verwijder oude bot map"
+echo ""
+echo ">>> Stap 2: Verwijder oude bot directory"
 rm -rf "$BOT_DIR"
+echo "✓ Oude code verwijderd"
 
-echo ">>> Stap 3: Clone de nieuwste code van GitHub"
+echo ""
+echo ">>> Stap 3: Clone nieuwste code van GitHub"
 git clone https://github.com/KimpiegamesYT1/Vissstick.git "$BOT_DIR"
+echo "✓ Code gedownload"
 
-echo ">>> Stap 4: Zet backup terug"
-for file in "${BACKUP_FILES[@]}"; do
-    if [ -f "$BACKUP_DIR/$file" ]; then
-        cp "$BACKUP_DIR/$file" "$BOT_DIR/$file"
-        echo "✓ Teruggezet: $file"
+echo ""
+echo ">>> Stap 4: Herstel configuratie en database"
+
+if [ -f "$BACKUP_DIR/config.json" ]; then
+    cp "$BACKUP_DIR/config.json" "$BOT_DIR/config.json"
+    echo "✓ config.json hersteld"
+else
+    echo "⚠️  Geen config.json backup gevonden! Maak deze aan in $BOT_DIR"
+fi
+
+if [ -f "$BACKUP_DIR/bot.db" ]; then
+    # Gebruik de meest recente backup
+    LATEST_DB=$(ls -t "$BACKUP_DIR"/bot.db.backup-* 2>/dev/null | head -1)
+    if [ -n "$LATEST_DB" ]; then
+        cp "$LATEST_DB" "$BOT_DIR/bot.db"
+        echo "✓ Database hersteld: $(basename $LATEST_DB)"
     fi
-done
+else
+    echo "ℹ️  Geen database backup gevonden - nieuwe database wordt aangemaakt"
+fi
 
-echo ">>> Stap 5: Installeer dependencies"
+echo ""
+echo ">>> Stap 5: Installeer Node.js dependencies"
 cd "$BOT_DIR"
 npm install --production
+echo "✓ Dependencies geïnstalleerd"
 
-echo ">>> Stap 6: Start bot in deze terminal"
-echo "De bot draait nu. Gebruik CTRL+C om te stoppen."
+echo ""
+echo ">>> Stap 6: Controleer database"
+if [ -f "$BOT_DIR/bot.db" ]; then
+    echo "✓ Database aanwezig"
+else
+    echo "ℹ️  Nieuwe database wordt aangemaakt bij eerste start"
+fi
+
+echo ""
+echo "=== Bot is klaar om te starten ==="
+echo ""
+echo "De bot draait nu in deze terminal."
+echo "Gebruik CTRL+C om te stoppen."
+echo ""
+
 node bot.js

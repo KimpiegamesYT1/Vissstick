@@ -1,8 +1,10 @@
-const { ActivityType } = require("discord.js");
-const fs = require('fs').promises;
-const path = require('path');
+/**
+ * Hok module - volledig omgebouwd naar SQLite database
+ * Alle hok monitoring functionaliteit met veilige database operaties
+ */
 
-const dataPath = path.join(__dirname, '..', 'data.json');
+const { ActivityType } = require("discord.js");
+const { getDatabase } = require('../database');
 
 // Check interval configuratie (in milliseconden)
 const CHECK_INTERVALS = {
@@ -11,52 +13,117 @@ const CHECK_INTERVALS = {
   NIGHT: 15 * 60 * 1000     // 15 minuten tussen 22:00 en 05:00
 };
 
-// Load data from file
-async function loadHokData() {
-  try {
-    const data = await fs.readFile(dataPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    // If file doesn't exist, return default structure
-    return {
-      openingTimes: {},
-      MAX_DAYS: 56
-    };
-  }
-}
-
-// Save data to file
-async function saveHokData(data) {
-  await fs.writeFile(dataPath, JSON.stringify(data, null, 2));
-}
-
+/**
+ * Get current date key (YYYY-MM-DD)
+ */
 function getCurrentDateKey() {
   return new Date().toISOString().split('T')[0];
 }
 
+/**
+ * Get weekday from date string
+ */
 function getWeekDay(dateStr) {
   return new Date(dateStr).getDay();
 }
 
-async function cleanOldData(hokData) {
-  const dates = Object.keys(hokData.openingTimes).sort();
+
+/**
+ * Sla een hok status log op
+ */
+function logHokStatus(dateKey, time, isOpening) {
+  const db = getDatabase();
+  
+  const stmt = db.prepare(`
+    INSERT INTO hok_status_log (date_key, time_logged, is_opening)
+    VALUES (?, ?, ?)
+  `);
+  
+  stmt.run(dateKey, time, isOpening ? 1 : 0);
+}
+
+/**
+ * Cleanup oude hok logs (ouder dan MAX_DAYS)
+ */
+function cleanOldHokLogs(maxDays = 56) {
+  const db = getDatabase();
+  
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - hokData.MAX_DAYS);
+  cutoffDate.setDate(cutoffDate.getDate() - maxDays);
+  const cutoffDateKey = cutoffDate.toISOString().split('T')[0];
   
-  let modified = false;
-  dates.forEach(date => {
-    if (new Date(date) < cutoffDate) {
-      delete hokData.openingTimes[date];
-      modified = true;
-    }
-  });
+  const stmt = db.prepare(`
+    DELETE FROM hok_status_log
+    WHERE date_key < ?
+  `);
   
-  if (modified) {
-    await saveHokData(hokData);
+  const result = stmt.run(cutoffDateKey);
+  
+  if (result.changes > 0) {
+    console.log(`🧹 ${result.changes} oude hok logs verwijderd (ouder dan ${maxDays} dagen)`);
   }
 }
 
-function predictOpeningTime(isOpen, hokData) {
+/**
+ * Haal hok status logs op voor een specifieke datum
+ */
+function getHokLogsForDate(dateKey) {
+  const db = getDatabase();
+  
+  const logs = db.prepare(`
+    SELECT time_logged, is_opening, logged_at
+    FROM hok_status_log
+    WHERE date_key = ?
+    ORDER BY time_logged ASC
+  `).all(dateKey);
+  
+  // Groepeer in opening en closing times
+  const openTimes = [];
+  const closeTimes = [];
+  
+  logs.forEach(log => {
+    if (log.is_opening) {
+      openTimes.push(log.time_logged);
+    } else {
+      closeTimes.push(log.time_logged);
+    }
+  });
+  
+  return { openTimes, closeTimes };
+}
+
+/**
+ * Haal alle hok geschiedenis op
+ */
+function getAllHokHistory(limitDays = 56) {
+  const db = getDatabase();
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - limitDays);
+  const cutoffDateKey = cutoffDate.toISOString().split('T')[0];
+  
+  const dates = db.prepare(`
+    SELECT DISTINCT date_key
+    FROM hok_status_log
+    WHERE date_key >= ?
+    ORDER BY date_key DESC
+  `).all(cutoffDateKey);
+  
+  const history = {};
+  
+  dates.forEach(({ date_key }) => {
+    history[date_key] = getHokLogsForDate(date_key);
+  });
+  
+  return history;
+}
+
+/**
+ * Voorspel openings/sluitingstijd op basis van historische data
+ */
+function predictOpeningTime(isOpen) {
+  const db = getDatabase();
+  
   let targetDay;
   
   if (isOpen) {
@@ -69,22 +136,21 @@ function predictOpeningTime(isOpen, hokData) {
     targetDay = tomorrow.getDay();
   }
   
-  let relevantTimes = [];
+  // Haal alle relevante tijden op voor deze weekdag
+  const logs = db.prepare(`
+    SELECT time_logged, date_key
+    FROM hok_status_log
+    WHERE is_opening = ?
+    ORDER BY logged_at DESC
+    LIMIT 100
+  `).all(isOpen ? 0 : 1); // 0 = closing, 1 = opening
   
-  // Verzamel alle tijden voor de doeldag
-  Object.entries(hokData.openingTimes).forEach(([date, data]) => {
-    if (getWeekDay(date) === targetDay) {
-      if (isOpen) {
-        // Voor sluittijd, pak de laatste tijd van de dag
-        if (data.closeTimes.length > 0) {
-          relevantTimes.push(data.closeTimes[data.closeTimes.length - 1]);
-        }
-      } else {
-        // Voor openingstijd, pak de eerste tijd van de dag
-        if (data.openTimes.length > 0) {
-          relevantTimes.push(data.openTimes[0]);
-        }
-      }
+  // Filter op weekdag
+  const relevantTimes = [];
+  logs.forEach(log => {
+    const logWeekday = getWeekDay(log.date_key);
+    if (logWeekday === targetDay) {
+      relevantTimes.push(log.time_logged);
     }
   });
   
@@ -103,13 +169,58 @@ function predictOpeningTime(isOpen, hokData) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
-// Functie om te bepalen of het nacht is (22:00 - 05:00)
+/**
+ * Update hok state in database
+ */
+function updateHokState(isOpen, lastMessageId = null) {
+  const db = getDatabase();
+  
+  const stmt = db.prepare(`
+    UPDATE hok_state
+    SET is_open = ?, last_message_id = ?, last_updated = datetime('now')
+    WHERE id = 1
+  `);
+  
+  stmt.run(isOpen ? 1 : 0, lastMessageId);
+}
+
+/**
+ * Haal huidige hok state op
+ */
+function getHokState() {
+  const db = getDatabase();
+  
+  const state = db.prepare(`
+    SELECT is_open, last_message_id, last_updated
+    FROM hok_state
+    WHERE id = 1
+  `).get();
+  
+  if (!state) {
+    // Initialiseer als niet bestaat
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO hok_state (id, is_open)
+      VALUES (1, 0)
+    `);
+    stmt.run();
+    
+    return { is_open: 0, last_message_id: null, last_updated: null };
+  }
+  
+  return state;
+}
+
+/**
+ * Functie om te bepalen of het nacht is (22:00 - 05:00)
+ */
 function isNightTime() {
   const hour = new Date().getHours();
   return hour >= 22 || hour < 5;
 }
 
-// Functie om het juiste check interval te bepalen
+/**
+ * Functie om het juiste check interval te bepalen
+ */
 function getCheckInterval(isOpen) {
   if (isNightTime()) {
     return CHECK_INTERVALS.NIGHT;
@@ -117,12 +228,13 @@ function getCheckInterval(isOpen) {
   return isOpen ? CHECK_INTERVALS.OPEN : CHECK_INTERVALS.CLOSED;
 }
 
-// Check API functie
+/**
+ * Check API functie
+ */
 async function checkStatus(client, config, state) {
   const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
   
   try {
-    const hokData = await loadHokData();
     const res = await fetch(config.API_URL);
     const data = await res.json();
 
@@ -145,8 +257,9 @@ async function checkStatus(client, config, state) {
     if (!state.isInitialized) {
       state.lastStatus = isOpen;
       state.isInitialized = true;
+      updateHokState(isOpen);
       console.log("Initiële status opgehaald:", isOpen ? "open" : "dicht");
-      updateCheckInterval(isOpen, state); // Set interval based on initial status
+      updateCheckInterval(isOpen, state);
       return;
     }
 
@@ -163,19 +276,11 @@ async function checkStatus(client, config, state) {
     if (state.lastStatus !== isOpen) {
       state.lastStatus = isOpen;
       
-      // Update opening/closing times
-      if (!hokData.openingTimes[dateKey]) {
-        hokData.openingTimes[dateKey] = { openTimes: [], closeTimes: [] };
-      }
+      // Log de status change in database
+      logHokStatus(dateKey, currentTime, isOpen);
       
-      if (isOpen) {
-        hokData.openingTimes[dateKey].openTimes.push(currentTime);
-      } else {
-        hokData.openingTimes[dateKey].closeTimes.push(currentTime);
-      }
-      
-      await saveHokData(hokData);
-      await cleanOldData(hokData);
+      // Cleanup oude logs
+      cleanOldHokLogs(56);
 
       // Verwijder vorig bericht als het bestaat
       if (state.lastMessage) {
@@ -190,7 +295,7 @@ async function checkStatus(client, config, state) {
       await channel.setName(isOpen ? "📗-hok-is-open" : "📕-hok-is-dicht");
 
       // Voorspel volgende tijd
-      const predictedTime = predictOpeningTime(isOpen, hokData);
+      const predictedTime = predictOpeningTime(isOpen);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
 
       // Nieuw bericht sturen
@@ -203,6 +308,9 @@ async function checkStatus(client, config, state) {
       // Reactie toevoegen
       await message.react('🔔');
       state.lastMessage = message;
+      
+      // Update state in database
+      updateHokState(isOpen, message.id);
 
       console.log("Status gewijzigd:", isOpen ? "open" : "dicht");
     }
@@ -211,7 +319,9 @@ async function checkStatus(client, config, state) {
   }
 }
 
-// Functie om het check interval te updaten
+/**
+ * Functie om het check interval te updaten
+ */
 function updateCheckInterval(isOpen, state) {
   const newInterval = getCheckInterval(isOpen);
   
@@ -228,7 +338,9 @@ function updateCheckInterval(isOpen, state) {
   console.log(`Check interval ingesteld op ${intervalMinutes} ${intervalMinutes === 1 ? 'minuut' : 'minuten'} (${isNightTime() ? 'nacht' : isOpen ? 'open' : 'dicht'})`);
 }
 
-// Start hok monitoring
+/**
+ * Start hok monitoring
+ */
 function startHokMonitoring(client, config) {
   const state = {
     client,
@@ -245,13 +357,38 @@ function startHokMonitoring(client, config) {
   return state;
 }
 
+// Legacy functions voor backward compatibility
+function loadHokData() {
+  return {
+    openingTimes: getAllHokHistory(56),
+    MAX_DAYS: 56
+  };
+}
+
+function saveHokData(data) {
+  // Deprecated - data wordt nu automatisch opgeslagen in database
+  console.warn('saveHokData is deprecated - data wordt automatisch opgeslagen');
+}
+
+function cleanOldData(hokData) {
+  // Deprecated - gebruik cleanOldHokLogs
+  console.warn('cleanOldData is deprecated - gebruik cleanOldHokLogs');
+  cleanOldHokLogs(56);
+}
+
 module.exports = {
-  loadHokData,
-  saveHokData,
   getCurrentDateKey,
   getWeekDay,
-  cleanOldData,
+  logHokStatus,
+  cleanOldHokLogs,
+  getHokLogsForDate,
+  getAllHokHistory,
   predictOpeningTime,
+  updateHokState,
+  getHokState,
   checkStatus,
-  startHokMonitoring
+  startHokMonitoring,
+  loadHokData,
+  saveHokData,
+  cleanOldData
 };

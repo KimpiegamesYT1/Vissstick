@@ -1,7 +1,8 @@
-// installeer eerst met: npm install discord.js node-fetch
+// installeer eerst met: npm install discord.js node-fetch better-sqlite3
 const { Client, GatewayIntentBits, ActivityType, EmbedBuilder } = require("discord.js");
 const config = require('./config.json');
 const cron = require('node-cron');
+const { initDatabase } = require('./database');
 const quiz = require('./modules/quiz.js');
 const hok = require('./modules/hok.js');
 const { allCommands, handleCommands } = require('./commands');
@@ -12,41 +13,30 @@ const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, API_URL, ROLE_ID } = config;
 // Load active quizzes on bot startup
 async function loadActiveQuizzes() {
   try {
-    const quizData = await quiz.loadQuizData();
+    const activeQuizzes = quiz.loadActiveQuizzes();
     
-    for (const [channelId, quizInfo] of Object.entries(quizData.activeQuizzes)) {
+    if (activeQuizzes.length === 0) {
+      console.log('Geen actieve quizzes bij opstarten');
+      return;
+    }
+    
+    console.log(`${activeQuizzes.length} actieve quiz(zes) gevonden in database`);
+    
+    for (const quizInfo of activeQuizzes) {
       try {
-        const channel = await client.channels.fetch(channelId);
+        const channel = await client.channels.fetch(quizInfo.channel_id);
         if (channel) {
-          const message = await channel.messages.fetch(quizInfo.messageId);
+          const message = await channel.messages.fetch(quizInfo.message_id);
           if (message) {
-            activeQuizMessages.set(quizInfo.messageId, message);
-            console.log(`Herladen actieve quiz in kanaal ${channelId}`);
-            
-            // Reset timeout for test quizzes if they have one
-            if (quizInfo.isTestQuiz && quizInfo.timeoutMinutes) {
-              // Calculate remaining time (simplified - assumes quiz was started recently)
-              setTimeout(async () => {
-                try {
-                  console.log(`Test quiz timeout na herstart`);
-                  await quiz.endDailyQuiz(client, channelId);
-                } catch (error) {
-                  console.error('Fout bij timeout na herstart:', error);
-                }
-              }, quizInfo.timeoutMinutes * 60 * 1000);
-            }
+            activeQuizMessages.set(quizInfo.message_id, message);
+            console.log(`✓ Herladen actieve quiz in kanaal ${quizInfo.channel_id}`);
           }
         }
       } catch (error) {
-        console.error(`Kon quiz bericht niet herladen voor kanaal ${channelId}:`, error);
-        // Clean up invalid quiz reference
-        delete quizData.activeQuizzes[channelId];
+        console.error(`Kon quiz niet herladen voor kanaal ${quizInfo.channel_id}:`, error);
+        // Quiz wordt automatisch uit database gehaald bij volgende cleanup
       }
     }
-    
-    // Save cleaned up quiz data
-    await quiz.saveQuizData(quizData);
-    console.log(`${Object.keys(quizData.activeQuizzes).length} actieve quizzes herladen`);
   } catch (error) {
     console.error('Fout bij laden actieve quizzes:', error);
   }
@@ -84,28 +74,22 @@ async function showMonthlyScoreboard(client, channelId) {
       return;
     }
 
-    const scores = await quiz.loadQuizScores();
+    const scores = quiz.getQuizScores();
     const monthKey = quiz.getCurrentMonthKey();
-    const monthlyScores = scores.monthly[monthKey];
 
-    if (!monthlyScores || Object.keys(monthlyScores).length === 0) {
+    if (!scores || scores.length === 0) {
       await channel.send('📊 Er zijn nog geen quiz scores voor deze maand!');
       return;
     }
 
-    // Convert to array and sort by correct answers (then by total)
-    const sortedScores = Object.entries(monthlyScores)
-      .map(([userId, data]) => ({
-        userId,
-        username: data.username,
-        correct: data.correct,
-        total: data.total,
-        percentage: data.total > 0 ? ((data.correct / data.total) * 100).toFixed(1) : 0
-      }))
-      .sort((a, b) => {
-        if (b.correct !== a.correct) return b.correct - a.correct;
-        return b.total - a.total;
-      });
+    // Scores zijn al gesorteerd uit database
+    const sortedScores = scores.map(data => ({
+      userId: data.user_id,
+      username: data.username,
+      correct: data.correct_count,
+      total: data.total_count,
+      percentage: data.total_count > 0 ? ((data.correct_count / data.total_count) * 100).toFixed(1) : 0
+    }));
 
     // Create embed
     const embed = new EmbedBuilder()
@@ -190,7 +174,16 @@ client.on('interactionCreate', async (interaction) => {
 
 // Start de bot
 client.once("clientReady", async () => {
-  console.log(`Bot ingelogd als ${client.user.tag}`);
+  console.log(`🤖 Bot ingelogd als ${client.user.tag}`);
+  
+  // Initialiseer database
+  try {
+    initDatabase();
+    console.log('✅ Database geïnitialiseerd');
+  } catch (error) {
+    console.error('❌ Database initialisatie mislukt:', error);
+    process.exit(1);
+  }
   
   // Set initial bot status
   client.user.setActivity('Hok status laden...', { type: ActivityType.Watching });
