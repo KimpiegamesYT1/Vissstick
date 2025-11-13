@@ -22,12 +22,16 @@ async function handleHokCommands(interaction, client, config, hokState) {
   const { API_URL, CHANNEL_ID, ROLE_ID } = config;
 
   if (commandName === 'hokhistorie') {
-    const hokHistory = hok.getAllHokHistory(56);
-    
-    if (Object.keys(hokHistory).length === 0) {
-      await interaction.reply('📊 Nog geen data beschikbaar');
-      return true;
-    }
+    try {
+      const hokHistory = hok.getAllHokHistory(56);
+      
+      console.log('DEBUG hokHistory keys:', Object.keys(hokHistory));
+      console.log('DEBUG hokHistory length:', Object.keys(hokHistory).length);
+      
+      if (Object.keys(hokHistory).length === 0) {
+        await interaction.reply('📊 Nog geen data beschikbaar');
+        return true;
+      }
 
     // Sorteer op datum (nieuwste eerst)
     const sortedEntries = Object.entries(hokHistory)
@@ -130,6 +134,11 @@ async function handleHokCommands(interaction, client, config, hokState) {
       await interaction.reply(`📊 **Hok Geschiedenis**\n\n${stats}`);
     }
     return true;
+    } catch (error) {
+      console.error('Fout bij ophalen hok geschiedenis:', error);
+      await interaction.reply('❌ Fout bij ophalen van de geschiedenis');
+      return true;
+    }
   }
 
   if (commandName === 'hokstatus') {
