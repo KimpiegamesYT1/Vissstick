@@ -6,6 +6,7 @@ const { initDatabase } = require('./database');
 const quiz = require('./modules/quiz.js');
 const hok = require('./modules/hok.js');
 const { allCommands, handleCommands } = require('./commands');
+const { handleChatResponse } = require('./modules/chatResponses.js');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, API_URL, ROLE_ID } = config;
@@ -156,6 +157,11 @@ client.on('messageReactionAdd', async (reaction, user) => {
 // Reaction removal handler (niet meer nodig voor quiz)
 client.on('messageReactionRemove', async (reaction, user) => {
   // Quiz reactions zijn nu buttons - dit is alleen voor toekomstige functionaliteit
+});
+
+// Message handler voor chat responses
+client.on('messageCreate', async (message) => {
+  await handleChatResponse(message);
 });
 
 // Replace the messageCreate handler with slash commands
