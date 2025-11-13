@@ -44,8 +44,14 @@ function logHokStatus(dateKey, time, isOpening) {
 
 /**
  * Cleanup oude hok logs (ouder dan MAX_DAYS)
+ * OPTIONEEL - standaard bewaren we data voor altijd
  */
-function cleanOldHokLogs(maxDays = 56) {
+function cleanOldHokLogs(maxDays = null) {
+  if (!maxDays) {
+    console.log('ℹ️  Hok logs worden voor altijd bewaard (geen cleanup)');
+    return;
+  }
+  
   const db = getDatabase();
   
   const cutoffDate = new Date();
@@ -94,8 +100,9 @@ function getHokLogsForDate(dateKey) {
 
 /**
  * Haal alle hok geschiedenis op
+ * Standaard 180 dagen (6 maanden) voor betere statistieken
  */
-function getAllHokHistory(limitDays = 56) {
+function getAllHokHistory(limitDays = 180) {
   const db = getDatabase();
   
   const cutoffDate = new Date();
@@ -119,7 +126,10 @@ function getAllHokHistory(limitDays = 56) {
 }
 
 /**
- * Voorspel openings/sluitingstijd op basis van historische data
+ * Voorspel openings/sluitingstijd op basis van historische data (laatste 6 maanden)
+ * Gebruikt weighted average: recente data weegt zwaarder mee
+ * - Laatste maand: 100% gewicht
+ * - Ouder dan 1 maand: lineair afnemend van 100% naar 20%
  */
 function predictOpeningTime(isOpen) {
   const db = getDatabase();
@@ -136,33 +146,66 @@ function predictOpeningTime(isOpen) {
     targetDay = tomorrow.getDay();
   }
   
-  // Haal alle relevante tijden op voor deze weekdag
+  // Haal tijden op van laatste 6 maanden
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const cutoffDateKey = sixMonthsAgo.toISOString().split('T')[0];
+  
   const logs = db.prepare(`
     SELECT time_logged, date_key
     FROM hok_status_log
     WHERE is_opening = ?
+    AND date_key >= ?
     ORDER BY logged_at DESC
-    LIMIT 100
-  `).all(isOpen ? 0 : 1); // 0 = closing, 1 = opening
+  `).all(isOpen ? 0 : 1, cutoffDateKey); // 0 = closing, 1 = opening
   
-  // Filter op weekdag
+  // Filter op weekdag en bereken gewichten
+  const now = new Date();
   const relevantTimes = [];
+  
   logs.forEach(log => {
     const logWeekday = getWeekDay(log.date_key);
     if (logWeekday === targetDay) {
-      relevantTimes.push(log.time_logged);
+      // Bereken leeftijd van de data in dagen
+      const logDate = new Date(log.date_key);
+      const ageInDays = Math.floor((now - logDate) / (1000 * 60 * 60 * 24));
+      
+      // Bereken gewicht
+      let weight;
+      if (ageInDays <= 30) {
+        // Laatste maand: 100% gewicht
+        weight = 1.0;
+      } else {
+        // Ouder dan 1 maand: lineair afnemen van 100% naar 20% over 5 maanden
+        // 30 dagen = 100%, 180 dagen = 20%
+        const daysOverOneMonth = ageInDays - 30;
+        const maxDaysForDecay = 150; // 180 - 30 = 150 dagen
+        weight = 1.0 - (daysOverOneMonth / maxDaysForDecay) * 0.8; // Afname van 80% (van 100% naar 20%)
+        weight = Math.max(0.2, weight); // Minimaal 20%
+      }
+      
+      relevantTimes.push({
+        time: log.time_logged,
+        weight: weight
+      });
     }
   });
   
   if (relevantTimes.length === 0) return null;
   
-  // Bereken gemiddelde tijd
-  const timeInMinutes = relevantTimes.map(time => {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
+  // Bereken weighted average
+  let totalWeightedMinutes = 0;
+  let totalWeight = 0;
+  
+  relevantTimes.forEach(item => {
+    const [hours, minutes] = item.time.split(':').map(Number);
+    const timeInMinutes = hours * 60 + minutes;
+    
+    totalWeightedMinutes += timeInMinutes * item.weight;
+    totalWeight += item.weight;
   });
   
-  const avgMinutes = Math.round(timeInMinutes.reduce((a, b) => a + b) / timeInMinutes.length);
+  const avgMinutes = Math.round(totalWeightedMinutes / totalWeight);
   const hours = Math.floor(avgMinutes / 60);
   const minutes = avgMinutes % 60;
   
@@ -278,9 +321,6 @@ async function checkStatus(client, config, state) {
       
       // Log de status change in database
       logHokStatus(dateKey, currentTime, isOpen);
-      
-      // Cleanup oude logs
-      cleanOldHokLogs(56);
 
       // Verwijder vorig bericht als het bestaat
       if (state.lastMessage) {
@@ -298,11 +338,18 @@ async function checkStatus(client, config, state) {
       const predictedTime = predictOpeningTime(isOpen);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
 
+      // Bepaal of we moeten pingen
+      const currentDay = new Date().getDay();
+      const isWeekend = currentDay === 0 || currentDay === 6; // 0 = zondag, 6 = zaterdag
+      const shouldPing = isOpen && !isWeekend; // Alleen pingen bij opening en niet in weekend
+      
+      const hokMention = shouldPing ? `<@&${config.ROLE_ID}>` : 'hok';
+
       // Nieuw bericht sturen
       const message = await channel.send(
         isOpen 
-          ? `✅ Het <@&${config.ROLE_ID}> is nu **open**!${predictionMsg}` 
-          : `❌ Het <@&${config.ROLE_ID}> is nu **dicht**!${predictionMsg}`
+          ? `✅ Het ${hokMention} is nu **open**!${predictionMsg}` 
+          : `❌ Het ${hokMention} is nu **dicht**!${predictionMsg}`
       );
       
       // Reactie toevoegen

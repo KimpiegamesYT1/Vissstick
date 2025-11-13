@@ -23,7 +23,7 @@ async function handleHokCommands(interaction, client, config, hokState) {
 
   if (commandName === 'hokhistorie') {
     try {
-      const hokHistory = hok.getAllHokHistory(56);
+      const hokHistory = hok.getAllHokHistory(180);
       
       console.log('DEBUG hokHistory keys:', Object.keys(hokHistory));
       console.log('DEBUG hokHistory length:', Object.keys(hokHistory).length);
