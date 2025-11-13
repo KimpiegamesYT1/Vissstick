@@ -185,7 +185,7 @@ function generateDailyHeatmap(weekday, currentHour = null) {
   
   // Genereer heatmap string
   const days = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
-  let heatmap = `📊 **${days[weekday]}** Hok Patroon (laatste 6 maanden)\\n\\n`;
+  let heatmap = `📊 **${days[weekday]}** Hok Patroon (laatste 6 maanden)\n\n`;
   
   // Twee regels: emojis en tijden
   let emojiLine = '';
@@ -225,11 +225,11 @@ function generateDailyHeatmap(weekday, currentHour = null) {
     }
   }
   
-  heatmap += emojiLine + '\\n';
-  heatmap += timeLine + '\\n\\n';
-  heatmap += '🟢 Meestal open  🟡 Soms open  🔴 Meestal dicht\\n';
+  heatmap += emojiLine + '\n';
+  heatmap += timeLine + '\n\n';
+  heatmap += '🟢 Meestal open  🟡 Soms open  🔴 Meestal dicht\n';
   if (currentHour !== null) {
-    heatmap += '🔷 Huidige tijd\\n';
+    heatmap += '🔷 Huidige tijd\n';
   }
   
   return heatmap;
