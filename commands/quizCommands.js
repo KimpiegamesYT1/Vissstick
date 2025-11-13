@@ -33,7 +33,7 @@ async function handleQuizCommands(interaction, client, QUIZ_CHANNEL_ID) {
     }
 
     // Defer the reply immediately to prevent timeout
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     try {
       const tijd = interaction.options.getInteger('tijd') || 1;
@@ -59,7 +59,7 @@ async function handleQuizCommands(interaction, client, QUIZ_CHANNEL_ID) {
     }
 
     // Defer the reply immediately to prevent timeout
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     try {
       await quiz.resetUsedQuestions();

@@ -175,7 +175,7 @@ async function handleHokCommands(interaction, client, config, hokState) {
     }
 
     // Defer the reply immediately to prevent timeout
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     try {
       const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
