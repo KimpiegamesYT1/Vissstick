@@ -4,77 +4,104 @@ set -e
 BOT_DIR="/opt/discord-bot"
 BACKUP_DIR="/root/discord-bot-backup"
 
-echo "=== Vissstick Discord Bot Deployment Script ==="
+echo "=== Vissstick Discord Bot Update & Start Script ==="
 echo ""
 
-echo ">>> Stap 1: Backup maken van belangrijke bestanden"
+# Maak backup directory aan
 mkdir -p "$BACKUP_DIR"
 
-# Backup database (BELANGRIJK!)
-if [ -f "$BOT_DIR/bot.db" ]; then
-    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-    cp "$BOT_DIR/bot.db" "$BACKUP_DIR/bot.db.backup-$TIMESTAMP"
-    echo "✓ Database backup: bot.db.backup-$TIMESTAMP"
+# Check of bot directory bestaat
+if [ ! -d "$BOT_DIR" ]; then
+    echo ">>> Eerste installatie - Clone repository"
+    cd /opt
+    git clone https://github.com/KimpiegamesYT1/Vissstick.git "$BOT_DIR"
+    cd "$BOT_DIR"
+    
+    echo ""
+    echo "⚠️  BELANGRIJKE STAP: Configuratie aanmaken"
+    echo ""
+    echo "Kopieer config.example.json naar config.json en vul je gegevens in:"
+    echo "  cp config.example.json config.json"
+    echo "  nano config.json"
+    echo ""
+    echo "Run daarna dit script opnieuw."
+    exit 0
 fi
 
-# Backup config
-if [ -f "$BOT_DIR/config.json" ]; then
-    cp "$BOT_DIR/config.json" "$BACKUP_DIR/config.json"
-    echo "✓ Config backup: config.json"
-fi
-
-cd /opt
-
-echo ""
-echo ">>> Stap 2: Verwijder oude bot directory"
-rm -rf "$BOT_DIR"
-echo "✓ Oude code verwijderd"
-
-echo ""
-echo ">>> Stap 3: Clone nieuwste code van GitHub"
-git clone https://github.com/KimpiegamesYT1/Vissstick.git "$BOT_DIR"
-echo "✓ Code gedownload"
-
-echo ""
-echo ">>> Stap 4: Herstel configuratie en database"
-
-if [ -f "$BACKUP_DIR/config.json" ]; then
-    cp "$BACKUP_DIR/config.json" "$BOT_DIR/config.json"
-    echo "✓ config.json hersteld"
-else
-    echo "⚠️  Geen config.json backup gevonden! Maak deze aan in $BOT_DIR"
-fi
-
-if [ -f "$BACKUP_DIR/bot.db" ]; then
-    # Gebruik de meest recente backup
-    LATEST_DB=$(ls -t "$BACKUP_DIR"/bot.db.backup-* 2>/dev/null | head -1)
-    if [ -n "$LATEST_DB" ]; then
-        cp "$LATEST_DB" "$BOT_DIR/bot.db"
-        echo "✓ Database hersteld: $(basename $LATEST_DB)"
-    fi
-else
-    echo "ℹ️  Geen database backup gevonden - nieuwe database wordt aangemaakt"
-fi
-
-echo ""
-echo ">>> Stap 5: Installeer Node.js dependencies"
 cd "$BOT_DIR"
+
+echo ">>> Stap 1: Backup database"
+if [ -f "bot.db" ]; then
+    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    cp "bot.db" "$BACKUP_DIR/bot.db.backup-$TIMESTAMP"
+    echo "✓ Database backup: $BACKUP_DIR/bot.db.backup-$TIMESTAMP"
+    
+    # Houd alleen laatste 10 backups
+    cd "$BACKUP_DIR"
+    ls -t bot.db.backup-* 2>/dev/null | tail -n +11 | xargs -r rm
+    cd "$BOT_DIR"
+else
+    echo "ℹ️  Geen database gevonden - nieuwe wordt aangemaakt bij eerste start"
+fi
+
+echo ""
+echo ">>> Stap 2: Update code van GitHub"
+git fetch origin
+LOCAL=$(git rev-parse @)
+REMOTE=$(git rev-parse @{u})
+
+if [ "$LOCAL" = "$REMOTE" ]; then
+    echo "✓ Code is al up-to-date"
+else
+    git pull origin main
+    echo "✓ Code geüpdatet"
+fi
+
+echo ""
+echo ">>> Stap 3: Update dependencies"
 npm install --production
 echo "✓ Dependencies geïnstalleerd"
 
 echo ""
-echo ">>> Stap 6: Controleer database"
-if [ -f "$BOT_DIR/bot.db" ]; then
-    echo "✓ Database aanwezig"
+echo ">>> Stap 4: Controleer configuratie"
+if [ ! -f "config.json" ]; then
+    echo "❌ config.json niet gevonden!"
+    echo ""
+    echo "Maak een config.json aan op basis van config.example.json:"
+    echo "  cp config.example.json config.json"
+    echo "  nano config.json"
+    echo ""
+    exit 1
+fi
+echo "✓ config.json aanwezig"
+
+echo ""
+echo ">>> Stap 5: Controleer database"
+if [ -f "bot.db" ]; then
+    DB_SIZE=$(du -h bot.db | cut -f1)
+    echo "✓ Database aanwezig (${DB_SIZE})"
 else
-    echo "ℹ️  Nieuwe database wordt aangemaakt bij eerste start"
+    echo "ℹ️  Nieuwe database wordt aangemaakt bij start"
+    
+    # Check of er oude JSON files zijn om te migreren
+    if [ -f "quizlijst.json" ] || [ -f "quiz-scores.json" ] || [ -f "data.json" ]; then
+        echo ""
+        echo "⚠️  Oude JSON bestanden gevonden!"
+        echo "   Voer eerst migratie uit: npm run migrate"
+        echo ""
+        read -p "Wil je nu migreren? (j/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Jj]$ ]]; then
+            npm run migrate
+        fi
+    fi
 fi
 
 echo ""
-echo "=== Bot is klaar om te starten ==="
-echo ""
+echo "=== Bot Start ==="
 echo "De bot draait nu in deze terminal."
 echo "Gebruik CTRL+C om te stoppen."
 echo ""
 
+# Start bot
 node bot.js

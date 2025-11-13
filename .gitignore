@@ -1,14 +1,29 @@
+# Configuratie (bevat tokens en IDs)
 config.json
+
+# Dependencies
 node_modules/
 
-# Database file
+# Database bestanden (BELANGRIJK - niet verwijderen!)
 bot.db
 bot.db-shm
 bot.db-wal
 
-# Legacy JSON files (deprecated)
+# Backups
+*.backup
+*.backup-*
+
+# Legacy JSON files (deprecated - na migratie niet meer nodig)
 quizlijst.json
 quiz-scores.json
 quiz-data.json
 used-questions.json
 data.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
