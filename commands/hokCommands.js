@@ -168,106 +168,15 @@ async function handleHokCommands(interaction, client, config, hokState) {
       }
 
       const isOpen = data.payload.open === 1;
-      const hokHistory = hok.getAllHokHistory(120); // 4 maanden
-      
-      // Bereken statistieken per weekdag
-      const dayNames = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
-      const stats = {};
-      
-      // Initialiseer stats
-      for (let i = 0; i < 7; i++) {
-        stats[i] = { openings: [], closings: [], count: 0 };
-      }
-      
-      // Verzamel data per weekdag
-      Object.entries(hokHistory).forEach(([date, times]) => {
-        const dayNum = new Date(date).getDay();
-        stats[dayNum].count++;
-        
-        if (times.openTimes.length > 0) {
-          const [h, m] = times.openTimes[0].split(':').map(Number);
-          stats[dayNum].openings.push(h * 60 + m);
-        }
-        if (times.closeTimes.length > 0) {
-          const lastClose = times.closeTimes[times.closeTimes.length - 1];
-          const [h, m] = lastClose.split(':').map(Number);
-          stats[dayNum].closings.push(h * 60 + m);
-        }
-      });
-      
-      // Format functie
-      const formatMinutes = (mins) => {
-        const h = Math.floor(mins / 60);
-        const m = Math.round(mins % 60);
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      };
-      
-      // Bouw statistieken tabel
-      const statsLines = [];
-      for (let i = 1; i <= 6; i++) { // Ma-Za
-        const s = stats[i];
-        if (s.count === 0) {
-          statsLines.push(`**${dayNames[i].substring(0, 2)}** | - | - | 0`);
-        } else {
-          const avgOpen = s.openings.length > 0 
-            ? formatMinutes(s.openings.reduce((a, b) => a + b, 0) / s.openings.length)
-            : '-';
-          const avgClose = s.closings.length > 0
-            ? formatMinutes(s.closings.reduce((a, b) => a + b, 0) / s.closings.length)
-            : '-';
-          statsLines.push(`**${dayNames[i].substring(0, 2)}** | ${avgOpen} | ${avgClose} | ${s.count}`);
-        }
-      }
-      // Zondag
-      const sun = stats[0];
-      if (sun.count === 0) {
-        statsLines.push(`**Zo** | - | - | 0`);
-      } else {
-        const avgOpen = sun.openings.length > 0 
-          ? formatMinutes(sun.openings.reduce((a, b) => a + b, 0) / sun.openings.length)
-          : '-';
-        const avgClose = sun.closings.length > 0
-          ? formatMinutes(sun.closings.reduce((a, b) => a + b, 0) / sun.closings.length)
-          : '-';
-        statsLines.push(`**Zo** | ${avgOpen} | ${avgClose} | ${sun.count}`);
-      }
-      
-      // Vandaag info
-      const today = new Date();
-      const todayKey = today.toISOString().split('T')[0];
-      const todayData = hokHistory[todayKey];
-      let todayInfo = 'Geen data voor vandaag';
-      
-      if (todayData) {
-        const openTime = todayData.openTimes.length > 0 ? todayData.openTimes[0] : '-';
-        const closeTime = todayData.closeTimes.length > 0 ? todayData.closeTimes[todayData.closeTimes.length - 1] : '-';
-        todayInfo = `📗 ${openTime} → 📕 ${closeTime}`;
-      }
-      
-      // Voorspelling
       const predictedTime = hok.predictOpeningTime(isOpen);
       const predictionText = predictedTime 
-        ? `${isOpen ? 'Sluit' : 'Opent'} meestal rond **${predictedTime}**`
-        : 'Geen voorspelling beschikbaar';
+        ? `${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime}`
+        : '';
 
       const embed = new EmbedBuilder()
         .setColor(isOpen ? 0x00AA00 : 0xAA0000)
         .setTitle(`${isOpen ? '📗' : '📕'} Hok is ${isOpen ? 'OPEN' : 'DICHT'}`)
-        .setDescription(predictionText)
-        .addFields(
-          {
-            name: '📊 Gemiddelden per dag',
-            value: `\`Dag\` | \`Open\` | \`Dicht\` | \`#\`\n${statsLines.join('\n')}`,
-            inline: false
-          },
-          {
-            name: `📅 Vandaag (${dayNames[today.getDay()]})`,
-            value: todayInfo,
-            inline: false
-          }
-        )
-        .setFooter({ text: 'Statistieken van de laatste 4 maanden' })
-        .setTimestamp();
+        .setDescription(predictionText || null);
 
       await interaction.reply({ embeds: [embed] });
     } catch (err) {
