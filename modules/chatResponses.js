@@ -5,16 +5,19 @@
 
 // Lijst met chat triggers en responses
 const chatTriggers = [
-  {
-    trigger: 'wat',
-    response: 'patat',
-    exactMatch: true
-  },
-  {
-    trigger: 'wie',
-    response: 'kiwi',
-    exactMatch: true
-  }
+  // Bestaande klassiekers
+  { trigger: 'wat', response: 'patat', exactMatch: true },
+  { trigger: 'wie', response: 'kiwi', exactMatch: true },
+  { trigger: 'waarom', response: 'daarom', exactMatch: true },
+  { trigger: 'wanneer', response: 'ooit', exactMatch: true },
+  { trigger: 'hoe', response: 'zo', exactMatch: true },
+  { trigger: 'waar', response: 'daar', exactMatch: true },
+  { trigger: '69', response: 'nice', exactMatch: true },
+  { trigger: 'is het hok open', response: 'Kijk naar mijn status! 👀', exactMatch: false },
+  { trigger: 'hok', response: '🐔', exactMatch: true },
+  { trigger: 'goedemorgen', response: 'Goedemorgen! ☀️', exactMatch: true },
+  { trigger: 'goedenacht', response: 'Slaap lekker! 🌙', exactMatch: true },
+  { trigger: 'doei', response: '👋', exactMatch: true }
 ];
 
 /**
