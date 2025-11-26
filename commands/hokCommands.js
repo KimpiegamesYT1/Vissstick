@@ -1,14 +1,32 @@
 const hok = require('../modules/hok');
+const { EmbedBuilder } = require('discord.js');
 
 // Hok slash commands
 const hokCommands = [
   {
     name: 'hokhistorie',
-    description: 'Toont de openingstijden geschiedenis van het hok'
+    description: 'Toont de geschiedenis van het hok voor een specifieke weekdag',
+    options: [
+      {
+        name: 'dag',
+        description: 'Welke dag wil je zien?',
+        type: 3, // STRING
+        required: true,
+        choices: [
+          { name: 'Maandag', value: '1' },
+          { name: 'Dinsdag', value: '2' },
+          { name: 'Woensdag', value: '3' },
+          { name: 'Donderdag', value: '4' },
+          { name: 'Vrijdag', value: '5' },
+          { name: 'Zaterdag', value: '6' },
+          { name: 'Zondag', value: '0' }
+        ]
+      }
+    ]
   },
   {
     name: 'hokstatus',
-    description: 'Toont de huidige status van het hok'
+    description: 'Toont de huidige status en statistieken van het hok'
   },
   {
     name: 'hokupdate',
@@ -23,120 +41,112 @@ async function handleHokCommands(interaction, client, config, hokState) {
 
   if (commandName === 'hokhistorie') {
     try {
-      const hokHistory = hok.getAllHokHistory(180);
+      const dayValue = interaction.options.getString('dag');
+      const dayNumber = parseInt(dayValue);
+      const dayNames = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
+      const dayName = dayNames[dayNumber];
       
-      console.log('DEBUG hokHistory keys:', Object.keys(hokHistory));
-      console.log('DEBUG hokHistory length:', Object.keys(hokHistory).length);
+      const hokHistory = hok.getAllHokHistory(120); // 4 maanden
       
       if (Object.keys(hokHistory).length === 0) {
-        await interaction.reply('📊 Nog geen data beschikbaar');
+        await interaction.reply({ embeds: [
+          new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle('📊 Hok Geschiedenis')
+            .setDescription('Nog geen data beschikbaar')
+        ]});
         return true;
       }
 
-    // Sorteer op datum (nieuwste eerst)
-    const sortedEntries = Object.entries(hokHistory)
-      .sort((a, b) => new Date(b[0]) - new Date(a[0]));
+      // Filter op de gekozen weekdag
+      const filteredEntries = Object.entries(hokHistory)
+        .filter(([date]) => new Date(date).getDay() === dayNumber)
+        .sort((a, b) => new Date(b[0]) - new Date(a[0]));
 
-    // Functie om dag van de week te krijgen
-    const getDayName = (dateStr) => {
-      const days = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
-      return days[new Date(dateStr).getDay()];
-    };
+      if (filteredEntries.length === 0) {
+        await interaction.reply({ embeds: [
+          new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle(`📊 Hok Geschiedenis - ${dayName}`)
+            .setDescription(`Geen data beschikbaar voor ${dayName.toLowerCase()}en`)
+        ]});
+        return true;
+      }
 
-    // Functie om totale open tijd te berekenen
-    const calculateOpenDuration = (openTimes, closeTimes) => {
-      if (openTimes.length === 0 || closeTimes.length === 0) return null;
-      
+      // Bereken statistieken
       const parseTime = (time) => {
         const [hours, minutes] = time.split(':').map(Number);
         return hours * 60 + minutes;
       };
-
-      const firstOpen = parseTime(openTimes[0]);
-      const lastClose = parseTime(closeTimes[closeTimes.length - 1]);
-      const totalMinutes = lastClose - firstOpen;
       
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      
-      return `${hours}u ${minutes}m`;
-    };
+      const formatMinutes = (mins) => {
+        const h = Math.floor(mins / 60);
+        const m = Math.round(mins % 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      };
 
-    // Maak een mooie output per dag
-    const stats = sortedEntries.map(([date, times]) => {
-      const dayName = getDayName(date);
-      const formattedDate = new Date(date).toLocaleDateString('nl-NL', { 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
+      // Verzamel eerste openingen en laatste sluitingen
+      const openingTimes = [];
+      const closingTimes = [];
+      
+      filteredEntries.forEach(([, times]) => {
+        if (times.openTimes.length > 0) {
+          openingTimes.push(parseTime(times.openTimes[0])); // Eerste opening
+        }
+        if (times.closeTimes.length > 0) {
+          closingTimes.push(parseTime(times.closeTimes[times.closeTimes.length - 1])); // Laatste sluiting
+        }
       });
-      
-      let output = `**${dayName} ${formattedDate}**\n`;
-      
-      // Toon openingstijden
-      if (times.openTimes.length > 0) {
-        if (times.openTimes.length === 1) {
-          output += `📗 Geopend om **${times.openTimes[0]}**\n`;
-        } else {
-          output += `📗 Geopend: ${times.openTimes.join(', ')}\n`;
-        }
-      } else {
-        output += `📗 Niet geopend\n`;
-      }
-      
-      // Toon sluitingstijden
-      if (times.closeTimes.length > 0) {
-        if (times.closeTimes.length === 1) {
-          output += `📕 Gesloten om **${times.closeTimes[0]}**\n`;
-        } else {
-          output += `📕 Gesloten: ${times.closeTimes.join(', ')}\n`;
-        }
-      } else {
-        output += `📕 Nog niet gesloten\n`;
-      }
-      
-      // Bereken en toon totale open tijd
-      const duration = calculateOpenDuration(times.openTimes, times.closeTimes);
-      if (duration) {
-        output += `⏱️ Totaal open: **${duration}**`;
-      }
-      
-      return output;
-    }).join('\n\n');
 
-    // Splits in meerdere berichten als het te lang is (Discord limiet is 2000 karakters)
-    const maxLength = 1900;
-    if (stats.length > maxLength) {
-      const messages = [];
-      const entries = stats.split('\n\n');
-      let currentMessage = '📊 **Hok Geschiedenis**\n\n';
-      
-      for (const entry of entries) {
-        if ((currentMessage + entry + '\n\n').length > maxLength) {
-          messages.push(currentMessage);
-          currentMessage = entry + '\n\n';
-        } else {
-          currentMessage += entry + '\n\n';
-        }
-      }
-      if (currentMessage.trim()) {
-        messages.push(currentMessage);
-      }
-      
-      // Stuur eerste bericht als reply
-      await interaction.reply(messages[0]);
-      
-      // Stuur rest als follow-ups
-      for (let i = 1; i < messages.length; i++) {
-        await interaction.followUp(messages[i]);
-      }
-    } else {
-      await interaction.reply(`📊 **Hok Geschiedenis**\n\n${stats}`);
-    }
-    return true;
+      // Bereken gemiddelden
+      const avgOpening = openingTimes.length > 0 
+        ? formatMinutes(openingTimes.reduce((a, b) => a + b, 0) / openingTimes.length)
+        : 'Geen data';
+      const avgClosing = closingTimes.length > 0
+        ? formatMinutes(closingTimes.reduce((a, b) => a + b, 0) / closingTimes.length)
+        : 'Geen data';
+
+      // Bouw de geschiedenis lijst (laatste 8 weken)
+      const historyLines = filteredEntries.slice(0, 8).map(([date, times]) => {
+        const formattedDate = new Date(date).toLocaleDateString('nl-NL', { 
+          day: 'numeric', 
+          month: 'short'
+        });
+        
+        const openTime = times.openTimes.length > 0 ? times.openTimes[0] : '-';
+        const closeTime = times.closeTimes.length > 0 ? times.closeTimes[times.closeTimes.length - 1] : '-';
+        
+        return `\`${formattedDate}\` 📗 ${openTime} → 📕 ${closeTime}`;
+      });
+
+      const embed = new EmbedBuilder()
+        .setColor(0x00AA00)
+        .setTitle(`📊 Hok Geschiedenis - ${dayName}`)
+        .addFields(
+          { 
+            name: '📈 Gemiddelden', 
+            value: `📗 Opening: **${avgOpening}**\n📕 Sluiting: **${avgClosing}**\n📊 Gebaseerd op ${filteredEntries.length} ${dayName.toLowerCase()}${filteredEntries.length === 1 ? '' : 'en'}`,
+            inline: false 
+          },
+          { 
+            name: `📅 Laatste ${historyLines.length} ${dayName.toLowerCase()}en`, 
+            value: historyLines.join('\n') || 'Geen data',
+            inline: false 
+          }
+        )
+        .setFooter({ text: 'Data van de laatste 4 maanden' })
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed] });
+      return true;
     } catch (error) {
       console.error('Fout bij ophalen hok geschiedenis:', error);
-      await interaction.reply('❌ Fout bij ophalen van de geschiedenis');
+      await interaction.reply({ embeds: [
+        new EmbedBuilder()
+          .setColor(0xFF0000)
+          .setTitle('❌ Fout')
+          .setDescription('Fout bij ophalen van de geschiedenis')
+      ]});
       return true;
     }
   }
@@ -148,29 +158,141 @@ async function handleHokCommands(interaction, client, config, hokState) {
       const data = await res.json();
       
       if (!data || !data.payload) {
-        await interaction.reply('❌ Kon status niet ophalen');
+        await interaction.reply({ embeds: [
+          new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle('❌ Fout')
+            .setDescription('Kon status niet ophalen')
+        ]});
         return true;
       }
 
       const isOpen = data.payload.open === 1;
-      const predictedTime = hok.predictOpeningTime(isOpen);
-      const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
+      const hokHistory = hok.getAllHokHistory(120); // 4 maanden
       
-      await interaction.reply(
-        isOpen 
-          ? `✅ Het hok is momenteel **open**!${predictionMsg}` 
-          : `❌ Het hok is momenteel **dicht**!${predictionMsg}`
-      );
+      // Bereken statistieken per weekdag
+      const dayNames = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
+      const stats = {};
+      
+      // Initialiseer stats
+      for (let i = 0; i < 7; i++) {
+        stats[i] = { openings: [], closings: [], count: 0 };
+      }
+      
+      // Verzamel data per weekdag
+      Object.entries(hokHistory).forEach(([date, times]) => {
+        const dayNum = new Date(date).getDay();
+        stats[dayNum].count++;
+        
+        if (times.openTimes.length > 0) {
+          const [h, m] = times.openTimes[0].split(':').map(Number);
+          stats[dayNum].openings.push(h * 60 + m);
+        }
+        if (times.closeTimes.length > 0) {
+          const lastClose = times.closeTimes[times.closeTimes.length - 1];
+          const [h, m] = lastClose.split(':').map(Number);
+          stats[dayNum].closings.push(h * 60 + m);
+        }
+      });
+      
+      // Format functie
+      const formatMinutes = (mins) => {
+        const h = Math.floor(mins / 60);
+        const m = Math.round(mins % 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      };
+      
+      // Bouw statistieken tabel
+      const statsLines = [];
+      for (let i = 1; i <= 6; i++) { // Ma-Za
+        const s = stats[i];
+        if (s.count === 0) {
+          statsLines.push(`**${dayNames[i].substring(0, 2)}** | - | - | 0`);
+        } else {
+          const avgOpen = s.openings.length > 0 
+            ? formatMinutes(s.openings.reduce((a, b) => a + b, 0) / s.openings.length)
+            : '-';
+          const avgClose = s.closings.length > 0
+            ? formatMinutes(s.closings.reduce((a, b) => a + b, 0) / s.closings.length)
+            : '-';
+          statsLines.push(`**${dayNames[i].substring(0, 2)}** | ${avgOpen} | ${avgClose} | ${s.count}`);
+        }
+      }
+      // Zondag
+      const sun = stats[0];
+      if (sun.count === 0) {
+        statsLines.push(`**Zo** | - | - | 0`);
+      } else {
+        const avgOpen = sun.openings.length > 0 
+          ? formatMinutes(sun.openings.reduce((a, b) => a + b, 0) / sun.openings.length)
+          : '-';
+        const avgClose = sun.closings.length > 0
+          ? formatMinutes(sun.closings.reduce((a, b) => a + b, 0) / sun.closings.length)
+          : '-';
+        statsLines.push(`**Zo** | ${avgOpen} | ${avgClose} | ${sun.count}`);
+      }
+      
+      // Vandaag info
+      const today = new Date();
+      const todayKey = today.toISOString().split('T')[0];
+      const todayData = hokHistory[todayKey];
+      let todayInfo = 'Geen data voor vandaag';
+      
+      if (todayData) {
+        const openTime = todayData.openTimes.length > 0 ? todayData.openTimes[0] : '-';
+        const closeTime = todayData.closeTimes.length > 0 ? todayData.closeTimes[todayData.closeTimes.length - 1] : '-';
+        todayInfo = `📗 ${openTime} → 📕 ${closeTime}`;
+      }
+      
+      // Voorspelling
+      const predictedTime = hok.predictOpeningTime(isOpen);
+      const predictionText = predictedTime 
+        ? `${isOpen ? 'Sluit' : 'Opent'} meestal rond **${predictedTime}**`
+        : 'Geen voorspelling beschikbaar';
+
+      const embed = new EmbedBuilder()
+        .setColor(isOpen ? 0x00AA00 : 0xAA0000)
+        .setTitle(`${isOpen ? '📗' : '📕'} Hok is ${isOpen ? 'OPEN' : 'DICHT'}`)
+        .setDescription(predictionText)
+        .addFields(
+          {
+            name: '📊 Gemiddelden per dag',
+            value: `\`Dag\` | \`Open\` | \`Dicht\` | \`#\`\n${statsLines.join('\n')}`,
+            inline: false
+          },
+          {
+            name: `📅 Vandaag (${dayNames[today.getDay()]})`,
+            value: todayInfo,
+            inline: false
+          }
+        )
+        .setFooter({ text: 'Statistieken van de laatste 4 maanden' })
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed] });
     } catch (err) {
       console.error("Fout bij ophalen status:", err);
-      await interaction.reply('❌ Fout bij ophalen van de status');
+      await interaction.reply({ embeds: [
+        new EmbedBuilder()
+          .setColor(0xFF0000)
+          .setTitle('❌ Fout')
+          .setDescription('Fout bij ophalen van de status')
+      ]});
     }
     return true;
   }
 
   if (commandName === 'hokupdate') {
     if (!interaction.member.permissions.has('Administrator')) {
-      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+      await interaction.reply({ 
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle('❌ Geen toegang')
+            .setDescription('Je hebt geen administrator rechten!')
+        ],
+        flags: 64 
+      });
       return true;
     }
 
@@ -183,7 +305,14 @@ async function handleHokCommands(interaction, client, config, hokState) {
       const data = await res.json();
       
       if (!data || !data.payload) {
-        await interaction.editReply({ content: '❌ Kon status niet ophalen' });
+        await interaction.editReply({ 
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xFF0000)
+              .setTitle('❌ Fout')
+              .setDescription('Kon status niet ophalen')
+          ]
+        });
         return true;
       }
 
@@ -229,10 +358,24 @@ async function handleHokCommands(interaction, client, config, hokState) {
       // Update database state
       hok.updateHokState(isOpen, message.id);
 
-      await interaction.editReply({ content: '✅ Hok status succesvol geüpdatet!' });
+      await interaction.editReply({ 
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x00AA00)
+            .setTitle('✅ Succes')
+            .setDescription('Hok status succesvol geüpdatet!')
+        ]
+      });
     } catch (err) {
       console.error("Fout bij updaten status:", err);
-      await interaction.editReply({ content: '❌ Fout bij updaten van de status' });
+      await interaction.editReply({ 
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle('❌ Fout')
+            .setDescription('Fout bij updaten van de status')
+        ]
+      });
     }
     return true;
   }
