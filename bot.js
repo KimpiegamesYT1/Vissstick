@@ -9,7 +9,7 @@ const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
 
 // Config wordt nu geïmporteerd uit config.json
-const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, API_URL, ROLE_ID } = config;
+const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID } = config;
 
 // Load active quizzes on bot startup
 async function loadActiveQuizzes() {
@@ -114,7 +114,8 @@ async function showMonthlyScoreboard(client, channelId) {
     embed.setDescription(`**Resultaten voor ${monthName}**\n\n${description}`);
     embed.setFooter({ text: `Totaal ${sortedScores.length} deelnemers deze maand` });
 
-    await channel.send({ embeds: [embed] });
+    // Send @everyone first, then the embed (so the mention works properly)
+    await channel.send({ content: '@everyone 🏆 De maandelijkse quiz resultaten zijn binnen!', embeds: [embed] });
     console.log('Maandelijks scoreboard verstuurd!');
   } catch (error) {
     console.error('Fout bij tonen maandelijks scoreboard:', error);
@@ -220,7 +221,7 @@ client.once("clientReady", async () => {
     // Check if tomorrow is the first day of next month (meaning today is last day)
     if (tomorrow.getDate() === 1) {
       console.log('Showing monthly scoreboard...');
-      await showMonthlyScoreboard(client, QUIZ_CHANNEL_ID);
+      await showMonthlyScoreboard(client, SCOREBOARD_CHANNEL_ID);
     }
   }, {
     timezone: "Europe/Amsterdam"

@@ -3,5 +3,6 @@
     "CHANNEL_ID": "your-hok-channel-id",
     "ROLE_ID": "your-notification-role-id",
     "API_URL": "https://beheer.syntaxis.nl/api/ishethokalopen",
-    "QUIZ_CHANNEL_ID": "your-quiz-channel-id"
+    "QUIZ_CHANNEL_ID": "your-quiz-channel-id",
+    "SCOREBOARD_CHANNEL_ID": "your-scoreboard-channel-id"
 }
