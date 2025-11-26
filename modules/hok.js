@@ -126,10 +126,10 @@ function getAllHokHistory(limitDays = 180) {
 }
 
 /**
- * Voorspel openings/sluitingstijd op basis van historische data (laatste 6 maanden)
- * Gebruikt weighted average: recente data weegt zwaarder mee
- * - Laatste maand: 100% gewicht
- * - Ouder dan 1 maand: lineair afnemend van 100% naar 20%
+ * Voorspel openings/sluitingstijd op basis van historische data (laatste 4 maanden)
+ * Gebruikt eerste opening en laatste sluiting van elke dag
+ * Gewichten: deze maand 100%, 1 maand geleden 70%, 2 maanden 50%, 3+ maanden 20%
+ * Gebruikt weighted mediaan voor stabiliteit tegen outliers
  */
 function predictOpeningTime(isOpen) {
   const db = getDatabase();
@@ -146,17 +146,21 @@ function predictOpeningTime(isOpen) {
     targetDay = tomorrow.getDay();
   }
   
-  // Haal tijden op van laatste 6 maanden
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const cutoffDateKey = sixMonthsAgo.toISOString().split('T')[0];
+  // Haal tijden op van laatste 4 maanden
+  const fourMonthsAgo = new Date();
+  fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4);
+  const cutoffDateKey = fourMonthsAgo.toISOString().split('T')[0];
+  
+  // Voor opening: eerste van de dag (MIN), voor sluiting: laatste van de dag (MAX)
+  const aggregateFunc = isOpen ? 'MAX' : 'MIN';
   
   const logs = db.prepare(`
-    SELECT time_logged, date_key
+    SELECT ${aggregateFunc}(time_logged) as time_logged, date_key
     FROM hok_status_log
     WHERE is_opening = ?
     AND date_key >= ?
-    ORDER BY logged_at DESC
+    GROUP BY date_key
+    ORDER BY date_key DESC
   `).all(isOpen ? 0 : 1, cutoffDateKey); // 0 = closing, 1 = opening
   
   // Filter op weekdag en bereken gewichten
@@ -166,26 +170,28 @@ function predictOpeningTime(isOpen) {
   logs.forEach(log => {
     const logWeekday = getWeekDay(log.date_key);
     if (logWeekday === targetDay) {
-      // Bereken leeftijd van de data in dagen
+      // Bereken hoeveel maanden geleden
       const logDate = new Date(log.date_key);
-      const ageInDays = Math.floor((now - logDate) / (1000 * 60 * 60 * 24));
+      const monthsAgo = (now.getFullYear() - logDate.getFullYear()) * 12 + (now.getMonth() - logDate.getMonth());
       
-      // Bereken gewicht
+      // Bepaal gewicht op basis van maanden geleden
       let weight;
-      if (ageInDays <= 30) {
-        // Laatste maand: 100% gewicht
-        weight = 1.0;
+      if (monthsAgo === 0) {
+        weight = 1.0;   // Deze maand: 100%
+      } else if (monthsAgo === 1) {
+        weight = 0.7;   // 1 maand geleden: 70%
+      } else if (monthsAgo === 2) {
+        weight = 0.5;   // 2 maanden geleden: 50%
       } else {
-        // Ouder dan 1 maand: lineair afnemen van 100% naar 20% over 5 maanden
-        // 30 dagen = 100%, 180 dagen = 20%
-        const daysOverOneMonth = ageInDays - 30;
-        const maxDaysForDecay = 150; // 180 - 30 = 150 dagen
-        weight = 1.0 - (daysOverOneMonth / maxDaysForDecay) * 0.8; // Afname van 80% (van 100% naar 20%)
-        weight = Math.max(0.2, weight); // Minimaal 20%
+        weight = 0.2;   // 3+ maanden geleden: 20%
       }
       
+      // Converteer tijd naar minuten
+      const [hours, minutes] = log.time_logged.split(':').map(Number);
+      const timeInMinutes = hours * 60 + minutes;
+      
       relevantTimes.push({
-        time: log.time_logged,
+        minutes: timeInMinutes,
         weight: weight
       });
     }
@@ -193,21 +199,35 @@ function predictOpeningTime(isOpen) {
   
   if (relevantTimes.length === 0) return null;
   
-  // Bereken weighted average
-  let totalWeightedMinutes = 0;
-  let totalWeight = 0;
+  // Bereken weighted mediaan
+  // Sorteer op tijd
+  relevantTimes.sort((a, b) => a.minutes - b.minutes);
   
-  relevantTimes.forEach(item => {
-    const [hours, minutes] = item.time.split(':').map(Number);
-    const timeInMinutes = hours * 60 + minutes;
+  // Bereken totaal gewicht
+  const totalWeight = relevantTimes.reduce((sum, item) => sum + item.weight, 0);
+  const halfWeight = totalWeight / 2;
+  
+  // Vind de mediaan positie
+  let cumulativeWeight = 0;
+  let medianMinutes = relevantTimes[0].minutes;
+  
+  for (let i = 0; i < relevantTimes.length; i++) {
+    cumulativeWeight += relevantTimes[i].weight;
     
-    totalWeightedMinutes += timeInMinutes * item.weight;
-    totalWeight += item.weight;
-  });
+    if (cumulativeWeight >= halfWeight) {
+      // Als we precies op de helft zitten en er is een volgende waarde,
+      // interpoleer tussen deze en de volgende
+      if (cumulativeWeight === halfWeight && i + 1 < relevantTimes.length) {
+        medianMinutes = Math.round((relevantTimes[i].minutes + relevantTimes[i + 1].minutes) / 2);
+      } else {
+        medianMinutes = relevantTimes[i].minutes;
+      }
+      break;
+    }
+  }
   
-  const avgMinutes = Math.round(totalWeightedMinutes / totalWeight);
-  const hours = Math.floor(avgMinutes / 60);
-  const minutes = avgMinutes % 60;
+  const hours = Math.floor(medianMinutes / 60);
+  const minutes = medianMinutes % 60;
   
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
