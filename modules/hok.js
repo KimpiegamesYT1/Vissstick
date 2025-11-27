@@ -127,9 +127,8 @@ function getAllHokHistory(limitDays = 180) {
 
 /**
  * Voorspel openings/sluitingstijd op basis van historische data (laatste 4 maanden)
- * Gebruikt eerste opening en laatste sluiting van elke dag
- * Gewichten: deze maand 100%, 1 maand geleden 70%, 2 maanden 50%, 3+ maanden 20%
- * Gebruikt weighted mediaan voor stabiliteit tegen outliers
+ * Filtert korte sessies (< 30 min) eruit voor betere accuratesse
+ * Gebruikt eerste geldige opening en laatste geldige sluiting van elke dag
  */
 function predictOpeningTime(isOpen) {
   const db = getDatabase();
@@ -151,44 +150,84 @@ function predictOpeningTime(isOpen) {
   fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4);
   const cutoffDateKey = fourMonthsAgo.toISOString().split('T')[0];
   
-  // Voor opening: eerste van de dag (MIN), voor sluiting: laatste van de dag (MAX)
-  const aggregateFunc = isOpen ? 'MAX' : 'MIN';
-  
+  // Haal ALLE logs op om sessieduur te kunnen berekenen
   const logs = db.prepare(`
-    SELECT ${aggregateFunc}(time_logged) as time_logged, date_key
+    SELECT date_key, time_logged, is_opening
     FROM hok_status_log
-    WHERE is_opening = ?
-    AND date_key >= ?
-    GROUP BY date_key
-    ORDER BY date_key DESC
-  `).all(isOpen ? 0 : 1, cutoffDateKey); // 0 = closing, 1 = opening
+    WHERE date_key >= ?
+    ORDER BY date_key DESC, time_logged ASC
+  `).all(cutoffDateKey);
+  
+  // Verwerk logs om geldige sessies (> 30 min) te vinden
+  const validTimesPerDay = {}; // date_key -> { open: minutes, close: minutes }
+  
+  let currentDay = null;
+  let dayLogs = [];
+
+  const processDayLogs = (dateKey, logs) => {
+    let openTime = null;
+    let firstValidOpen = null;
+    let lastValidClose = null;
+
+    for (const log of logs) {
+      const [h, m] = log.time_logged.split(':').map(Number);
+      const minutes = h * 60 + m;
+
+      if (log.is_opening) {
+        openTime = minutes;
+      } else {
+        // Closing
+        if (openTime !== null) {
+          const duration = minutes - openTime;
+          if (duration >= 30) {
+            // Geldige sessie gevonden
+            if (firstValidOpen === null) firstValidOpen = openTime;
+            lastValidClose = minutes;
+          }
+          openTime = null;
+        }
+      }
+    }
+    
+    if (firstValidOpen !== null && lastValidClose !== null) {
+      validTimesPerDay[dateKey] = {
+        open: firstValidOpen,
+        close: lastValidClose
+      };
+    }
+  };
+
+  // Group logs by day
+  logs.forEach(log => {
+    if (log.date_key !== currentDay) {
+      if (currentDay) processDayLogs(currentDay, dayLogs);
+      currentDay = log.date_key;
+      dayLogs = [];
+    }
+    dayLogs.push(log);
+  });
+  if (currentDay) processDayLogs(currentDay, dayLogs);
   
   // Filter op weekdag en bereken gewichten
   const now = new Date();
   const relevantTimes = [];
   
-  logs.forEach(log => {
-    const logWeekday = getWeekDay(log.date_key);
+  Object.entries(validTimesPerDay).forEach(([dateKey, times]) => {
+    const logWeekday = getWeekDay(dateKey);
     if (logWeekday === targetDay) {
       // Bereken hoeveel maanden geleden
-      const logDate = new Date(log.date_key);
+      const logDate = new Date(dateKey);
       const monthsAgo = (now.getFullYear() - logDate.getFullYear()) * 12 + (now.getMonth() - logDate.getMonth());
       
-      // Bepaal gewicht op basis van maanden geleden
+      // Bepaal gewicht
       let weight;
-      if (monthsAgo === 0) {
-        weight = 1.0;   // Deze maand: 100%
-      } else if (monthsAgo === 1) {
-        weight = 0.7;   // 1 maand geleden: 70%
-      } else if (monthsAgo === 2) {
-        weight = 0.5;   // 2 maanden geleden: 50%
-      } else {
-        weight = 0.2;   // 3+ maanden geleden: 20%
-      }
+      if (monthsAgo === 0) weight = 1.0;
+      else if (monthsAgo === 1) weight = 0.7;
+      else if (monthsAgo === 2) weight = 0.5;
+      else weight = 0.2;
       
-      // Converteer tijd naar minuten
-      const [hours, minutes] = log.time_logged.split(':').map(Number);
-      const timeInMinutes = hours * 60 + minutes;
+      // Kies tijd: als isOpen=true voorspellen we sluiting (close), anders opening (open)
+      const timeInMinutes = isOpen ? times.close : times.open;
       
       relevantTimes.push({
         minutes: timeInMinutes,
@@ -200,14 +239,11 @@ function predictOpeningTime(isOpen) {
   if (relevantTimes.length === 0) return null;
   
   // Bereken weighted mediaan
-  // Sorteer op tijd
   relevantTimes.sort((a, b) => a.minutes - b.minutes);
   
-  // Bereken totaal gewicht
   const totalWeight = relevantTimes.reduce((sum, item) => sum + item.weight, 0);
   const halfWeight = totalWeight / 2;
   
-  // Vind de mediaan positie
   let cumulativeWeight = 0;
   let medianMinutes = relevantTimes[0].minutes;
   
@@ -215,8 +251,6 @@ function predictOpeningTime(isOpen) {
     cumulativeWeight += relevantTimes[i].weight;
     
     if (cumulativeWeight >= halfWeight) {
-      // Als we precies op de helft zitten en er is een volgende waarde,
-      // interpoleer tussen deze en de volgende
       if (cumulativeWeight === halfWeight && i + 1 < relevantTimes.length) {
         medianMinutes = Math.round((relevantTimes[i].minutes + relevantTimes[i + 1].minutes) / 2);
       } else {
