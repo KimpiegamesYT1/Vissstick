@@ -46,7 +46,7 @@ async function handleHokCommands(interaction, client, config, hokState) {
       const dayNames = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
       const dayName = dayNames[dayNumber];
       
-      const hokHistory = hok.getAllHokHistory(120); // 4 maanden
+      const hokHistory = hok.getFilteredHokHistory(120); // 4 maanden, gefilterd op sessies >= 30 min
       
       if (Object.keys(hokHistory).length === 0) {
         await interaction.reply({ embeds: [

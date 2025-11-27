@@ -126,6 +126,81 @@ function getAllHokHistory(limitDays = 180) {
 }
 
 /**
+ * Haal gefilterde hok geschiedenis op
+ * Filtert sessies korter dan 30 minuten eruit
+ * Geeft per dag: eerste geldige opening en laatste geldige sluiting
+ */
+function getFilteredHokHistory(limitDays = 180) {
+  const db = getDatabase();
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - limitDays);
+  const cutoffDateKey = cutoffDate.toISOString().split('T')[0];
+  
+  // Haal ALLE logs op om sessieduur te kunnen berekenen
+  const logs = db.prepare(`
+    SELECT date_key, time_logged, is_opening
+    FROM hok_status_log
+    WHERE date_key >= ?
+    ORDER BY date_key DESC, time_logged ASC
+  `).all(cutoffDateKey);
+  
+  const history = {};
+  let currentDay = null;
+  let dayLogs = [];
+  
+  const processDayLogs = (dateKey, logs) => {
+    let openTime = null;
+    let openTimeStr = null;
+    let firstValidOpen = null;
+    let lastValidClose = null;
+    
+    for (const log of logs) {
+      const [h, m] = log.time_logged.split(':').map(Number);
+      const minutes = h * 60 + m;
+      
+      if (log.is_opening) {
+        openTime = minutes;
+        openTimeStr = log.time_logged;
+      } else {
+        // Closing
+        if (openTime !== null) {
+          const duration = minutes - openTime;
+          if (duration >= 30) {
+            // Geldige sessie gevonden (>= 30 min)
+            if (firstValidOpen === null) firstValidOpen = openTimeStr;
+            lastValidClose = log.time_logged;
+          }
+          openTime = null;
+          openTimeStr = null;
+        }
+      }
+    }
+    
+    // Alleen toevoegen als we geldige data hebben
+    if (firstValidOpen !== null || lastValidClose !== null) {
+      history[dateKey] = {
+        openTimes: firstValidOpen ? [firstValidOpen] : [],
+        closeTimes: lastValidClose ? [lastValidClose] : []
+      };
+    }
+  };
+  
+  // Group logs by day
+  logs.forEach(log => {
+    if (log.date_key !== currentDay) {
+      if (currentDay) processDayLogs(currentDay, dayLogs);
+      currentDay = log.date_key;
+      dayLogs = [];
+    }
+    dayLogs.push(log);
+  });
+  if (currentDay) processDayLogs(currentDay, dayLogs);
+  
+  return history;
+}
+
+/**
  * Voorspel openings/sluitingstijd op basis van historische data (laatste 4 maanden)
  * Filtert korte sessies (< 30 min) eruit voor betere accuratesse
  * Gebruikt eerste geldige opening en laatste geldige sluiting van elke dag
@@ -484,6 +559,7 @@ module.exports = {
   cleanOldHokLogs,
   getHokLogsForDate,
   getAllHokHistory,
+  getFilteredHokHistory,
   predictOpeningTime,
   updateHokState,
   getHokState,
