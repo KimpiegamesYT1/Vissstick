@@ -19,7 +19,7 @@ const chatTriggers = [
   { trigger: 'goedenacht', response: 'Slaap lekker! 🌙', exactMatch: true },
   { trigger: 'doei', response: '👋', exactMatch: true },
   { trigger: 'SQL', response: '/̵͇̿̿/’̿’̿ ̿ ̿̿ ̿̿ ̿̿🃜🃚🃖🃁🂭🂺', exactMatch: true },
-  { trigger: 'tom', response: 'https://tommyteleshopping.com/', exactMatch: false }
+  { trigger: 'tom', response: 'https://tommyteleshopping.com/', exactMatch: true }
 ];
 
 /**
