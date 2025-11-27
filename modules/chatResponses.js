@@ -17,8 +17,8 @@ const chatTriggers = [
   { trigger: 'hok', response: '🐔', exactMatch: true },
   { trigger: 'goedemorgen', response: 'Goedemorgen! ☀️', exactMatch: true },
   { trigger: 'goedenacht', response: 'Slaap lekker! 🌙', exactMatch: true },
-  { trigger: 'doei', response: '👋', exactMatch: true }
-  { trigger: 'SQL', response: '/̵͇̿̿/’̿’̿ ̿ ̿̿ ̿̿ ̿̿', exactMatch: true }
+  { trigger: 'doei', response: '👋', exactMatch: true },
+  { trigger: 'SQL', response: '/̵͇̿̿/’̿’̿ ̿ ̿̿ ̿̿ ̿̿🃜🃚🃖🃁🂭🂺', exactMatch: true }
 ];
 
 /**
