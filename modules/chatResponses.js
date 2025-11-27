@@ -18,7 +18,11 @@ const chatTriggers = [
   { trigger: 'goedemorgen', response: 'Goedemorgen! ☀️', exactMatch: true },
   { trigger: 'goedenacht', response: 'Slaap lekker! 🌙', exactMatch: true },
   { trigger: 'doei', response: '👋', exactMatch: true },
-  { trigger: 'SQL', response: '/̵͇̿̿/’̿’̿ ̿ ̿̿ ̿̿ ̿̿🃜🃚🃖🃁🂭🂺', exactMatch: true }
+  { trigger: 'SQL', response: '/̵͇̿̿/’̿’̿ ̿ ̿̿ ̿̿ ̿̿', exactMatch: true },
+   { trigger: 'brand', response: 'https://media.discordapp.net/attachments/908079878648238121/957191075091603456/1640898934380.gif?ex=69295a28&is=692808a8&hm=de54836e190582e80a00b9bb8fa8831021021f93892ea99c4d063a5a20b8278f&
+', exactMatch: true },
+  { trigger: 'gable', response: '🃜🃚🃖🃁🂭🂺', exactMatch: true }
+
 ];
 
 /**
