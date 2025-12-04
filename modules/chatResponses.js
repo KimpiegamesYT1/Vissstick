@@ -22,7 +22,9 @@ const chatTriggers = [
   { trigger: 'uitval', response: 'https://preview.redd.it/memes-about-turning-40-or-getting-old-v0-yeejlvcgh3yb1.png?width=480&format=png&auto=webp&s=5189e5668d3fc3ab5202beea691cbb304bdd593e', exactMatch: true },
   { trigger: 'trein', response: 'https://images-ext-1.discordapp.net/external/mJhIRgTYXq2slTclvT6ZBliWpdJPl6XgN-qiHFFe65s/https/media.tenor.com/seghh0Qr0NIAAAPo/funny-iliketrains.mp4', exactMatch: true },
   { trigger: 'luigi', response: 'https://static.wikia.nocookie.net/thefakegees/images/8/88/Lowigi.png/revision/latest?cb=20141031022916', exactMatch: true },
-  { trigger: 'mario', response: 'https://i.etsystatic.com/9001376/r/il/80e3dd/1265604857/il_794xN.1265604857_omj8.jpg', exactMatch: true }
+  { trigger: 'mario', response: 'https://i.etsystatic.com/9001376/r/il/80e3dd/1265604857/il_794xN.1265604857_omj8.jpg', exactMatch: true },
+  { trigger: 'tom', response: 'https://tommyteleshopping.com/', exactMatch: true },
+  { trigger: 'nick', response: 'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.thedailymeal.com%2Fimg%2Fgallery%2F10-things-you-didnt-know-about-snickers%2FGettyImages-511842692_1_.jpg&f=1&nofb=1&ipt=6b558055cad825634767e54c191dc6d9f482e7f08f6868394eabae024b4146d1', exactMatch: true }
 ];
 
 /**
