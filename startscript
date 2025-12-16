@@ -1,107 +1,170 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 BOT_DIR="/opt/discord-bot"
 BACKUP_DIR="/root/discord-bot-backup"
 
-echo "=== Vissstick Discord Bot Update & Start Script ==="
-echo ""
+# ----------------------------
+# Pretty logging (kleur alleen als interactive TTY)
+# ----------------------------
+if [ -t 1 ]; then
+    BOLD="$(tput bold)"
+    DIM="$(tput dim)"
+    RESET="$(tput sgr0)"
+    RED="$(tput setaf 1)"
+    GREEN="$(tput setaf 2)"
+    YELLOW="$(tput setaf 3)"
+    BLUE="$(tput setaf 4)"
+else
+    BOLD=""; DIM=""; RESET=""
+    RED=""; GREEN=""; YELLOW=""; BLUE=""
+fi
 
-# Maak backup directory aan
+hr() { printf "%s\n" "${DIM}------------------------------------------------------------${RESET}"; }
+title() { printf "\n%s%s%s\n" "${BOLD}${BLUE}" "$1" "${RESET}"; }
+step() { printf "\n%s[%s]%s %s\n" "${BOLD}" "$1" "${RESET}" "$2"; }
+ok() { printf "%s✔%s %s\n" "${GREEN}" "${RESET}" "$1"; }
+warn() { printf "%s!%s %s\n" "${YELLOW}" "${RESET}" "$1"; }
+fail() { printf "%s✖%s %s\n" "${RED}" "${RESET}" "$1"; }
+
+# Command runner: stil tenzij VERBOSE=1
+run_quiet() {
+    if [ "${VERBOSE:-0}" = "1" ]; then
+        "$@"
+    else
+        local tmp
+        tmp="$(mktemp)"
+        if ! "$@" >"$tmp" 2>&1; then
+            fail "Command failed: $*"
+            echo "${DIM}--- output ---${RESET}"
+            cat "$tmp"
+            rm -f "$tmp"
+            exit 1
+        fi
+        rm -f "$tmp"
+    fi
+}
+
+title "Vissstick Discord Bot — Update & Start"
+hr
+
 mkdir -p "$BACKUP_DIR"
 
-# Check of bot directory bestaat
+# ----------------------------
+# Eerste installatie
+# ----------------------------
 if [ ! -d "$BOT_DIR" ]; then
-    echo ">>> Eerste installatie - Clone repository"
+    step "INIT" "Eerste installatie — repository clonen"
     cd /opt
-    git clone https://github.com/KimpiegamesYT1/Vissstick.git "$BOT_DIR"
+    run_quiet git clone https://github.com/KimpiegamesYT1/Vissstick.git "$BOT_DIR"
+    ok "Repository gecloned naar $BOT_DIR"
+
+    # Maak alvast een config.json aan zodat alles klaarstaat
     cd "$BOT_DIR"
-    
+    if [ -f "config.example.json" ] && [ ! -f "config.json" ]; then
+        cp config.example.json config.json
+    fi
+
     echo ""
-    echo "⚠️  BELANGRIJKE STAP: Configuratie aanmaken"
+    warn "BELANGRIJK: config.json invullen"
+    echo "  nano $BOT_DIR/config.json"
     echo ""
-    echo "Kopieer config.example.json naar config.json en vul je gegevens in:"
-    echo "  cp config.example.json config.json"
-    echo "  nano config.json"
-    echo ""
-    echo "Run daarna dit script opnieuw."
+    warn "Run daarna dit script opnieuw."
     exit 0
 fi
 
 cd "$BOT_DIR"
 
-echo ">>> Stap 1: Backup database"
+# ----------------------------
+# 1) Backup database
+# ----------------------------
+step "1/5" "Database backup"
 if [ -f "bot.db" ]; then
-    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
     cp "bot.db" "$BACKUP_DIR/bot.db.backup-$TIMESTAMP"
-    echo "✓ Database backup: $BACKUP_DIR/bot.db.backup-$TIMESTAMP"
-    
-    # Houd alleen laatste 10 backups
-    cd "$BACKUP_DIR"
-    ls -t bot.db.backup-* 2>/dev/null | tail -n +11 | xargs -r rm
-    cd "$BOT_DIR"
+    ok "Backup gemaakt: $BACKUP_DIR/bot.db.backup-$TIMESTAMP"
+
+    (
+        cd "$BACKUP_DIR"
+        ls -t bot.db.backup-* 2>/dev/null | tail -n +11 | xargs -r rm
+    )
+    ok "Backup-rotatie: alleen laatste 10 bewaard"
 else
-    echo "ℹ️  Geen database gevonden - nieuwe wordt aangemaakt bij eerste start"
+    warn "Geen database gevonden — nieuwe wordt aangemaakt"
 fi
 
-echo ""
-echo ">>> Stap 2: Update code van GitHub"
-git fetch origin
-LOCAL=$(git rev-parse @)
-REMOTE=$(git rev-parse @{u})
+# ----------------------------
+# 2) Update code
+# ----------------------------
+step "2/5" "Code update (Git)"
+run_quiet git fetch origin
 
-if [ "$LOCAL" = "$REMOTE" ]; then
-    echo "✓ Code is al up-to-date"
+LOCAL="$(git rev-parse @)"
+REMOTE="$(git rev-parse @{u} 2>/dev/null || true)"
+
+if [ -z "$REMOTE" ]; then
+    warn "Geen upstream branch ingesteld; skip automatische update"
 else
-    git pull origin main
-    echo "✓ Code geüpdatet"
-fi
-
-echo ""
-echo ">>> Stap 3: Update dependencies"
-npm install --omit=dev
-echo "✓ Dependencies geïnstalleerd"
-
-echo ""
-echo ">>> Stap 4: Controleer configuratie"
-if [ ! -f "config.json" ]; then
-    echo "❌ config.json niet gevonden!"
-    echo ""
-    echo "Maak een config.json aan op basis van config.example.json:"
-    echo "  cp config.example.json config.json"
-    echo "  nano config.json"
-    echo ""
-    exit 1
-fi
-echo "✓ config.json aanwezig"
-
-echo ""
-echo ">>> Stap 5: Controleer database"
-if [ -f "bot.db" ]; then
-    DB_SIZE=$(du -h bot.db | cut -f1)
-    echo "✓ Database aanwezig (${DB_SIZE})"
-else
-    echo "ℹ️  Nieuwe database wordt aangemaakt bij start"
-    
-    # Check of er oude JSON files zijn om te migreren
-    if [ -f "quizlijst.json" ] || [ -f "quiz-scores.json" ] || [ -f "data.json" ]; then
-        echo ""
-        echo "⚠️  Oude JSON bestanden gevonden!"
-        echo "   Voer eerst migratie uit: npm run migrate"
-        echo ""
-        read -p "Wil je nu migreren? (j/n) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Jj]$ ]]; then
-            npm run migrate
-        fi
+    if [ "$LOCAL" = "$REMOTE" ]; then
+        ok "Code is up-to-date"
+    else
+        run_quiet git pull origin main
+        ok "Code geüpdatet"
     fi
 fi
 
-echo ""
-echo "=== Bot Start ==="
+# ----------------------------
+# 3) Dependencies
+# ----------------------------
+step "3/5" "Dependencies installeren"
+run_quiet npm install --omit=dev --no-fund --no-audit
+ok "Dependencies OK"
+
+# ----------------------------
+# 4) Config check
+# ----------------------------
+step "4/5" "Configuratie controleren"
+if [ ! -f "config.json" ]; then
+    if [ -f "config.example.json" ]; then
+        cp config.example.json config.json
+        warn "config.json was niet aanwezig en is aangemaakt op basis van config.example.json"
+        echo "Vul nu je gegevens in:"
+        echo "  nano $BOT_DIR/config.json"
+        exit 1
+    else
+        fail "config.json niet gevonden en config.example.json ontbreekt ook!"
+        exit 1
+    fi
+fi
+ok "config.json aanwezig"
+
+# ----------------------------
+# 5) Database check / init
+# ----------------------------
+step "5/5" "Database controleren"
+if [ -f "bot.db" ]; then
+    DB_SIZE="$(du -h bot.db | cut -f1)"
+    ok "Database aanwezig (${DB_SIZE})"
+else
+    warn "Geen database gevonden — initialiseer SQLite schema"
+    run_quiet node -e "require('./database').initDatabase(); console.log('Database aangemaakt en schema geladen');"
+
+    if [ -f "bot.db" ]; then
+        DB_SIZE="$(du -h bot.db | cut -f1)"
+        ok "Database aanwezig (${DB_SIZE})"
+    else
+        fail "Database aanmaken mislukt (bot.db nog steeds niet gevonden)"
+        exit 1
+    fi
+fi
+
+# ----------------------------
+# Start bot
+# ----------------------------
+title "Bot start"
+hr
 echo "De bot draait nu in deze terminal."
-echo "Gebruik CTRL+C om te stoppen."
+echo "Stoppen: CTRL+C"
 echo ""
 
-# Start bot
-node bot.js
+exec node bot.js
