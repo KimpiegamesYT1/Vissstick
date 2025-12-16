@@ -5,6 +5,8 @@
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getDatabase } = require('../database');
+const fs = require('fs');
+const path = require('path');
 
 const EMOJI_MAP = {
   'A': '🇦',
@@ -596,6 +598,175 @@ function loadActiveQuizzes() {
   return quizzes;
 }
 
+/**
+ * Import quiz vragen uit quiz-import.json.
+ * - Zorgt dat het JSON bestand bestaat (standaard: projectroot/quiz-import.json)
+ * - Als er vragen in staan: voeg toe aan database (zonder duplicaten) en maak bestand weer leeg ([])
+ * - Als er niks in staat: doe niks
+ */
+function importQuestionsFromJson(importFilePath = null) {
+  const db = getDatabase();
+  const filePath = importFilePath || path.join(__dirname, '..', 'quiz-import.json');
+
+  // Zorg dat bestand bestaat en valide JSON bevat
+  try {
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, '[]\n', 'utf8');
+      return { inserted: 0, skipped: 0, invalid: 0 };
+    }
+  } catch (error) {
+    console.error('❌ Kon quiz-import.json niet aanmaken/lezen:', error);
+    return { inserted: 0, skipped: 0, invalid: 0 };
+  }
+
+  let raw = '';
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    console.error('❌ Kon quiz-import.json niet lezen:', error);
+    return { inserted: 0, skipped: 0, invalid: 0 };
+  }
+
+  const trimmed = (raw || '').trim();
+  if (trimmed.length === 0) {
+    // Als iemand het bestand leeg opslaat, herstel naar lege array.
+    try {
+      fs.writeFileSync(filePath, '[]\n', 'utf8');
+    } catch (error) {
+      console.error('❌ Kon quiz-import.json niet resetten naar []:', error);
+    }
+    return { inserted: 0, skipped: 0, invalid: 0 };
+  }
+
+  let data;
+  try {
+    data = JSON.parse(trimmed);
+  } catch (error) {
+    console.error('❌ quiz-import.json bevat ongeldige JSON; import overgeslagen:', error.message);
+    return { inserted: 0, skipped: 0, invalid: 0 };
+  }
+
+  if (!Array.isArray(data) || data.length === 0) {
+    return { inserted: 0, skipped: 0, invalid: 0 };
+  }
+
+  const normalizeAnswer = (value) => {
+    const v = String(value || '').trim().toUpperCase();
+    return ['A', 'B', 'C', 'D'].includes(v) ? v : null;
+  };
+
+  const normalizeQuestion = (q) => {
+    if (!q || typeof q !== 'object') return null;
+
+    // Ondersteun legacy format: { vraag, opties: {A,B,C,D}, antwoord }
+    if (q.vraag && q.opties && typeof q.opties === 'object') {
+      const correct = normalizeAnswer(q.antwoord);
+      const a = q.opties.A;
+      const b = q.opties.B;
+      const c = q.opties.C;
+      const d = q.opties.D;
+
+      if (!correct || !a || !b || !c || !d) return null;
+
+      return {
+        vraag: String(q.vraag),
+        optie_a: String(a),
+        optie_b: String(b),
+        optie_c: String(c),
+        optie_d: String(d),
+        correct_antwoord: correct
+      };
+    }
+
+    // Ondersteun database-like format: { vraag, optie_a, optie_b, optie_c, optie_d, correct_antwoord }
+    if (q.vraag && q.optie_a && q.optie_b && q.optie_c && q.optie_d) {
+      const correct = normalizeAnswer(q.correct_antwoord);
+      if (!correct) return null;
+      return {
+        vraag: String(q.vraag),
+        optie_a: String(q.optie_a),
+        optie_b: String(q.optie_b),
+        optie_c: String(q.optie_c),
+        optie_d: String(q.optie_d),
+        correct_antwoord: correct
+      };
+    }
+
+    return null;
+  };
+
+  const existsStmt = db.prepare(`
+    SELECT id
+    FROM quiz_questions
+    WHERE vraag = ?
+      AND optie_a = ?
+      AND optie_b = ?
+      AND optie_c = ?
+      AND optie_d = ?
+      AND correct_antwoord = ?
+    LIMIT 1
+  `);
+
+  const insertStmt = db.prepare(`
+    INSERT INTO quiz_questions (vraag, optie_a, optie_b, optie_c, optie_d, correct_antwoord)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  let inserted = 0;
+  let skipped = 0;
+  let invalid = 0;
+
+  const transaction = db.transaction((questions) => {
+    questions.forEach((q) => {
+      const normalized = normalizeQuestion(q);
+      if (!normalized) {
+        invalid++;
+        return;
+      }
+
+      const existing = existsStmt.get(
+        normalized.vraag,
+        normalized.optie_a,
+        normalized.optie_b,
+        normalized.optie_c,
+        normalized.optie_d,
+        normalized.correct_antwoord
+      );
+
+      if (existing) {
+        skipped++;
+        return;
+      }
+
+      insertStmt.run(
+        normalized.vraag,
+        normalized.optie_a,
+        normalized.optie_b,
+        normalized.optie_c,
+        normalized.optie_d,
+        normalized.correct_antwoord
+      );
+      inserted++;
+    });
+  });
+
+  try {
+    transaction(data);
+  } catch (error) {
+    console.error('❌ Fout tijdens import van quiz vragen; bestand blijft ongewijzigd:', error);
+    return { inserted: 0, skipped: 0, invalid: 0 };
+  }
+
+  // Alleen leegmaken als de import succesvol is afgerond
+  try {
+    fs.writeFileSync(filePath, '[]\n', 'utf8');
+  } catch (error) {
+    console.error('❌ Import gelukt, maar kon quiz-import.json niet leegmaken:', error);
+  }
+
+  return { inserted, skipped, invalid };
+}
+
 module.exports = {
   startDailyQuiz,
   handleQuizButton,
@@ -604,5 +775,6 @@ module.exports = {
   getQuizScores,
   getCurrentMonthKey,
   loadActiveQuizzes,
-  getActiveQuiz
+  getActiveQuiz,
+  importQuestionsFromJson
 };

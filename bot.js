@@ -191,6 +191,18 @@ client.once("clientReady", async () => {
     console.error('❌ Database initialisatie mislukt:', error);
     process.exit(1);
   }
+
+  // Importeer nieuwe quiz vragen uit quiz-import.json (en maak bestand daarna weer leeg)
+  try {
+    const result = quiz.importQuestionsFromJson();
+    if (result.inserted > 0 || result.skipped > 0 || result.invalid > 0) {
+      console.log(
+        `📝 Quiz import: ${result.inserted} toegevoegd, ${result.skipped} overgeslagen, ${result.invalid} ongeldig (quiz-import.json is geleegd)`
+      );
+    }
+  } catch (error) {
+    console.error('❌ Fout bij importeren quiz vragen uit quiz-import.json:', error);
+  }
   
   // Set initial bot status
   client.user.setActivity('Hok status laden...', { type: ActivityType.Watching });

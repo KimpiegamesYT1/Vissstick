@@ -20,6 +20,9 @@ quiz-data.json
 used-questions.json
 data.json
 
+# Runtime import dropbox (wordt leeg gemaakt bij bot startup)
+quiz-import.json
+
 # Logs
 *.log
 npm-debug.log*
