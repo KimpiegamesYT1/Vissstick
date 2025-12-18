@@ -7,6 +7,7 @@ Discord bot voor het HOK van Syntaxis.
 - **Hok Monitoring** - Realtime status of het hok open/dicht is met tijdsschatting
 - **Dagelijkse Quiz** - Elke dag om 7:00 een nieuwe vraag, antwoord om 17:00
 - **Maandelijks Scoreboard** - Overzicht van quiz scores aan het einde van de maand
+- **Audio Player** - Speel MP3 bestanden af in voice channels
 - **Chat Responses** - Automatische grappige reacties
 
 ## Installatie (Server)
@@ -61,3 +62,15 @@ Gebruik een JSON array. Dit legacy-format werkt:
 ```
 
 Na het starten van de bot worden de vragen geïmporteerd en wordt `quiz-import.json` automatisch geleegd.
+
+## Audio bestanden toevoegen
+
+De bot kan MP3 bestanden afspelen in voice channels.
+
+- Plaats `.mp3` bestanden in de `audio/` folder
+- De bot detecteert automatisch nieuwe bestanden
+- Gebruik `/audio` voor een lijst van beschikbare audio
+- Gebruik `/audioplay <bestand>` om een bestand af te spelen (je moet in een voice channel zitten)
+- Gebruik `/audiostop` om het afspelen te stoppen
+
+De bot joint automatisch je voice channel en verlaat deze na het afspelen.
