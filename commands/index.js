@@ -11,6 +11,14 @@ const allCommands = [
 
 // Handle alle commands
 async function handleCommands(interaction, client, config, hokState) {
+  // Handle autocomplete first (only audio commands have autocomplete)
+  if (interaction.isAutocomplete()) {
+    if (await handleAudioCommands(interaction, client)) {
+      return;
+    }
+    return;
+  }
+
   // Try hok commands first
   if (await handleHokCommands(interaction, client, config, hokState)) {
     return;

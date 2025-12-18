@@ -174,6 +174,12 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
+  // Handle autocomplete interactions
+  if (interaction.isAutocomplete()) {
+    handleCommands(interaction, client, config, hokState);
+    return;
+  }
+
   // Handle slash commands
   if (!interaction.isChatInputCommand()) return;
 
