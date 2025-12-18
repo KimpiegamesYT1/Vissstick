@@ -4,8 +4,7 @@ const {
   createAudioResource, 
   AudioPlayerStatus,
   VoiceConnectionStatus,
-  entersState,
-  NoSubscriberBehavior
+  entersState
 } = require('@discordjs/voice');
 const fs = require('fs');
 const path = require('path');
@@ -189,18 +188,9 @@ async function handleAudioCommands(interaction, client) {
         return true;
       }
 
-      // Create audio player with better settings
-      const player = createAudioPlayer({
-        behaviors: {
-          noSubscriber: NoSubscriberBehavior.Play
-        }
-      });
-      const resource = createAudioResource(filePath, {
-        inlineVolume: true
-      });
-      
-      // Set volume to prevent clipping
-      resource.volume.setVolume(0.8);
+      // Create audio player
+      const player = createAudioPlayer();
+      const resource = createAudioResource(filePath);
 
       activePlayers.set(interaction.guildId, player);
 
