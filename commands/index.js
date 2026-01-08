@@ -1,14 +1,12 @@
 const { hokCommands, handleHokCommands } = require('./hokCommands');
 const { quizCommands, handleQuizCommands } = require('./quizCommands');
 const { audioCommands, handleAudioCommands } = require('./audioCommands');
-const { adminCommands, handleAdminCommands } = require('./adminCommands');
 
 // Combineer alle commands
 const allCommands = [
   ...hokCommands,
   ...quizCommands,
-  ...audioCommands,
-  ...adminCommands
+  ...audioCommands
 ];
 
 // Handle alle commands
@@ -33,11 +31,6 @@ async function handleCommands(interaction, client, config, hokState) {
 
   // Try audio commands
   if (await handleAudioCommands(interaction, client)) {
-    return;
-  }
-
-  // Try admin commands
-  if (await handleAdminCommands(interaction, client)) {
     return;
   }
 
