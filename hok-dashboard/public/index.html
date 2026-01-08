@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hok Dashboard - Status Monitoring</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Hok Dashboard</h1>
+            <p>Status Monitoring & Parameter Configuratie</p>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Totaal Logs</h3>
+                <p id="totalLogs" class="stat-value">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Eerste Log</h3>
+                <p id="firstDate" class="stat-value">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Laatste Log</h3>
+                <p id="lastDate" class="stat-value">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Status</h3>
+                <p id="currentStatus" class="stat-value">-</p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('visualisatie')">📈 Visualisatie</button>
+            <button class="tab-btn" onclick="showTab('parameters')">⚙️ Parameters</button>
+            <button class="tab-btn" onclick="showTab('data')">📋 Data</button>
+        </div>
+
+        <!-- Tab: Visualisatie -->
+        <div id="visualisatie" class="tab-content active">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Weekoverzicht - Open & Sluit Tijden</h2>
+                    <div class="controls">
+                        <label>
+                            Periode (dagen):
+                            <input type="number" id="visualDays" value="30" min="7" max="365" onchange="loadVisualization()">
+                        </label>
+                        <button class="btn btn-refresh" onclick="loadVisualization()">🔄 Ververs</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="weekChart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Voorspelde Tijden per Weekdag</h2>
+                <div class="predictions-grid" id="predictions">
+                    <!-- Dynamisch gevuld -->
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Dagelijkse Tijdlijn</h2>
+                <div class="chart-container">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Parameters -->
+        <div id="parameters" class="tab-content">
+            <div class="section">
+                <h2>⚙️ Parameter Configuratie</h2>
+                <p class="info">Pas alle parameters aan om de voorspellingen te fine-tunen. Wijzigingen worden direct toegepast.</p>
+                
+                <form id="paramForm" onsubmit="saveParameters(event)">
+                    <div class="param-grid">
+                        <div class="param-group">
+                            <h3>🕐 Check Intervallen</h3>
+                            <label>
+                                Check Interval (Open) - in milliseconden
+                                <input type="number" name="check_interval_open" required>
+                                <small>Hoe vaak API wordt gecontroleerd als hok open is (standaard: 300000 = 5 min)</small>
+                            </label>
+                            <label>
+                                Check Interval (Dicht) - in milliseconden
+                                <input type="number" name="check_interval_closed" required>
+                                <small>Hoe vaak API wordt gecontroleerd als hok dicht is (standaard: 60000 = 1 min)</small>
+                            </label>
+                            <label>
+                                Check Interval (Nacht) - in milliseconden
+                                <input type="number" name="check_interval_night" required>
+                                <small>Hoe vaak API wordt gecontroleerd tussen 22:00-05:00 (standaard: 900000 = 15 min)</small>
+                            </label>
+                        </div>
+
+                        <div class="param-group">
+                            <h3>🌙 Nacht Periode</h3>
+                            <label>
+                                Nacht Start Uur (0-23)
+                                <input type="number" name="night_start_hour" min="0" max="23" required>
+                                <small>Begin van nacht periode (standaard: 22)</small>
+                            </label>
+                            <label>
+                                Nacht Eind Uur (0-23)
+                                <input type="number" name="night_end_hour" min="0" max="23" required>
+                                <small>Einde van nacht periode (standaard: 5)</small>
+                            </label>
+                        </div>
+
+                        <div class="param-group">
+                            <h3>📊 Data & Filtering</h3>
+                            <label>
+                                Geschiedenis Limiet (dagen)
+                                <input type="number" name="history_limit_days" min="1" max="3650" required>
+                                <small>Hoe ver terug in tijd voor analyses (standaard: 180 = 6 maanden)</small>
+                            </label>
+                            <label>
+                                Minimum Sessie Duur (minuten)
+                                <input type="number" name="min_session_duration" min="1" max="480" required>
+                                <small>Minimum duur voor geldige sessie (standaard: 30 min)</small>
+                            </label>
+                            <label>
+                                Voorspelling Lookback (maanden)
+                                <input type="number" name="prediction_lookback_months" min="1" max="24" required>
+                                <small>Hoeveel maanden terug voor voorspellingen (standaard: 4)</small>
+                            </label>
+                        </div>
+
+                        <div class="param-group">
+                            <h3>⚖️ Gewichten (Weighted Median)</h3>
+                            <label>
+                                Gewicht Huidige Maand (0.0 - 2.0)
+                                <input type="number" name="weight_current_month" step="0.1" min="0" max="2" required>
+                                <small>Gewicht voor data van huidige maand (standaard: 1.0)</small>
+                            </label>
+                            <label>
+                                Gewicht 1 Maand Geleden (0.0 - 2.0)
+                                <input type="number" name="weight_1_month_ago" step="0.1" min="0" max="2" required>
+                                <small>Gewicht voor data van 1 maand geleden (standaard: 0.7)</small>
+                            </label>
+                            <label>
+                                Gewicht 2 Maanden Geleden (0.0 - 2.0)
+                                <input type="number" name="weight_2_months_ago" step="0.1" min="0" max="2" required>
+                                <small>Gewicht voor data van 2 maanden geleden (standaard: 0.5)</small>
+                            </label>
+                            <label>
+                                Gewicht 3+ Maanden Geleden (0.0 - 2.0)
+                                <input type="number" name="weight_3plus_months_ago" step="0.1" min="0" max="2" required>
+                                <small>Gewicht voor data van 3+ maanden geleden (standaard: 0.2)</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">💾 Opslaan</button>
+                        <button type="button" class="btn btn-secondary" onclick="loadParameters()">🔄 Reset naar Huidige</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tab: Data -->
+        <div id="data" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <h2>📋 Hok Status Logs</h2>
+                    <div class="controls">
+                        <label>
+                            Periode (dagen):
+                            <input type="number" id="dataDays" value="30" min="1" max="365" onchange="loadLogs()">
+                        </label>
+                        <button class="btn btn-refresh" onclick="loadLogs()">🔄 Ververs</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="logsTable">
+                        <thead>
+                            <tr>
+                                <th>Datum</th>
+                                <th>Tijd</th>
+                                <th>Type</th>
+                                <th>Weekdag</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsBody">
+                            <!-- Dynamisch gevuld -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
