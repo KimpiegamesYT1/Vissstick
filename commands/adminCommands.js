@@ -43,10 +43,10 @@ async function handleAdminCommands(interaction, client) {
         
         console.log(`🔄 Bot stopt nu en startscript wordt uitgevoerd vanuit ${botDir}...`);
         
-        // Spawn the startscript as a detached process with correct working directory
+        // Spawn the startscript with inherited stdio (so you see the output)
         const child = spawn('./startscript', [], {
           detached: true,
-          stdio: 'ignore',
+          stdio: 'inherit',  // Inherit stdio so output is visible
           cwd: botDir,  // Run from /opt/discord-bot/ directory
           shell: true
         });
