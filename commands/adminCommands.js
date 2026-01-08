@@ -37,15 +37,18 @@ async function handleAdminCommands(interaction, client) {
 
       // Give time for the message to be sent
       setTimeout(() => {
-        // Find the startscript path
-        const scriptPath = path.join(__dirname, '..', 'startscript');
+        // Find the startscript path (should be in /opt/discord-bot/)
+        const botDir = path.join(__dirname, '..');
+        const scriptPath = path.join(botDir, 'startscript');
         
-        console.log('🔄 Bot stopt nu en startscript wordt uitgevoerd...');
+        console.log(`🔄 Bot stopt nu en startscript wordt uitgevoerd vanuit ${botDir}...`);
         
-        // Spawn the startscript as a detached process
-        const child = spawn('bash', [scriptPath], {
+        // Spawn the startscript as a detached process with correct working directory
+        const child = spawn('./startscript', [], {
           detached: true,
-          stdio: 'ignore'
+          stdio: 'ignore',
+          cwd: botDir,  // Run from /opt/discord-bot/ directory
+          shell: true
         });
         
         // Unref so parent can exit
