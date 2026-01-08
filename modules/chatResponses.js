@@ -3,6 +3,9 @@
  * Automatische reacties op specifieke berichten
  */
 
+const path = require('path');
+const fs = require('fs');
+
 // Lijst met chat triggers en responses
 const chatTriggers = [
   // Bestaande klassiekers
@@ -24,7 +27,8 @@ const chatTriggers = [
   { trigger: 'luigi', response: 'https://static.wikia.nocookie.net/thefakegees/images/8/88/Lowigi.png/revision/latest?cb=20141031022916', exactMatch: true },
   { trigger: 'mario', response: 'https://i.etsystatic.com/9001376/r/il/80e3dd/1265604857/il_794xN.1265604857_omj8.jpg', exactMatch: true },
   { trigger: 'tom', response: 'https://tommyteleshopping.com/', exactMatch: true },
-  { trigger: 'nick', response: 'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.thedailymeal.com%2Fimg%2Fgallery%2F10-things-you-didnt-know-about-snickers%2FGettyImages-511842692_1_.jpg&f=1&nofb=1&ipt=6b558055cad825634767e54c191dc6d9f482e7f08f6868394eabae024b4146d1', exactMatch: true }
+  { trigger: 'nick', response: 'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.thedailymeal.com%2Fimg%2Fgallery%2F10-things-you-didnt-know-about-snickers%2FGettyImages-511842692_1_.jpg&f=1&nofb=1&ipt=6b558055cad825634767e54c191dc6d9f482e7f08f6868394eabae024b4146d1', exactMatch: true },
+  { trigger: 'stijn', response: 'Stijn Barendse, faalt steeds in de theorie!', exactMatch: true, audioFile: 'stijn.mp3' }
 ];
 
 /**
@@ -39,18 +43,42 @@ async function handleChatResponse(message) {
   const content = message.content.toLowerCase().trim();
 
   for (const trigger of chatTriggers) {
+    let shouldRespond = false;
+
     if (trigger.exactMatch) {
       // Exacte match (hele bericht moet gelijk zijn)
       if (content === trigger.trigger.toLowerCase()) {
-        await message.reply(trigger.response);
-        return true;
+        shouldRespond = true;
       }
     } else {
       // Bevat match (trigger komt ergens in bericht voor)
       if (content.includes(trigger.trigger.toLowerCase())) {
-        await message.reply(trigger.response);
-        return true;
+        shouldRespond = true;
       }
+    }
+
+    if (shouldRespond) {
+      // Check of er een audio bestand moet worden gestuurd
+      if (trigger.audioFile) {
+        const audioPath = path.join(__dirname, '..', 'audio', trigger.audioFile);
+        
+        if (fs.existsSync(audioPath)) {
+          await message.reply({
+            content: trigger.response,
+            files: [{
+              attachment: audioPath,
+              name: trigger.audioFile
+            }]
+          });
+        } else {
+          // Als bestand niet bestaat, stuur alleen de tekst
+          await message.reply(trigger.response);
+        }
+      } else {
+        // Normale response zonder bestand
+        await message.reply(trigger.response);
+      }
+      return true;
     }
   }
 

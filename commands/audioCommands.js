@@ -74,6 +74,19 @@ const audioCommands = [
     ]
   },
   {
+    name: 'audiosend',
+    description: 'Stuur een audio bestand in het huidige kanaal',
+    options: [
+      {
+        name: 'bestand',
+        description: 'Welk audio bestand wil je versturen?',
+        type: 3, // STRING
+        required: true,
+        autocomplete: true
+      }
+    ]
+  },
+  {
     name: 'audiostop',
     description: 'Stop het afspelen van audio en verlaat het voice channel'
   }
@@ -102,7 +115,7 @@ async function handleAudioCommands(interaction, client) {
 
   // Handle autocomplete
   if (interaction.isAutocomplete()) {
-    if (commandName === 'audioplay') {
+    if (commandName === 'audioplay' || commandName === 'audiosend') {
       await handleAudioAutocomplete(interaction);
     }
     return true;
@@ -233,6 +246,61 @@ async function handleAudioCommands(interaction, client) {
       } else {
         await interaction.reply({
           content: '❌ Er is een fout opgetreden bij het afspelen van de audio.',
+          flags: 64
+        });
+      }
+    }
+    return true;
+  }
+
+  if (commandName === 'audiosend') {
+    try {
+      const fileName = interaction.options.getString('bestand');
+      const filePath = path.join(AUDIO_DIR, `${fileName}.mp3`);
+
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        await interaction.reply({
+          content: `❌ Audio bestand "${fileName}" niet gevonden. Gebruik \`/audio\` voor een lijst van beschikbare bestanden.`,
+          flags: 64
+        });
+        return true;
+      }
+
+      // Check file size (Discord has 25MB limit for bots)
+      const stats = fs.statSync(filePath);
+      const fileSizeInMB = stats.size / (1024 * 1024);
+      
+      if (fileSizeInMB > 25) {
+        await interaction.reply({
+          content: `❌ Bestand "${fileName}" is te groot (${fileSizeInMB.toFixed(2)} MB). Discord limiet is 25 MB.`,
+          flags: 64
+        });
+        return true;
+      }
+
+      // Defer reply
+      await interaction.deferReply();
+
+      // Send the audio file
+      await interaction.editReply({
+        content: `🎵 **${fileName}.mp3**`,
+        files: [{
+          attachment: filePath,
+          name: `${fileName}.mp3`
+        }]
+      });
+
+    } catch (error) {
+      console.error('Fout bij versturen audio:', error);
+      
+      if (interaction.deferred) {
+        await interaction.editReply({
+          content: '❌ Er is een fout opgetreden bij het versturen van de audio.'
+        });
+      } else {
+        await interaction.reply({
+          content: '❌ Er is een fout opgetreden bij het versturen van de audio.',
           flags: 64
         });
       }
