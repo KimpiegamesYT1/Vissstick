@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hok Data Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 0;
+        }
+
+        .sidebar {
+            background: #f8f9fa;
+            padding: 30px;
+            border-right: 2px solid #e0e0e0;
+            max-height: 800px;
+            overflow-y: auto;
+        }
+
+        .visualization {
+            padding: 30px;
+            max-height: 800px;
+            overflow-y: auto;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        .param-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .param-group label {
+            display: block;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .param-group input[type="number"],
+        .param-group input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .param-group input[type="range"] {
+            padding: 0;
+        }
+
+        .value-display {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .day-row {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .day-title {
+            font-weight: bold;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .day-weekday {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .day-times {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .timeline {
+            height: 40px;
+            background: linear-gradient(to right, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+            border-radius: 8px;
+            position: relative;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .time-block {
+            position: absolute;
+            height: 100%;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .time-block.open {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+        }
+
+        .time-block.closed {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .time-block.filtered {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            opacity: 0.5;
+        }
+
+        .time-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75em;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .prediction-line {
+            position: absolute;
+            width: 3px;
+            height: 100%;
+            background: #dc2626;
+            box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+            z-index: 10;
+        }
+
+        .prediction-label {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #dc2626;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            font-weight: bold;
+            white-space: nowrap;
+            margin-bottom: 2px;
+        }
+
+        .stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stats h4 {
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #f88;
+            color: #c00;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .info {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+            color: #1976d2;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 Hok Data Visualizer</h1>
+            <p>Visualiseer en analyseer hok openingstijden met real-time aanpasbare parameters</p>
+        </div>
+
+        <div class="content">
+            <div class="sidebar">
+                <div class="section">
+                    <h3>📊 Data Input</h3>
+                    <textarea id="dataInput" placeholder='Plak hier je data in JSON formaat:
+[
+  {"date_key": "2026-01-15", "time_logged": "08:30", "is_opening": 1},
+  {"date_key": "2026-01-15", "time_logged": "17:00", "is_opening": 0},
+  ...
+]'></textarea>
+                    <div class="info">
+                        💡 Formaat: date_key (YYYY-MM-DD), time_logged (HH:MM), is_opening (0 of 1)
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>⚙️ Parameters</h3>
+                    
+                    <div class="param-group">
+                        <label>
+                            Minimale Sessieduur (minuten)
+                            <span class="value-display" id="minDurationValue">30</span>
+                        </label>
+                        <input type="range" id="minDuration" min="0" max="120" value="30" step="5">
+                    </div>
+
+                    <div class="param-group">
+                        <label>
+                            Aantal Dagen Terug
+                            <span class="value-display" id="daysBackValue">120</span>
+                        </label>
+                        <input type="range" id="daysBack" min="7" max="365" value="120" step="7">
+                    </div>
+
+                    <div class="param-group">
+                        <label>
+                            Filter op Weekdag
+                        </label>
+                        <select id="weekdayFilter" style="width: 100%; padding: 8px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;">
+                            <option value="all">Alle dagen</option>
+                            <option value="1">Maandag</option>
+                            <option value="2">Dinsdag</option>
+                            <option value="3">Woensdag</option>
+                            <option value="4">Donderdag</option>
+                            <option value="5">Vrijdag</option>
+                            <option value="6">Zaterdag</option>
+                            <option value="0">Zondag</option>
+                        </select>
+                    </div>
+
+                    <div class="param-group">
+                        <label>
+                            Gewicht Huidige Maand
+                            <span class="value-display" id="weight0Value">1.0</span>
+                        </label>
+                        <input type="range" id="weight0" min="0" max="1" value="1.0" step="0.1">
+                    </div>
+
+                    <div class="param-group">
+                        <label>
+                            Gewicht 1 Maand Geleden
+                            <span class="value-display" id="weight1Value">0.7</span>
+                        </label>
+                        <input type="range" id="weight1" min="0" max="1" value="0.7" step="0.1">
+                    </div>
+
+                    <div class="param-group">
+                        <label>
+                            Gewicht 2 Maanden Geleden
+                            <span class="value-display" id="weight2Value">0.5</span>
+                        </label>
+                        <input type="range" id="weight2" min="0" max="1" value="0.5" step="0.1">
+                    </div>
+
+                    <div class="param-group">
+                        <label>
+                            Gewicht 3+ Maanden Geleden
+                            <span class="value-display" id="weight3Value">0.2</span>
+                        </label>
+                        <input type="range" id="weight3" min="0" max="1" value="0.2" step="0.1">
+                    </div>
+                </div>
+
+                <button onclick="visualize()">🔄 Visualiseer</button>
+            </div>
+
+            <div class="visualization">
+                <div id="statsContainer"></div>
+                <div id="errorContainer"></div>
+                <div id="visualizationContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Real-time updates voor sliders
+        document.querySelectorAll('input[type="range"]').forEach(slider => {
+            slider.addEventListener('input', function() {
+                const valueDisplay = document.getElementById(this.id + 'Value');
+                if (valueDisplay) {
+                    valueDisplay.textContent = this.value;
+                }
+            });
+        });
+
+        function parseTime(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        function formatTime(minutes) {
+            const h = Math.floor(minutes / 60);
+            const m = Math.round(minutes % 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        }
+
+        function getDayName(dateStr) {
+            const days = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
+            return days[new Date(dateStr).getDay()];
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function calculateWeightedMedian(times, weights) {
+            if (times.length === 0) return null;
+            if (times.length === 1) return times[0];
+
+            // Combineer tijden met gewichten
+            const combined = times.map((time, i) => ({ time, weight: weights[i] }));
+            combined.sort((a, b) => a.time - b.time);
+
+            const totalWeight = combined.reduce((sum, item) => sum + item.weight, 0);
+            const halfWeight = totalWeight / 2;
+
+            let cumulativeWeight = 0;
+            for (let i = 0; i < combined.length; i++) {
+                cumulativeWeight += combined[i].weight;
+                
+                if (cumulativeWeight >= halfWeight) {
+                    if (cumulativeWeight === halfWeight && i + 1 < combined.length) {
+                        return Math.round((combined[i].time + combined[i + 1].time) / 2);
+                    }
+                    return combined[i].time;
+                }
+            }
+            return combined[0].time;
+        }
+
+        function calculatePrediction(processed, targetWeekday, weights) {
+            const now = new Date();
+            const openTimes = [];
+            const closeTimes = [];
+            const openWeights = [];
+            const closeWeights = [];
+
+            Object.entries(processed).forEach(([dateKey, data]) => {
+                const logDate = new Date(dateKey);
+                const logWeekday = logDate.getDay();
+
+                if (logWeekday === targetWeekday) {
+                    const monthsAgo = (now.getFullYear() - logDate.getFullYear()) * 12 + (now.getMonth() - logDate.getMonth());
+                    
+                    let weight;
+                    if (monthsAgo === 0) weight = weights[0];
+                    else if (monthsAgo === 1) weight = weights[1];
+                    else if (monthsAgo === 2) weight = weights[2];
+                    else weight = weights[3];
+
+                    openTimes.push(parseTime(data.firstOpen));
+                    closeTimes.push(parseTime(data.lastClose));
+                    openWeights.push(weight);
+                    closeWeights.push(weight);
+                }
+            });
+
+            return {
+                predictedOpen: calculateWeightedMedian(openTimes, openWeights),
+                predictedClose: calculateWeightedMedian(closeTimes, closeWeights),
+                sampleSize: openTimes.length
+            };
+        }
+
+        function processData(logs, minDuration) {
+            // Group by date
+            const byDate = {};
+            logs.forEach(log => {
+                if (!byDate[log.date_key]) {
+                    byDate[log.date_key] = [];
+                }
+                byDate[log.date_key].push(log);
+            });
+
+            // Process each day
+            const processed = {};
+            Object.entries(byDate).forEach(([date, dayLogs]) => {
+                dayLogs.sort((a, b) => parseTime(a.time_logged) - parseTime(b.time_logged));
+                
+                const sessions = [];
+                let openTime = null;
+                let openTimeStr = null;
+
+                dayLogs.forEach(log => {
+                    const minutes = parseTime(log.time_logged);
+                    
+                    if (log.is_opening === 1) {
+                        openTime = minutes;
+                        openTimeStr = log.time_logged;
+                    } else if (log.is_opening === 0 && openTime !== null) {
+                        const duration = minutes - openTime;
+                        sessions.push({
+                            open: openTimeStr,
+                            close: log.time_logged,
+                            duration: duration,
+                            valid: duration >= minDuration
+                        });
+                        openTime = null;
+                        openTimeStr = null;
+                    }
+                });
+
+                // Find first valid open and last valid close
+                const validSessions = sessions.filter(s => s.valid);
+                if (validSessions.length > 0) {
+                    processed[date] = {
+                        firstOpen: validSessions[0].open,
+                        lastClose: validSessions[validSessions.length - 1].close,
+                        allSessions: sessions,
+                        validSessionCount: validSessions.length
+                    };
+                }
+            });
+
+            return processed;
+        }
+
+        function visualize() {
+            const dataInput = document.getElementById('dataInput').value;
+            const errorContainer = document.getElementById('errorContainer');
+            const visualizationContainer = document.getElementById('visualizationContainer');
+            const statsContainer = document.getElementById('statsContainer');
+            
+            errorContainer.innerHTML = '';
+            visualizationContainer.innerHTML = '';
+            statsContainer.innerHTML = '';
+
+            // Parse data
+            let logs;
+            try {
+                logs = JSON.parse(dataInput);
+                if (!Array.isArray(logs)) {
+                    throw new Error('Data moet een array zijn');
+                }
+            } catch (e) {
+                errorContainer.innerHTML = `<div class="error">❌ Fout bij parsen van data: ${e.message}</div>`;
+                return;
+            }
+
+            // Get parameters
+            const minDuration = parseInt(document.getElementById('minDuration').value);
+            const daysBack = parseInt(document.getElementById('daysBack').value);
+            const weekdayFilter = document.getElementById('weekdayFilter').value;
+            const weights = [
+                parseFloat(document.getElementById('weight0').value),
+                parseFloat(document.getElementById('weight1').value),
+                parseFloat(document.getElementById('weight2').value),
+                parseFloat(document.getElementById('weight3').value)
+            ];
+
+            // Filter by date
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+            const cutoffDateKey = cutoffDate.toISOString().split('T')[0];
+            
+            logs = logs.filter(log => log.date_key >= cutoffDateKey);
+
+            // Filter by weekday if selected
+            if (weekdayFilter !== 'all') {
+                const targetWeekday = parseInt(weekdayFilter);
+                logs = logs.filter(log => new Date(log.date_key).getDay() === targetWeekday);
+            }
+
+            if (logs.length === 0) {
+                errorContainer.innerHTML = '<div class="error">❌ Geen data beschikbaar in de geselecteerde periode</div>';
+                return;
+            }
+
+            // Process data
+            const processed = processData(logs, minDuration);
+            const dates = Object.keys(processed).sort().reverse();
+
+            // Calculate statistics
+            const allOpenTimes = [];
+            const allCloseTimes = [];
+            const byWeekday = {};
+
+            dates.forEach(date => {
+                const data = processed[date];
+                allOpenTimes.push(parseTime(data.firstOpen));
+                allCloseTimes.push(parseTime(data.lastClose));
+
+                const weekday = new Date(date).getDay();
+                if (!byWeekday[weekday]) byWeekday[weekday] = { opens: [], closes: [] };
+                byWeekday[weekday].opens.push(parseTime(data.firstOpen));
+                byWeekday[weekday].closes.push(parseTime(data.lastClose));
+            });
+
+            const avgOpen = allOpenTimes.reduce((a, b) => a + b, 0) / allOpenTimes.length;
+            const avgClose = allCloseTimes.reduce((a, b) => a + b, 0) / allCloseTimes.length;
+            const avgDuration = avgClose - avgOpen;
+
+            // Calculate predictions per weekday
+            const weekdayNames = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
+            const predictions = {};
+            
+            if (weekdayFilter === 'all') {
+                // Calculate for all weekdays
+                for (let i = 0; i < 7; i++) {
+                    predictions[i] = calculatePrediction(processed, i, weights);
+                }
+            } else {
+                // Calculate only for selected weekday
+                const selectedWeekday = parseInt(weekdayFilter);
+                predictions[selectedWeekday] = calculatePrediction(processed, selectedWeekday, weights);
+            }
+
+            // Get prediction for display in stats (use first available)
+            const firstWeekday = weekdayFilter === 'all' ? 0 : parseInt(weekdayFilter);
+            const prediction = predictions[firstWeekday];
+            
+            const statsTitle = weekdayFilter === 'all' 
+                ? '📈 Statistieken (Alle dagen)' 
+                : `📈 Statistieken (${weekdayNames[parseInt(weekdayFilter)]})`;
+
+            // Display stats
+            let predictionHTML = '';
+            if (prediction && prediction.predictedOpen && prediction.sampleSize > 0) {
+                predictionHTML = `
+                    <div class="stat-item" style="grid-column: 1 / -1; background: rgba(220, 38, 38, 0.3);">
+                        <div class="stat-value">${formatTime(prediction.predictedOpen)} - ${formatTime(prediction.predictedClose)}</div>
+                        <div class="stat-label">🎯 Voorspelling (${prediction.sampleSize} samples)</div>
+                    </div>
+                `;
+            }
+
+            statsContainer.innerHTML = `
+                <div class="stats">
+                    <h4>${statsTitle}</h4>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${dates.length}</div>
+                            <div class="stat-label">Dagen</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${formatTime(avgOpen)}</div>
+                            <div class="stat-label">Gem. Opening</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${formatTime(avgClose)}</div>
+                            <div class="stat-label">Gem. Sluiting</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${formatTime(avgDuration)}</div>
+                            <div class="stat-label">Gem. Duur</div>
+                        </div>
+                        ${predictionHTML}
+                    </div>
+                </div>
+            `;
+
+            // Display legend
+            visualizationContainer.innerHTML = `
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);"></div>
+                        <span>Geldig Open (≥${minDuration} min)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); opacity: 0.5;"></div>
+                        <span>Gefilterd (&lt;${minDuration} min)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #dc2626; width: 3px;"></div>
+                        <span>🎯 Voorspelde Tijd (Gewogen Mediaan)</span>
+                    </div>
+                </div>
+            `;
+
+            // Display days
+            dates.forEach(date => {
+                const data = processed[date];
+                const dayHTML = `
+                    <div class="day-row">
+                        <div class="day-header">
+                            <div>
+                                <div class="day-title">${formatDate(date)}</div>
+                                <div class="day-weekday">${getDayName(date)}</div>
+                            </div>
+                            <div class="day-times">
+                                <span>📗 ${data.firstOpen}</span>
+                                <span>📕 ${data.lastClose}</span>
+                                <span>⏱️ ${data.validSessionCount} sessie(s)</span>
+                            </div>
+                        </div>
+                        <div class="timeline" id="timeline-${date}"></div>
+                        <div class="time-labels">
+                            <span>00:00</span>
+                            <span>06:00</span>
+                            <span>12:00</span>
+                            <span>18:00</span>
+                            <span>24:00</span>
+                        </div>
+                    </div>
+                `;
+                visualizationContainer.innerHTML += dayHTML;
+
+                // Draw timeline blocks
+                const timeline = document.getElementById(`timeline-${date}`);
+                data.allSessions.forEach(session => {
+                    const startMinutes = parseTime(session.open);
+                    const endMinutes = parseTime(session.close);
+                    const startPercent = (startMinutes / 1440) * 100;
+                    const widthPercent = ((endMinutes - startMinutes) / 1440) * 100;
+
+                    const block = document.createElement('div');
+                    block.className = `time-block ${session.valid ? 'open' : 'filtered'}`;
+                    block.style.left = startPercent + '%';
+                    block.style.width = widthPercent + '%';
+                    block.title = `${session.open} - ${session.close} (${session.duration} min)`;
+                    timeline.appendChild(block);
+                });
+
+                // Draw prediction lines
+                const dayWeekday = new Date(date).getDay();
+                const dayPrediction = predictions[dayWeekday];
+                
+                if (dayPrediction && dayPrediction.predictedOpen) {
+                    // Opening prediction line
+                    const openPercent = (dayPrediction.predictedOpen / 1440) * 100;
+                    const openLine = document.createElement('div');
+                    openLine.className = 'prediction-line';
+                    openLine.style.left = openPercent + '%';
+                    openLine.title = `Voorspelde opening: ${formatTime(dayPrediction.predictedOpen)}`;
+                    
+                    const openLabel = document.createElement('div');
+                    openLabel.className = 'prediction-label';
+                    openLabel.textContent = formatTime(dayPrediction.predictedOpen);
+                    openLine.appendChild(openLabel);
+                    timeline.appendChild(openLine);
+
+                    // Closing prediction line
+                    const closePercent = (dayPrediction.predictedClose / 1440) * 100;
+                    const closeLine = document.createElement('div');
+                    closeLine.className = 'prediction-line';
+                    closeLine.style.left = closePercent + '%';
+                    closeLine.title = `Voorspelde sluiting: ${formatTime(dayPrediction.predictedClose)}`;
+                    
+                    const closeLabel = document.createElement('div');
+                    closeLabel.className = 'prediction-label';
+                    closeLabel.textContent = formatTime(dayPrediction.predictedClose);
+                    closeLine.appendChild(closeLabel);
+                    timeline.appendChild(closeLine);
+                }
+            });
+        }
+
+        // Example data
+        const exampleData = [
+            {"date_key": "2026-01-15", "time_logged": "08:30", "is_opening": 1},
+            {"date_key": "2026-01-15", "time_logged": "17:00", "is_opening": 0},
+            {"date_key": "2026-01-14", "time_logged": "08:15", "is_opening": 1},
+            {"date_key": "2026-01-14", "time_logged": "08:20", "is_opening": 0},
+            {"date_key": "2026-01-14", "time_logged": "08:45", "is_opening": 1},
+            {"date_key": "2026-01-14", "time_logged": "17:30", "is_opening": 0},
+            {"date_key": "2026-01-13", "time_logged": "09:00", "is_opening": 1},
+            {"date_key": "2026-01-13", "time_logged": "16:45", "is_opening": 0},
+        ];
+
+        document.getElementById('dataInput').value = JSON.stringify(exampleData, null, 2);
+    </script>
+</body>
+</html>

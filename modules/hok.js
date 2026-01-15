@@ -201,29 +201,48 @@ function getFilteredHokHistory(limitDays = 180) {
 }
 
 /**
- * Voorspel openings/sluitingstijd op basis van historische data (laatste 4 maanden)
- * Filtert korte sessies (< 30 min) eruit voor betere accuratesse
- * Gebruikt eerste geldige opening en laatste geldige sluiting van elke dag
+ * Bereken gewogen mediaan voor een lijst van tijden met gewichten
  */
-function predictOpeningTime(isOpen) {
-  const db = getDatabase();
+function calculateWeightedMedian(timesWithWeights) {
+  if (timesWithWeights.length === 0) return null;
+  if (timesWithWeights.length === 1) return timesWithWeights[0].minutes;
   
-  let targetDay;
+  // Sorteer op tijd
+  timesWithWeights.sort((a, b) => a.minutes - b.minutes);
   
-  if (isOpen) {
-    // Als hok open is, voorspel sluittijd voor vandaag
-    targetDay = new Date().getDay();
-  } else {
-    // Als hok dicht is, voorspel openingstijd voor morgen
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    targetDay = tomorrow.getDay();
+  const totalWeight = timesWithWeights.reduce((sum, item) => sum + item.weight, 0);
+  const halfWeight = totalWeight / 2;
+  
+  let cumulativeWeight = 0;
+  
+  for (let i = 0; i < timesWithWeights.length; i++) {
+    cumulativeWeight += timesWithWeights[i].weight;
+    
+    if (cumulativeWeight >= halfWeight) {
+      if (cumulativeWeight === halfWeight && i + 1 < timesWithWeights.length) {
+        return Math.round((timesWithWeights[i].minutes + timesWithWeights[i + 1].minutes) / 2);
+      }
+      return timesWithWeights[i].minutes;
+    }
   }
   
-  // Haal tijden op van laatste 4 maanden
-  const fourMonthsAgo = new Date();
-  fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4);
-  const cutoffDateKey = fourMonthsAgo.toISOString().split('T')[0];
+  return timesWithWeights[0].minutes;
+}
+
+/**
+ * Bereken gewogen statistieken voor een specifieke weekdag
+ * Gebruikt dezelfde logica als predictOpeningTime
+ * @param {number} targetWeekday - Weekdag (0=zondag, 1=maandag, etc)
+ * @param {number} limitDays - Hoeveel dagen terug (standaard 120)
+ * @returns {object} - { medianOpen, medianClose, sampleCount }
+ */
+function getWeightedStatisticsForWeekday(targetWeekday, limitDays = 120) {
+  const db = getDatabase();
+  
+  // Haal tijden op van laatste X maanden
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - limitDays);
+  const cutoffDateKey = cutoffDate.toISOString().split('T')[0];
   
   // Haal ALLE logs op om sessieduur te kunnen berekenen
   const logs = db.prepare(`
@@ -233,7 +252,7 @@ function predictOpeningTime(isOpen) {
     ORDER BY date_key DESC, time_logged ASC
   `).all(cutoffDateKey);
   
-  // Verwerk logs om geldige sessies (> 30 min) te vinden
+  // Verwerk logs om geldige sessies (>= 30 min) te vinden
   const validTimesPerDay = {}; // date_key -> { open: minutes, close: minutes }
   
   let currentDay = null;
@@ -285,11 +304,12 @@ function predictOpeningTime(isOpen) {
   
   // Filter op weekdag en bereken gewichten
   const now = new Date();
-  const relevantTimes = [];
+  const openTimesWithWeights = [];
+  const closeTimesWithWeights = [];
   
   Object.entries(validTimesPerDay).forEach(([dateKey, times]) => {
     const logWeekday = getWeekDay(dateKey);
-    if (logWeekday === targetDay) {
+    if (logWeekday === targetWeekday) {
       // Bereken hoeveel maanden geleden
       const logDate = new Date(dateKey);
       const monthsAgo = (now.getFullYear() - logDate.getFullYear()) * 12 + (now.getMonth() - logDate.getMonth());
@@ -301,39 +321,46 @@ function predictOpeningTime(isOpen) {
       else if (monthsAgo === 2) weight = 0.5;
       else weight = 0.2;
       
-      // Kies tijd: als isOpen=true voorspellen we sluiting (close), anders opening (open)
-      const timeInMinutes = isOpen ? times.close : times.open;
-      
-      relevantTimes.push({
-        minutes: timeInMinutes,
-        weight: weight
-      });
+      openTimesWithWeights.push({ minutes: times.open, weight });
+      closeTimesWithWeights.push({ minutes: times.close, weight });
     }
   });
   
-  if (relevantTimes.length === 0) return null;
+  return {
+    medianOpen: calculateWeightedMedian(openTimesWithWeights),
+    medianClose: calculateWeightedMedian(closeTimesWithWeights),
+    sampleCount: openTimesWithWeights.length
+  };
+}
+
+/**
+ * Voorspel openings/sluitingstijd op basis van historische data (laatste 4 maanden)
+ * Filtert korte sessies (< 30 min) eruit voor betere accuratesse
+ * Gebruikt eerste geldige opening en laatste geldige sluiting van elke dag
+ * NU REFACTORED: Gebruikt gedeelde getWeightedStatisticsForWeekday functie
+ */
+function predictOpeningTime(isOpen) {
+  let targetDay;
   
-  // Bereken weighted mediaan
-  relevantTimes.sort((a, b) => a.minutes - b.minutes);
-  
-  const totalWeight = relevantTimes.reduce((sum, item) => sum + item.weight, 0);
-  const halfWeight = totalWeight / 2;
-  
-  let cumulativeWeight = 0;
-  let medianMinutes = relevantTimes[0].minutes;
-  
-  for (let i = 0; i < relevantTimes.length; i++) {
-    cumulativeWeight += relevantTimes[i].weight;
-    
-    if (cumulativeWeight >= halfWeight) {
-      if (cumulativeWeight === halfWeight && i + 1 < relevantTimes.length) {
-        medianMinutes = Math.round((relevantTimes[i].minutes + relevantTimes[i + 1].minutes) / 2);
-      } else {
-        medianMinutes = relevantTimes[i].minutes;
-      }
-      break;
-    }
+  if (isOpen) {
+    // Als hok open is, voorspel sluittijd voor vandaag
+    targetDay = new Date().getDay();
+  } else {
+    // Als hok dicht is, voorspel openingstijd voor morgen
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    targetDay = tomorrow.getDay();
   }
+  
+  // Gebruik gedeelde functie voor consistente berekening
+  const statistics = getWeightedStatisticsForWeekday(targetDay, 120);
+  
+  if (statistics.sampleCount === 0) return null;
+  
+  // Kies tijd: als isOpen=true voorspellen we sluiting (close), anders opening (open)
+  const medianMinutes = isOpen ? statistics.medianClose : statistics.medianOpen;
+  
+  if (medianMinutes === null) return null;
   
   const hours = Math.floor(medianMinutes / 60);
   const minutes = medianMinutes % 60;
@@ -561,6 +588,8 @@ module.exports = {
   getAllHokHistory,
   getFilteredHokHistory,
   predictOpeningTime,
+  getWeightedStatisticsForWeekday,
+  calculateWeightedMedian,
   updateHokState,
   getHokState,
   checkStatus,

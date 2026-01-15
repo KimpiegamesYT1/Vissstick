@@ -73,38 +73,18 @@ async function handleHokCommands(interaction, client, config, hokState) {
         return true;
       }
 
-      // Bereken statistieken
-      const parseTime = (time) => {
-        const [hours, minutes] = time.split(':').map(Number);
-        return hours * 60 + minutes;
-      };
+      // Bereken gewogen mediaan statistieken (gebruik centralized functie)
+      const statistics = hok.getWeightedStatisticsForWeekday(dayNumber, 120);
       
       const formatMinutes = (mins) => {
+        if (mins === null) return 'Geen data';
         const h = Math.floor(mins / 60);
         const m = Math.round(mins % 60);
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
       };
 
-      // Verzamel eerste openingen en laatste sluitingen
-      const openingTimes = [];
-      const closingTimes = [];
-      
-      filteredEntries.forEach(([, times]) => {
-        if (times.openTimes.length > 0) {
-          openingTimes.push(parseTime(times.openTimes[0])); // Eerste opening
-        }
-        if (times.closeTimes.length > 0) {
-          closingTimes.push(parseTime(times.closeTimes[times.closeTimes.length - 1])); // Laatste sluiting
-        }
-      });
-
-      // Bereken gemiddelden
-      const avgOpening = openingTimes.length > 0 
-        ? formatMinutes(openingTimes.reduce((a, b) => a + b, 0) / openingTimes.length)
-        : 'Geen data';
-      const avgClosing = closingTimes.length > 0
-        ? formatMinutes(closingTimes.reduce((a, b) => a + b, 0) / closingTimes.length)
-        : 'Geen data';
+      const medianOpening = formatMinutes(statistics.medianOpen);
+      const medianClosing = formatMinutes(statistics.medianClose);
 
       // Bouw de geschiedenis lijst (laatste 8 weken)
       const historyLines = filteredEntries.slice(0, 8).map(([date, times]) => {
@@ -124,8 +104,8 @@ async function handleHokCommands(interaction, client, config, hokState) {
         .setTitle(`📊 Hok Geschiedenis - ${dayName}`)
         .addFields(
           { 
-            name: '📈 Gemiddelden', 
-            value: `📗 Opening: **${avgOpening}**\n📕 Sluiting: **${avgClosing}**\n📊 Gebaseerd op ${filteredEntries.length} ${dayName.toLowerCase()}${filteredEntries.length === 1 ? '' : 'en'}`,
+            name: '📈 Gewogen Mediaan (Recente data telt zwaarder)', 
+            value: `📗 Opening: **${medianOpening}**\n📕 Sluiting: **${medianClosing}**\n📊 Gebaseerd op ${statistics.sampleCount} ${dayName.toLowerCase()}${statistics.sampleCount === 1 ? '' : 'en'}`,
             inline: false 
           },
           { 
