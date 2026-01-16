@@ -8,11 +8,11 @@ const quizCommands = [
     options: [
       {
         name: 'tijd',
-        description: 'Aantal minuten voordat de quiz eindigt (1-60, standaard: 1)',
+        description: 'Aantal minuten voordat de quiz eindigt (1-600, standaard: 1)',
         type: 4, // INTEGER type
         required: false,
         min_value: 1,
-        max_value: 60
+        max_value: 600
       }
     ]
   },
@@ -38,10 +38,11 @@ async function handleQuizCommands(interaction, client, QUIZ_CHANNEL_ID) {
     try {
       const tijd = interaction.options.getInteger('tijd') || 1;
       
-      await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, tijd);
+      const result = await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, tijd);
+      const usedMinutes = result && typeof result.timeoutMinutesUsed !== 'undefined' && result.timeoutMinutesUsed !== null ? result.timeoutMinutesUsed : tijd;
       
       await interaction.editReply({ 
-        content: `✅ Test quiz gestart! De quiz eindigt automatisch na ${tijd} ${tijd === 1 ? 'minuut' : 'minuten'}.` 
+        content: `✅ Test quiz gestart! De quiz eindigt automatisch na ${usedMinutes} ${usedMinutes === 1 ? 'minuut' : 'minuten'}.` 
       });
     } catch (error) {
       console.error('Fout bij starten test quiz:', error);

@@ -277,6 +277,17 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     const channel = await client.channels.fetch(channelId);
     if (!channel) return console.error('Quiz kanaal niet gevonden!');
 
+    // Validate timeoutMinutes for test quizzes: clamp to 1..600 minutes
+    if (timeoutMinutes !== null) {
+      let parsed = Number(timeoutMinutes);
+      if (!Number.isFinite(parsed) || parsed < 1) parsed = 1;
+      if (parsed > 600) {
+        console.warn(`TimeoutMinutes van ${timeoutMinutes} aangepast naar maximum 600 minuten.`);
+        parsed = 600;
+      }
+      timeoutMinutes = Math.floor(parsed);
+    }
+
     const { question, totalCount, availableCount } = getRandomUnusedQuestion();
     
     if (totalCount === 0) {
@@ -359,6 +370,9 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     } else {
       console.log(`Dagelijkse quiz gestart! ${availableCount} vragen over.`);
     }
+
+    // Return the actually used timeout (null for regular daily quiz)
+    return { timeoutMinutesUsed: timeoutMinutes || null };
   } catch (error) {
     console.error('Fout bij starten quiz:', error);
   }
