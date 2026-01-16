@@ -69,8 +69,9 @@ De bot kan MP3 bestanden afspelen in voice channels.
 
 - Plaats `.mp3` bestanden in de `audio/` folder
 - De bot detecteert automatisch nieuwe bestanden
-- Gebruik `/audio` voor een lijst van beschikbare audio
-- Gebruik `/audioplay <bestand>` om een bestand af te spelen (je moet in een voice channel zitten)
-- Gebruik `/audiostop` om het afspelen te stoppen
+- `/audio` voor een lijst van beschikbare audio
+- `/audioplay <bestand>` om een bestand af te spelen in je huidige voice channel
+- `/audiosend <bestand>` om een bestand te sturen in je huidige channel
+- `/audiostop` om het afspelen te stoppen
 
 De bot joint automatisch je voice channel en verlaat deze na het afspelen.
