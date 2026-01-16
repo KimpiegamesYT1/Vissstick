@@ -449,7 +449,7 @@ async function handleQuizButton(interaction) {
     if (!activeQuiz || activeQuiz.message_id !== interaction.message.id) {
       await interaction.reply({ 
         content: '❌ Deze quiz is niet meer actief!', 
-        ephemeral: true 
+        flags: 64 
       });
       return true;
     }
@@ -464,7 +464,7 @@ async function handleQuizButton(interaction) {
       
       await interaction.reply({ 
         content: `❌ Antwoord **${letter}** verwijderd!`, 
-        ephemeral: true 
+        flags: 64 
       });
     } else {
       // Save the new answer
@@ -474,7 +474,7 @@ async function handleQuizButton(interaction) {
       const optionText = activeQuiz.opties[letter];
       await interaction.reply({ 
         content: `✅ Antwoord **${letter}: ${optionText}** opgeslagen!`, 
-        ephemeral: true 
+        flags: 64 
       });
     }
 
@@ -492,7 +492,7 @@ async function handleQuizButton(interaction) {
     console.error('Fout bij verwerken quiz button:', error);
     await interaction.reply({ 
       content: '❌ Er is een fout opgetreden bij het verwerken van je antwoord!', 
-      ephemeral: true 
+      flags: 64 
     });
     return true;
   }
