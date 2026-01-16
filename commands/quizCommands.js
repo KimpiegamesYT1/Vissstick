@@ -18,7 +18,19 @@ const quizCommands = [
   },
   {
     name: 'resetquiz',
-    description: 'Reset de gebruikte quiz vragen (alleen voor administrators)'
+    description: 'Reset quiz data (alleen voor administrators)',
+    options: [
+      {
+        name: 'type',
+        description: 'Welke reset wil je uitvoeren?',
+        type: 3, // STRING
+        required: true,
+        choices: [
+          { name: 'QuizDatabase (verwijder alle vragen)', value: 'database' },
+          { name: 'UsedQuestions (reset gebruikte vragen)', value: 'used' }
+        ]
+      }
+    ]
   }
 ];
 
@@ -63,11 +75,22 @@ async function handleQuizCommands(interaction, client, QUIZ_CHANNEL_ID) {
     await interaction.deferReply({ flags: 64 });
 
     try {
-      await quiz.resetUsedQuestions();
-      await interaction.editReply({ content: '✅ Quiz vragen zijn gereset! Alle vragen kunnen weer gebruikt worden.' });
+      const resetType = interaction.options.getString('type');
+
+      if (resetType === 'database') {
+        // Remove all quiz questions
+        const deleted = quiz.deleteAllQuestions();
+        await interaction.editReply({ content: `✅ Alle quiz vragen verwijderd (${deleted} rijen).` });
+      } else if (resetType === 'used') {
+        // Reset only used questions
+        const resetCount = quiz.resetUsedQuestions();
+        await interaction.editReply({ content: `✅ Gebruikte vragen gereset (${resetCount} rijen).` });
+      } else {
+        await interaction.editReply({ content: '❌ Onbekende reset type.' });
+      }
     } catch (error) {
-      console.error('Fout bij resetten quiz vragen:', error);
-      await interaction.editReply({ content: '❌ Er is een fout opgetreden bij het resetten van de quiz vragen.' });
+      console.error('Fout bij uitvoeren resetquiz:', error);
+      await interaction.editReply({ content: '❌ Er is een fout opgetreden bij het uitvoeren van de reset.' });
     }
     return true;
   }

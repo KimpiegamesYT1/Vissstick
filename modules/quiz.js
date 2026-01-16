@@ -84,6 +84,20 @@ function resetUsedQuestions() {
 }
 
 /**
+ * Verwijder alle quiz vragen uit de database
+ */
+function deleteAllQuestions() {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    DELETE FROM quiz_questions
+  `);
+
+  const result = stmt.run();
+  return result.changes;
+}
+
+/**
  * Sla een actieve quiz op
  */
 function saveActiveQuiz(channelId, messageId, questionId, isTestQuiz = false, timeoutMinutes = null) {
@@ -786,6 +800,7 @@ module.exports = {
   handleQuizButton,
   endDailyQuiz,
   resetUsedQuestions,
+  deleteAllQuestions,
   getQuizScores,
   getCurrentMonthKey,
   loadActiveQuizzes,
