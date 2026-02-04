@@ -1,12 +1,14 @@
 const { hokCommands, handleHokCommands } = require('./hokCommands');
 const { quizCommands, handleQuizCommands } = require('./quizCommands');
 const { audioCommands, handleAudioCommands } = require('./audioCommands');
+const { casinoCommands, handleCasinoCommands } = require('./casinoCommands');
 
 // Combineer alle commands
 const allCommands = [
   ...hokCommands,
   ...quizCommands,
-  ...audioCommands
+  ...audioCommands,
+  ...casinoCommands
 ];
 
 // Handle alle commands
@@ -31,6 +33,11 @@ async function handleCommands(interaction, client, config, hokState) {
 
   // Try audio commands
   if (await handleAudioCommands(interaction, client)) {
+    return;
+  }
+
+  // Try casino commands
+  if (await handleCasinoCommands(interaction, client, config)) {
     return;
   }
 

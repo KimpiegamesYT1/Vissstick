@@ -5,11 +5,13 @@ const cron = require('node-cron');
 const { initDatabase } = require('./database');
 const quiz = require('./modules/quiz.js');
 const hok = require('./modules/hok.js');
+const casino = require('./modules/casino.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
+const { updateCasinoEmbed, sendLog } = require('./commands/casinoCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
-const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID } = config;
+const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID } = config;
 
 // Load active quizzes on bot startup
 async function loadActiveQuizzes() {
@@ -241,6 +243,84 @@ client.once("clientReady", async () => {
     if (tomorrow.getDate() === 1) {
       console.log('Showing monthly scoreboard...');
       await showMonthlyScoreboard(client, SCOREBOARD_CHANNEL_ID);
+      
+      // Expire all open bets (geef inzetten terug)
+      console.log('Expiring open bets...');
+      const expiredBets = casino.expireOpenBets();
+      if (expiredBets.length > 0) {
+        await sendLog(client, LOG_CHANNEL_ID, `🔄 ${expiredBets.length} weddenschap(pen) automatisch verlopen aan einde van de maand. Inzetten zijn terugbetaald.`);
+        
+        // Stuur melding naar casino kanaal
+        try {
+          const casinoChannel = await client.channels.fetch(CASINO_CHANNEL_ID);
+          if (casinoChannel) {
+            const expiredEmbed = new EmbedBuilder()
+              .setTitle('⏰ Weddenschappen Verlopen')
+              .setColor('#FFA500')
+              .setDescription(`${expiredBets.length} weddenschap(pen) zijn automatisch verlopen omdat de maand voorbij is.\n\nAlle inzetten zijn terugbetaald.`)
+              .setTimestamp();
+            await casinoChannel.send({ embeds: [expiredEmbed] });
+          }
+        } catch (error) {
+          console.error('Fout bij sturen expired bets melding:', error);
+        }
+      }
+      
+      // Update casino embed
+      await updateCasinoEmbed(client, CASINO_CHANNEL_ID);
+    }
+  }, {
+    timezone: "Europe/Amsterdam"
+  });
+
+  // Schedule monthly reset on the 1st of each month at 00:01
+  // Dit gebeurt NA het scoreboard van de vorige dag (18:00) en VOOR de eerste quiz (07:00)
+  cron.schedule('1 0 1 * *', async () => {
+    console.log('Performing monthly balance reset...');
+    
+    try {
+      const result = casino.performMonthlyReset();
+      
+      if (result.success && result.topUsers.length > 0) {
+        // Stuur melding naar log kanaal
+        let logMessage = `🔄 **Maandelijkse Reset Uitgevoerd**\n`;
+        logMessage += `📊 ${result.totalUsersReset} users gereset\n\n`;
+        logMessage += `🏆 **Top 3 met startbonus:**\n`;
+        
+        result.topUsers.forEach(user => {
+          const medal = user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉';
+          logMessage += `${medal} ${user.username}: ${user.final_balance} punten → ${user.bonus} bonus\n`;
+        });
+        
+        await sendLog(client, LOG_CHANNEL_ID, logMessage);
+        
+        // Stuur ook melding naar scoreboard kanaal
+        try {
+          const scoreboardChannel = await client.channels.fetch(SCOREBOARD_CHANNEL_ID);
+          if (scoreboardChannel) {
+            const resetEmbed = new EmbedBuilder()
+              .setTitle('🎊 Nieuwe Maand - Balances Gereset!')
+              .setColor('#00FF00')
+              .setDescription(`Alle balances zijn gereset naar 0.\n\nDe top 3 van vorige maand heeft een startbonus ontvangen!`)
+              .addFields(
+                result.topUsers.map(user => ({
+                  name: `${user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉'} ${user.username}`,
+                  value: `Had ${user.final_balance} punten → Start met ${user.bonus} bonus`,
+                  inline: true
+                }))
+              )
+              .setTimestamp();
+            
+            await scoreboardChannel.send({ embeds: [resetEmbed] });
+          }
+        } catch (error) {
+          console.error('Fout bij sturen reset melding:', error);
+        }
+      }
+      
+      console.log('Monthly reset completed!');
+    } catch (error) {
+      console.error('Fout bij maandelijkse reset:', error);
     }
   }, {
     timezone: "Europe/Amsterdam"

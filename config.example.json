@@ -4,5 +4,7 @@
     "ROLE_ID": "your-notification-role-id",
     "API_URL": "https://beheer.syntaxis.nl/api/ishethokalopen",
     "QUIZ_CHANNEL_ID": "your-quiz-channel-id",
-    "SCOREBOARD_CHANNEL_ID": "your-scoreboard-channel-id"
+    "SCOREBOARD_CHANNEL_ID": "your-scoreboard-channel-id",
+    "CASINO_CHANNEL_ID": "1468608557279612998",
+    "LOG_CHANNEL_ID": "1415603152400547862"
 }

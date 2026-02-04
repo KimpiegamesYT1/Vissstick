@@ -8,6 +8,15 @@ const { getDatabase } = require('../database');
 const fs = require('fs');
 const path = require('path');
 
+// Import casino module for balance updates
+let casino = null;
+function getCasino() {
+  if (!casino) {
+    casino = require('./casino');
+  }
+  return casino;
+}
+
 const EMOJI_MAP = {
   'A': '🇦',
   'B': '🇧', 
@@ -209,10 +218,12 @@ function countQuizResponses(channelId) {
 
 /**
  * Update scores na afloop van een quiz
+ * Nu ook met balance updates voor goede antwoorden
  */
 function updateScores(responses, correctAnswer) {
   const db = getDatabase();
   const monthKey = getCurrentMonthKey();
+  const casinoModule = getCasino();
   
   const monthlyStmt = db.prepare(`
     INSERT INTO quiz_scores (user_id, username, month_key, correct_count, total_count)
@@ -244,6 +255,11 @@ function updateScores(responses, correctAnswer) {
       
       // Update all-time scores
       allTimeStmt.run(userId, response.username, isCorrect, isCorrect);
+      
+      // Voeg punten toe aan balance als antwoord correct is
+      if (isCorrect) {
+        casinoModule.addBalance(userId, response.username, casinoModule.QUIZ_REWARD, 'Quiz correct antwoord');
+      }
     });
   });
   
