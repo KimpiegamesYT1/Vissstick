@@ -8,7 +8,7 @@ const hok = require('./modules/hok.js');
 const casino = require('./modules/casino.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
-const { updateCasinoEmbed, sendLog } = require('./commands/casinoCommands.js');
+const { updateCasinoEmbed, sendLog, handleBetButton } = require('./commands/casinoCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID } = config;
@@ -92,8 +92,13 @@ async function showMonthlyScoreboard(client, channelId) {
       username: data.username,
       correct: data.correct_count,
       total: data.total_count,
-      percentage: data.total_count > 0 ? ((data.correct_count / data.total_count) * 100).toFixed(1) : 0
+      percentage: data.total_count > 0 ? ((data.correct_count / data.total_count) * 100).toFixed(1) : 0,
+      pointsEarned: data.correct_count * casino.QUIZ_REWARD
     }));
+
+    // Calculate totals
+    const totalPointsEarned = sortedScores.reduce((sum, s) => sum + s.pointsEarned, 0);
+    const totalCorrect = sortedScores.reduce((sum, s) => sum + s.correct, 0);
 
     // Create embed
     const embed = new EmbedBuilder()
@@ -104,18 +109,21 @@ async function showMonthlyScoreboard(client, channelId) {
     // Get month name
     const date = new Date(monthKey + '-01');
     const monthName = date.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
-    embed.setDescription(`**Resultaten voor ${monthName}**\n\n`);
 
     // Add top 10 (or all if less)
-    let description = '';
+    let description = `**Resultaten voor ${monthName}**\n\n`;
     const topScores = sortedScores.slice(0, 10);
     topScores.forEach((score, index) => {
       const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-      description += `${medal} **${score.username}**: ${score.correct}/${score.total} correct (${score.percentage}%)\n`;
+      description += `${medal} **${score.username}**: ${score.correct}/${score.total} correct (${score.percentage}%) • 💰 ${score.pointsEarned} punten\n`;
     });
+    
+    // Add top 3 bonus info
+    description += `\n📢 **De top 3 ontvangt een startbonus volgende maand:**\n`;
+    description += `🥇 ${casino.START_BONUSES[1]} punten | 🥈 ${casino.START_BONUSES[2]} punten | 🥉 ${casino.START_BONUSES[3]} punten`;
 
-    embed.setDescription(`**Resultaten voor ${monthName}**\n\n${description}`);
-    embed.setFooter({ text: `Totaal ${sortedScores.length} deelnemers deze maand` });
+    embed.setDescription(description);
+    embed.setFooter({ text: `${sortedScores.length} deelnemers • ${totalCorrect} goede antwoorden • ${totalPointsEarned} punten uitgedeeld` });
 
     // Send @everyone first, then the embed (so the mention works properly)
     await channel.send({ content: '@everyone 🏆 De maandelijkse quiz resultaten zijn binnen!', embeds: [embed] });
@@ -170,8 +178,14 @@ client.on('messageCreate', async (message) => {
 
 // Replace the messageCreate handler with slash commands
 client.on('interactionCreate', async (interaction) => {
-  // Handle button interactions (for quiz)
+  // Handle button interactions
   if (interaction.isButton()) {
+    // Try bet buttons first
+    if (interaction.customId.startsWith('bet_')) {
+      await handleBetButton(interaction, client, config);
+      return;
+    }
+    // Then quiz buttons
     quiz.handleQuizButton(interaction);
     return;
   }

@@ -17,35 +17,12 @@ const casinoCommands = [
   },
   {
     name: 'bet',
-    description: 'Plaats een weddenschap of bekijk status',
+    description: 'Bekijk actieve weddenschappen',
     options: [
       {
         name: 'status',
         description: 'Bekijk alle actieve weddenschappen',
         type: 1 // SUB_COMMAND
-      },
-      {
-        name: 'plaats',
-        description: 'Plaats een weddenschap',
-        type: 1, // SUB_COMMAND
-        options: [
-          {
-            name: 'id',
-            description: 'Het ID van de weddenschap',
-            type: 4, // INTEGER
-            required: true
-          },
-          {
-            name: 'keuze',
-            description: 'Je keuze: JA of NEE',
-            type: 3, // STRING
-            required: true,
-            choices: [
-              { name: 'JA', value: 'JA' },
-              { name: 'NEE', value: 'NEE' }
-            ]
-          }
-        ]
       }
     ]
   },
@@ -298,42 +275,21 @@ async function handleCasinoCommands(interaction, client, config) {
     
     if (subCommand === 'status') {
       const bets = casino.getOpenBets();
-      const embed = casino.buildCasinoStatusEmbed(bets);
-      await interaction.reply({ embeds: [embed] });
-      return true;
-    }
-    
-    if (subCommand === 'plaats') {
-      const betId = interaction.options.getInteger('id');
-      const choice = interaction.options.getString('keuze');
       
-      // Check of bet bestaat en open is
-      const bet = casino.getBetWithEntries(betId);
-      if (!bet) {
-        await interaction.reply({ content: '❌ Weddenschap niet gevonden!', flags: 64 });
+      if (bets.length === 0) {
+        const embed = casino.buildCasinoStatusEmbed(bets);
+        await interaction.reply({ embeds: [embed] });
         return true;
       }
       
-      if (bet.status !== 'open') {
-        await interaction.reply({ content: '❌ Deze weddenschap is al gesloten!', flags: 64 });
-        return true;
+      // Stuur elke bet als aparte embed met buttons
+      await interaction.deferReply();
+      
+      for (const bet of bets) {
+        const { embed } = casino.buildBetEmbed(bet);
+        const buttons = casino.buildBetButtons(bet.id);
+        await interaction.followUp({ embeds: [embed], components: [buttons] });
       }
-      
-      const result = casino.placeBet(betId, interaction.user.id, interaction.user.username, choice);
-      
-      if (!result.success) {
-        await interaction.reply({ content: `❌ ${result.error}`, flags: 64 });
-        return true;
-      }
-      
-      const newBalance = casino.getUserBalance(interaction.user.id);
-      await interaction.reply({ 
-        content: `✅ Je hebt ${casino.BET_AMOUNT} punten ingezet op **${choice}** voor: "${bet.question}"\n💰 Nieuw saldo: ${newBalance} punten`, 
-        flags: 64 
-      });
-      
-      // Update casino embed
-      await updateCasinoEmbed(client, casinoChannelId);
       
       return true;
     }
@@ -400,13 +356,26 @@ async function handleCasinoCommands(interaction, client, config) {
       
       const betId = casino.createBet(vraag, interaction.user.id);
       
+      // Stuur bet embed met buttons naar casino kanaal
+      try {
+        const casinoChannel = await client.channels.fetch(casinoChannelId);
+        if (casinoChannel) {
+          const bet = { id: betId, question: vraag };
+          const { embed } = casino.buildBetEmbed(bet);
+          const buttons = casino.buildBetButtons(betId);
+          const message = await casinoChannel.send({ embeds: [embed], components: [buttons] });
+          
+          // Sla message ID op voor later updaten
+          casino.updateBetMessageId(betId, message.id);
+        }
+      } catch (error) {
+        console.error('Fout bij sturen bet naar casino kanaal:', error);
+      }
+      
       await interaction.reply({ 
         content: `✅ Weddenschap #${betId} aangemaakt: "${vraag}"`, 
         flags: 64 
       });
-      
-      // Update casino embed
-      await updateCasinoEmbed(client, casinoChannelId);
       
       // Log
       await sendLog(client, logChannelId, `📝 Nieuwe weddenschap #${betId} aangemaakt door ${interaction.user.username}: "${vraag}"`);
@@ -575,9 +544,63 @@ async function handleCasinoCommands(interaction, client, config) {
   return false;
 }
 
+/**
+ * Handle bet button interactions
+ */
+async function handleBetButton(interaction, client, config) {
+  const customId = interaction.customId;
+  
+  // Check of het een bet button is
+  if (!customId.startsWith('bet_')) return false;
+  
+  const parts = customId.split('_');
+  if (parts.length !== 3) return false;
+  
+  const betId = parseInt(parts[1]);
+  const choice = parts[2]; // JA of NEE
+  
+  // Haal bet op
+  const bet = casino.getBetWithEntries(betId);
+  if (!bet) {
+    await interaction.reply({ content: '❌ Deze weddenschap bestaat niet meer!', flags: 64 });
+    return true;
+  }
+  
+  if (bet.status !== 'open') {
+    await interaction.reply({ content: '❌ Deze weddenschap is al gesloten!', flags: 64 });
+    return true;
+  }
+  
+  // Probeer bet te plaatsen
+  const result = casino.placeBet(betId, interaction.user.id, interaction.user.username, choice);
+  
+  if (!result.success) {
+    await interaction.reply({ content: `❌ ${result.error}`, flags: 64 });
+    return true;
+  }
+  
+  const newBalance = casino.getUserBalance(interaction.user.id);
+  await interaction.reply({ 
+    content: `✅ Je hebt **${casino.BET_AMOUNT} punten** ingezet op **${choice}**!\n💰 Nieuw saldo: ${newBalance} punten`, 
+    flags: 64 
+  });
+  
+  // Update de embed met nieuwe data
+  try {
+    const { embed } = casino.buildBetEmbed({ id: betId, question: bet.question });
+    const buttons = casino.buildBetButtons(betId);
+    await interaction.message.edit({ embeds: [embed], components: [buttons] });
+  } catch (error) {
+    console.error('Fout bij updaten bet embed:', error);
+  }
+  
+  return true;
+}
+
 module.exports = {
   casinoCommands,
   handleCasinoCommands,
+  handleBetButton,
   updateCasinoEmbed,
   sendLog
 };

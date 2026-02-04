@@ -339,14 +339,18 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     console.log(`Quiz selectie: ${availableCount} beschikbare vragen`);
     console.log(`Geselecteerde vraag ID: ${question.id} - "${question.vraag.substring(0, 50)}..."`);
     
+    // Get reward amount from casino module
+    const casinoModule = getCasino();
+    const rewardAmount = casinoModule.QUIZ_REWARD;
+    
     // Create embed with appropriate footer message
     const footerText = timeoutMinutes 
-      ? `Test quiz eindigt na ${timeoutMinutes} minuten. ${availableCount} vragen over • 0 antwoorden`
-      : `Antwoord wordt om 17:00 bekendgemaakt. ${availableCount} vragen over • 0 antwoorden`;
+      ? `Test quiz eindigt na ${timeoutMinutes} minuten • 💰 ${rewardAmount} punten bij goed antwoord • ${availableCount} vragen over • 0 antwoorden`
+      : `Antwoord wordt om 17:00 bekendgemaakt • 💰 ${rewardAmount} punten bij goed antwoord • ${availableCount} vragen over • 0 antwoorden`;
 
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
-      .setDescription(question.vraag)
+      .setDescription(`${question.vraag}\n\n💰 **Beloning:** ${rewardAmount} punten bij goed antwoord`)
       .setColor('#0099ff')
       .setFooter({ text: footerText });
 
@@ -578,6 +582,10 @@ async function endDailyQuiz(client, channelId) {
     const correctAnswer = activeQuiz.correct_antwoord;
     const correctOption = activeQuiz.opties[correctAnswer];
     
+    // Get reward amount from casino module
+    const casinoModule = getCasino();
+    const rewardAmount = casinoModule.QUIZ_REWARD;
+    
     // Group responses by answer
     const responsesByAnswer = {};
     Object.values(activeQuiz.responses).forEach(response => {
@@ -586,6 +594,10 @@ async function endDailyQuiz(client, channelId) {
       }
       responsesByAnswer[response.answer].push(response.username);
     });
+    
+    // Count correct answers
+    const correctUsers = responsesByAnswer[correctAnswer] || [];
+    const totalRewardGiven = correctUsers.length * rewardAmount;
 
     // Build description with layout
     let description = `**Vraag:** ${activeQuiz.vraag}\n\n`;
@@ -595,9 +607,12 @@ async function endDailyQuiz(client, channelId) {
     Object.keys(activeQuiz.opties).forEach(letter => {
       const users = responsesByAnswer[letter] || [];
       const isCorrect = letter === correctAnswer;
-      const letterDisplay = isCorrect ? `**${letter}**` : letter;
+      const letterDisplay = isCorrect ? `✅ **${letter}**` : `❌ ${letter}`;
       description += `${letterDisplay}: ${users.join(', ') || 'Niemand'}\n`;
     });
+    
+    // Add reward info
+    description += `\n💰 **${correctUsers.length} ${correctUsers.length === 1 ? 'persoon' : 'personen'}** ${correctUsers.length === 1 ? 'heeft' : 'hebben'} **${rewardAmount} punten** verdiend!`;
 
     const embed = new EmbedBuilder()
       .setTitle('📊 Quiz Resultaten')
@@ -605,7 +620,7 @@ async function endDailyQuiz(client, channelId) {
       .setColor('#00ff00');
 
     const totalResponses = Object.keys(activeQuiz.responses).length;
-    embed.setFooter({ text: `Totaal aantal deelnemers: ${totalResponses}` });
+    embed.setFooter({ text: `Totaal ${totalResponses} deelnemers • ${totalRewardGiven} punten uitgedeeld` });
 
     console.log('Sending results message...');
     await channel.send({ embeds: [embed] });

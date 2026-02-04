@@ -520,7 +520,70 @@ function performMonthlyReset() {
 // =====================================================
 
 /**
- * Bouw casino status embed met alle open bets
+ * Bouw embed voor een enkele bet (met buttons)
+ */
+function buildBetEmbed(bet) {
+  const betWithEntries = getBetWithEntries(bet.id);
+  const jaCount = betWithEntries.jaVotes.length;
+  const neeCount = betWithEntries.neeVotes.length;
+  const totalEntries = jaCount + neeCount;
+  
+  // Bereken potentiële winst
+  const poolAfterTax = Math.floor(betWithEntries.totalPool * (1 - TAX_RATE));
+  
+  let jaMultiplier = '-';
+  let neeMultiplier = '-';
+  
+  if (totalEntries > 0) {
+    if (jaCount > 0) {
+      jaMultiplier = Math.min(poolAfterTax / jaCount / BET_AMOUNT, 3).toFixed(1) + 'x';
+    }
+    if (neeCount > 0) {
+      neeMultiplier = Math.min(poolAfterTax / neeCount / BET_AMOUNT, 3).toFixed(1) + 'x';
+    }
+  }
+  
+  // Namen verzamelen
+  const jaNames = betWithEntries.jaVotes.map(e => e.username).join(', ') || 'Nog niemand';
+  const neeNames = betWithEntries.neeVotes.map(e => e.username).join(', ') || 'Nog niemand';
+  
+  const embed = new EmbedBuilder()
+    .setTitle(`🎲 Weddenschap #${bet.id}`)
+    .setDescription(`**${bet.question}**`)
+    .setColor('#FFD700')
+    .addFields(
+      { name: `✅ JA (${jaCount}) • ${jaMultiplier}`, value: jaNames, inline: true },
+      { name: `❌ NEE (${neeCount}) • ${neeMultiplier}`, value: neeNames, inline: true }
+    )
+    .setFooter({ text: `💰 Pot: ${betWithEntries.totalPool} punten • Inzet: ${BET_AMOUNT} punten` })
+    .setTimestamp();
+  
+  return { embed, betWithEntries };
+}
+
+/**
+ * Bouw buttons voor een bet
+ */
+function buildBetButtons(betId) {
+  const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+  
+  const row = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`bet_${betId}_JA`)
+        .setLabel('Ja')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`bet_${betId}_NEE`)
+        .setLabel('Nee')
+        .setStyle(ButtonStyle.Danger)
+    );
+  
+  return row;
+}
+
+/**
+ * Bouw casino overzicht embed (zonder details, alleen lijst)
  */
 function buildCasinoStatusEmbed(bets) {
   const embed = new EmbedBuilder()
@@ -529,47 +592,23 @@ function buildCasinoStatusEmbed(bets) {
     .setTimestamp();
   
   if (bets.length === 0) {
-    embed.setDescription('Er zijn momenteel geen actieve weddenschappen.\n\nEen admin kan een nieuwe aanmaken met `/admin bet create`');
+    embed.setDescription('Er zijn momenteel geen actieve weddenschappen.');
     return embed;
   }
   
   let description = '';
   
-  bets.forEach((bet, index) => {
+  bets.forEach((bet) => {
     const betWithEntries = getBetWithEntries(bet.id);
     const jaCount = betWithEntries.jaVotes.length;
     const neeCount = betWithEntries.neeVotes.length;
-    const totalEntries = jaCount + neeCount;
-    
-    // Bereken potentiële winst
-    const poolAfterTax = Math.floor(betWithEntries.totalPool * (1 - TAX_RATE));
-    
-    let jaMultiplier = 0;
-    let neeMultiplier = 0;
-    
-    if (totalEntries > 0) {
-      if (jaCount > 0) {
-        jaMultiplier = Math.min(poolAfterTax / jaCount / BET_AMOUNT, 3).toFixed(1);
-      }
-      if (neeCount > 0) {
-        neeMultiplier = Math.min(poolAfterTax / neeCount / BET_AMOUNT, 3).toFixed(1);
-      }
-    }
-    
-    // Namen verzamelen
-    const jaNames = betWithEntries.jaVotes.map(e => e.username).join(', ') || '-';
-    const neeNames = betWithEntries.neeVotes.map(e => e.username).join(', ') || '-';
     
     description += `**#${bet.id}** ${bet.question}\n`;
-    description += `┃ ✅ **JA** (${jaCount}): ${jaNames}\n`;
-    description += `┃ ❌ **NEE** (${neeCount}): ${neeNames}\n`;
-    description += `┃ 💰 Pot: ${betWithEntries.totalPool} punten\n`;
-    description += `┃ 📈 Winst: JA=${jaMultiplier}x | NEE=${neeMultiplier}x\n`;
-    description += `\n`;
+    description += `JA: ${jaCount} • NEE: ${neeCount} • Pot: ${betWithEntries.totalPool}\n\n`;
   });
   
   embed.setDescription(description);
-  embed.setFooter({ text: `Gebruik /bet [id] [ja/nee] om te wedden • Inzet: ${BET_AMOUNT} punten` });
+  embed.setFooter({ text: `Klik op de knoppen bij een weddenschap om te stemmen` });
   
   return embed;
 }
@@ -692,6 +731,8 @@ module.exports = {
   
   // Embed builders
   buildCasinoStatusEmbed,
+  buildBetEmbed,
+  buildBetButtons,
   buildSaldoEmbed,
   buildShopEmbed,
   buildResolveEmbed
