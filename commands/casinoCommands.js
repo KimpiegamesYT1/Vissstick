@@ -4,12 +4,21 @@
 
 const { EmbedBuilder } = require('discord.js');
 const casino = require('../modules/casino');
+const quiz = require('../modules/quiz');
 
 // Casino slash commands
 const casinoCommands = [
   {
-    name: 'saldo',
-    description: 'Bekijk je huidige saldo en positie'
+    name: 'balance',
+    description: 'Bekijk saldo van jezelf of een andere user',
+    options: [
+      {
+        name: 'user',
+        description: 'De user waarvan je het saldo wilt zien (optioneel)',
+        type: 6, // USER
+        required: false
+      }
+    ]
   },
   {
     name: 'leaderboard',
@@ -178,6 +187,50 @@ const casinoCommands = [
         ]
       },
       {
+        name: 'quiz',
+        description: 'Beheer quiz systeem',
+        type: 2, // SUB_COMMAND_GROUP
+        options: [
+          {
+            name: 'start',
+            description: 'Start de dagelijkse quiz handmatig',
+            type: 1 // SUB_COMMAND
+          },
+          {
+            name: 'test',
+            description: 'Start een test quiz',
+            type: 1, // SUB_COMMAND
+            options: [
+              {
+                name: 'tijd',
+                description: 'Aantal minuten voordat de quiz eindigt (1-600, standaard: 1)',
+                type: 4, // INTEGER
+                required: false,
+                min_value: 1,
+                max_value: 600
+              }
+            ]
+          },
+          {
+            name: 'reset',
+            description: 'Reset quiz data',
+            type: 1, // SUB_COMMAND
+            options: [
+              {
+                name: 'type',
+                description: 'Welke reset wil je uitvoeren?',
+                type: 3, // STRING
+                required: true,
+                choices: [
+                  { name: 'QuizDatabase (verwijder alle vragen)', value: 'database' },
+                  { name: 'UsedQuestions (reset gebruikte vragen)', value: 'used' }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
         name: 'reset',
         description: 'Voer maandelijkse reset uit (TEST)',
         type: 1 // SUB_COMMAND
@@ -238,9 +291,20 @@ async function handleCasinoCommands(interaction, client, config) {
   const casinoChannelId = config.CASINO_CHANNEL_ID;
   const logChannelId = config.LOG_CHANNEL_ID;
 
-  // /saldo
-  if (commandName === 'saldo') {
-    const embed = casino.buildSaldoEmbed(interaction.user.id, interaction.user.username);
+  // /balance
+  if (commandName === 'balance') {
+    const targetUser = interaction.options.getUser('user');
+    
+    // If a user is specified, check if the requester is an admin
+    if (targetUser && !interaction.member.permissions.has('Administrator')) {
+      await interaction.reply({ content: '❌ Je hebt geen rechten om het saldo van anderen te bekijken!', flags: 64 });
+      return true;
+    }
+    
+    const userId = targetUser ? targetUser.id : interaction.user.id;
+    const username = targetUser ? targetUser.username : interaction.user.username;
+    
+    const embed = casino.buildSaldoEmbed(userId, username);
     await interaction.reply({ embeds: [embed], flags: 64 });
     return true;
   }
@@ -507,6 +571,94 @@ async function handleCasinoCommands(interaction, client, config) {
       
       await sendLog(client, logChannelId, `⚙️ Admin ${interaction.user.username} heeft balance van ${user.username} gezet naar ${amount}`);
       
+      return true;
+    }
+    
+    // /admin quiz start
+    if (subCommandGroup === 'quiz' && subCommand === 'start') {
+      await interaction.deferReply({ flags: 64 });
+      
+      try {
+        // Check if there's already an active quiz
+        const activeQuiz = quiz.getActiveQuiz(config.QUIZ_CHANNEL_ID);
+        if (activeQuiz) {
+          const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+          await interaction.editReply({ 
+            content: `⚠️ Er is al een ${quizType} actief! Sluit deze eerst af voordat je een nieuwe start.` 
+          });
+          return true;
+        }
+
+        // Start a regular daily quiz (no timeout)
+        await quiz.startDailyQuiz(client, config.QUIZ_CHANNEL_ID, null);
+        
+        await interaction.editReply({ 
+          content: `✅ Dagelijkse quiz handmatig gestart! De quiz zal normaal om 17:00 eindigen.` 
+        });
+      } catch (error) {
+        console.error('Fout bij handmatig starten dagelijkse quiz:', error);
+        await interaction.editReply({ 
+          content: '❌ Er is een fout opgetreden bij het starten van de dagelijkse quiz.' 
+        });
+      }
+      return true;
+    }
+    
+    // /admin quiz test
+    if (subCommandGroup === 'quiz' && subCommand === 'test') {
+      await interaction.deferReply({ flags: 64 });
+      
+      try {
+        // Check if there's already an active quiz (daily or test)
+        const activeQuiz = quiz.getActiveQuiz(config.QUIZ_CHANNEL_ID);
+        if (activeQuiz) {
+          const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+          await interaction.editReply({ 
+            content: `⚠️ Er is al een ${quizType} actief! Een test quiz zou deze overschrijven.\n\n` +
+                     `Wil je de huidige quiz eerst beëindigen? Gebruik dan eerst een command om de huidige quiz te stoppen.` 
+          });
+          return true;
+        }
+
+        const tijd = interaction.options.getInteger('tijd') || 1;
+        
+        const result = await quiz.startDailyQuiz(client, config.QUIZ_CHANNEL_ID, tijd);
+        const usedMinutes = result && typeof result.timeoutMinutesUsed !== 'undefined' && result.timeoutMinutesUsed !== null ? result.timeoutMinutesUsed : tijd;
+        
+        await interaction.editReply({ 
+          content: `✅ Test quiz gestart! De quiz eindigt automatisch na ${usedMinutes} ${usedMinutes === 1 ? 'minuut' : 'minuten'}.` 
+        });
+      } catch (error) {
+        console.error('Fout bij starten test quiz:', error);
+        await interaction.editReply({ 
+          content: '❌ Er is een fout opgetreden bij het starten van de test quiz.' 
+        });
+      }
+      return true;
+    }
+    
+    // /admin quiz reset
+    if (subCommandGroup === 'quiz' && subCommand === 'reset') {
+      await interaction.deferReply({ flags: 64 });
+
+      try {
+        const resetType = interaction.options.getString('type');
+
+        if (resetType === 'database') {
+          // Remove all quiz questions
+          const deleted = quiz.deleteAllQuestions();
+          await interaction.editReply({ content: `✅ Alle quiz vragen verwijderd (${deleted} rijen).` });
+        } else if (resetType === 'used') {
+          // Reset only used questions
+          const resetCount = quiz.resetUsedQuestions();
+          await interaction.editReply({ content: `✅ Gebruikte vragen gereset (${resetCount} rijen).` });
+        } else {
+          await interaction.editReply({ content: '❌ Onbekende reset type.' });
+        }
+      } catch (error) {
+        console.error('Fout bij uitvoeren resetquiz:', error);
+        await interaction.editReply({ content: '❌ Er is een fout opgetreden bij het uitvoeren van de reset.' });
+      }
       return true;
     }
     
