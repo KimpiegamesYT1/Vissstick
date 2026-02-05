@@ -345,8 +345,8 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     
     // Create embed with appropriate footer message
     const footerText = timeoutMinutes 
-      ? `Test quiz eindigt na ${timeoutMinutes} minuten • 💰 ${rewardAmount} punten bij goed antwoord • ${availableCount} vragen over • 0 antwoorden`
-      : `Antwoord wordt om 17:00 bekendgemaakt • 💰 ${rewardAmount} punten bij goed antwoord • ${availableCount} vragen over • 0 antwoorden`;
+      ? `Test quiz eindigt na ${timeoutMinutes} minuten • ${availableCount} vragen over • 0 antwoorden`
+      : `Antwoord wordt om 17:00 bekendgemaakt • ${availableCount} vragen over • 0 antwoorden`;
 
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
@@ -424,14 +424,18 @@ async function updateQuizMessage(message, channelId) {
     const { availableCount } = getRandomUnusedQuestion();
     const responseCount = Object.keys(activeQuiz.responses).length;
     
+    // Get reward amount from casino module
+    const casinoModule = getCasino();
+    const rewardAmount = casinoModule.QUIZ_REWARD;
+    
     // Different footer text for test quiz vs regular quiz
     const footerText = activeQuiz.is_test_quiz 
-      ? `Test quiz eindigt na ${activeQuiz.timeout_minutes} minuten. ${availableCount} vragen over • ${responseCount} antwoorden`
-      : `Antwoord wordt om 17:00 bekendgemaakt. ${availableCount} vragen over • ${responseCount} antwoorden`;
+      ? `Test quiz eindigt na ${activeQuiz.timeout_minutes} minuten • ${availableCount} vragen over • ${responseCount} antwoorden`
+      : `Antwoord wordt om 17:00 bekendgemaakt • ${availableCount} vragen over • ${responseCount} antwoorden`;
     
     const embed = new EmbedBuilder()
       .setTitle('📝 Dagelijkse Quiz!')
-      .setDescription(activeQuiz.vraag)
+      .setDescription(`${activeQuiz.vraag}\n\n💰 **Beloning:** ${rewardAmount} punten bij goed antwoord`)
       .setColor('#0099ff')
       .setFooter({ text: footerText });
 

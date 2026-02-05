@@ -5,8 +5,10 @@ Discord bot voor het HOK van Syntaxis.
 ## Features
 
 - **Hok Monitoring** - Realtime status of het hok open/dicht is met tijdsschatting
-- **Dagelijkse Quiz** - Elke dag om 7:00 een nieuwe vraag, antwoord om 17:00
-- **Maandelijks Scoreboard** - Overzicht van quiz scores aan het einde van de maand
+- **Dagelijkse Quiz** - Elke dag om 7:00 een nieuwe vraag, antwoord om 17:00 (150 punten per goed antwoord)
+- **Casino Systeem** - Wedden op JA/NEE vragen, verdien punten
+- **Shop** - Koop Haribo zakjes met 5.000 punten
+- **Maandelijks Scoreboard** - Top 3 krijgt startbonus volgende maand (2000/1000/500 punten)
 - **Audio Player** - Speel MP3 bestanden af in voice channels
 - **Chat Responses** - Automatische grappige reacties
 
