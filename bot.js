@@ -233,6 +233,13 @@ client.once("clientReady", async () => {
   // Schedule daily quiz at 7:00
   cron.schedule('0 7 * * *', () => {
     console.log('Starting daily quiz...');
+    // Check if there's already an active quiz (e.g., test quiz)
+    const activeQuiz = quiz.getActiveQuiz(QUIZ_CHANNEL_ID);
+    if (activeQuiz) {
+      const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+      console.log(`⚠️ Er is al een ${quizType} actief! Dagelijkse quiz wordt overgeslagen.`);
+      return;
+    }
     quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID);
   }, {
     timezone: "Europe/Amsterdam"

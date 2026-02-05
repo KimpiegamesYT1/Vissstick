@@ -17,6 +17,10 @@ const quizCommands = [
     ]
   },
   {
+    name: 'startquiz',
+    description: 'Start de dagelijkse quiz handmatig (alleen voor administrators)'
+  },
+  {
     name: 'resetquiz',
     description: 'Reset quiz data (alleen voor administrators)',
     options: [
@@ -48,6 +52,17 @@ async function handleQuizCommands(interaction, client, QUIZ_CHANNEL_ID) {
     await interaction.deferReply({ flags: 64 });
 
     try {
+      // Check if there's already an active quiz (daily or test)
+      const activeQuiz = quiz.getActiveQuiz(QUIZ_CHANNEL_ID);
+      if (activeQuiz) {
+        const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+        await interaction.editReply({ 
+          content: `⚠️ Er is al een ${quizType} actief! Een test quiz zou deze overschrijven.\n\n` +
+                   `Wil je de huidige quiz eerst beëindigen? Gebruik dan eerst een command om de huidige quiz te stoppen.` 
+        });
+        return true;
+      }
+
       const tijd = interaction.options.getInteger('tijd') || 1;
       
       const result = await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, tijd);
@@ -60,6 +75,41 @@ async function handleQuizCommands(interaction, client, QUIZ_CHANNEL_ID) {
       console.error('Fout bij starten test quiz:', error);
       await interaction.editReply({ 
         content: '❌ Er is een fout opgetreden bij het starten van de test quiz.' 
+      });
+    }
+    return true;
+  }
+
+  if (commandName === 'startquiz') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
+      return true;
+    }
+
+    // Defer the reply immediately to prevent timeout
+    await interaction.deferReply({ flags: 64 });
+
+    try {
+      // Check if there's already an active quiz
+      const activeQuiz = quiz.getActiveQuiz(QUIZ_CHANNEL_ID);
+      if (activeQuiz) {
+        const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+        await interaction.editReply({ 
+          content: `⚠️ Er is al een ${quizType} actief! Sluit deze eerst af voordat je een nieuwe start.` 
+        });
+        return true;
+      }
+
+      // Start a regular daily quiz (no timeout)
+      await quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID, null);
+      
+      await interaction.editReply({ 
+        content: `✅ Dagelijkse quiz handmatig gestart! De quiz zal normaal om 17:00 eindigen.` 
+      });
+    } catch (error) {
+      console.error('Fout bij handmatig starten dagelijkse quiz:', error);
+      await interaction.editReply({ 
+        content: '❌ Er is een fout opgetreden bij het starten van de dagelijkse quiz.' 
       });
     }
     return true;
