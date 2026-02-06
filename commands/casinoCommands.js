@@ -2,9 +2,41 @@
  * Casino Commands - Slash commands voor het casino systeem
  */
 
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const casino = require('../modules/casino');
 const quiz = require('../modules/quiz');
+
+// =====================================================
+// DOUBLE OR NOTHING - Game State
+// =====================================================
+const activeDoNGames = new Map();
+const DON_WIN_CHANCE = 0.49;
+const DON_MAX_ROUNDS = 5;
+
+function generateDoNGameId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+}
+
+function cleanupDoNGame(gameId) {
+  const game = activeDoNGames.get(gameId);
+  if (game) {
+    clearTimeout(game.timeout);
+    activeDoNGames.delete(gameId);
+  }
+}
+
+function resetDoNTimeout(gameId) {
+  const game = activeDoNGames.get(gameId);
+  if (!game) return;
+  clearTimeout(game.timeout);
+  game.timeout = setTimeout(() => {
+    const g = activeDoNGames.get(gameId);
+    if (g && g.pot > 0) {
+      casino.addBalance(g.userId, g.username, g.pot, 'Double or Nothing timeout');
+    }
+    activeDoNGames.delete(gameId);
+  }, 120000);
+}
 
 // Casino slash commands
 const casinoCommands = [
@@ -236,6 +268,10 @@ const casinoCommands = [
         type: 1 // SUB_COMMAND
       }
     ]
+  },
+  {
+    name: 'double',
+    description: 'Speel Double or Nothing - verdubbel je inzet of verlies alles!'
   }
 ];
 
@@ -693,6 +729,234 @@ async function handleCasinoCommands(interaction, client, config) {
     return true;
   }
 
+  // /double
+  if (commandName === 'double') {
+    const userId = interaction.user.id;
+    const username = interaction.user.username;
+
+    // Check of user al een actief spel heeft
+    for (const [, game] of activeDoNGames) {
+      if (game.userId === userId) {
+        await interaction.reply({ content: 'Je hebt al een actief Double or Nothing spel!', flags: 64 });
+        return true;
+      }
+    }
+
+    const user = casino.getOrCreateUser(userId, username);
+    const balance = casino.getUserBalance(userId);
+
+    if (balance < 25) {
+      await interaction.reply({ content: 'Je hebt niet genoeg punten om te spelen! Je hebt minimaal 25 punten nodig.', flags: 64 });
+      return true;
+    }
+
+    const gameId = generateDoNGameId();
+
+    const embed = new EmbedBuilder()
+      .setTitle('Double or Nothing')
+      .setDescription('Kies je inzet om te beginnen.')
+      .setColor(0x2B2D31)
+      .setFooter({ text: `Saldo: ${balance} punten` });
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`don_25_${gameId}`)
+        .setLabel('25 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 25),
+      new ButtonBuilder()
+        .setCustomId(`don_50_${gameId}`)
+        .setLabel('50 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 50)
+    );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
+
+    activeDoNGames.set(gameId, {
+      userId,
+      username,
+      pot: 0,
+      round: 0,
+      bet: 0,
+      gameId,
+      timeout: setTimeout(() => {
+        activeDoNGames.delete(gameId);
+      }, 120000)
+    });
+
+    return true;
+  }
+
+  return false;
+}
+
+// =====================================================
+// DOUBLE OR NOTHING - Round Logic
+// =====================================================
+
+/**
+ * Speel een ronde Double or Nothing
+ */
+async function playDoNRound(interaction, game, gameId, client, config) {
+  // Toon suspense animatie
+  const spinEmbed = new EmbedBuilder()
+    .setTitle('Double or Nothing')
+    .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\nDe munt wordt opgegooid...`)
+    .setColor(0x5865F2)
+    .addFields({ name: 'Huidige Pot', value: `${game.pot} punten`, inline: true });
+
+  await interaction.editReply({ embeds: [spinEmbed], components: [] });
+
+  // Wacht 3 seconden voor spanning
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // Bepaal uitkomst
+  const won = Math.random() < DON_WIN_CHANCE;
+
+  if (won) {
+    game.pot *= 2;
+
+    if (game.round >= DON_MAX_ROUNDS) {
+      // Maximale rondes bereikt, automatisch uitbetalen
+      casino.addBalance(game.userId, game.username, game.pot, 'Double or Nothing');
+      const newBalance = casino.getUserBalance(game.userId);
+      cleanupDoNGame(gameId);
+
+      const embed = new EmbedBuilder()
+        .setTitle('Double or Nothing')
+        .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\nGewonnen! Maximale rondes bereikt, je pot wordt automatisch uitbetaald.`)
+        .setColor(0x57F287)
+        .addFields({ name: 'Uitbetaling', value: `${game.pot} punten`, inline: true })
+        .setFooter({ text: `Nieuw saldo: ${newBalance} punten` });
+
+      await interaction.editReply({ embeds: [embed], components: [] });
+
+      // Log
+      await sendLog(client, config.LOG_CHANNEL_ID, `Double or Nothing: ${game.username} wint ${game.pot} punten (${game.round} rondes, inzet: ${game.bet})`);
+    } else {
+      // Toon winst met keuze
+      const embed = new EmbedBuilder()
+        .setTitle('Double or Nothing')
+        .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\nGewonnen!`)
+        .setColor(0x57F287)
+        .addFields(
+          { name: 'Huidige Pot', value: `${game.pot} punten`, inline: true },
+          { name: 'Potentiele Winst', value: `${game.pot * 2} punten`, inline: true }
+        );
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`don_double_${gameId}`)
+          .setLabel('Verdubbelen')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`don_stop_${gameId}`)
+          .setLabel('Stoppen en Uitbetalen')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      await interaction.editReply({ embeds: [embed], components: [row] });
+    }
+  } else {
+    // Verloren
+    const lostPot = game.pot;
+    cleanupDoNGame(gameId);
+    const newBalance = casino.getUserBalance(game.userId);
+
+    const embed = new EmbedBuilder()
+      .setTitle('Double or Nothing')
+      .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\nVerloren! Je pot van ${lostPot} punten is weg.`)
+      .setColor(0xED4245)
+      .setFooter({ text: `Saldo: ${newBalance} punten` });
+
+    await interaction.editReply({ embeds: [embed], components: [] });
+  }
+}
+
+/**
+ * Handle Double or Nothing button interactions
+ */
+async function handleDoubleOrNothingButton(interaction, client, config) {
+  const customId = interaction.customId;
+  if (!customId.startsWith('don_')) return false;
+
+  // Parse: don_{action}_{gameId}
+  const withoutPrefix = customId.substring(4); // Remove 'don_'
+  const separatorIndex = withoutPrefix.indexOf('_');
+  if (separatorIndex === -1) return false;
+
+  const action = withoutPrefix.substring(0, separatorIndex);
+  const gameId = withoutPrefix.substring(separatorIndex + 1);
+
+  const game = activeDoNGames.get(gameId);
+
+  if (!game) {
+    await interaction.reply({ content: 'Dit spel is verlopen!', flags: 64 });
+    return true;
+  }
+
+  // Alleen de speler die het spel startte mag klikken
+  if (interaction.user.id !== game.userId) {
+    await interaction.reply({ content: 'Dit is niet jouw spel!', flags: 64 });
+    return true;
+  }
+
+  // Reset inactiviteit timeout
+  resetDoNTimeout(gameId);
+
+  // Inzet kiezen (25 of 50)
+  if (action === '25' || action === '50') {
+    const betAmount = parseInt(action);
+    const balance = casino.getUserBalance(game.userId);
+
+    if (balance < betAmount) {
+      await interaction.reply({ content: `Je hebt niet genoeg punten! Saldo: ${balance}`, flags: 64 });
+      return true;
+    }
+
+    // Trek inzet af van saldo
+    casino.subtractBalance(game.userId, betAmount);
+    game.pot = betAmount;
+    game.bet = betAmount;
+    game.round = 1;
+
+    await interaction.deferUpdate();
+    await playDoNRound(interaction, game, gameId, client, config);
+    return true;
+  }
+
+  // Verdubbelen
+  if (action === 'double') {
+    game.round += 1;
+
+    await interaction.deferUpdate();
+    await playDoNRound(interaction, game, gameId, client, config);
+    return true;
+  }
+
+  // Stoppen en uitbetalen
+  if (action === 'stop') {
+    casino.addBalance(game.userId, game.username, game.pot, 'Double or Nothing');
+    const newBalance = casino.getUserBalance(game.userId);
+    cleanupDoNGame(gameId);
+
+    await interaction.deferUpdate();
+
+    const embed = new EmbedBuilder()
+      .setTitle('Double or Nothing')
+      .setDescription(`Uitbetaald na ${game.round} ${game.round === 1 ? 'ronde' : 'rondes'}.`)
+      .setColor(0xF0B232)
+      .addFields({ name: 'Uitbetaling', value: `${game.pot} punten`, inline: true })
+      .setFooter({ text: `Nieuw saldo: ${newBalance} punten` });
+
+    await interaction.editReply({ embeds: [embed], components: [] });
+
+    // Log
+    await sendLog(client, config.LOG_CHANNEL_ID, `Double or Nothing: ${game.username} casht uit voor ${game.pot} punten (${game.round} rondes, inzet: ${game.bet})`);
+    return true;
+  }
+
   return false;
 }
 
@@ -753,6 +1017,7 @@ module.exports = {
   casinoCommands,
   handleCasinoCommands,
   handleBetButton,
+  handleDoubleOrNothingButton,
   updateCasinoEmbed,
   sendLog
 };
