@@ -10,7 +10,7 @@ const quiz = require('../modules/quiz');
 // DOUBLE OR NOTHING - Game State
 // =====================================================
 const activeDoNGames = new Map();
-const DON_WIN_CHANCE = 0.49;
+const DON_WIN_CHANCE = 0.50;
 const DON_MAX_ROUNDS = 5;
 
 function generateDoNGameId() {
@@ -755,7 +755,7 @@ async function handleCasinoCommands(interaction, client, config) {
     const embed = new EmbedBuilder()
       .setTitle('Double or Nothing')
       .setDescription('Kies je inzet om te beginnen.')
-      .setColor(0x2B2D31)
+      .setColor(0x57F287)
       .setFooter({ text: `Saldo: ${balance} punten` });
 
     const row = new ActionRowBuilder().addComponents(
@@ -831,6 +831,13 @@ async function playDoNRound(interaction, game, gameId, client, config) {
         .setFooter({ text: `Nieuw saldo: ${newBalance} punten` });
 
       await interaction.editReply({ embeds: [embed], components: [] });
+
+      // Jackpot @here ping
+      try {
+        await interaction.channel.send({ content: `@here **JACKPOT!** ${game.username} heeft ${game.pot} punten gewonnen bij Double or Nothing!`, allowedMentions: { parse: ['everyone'] } });
+      } catch (error) {
+        console.error('Fout bij sturen jackpot ping:', error);
+      }
 
       // Log
       await sendLog(client, config.LOG_CHANNEL_ID, `Double or Nothing: ${game.username} wint ${game.pot} punten (${game.round} rondes, inzet: ${game.bet})`);
