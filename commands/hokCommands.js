@@ -148,9 +148,9 @@ async function handleHokCommands(interaction, client, config, hokState) {
       }
 
       const isOpen = data.payload.open === 1;
-      const predictedTime = hok.predictOpeningTime(isOpen);
-      const predictionText = predictedTime 
-        ? `${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime}`
+      const prediction = hok.predictOpeningTime(isOpen);
+      const predictionText = prediction 
+        ? `${isOpen ? 'Sluit' : 'Opent'}${prediction.daysFromNow > 0 ? ' morgen' : ''} meestal rond ${prediction.time}`
         : '';
 
       const embed = new EmbedBuilder()

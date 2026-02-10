@@ -352,15 +352,24 @@ function getWeightedStatisticsForWeekday(targetWeekday, limitDays = 120) {
  */
 function predictOpeningTime(isOpen) {
   let targetDay;
+  let daysFromNow = 0;
   
   if (isOpen) {
     // Als hok open is, voorspel sluittijd voor vandaag
     targetDay = new Date().getDay();
   } else {
-    // Als hok dicht is, voorspel openingstijd voor morgen
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    targetDay = tomorrow.getDay();
+    // Als hok dicht is: overdag → voorspel voor vandaag, avond/nacht → voorspel voor morgen
+    const currentHour = getAmsterdamHour();
+    if (currentHour >= 5 && currentHour < 17) {
+      // Overdag: het hok kan vandaag nog openen
+      targetDay = new Date().getDay();
+    } else {
+      // Avond/nacht: voorspel voor morgen
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      targetDay = tomorrow.getDay();
+      daysFromNow = 1;
+    }
   }
   
   // Gebruik gedeelde functie voor consistente berekening
@@ -376,7 +385,10 @@ function predictOpeningTime(isOpen) {
   const hours = Math.floor(medianMinutes / 60);
   const minutes = medianMinutes % 60;
   
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  return {
+    time: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
+    daysFromNow
+  };
 }
 
 /**
@@ -548,13 +560,18 @@ function updateCheckInterval(isOpen, state) {
  * Converteer een voorspelde tijd (bijv. "09:15") naar een Unix timestamp voor vandaag in Amsterdam
  * Als de voorspelde tijd al voorbij is, geeft null terug (geen "over -3 uur" tonen)
  */
-function getPredictedUnixTimestamp(timeStr) {
+function getPredictedUnixTimestamp(timeStr, daysFromNow = 0) {
   try {
     const [hours, minutes] = timeStr.split(':').map(Number);
     
     // Maak een Date object voor vandaag in Amsterdam timezone
     const now = new Date();
     const amsterdamNow = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+    
+    // Voeg dagen toe als we voor morgen voorspellen
+    if (daysFromNow > 0) {
+      amsterdamNow.setDate(amsterdamNow.getDate() + daysFromNow);
+    }
     
     // Zet de voorspelde uren/minuten
     amsterdamNow.setHours(hours, minutes, 0, 0);
@@ -574,13 +591,15 @@ function getPredictedUnixTimestamp(timeStr) {
 
 function buildStatusMessage(isOpen, roleId) {
   // Voorspel volgende tijd
-  const predictedTime = predictOpeningTime(isOpen);
+  const prediction = predictOpeningTime(isOpen);
   let predictionMsg = '';
-  if (predictedTime) {
-    // Bereken Unix timestamp voor de voorspelde tijd vandaag (Amsterdam timezone)
-    const relativeTimestamp = getPredictedUnixTimestamp(predictedTime);
+  if (prediction) {
+    const { time, daysFromNow } = prediction;
+    // Bereken Unix timestamp voor de voorspelde tijd (Amsterdam timezone)
+    const relativeTimestamp = getPredictedUnixTimestamp(time, daysFromNow);
     const relativeStr = relativeTimestamp ? `, <t:${relativeTimestamp}:R>` : '';
-    predictionMsg = ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime}${relativeStr})`;
+    const dayLabel = daysFromNow > 0 ? ' morgen' : '';
+    predictionMsg = ` (${isOpen ? 'Sluit' : 'Opent'}${dayLabel} meestal rond ${time}${relativeStr})`;
   }
   const openingTimestamp = isOpen ? ` (<t:${Math.floor(Date.now() / 1000)}:F>)` : '';
 
