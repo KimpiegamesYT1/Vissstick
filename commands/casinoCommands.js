@@ -796,150 +796,24 @@ async function handleCasinoCommands(interaction, client, config) {
 // =====================================================
 
 /**
- * Genereer blokken voor de Double or Nothing animatie
- * @param {boolean} targetResult - true voor groen (win), false voor rood (verlies)
- * @returns {string[]} Array van emoji blokken
- */
-function generateDoNBlocks(targetResult) {
-  const totalBlocks = 45;
-  const blocks = [];
-  const targetEmoji = targetResult ? '🟢' : '🔴';
-  
-  // Start met random kleur
-  let currentColor = Math.random() < 0.5 ? '🟢' : '🔴';
-  
-  // Genereer strict afwisselend patroon: rood groen rood groen etc
-  for (let i = 0; i < totalBlocks - 1; i++) {
-    blocks.push(currentColor);
-    // Wissel elke keer van kleur
-    currentColor = currentColor === '🟢' ? '🔴' : '🟢';
-  }
-  
-  // Laatste blok = eindresultaat
-  // Check of dit past in het patroon, zo niet shuffle laatste paar blokken
-  if (blocks[blocks.length - 1] === targetEmoji) {
-    // Het past al, voeg gewoon toe
-    blocks.push(targetEmoji);
-  } else {
-    // Wissel laatste 2 blokken om het patroon te behouden
-    blocks[blocks.length - 1] = targetEmoji;
-    blocks.push(currentColor);
-  }
-  
-  return blocks;
-}
-
-/**
- * Toon scrollende animatie voor Double or Nothing
- * @param {Interaction} interaction - Discord interaction
- * @param {string[]} blocks - Array van emoji blokken
- * @param {Object} game - Game state object
- */
-async function showDoNAnimation(interaction, blocks, game) {
-  const WINDOW_SIZE = 7; // Aantal zichtbare blokken
-  const CURSOR_POS = 3;   // Cursor positie in window (0-indexed)
-  const START_POS = 10;   // Start positie in blocks array
-  const TARGET_POS = blocks.length - 1; // Eindpositie
-  
-  // Animatie fases: [aantal stappen, sprong grootte, delay tussen frames in ms]
-  // Totaal: ~16 edits om binnen Discord rate limits te blijven (max 5 edits per 5s)
-  const phases = [
-    { steps: 6, jump: 3, delay: 150 },   // Fase 1: Snel, grote sprongen (0.9s)
-    { steps: 5, jump: 2, delay: 200 },   // Fase 2: Medium sprongen (1.0s)
-    { steps: 4, jump: 1, delay: 300 },   // Fase 3: Kleine sprongen (1.2s)
-    { steps: 3, jump: 1, delay: 400 },   // Fase 4: Heel langzaam (1.2s)
-  ];                                     // Totaal: 18 edits, ~4.3s
-  
-  let currentPos = START_POS;
-  
-  for (const phase of phases) {
-    for (let step = 0; step < phase.steps; step++) {
-      // Bereken window start en end
-      const windowStart = Math.max(0, currentPos - CURSOR_POS);
-      const windowEnd = Math.min(blocks.length, windowStart + WINDOW_SIZE);
-      
-      // Bouw de window string met cursor
-      let displayBlocks = [];
-      for (let i = windowStart; i < windowEnd; i++) {
-        if (i === currentPos) {
-          displayBlocks.push(`**[${blocks[i]}]**`);
-        } else {
-          displayBlocks.push(blocks[i]);
-        }
-      }
-      
-      const blockDisplay = displayBlocks.join(' ');
-      
-      // Update embed
-      const animEmbed = new EmbedBuilder()
-        .setTitle('Double or Nothing')
-        .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\n${blockDisplay}\n\n*Spanning...*`)
-        .setColor(0x5865F2)
-        .addFields({ name: 'Huidige Pot', value: `${game.pot} punten`, inline: true });
-      
-      await interaction.editReply({ embeds: [animEmbed], components: [] });
-      
-      // Beweeg cursor met jump grootte
-      currentPos += phase.jump;
-      
-      // Als we bij of voorbij het einde zijn, stop
-      if (currentPos >= TARGET_POS) {
-        break;
-      }
-      
-      // Wacht voor volgende frame
-      await new Promise(resolve => setTimeout(resolve, phase.delay));
-    }
-    
-    // Check of we klaar zijn
-    if (currentPos >= TARGET_POS) {
-      break;
-    }
-  }
-  
-  // Zorg dat we precies op de laatste positie eindigen
-  currentPos = TARGET_POS;
-  const windowStart = Math.max(0, currentPos - CURSOR_POS);
-  const windowEnd = Math.min(blocks.length, windowStart + WINDOW_SIZE);
-  
-  let finalBlocks = [];
-  for (let i = windowStart; i < windowEnd; i++) {
-    if (i === currentPos) {
-      finalBlocks.push(`**[${blocks[i]}]**`);
-    } else {
-      finalBlocks.push(blocks[i]);
-    }
-  }
-  
-  const finalDisplay = finalBlocks.join(' ');
-  const resultEmoji = blocks[TARGET_POS] === '🟢' ? '✨' : '';
-  
-  const finalEmbed = new EmbedBuilder()
-    .setTitle('Double or Nothing')
-    .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\n${finalDisplay}${resultEmoji ? ' ' + resultEmoji : ''}\n\n`)
-    .setColor(blocks[TARGET_POS] === '🟢' ? 0x57F287 : 0xED4245)
-    .addFields({ name: 'Huidige Pot', value: `${game.pot} punten`, inline: true });
-  
-  await interaction.editReply({ embeds: [finalEmbed], components: [] });
-  
-  // Extra pauze voor dramatisch effect
-  await new Promise(resolve => setTimeout(resolve, 400));
-}
-
-/**
  * Speel een ronde Double or Nothing
  */
 async function playDoNRound(interaction, game, gameId, client, config) {
-  // Bepaal uitkomst EERST (voordat animatie begint)
-  const won = Math.random() < DON_WIN_CHANCE;
-  
-  // Genereer blokken op basis van uitkomst
-  const blocks = generateDoNBlocks(won);
-  
-  // Toon scrollende animatie
-  await showDoNAnimation(interaction, blocks, game);
+  // Toon suspense animatie
+  const spinEmbed = new EmbedBuilder()
+    .setTitle('Double or Nothing')
+    .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\nDe munt wordt opgegooid...`)
+    .setColor(0x5865F2)
+    .addFields({ name: 'Huidige Pot', value: `${game.pot} punten`, inline: true });
 
-  // Verwerk uitkomst
+  await interaction.editReply({ embeds: [spinEmbed], components: [] });
+
+  // Wacht 3 seconden voor spanning
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // Bepaal uitkomst
+  const won = Math.random() < DON_WIN_CHANCE;
+
   if (won) {
     game.pot *= 2;
 
