@@ -147,10 +147,10 @@ function determineOutcome(playerCards, dealerCards) {
  */
 function calculatePayout(bet, outcome) {
   switch (outcome) {
-    case 'blackjack': return bet * 3;  // 2x winst (inzet + 2x terug)
-    case 'win': return bet * 2;        // 1x winst (inzet + 1x terug)
-    case 'push': return bet;           // Inzet terug
-    case 'lose': return 0;             // Niets
+    case 'blackjack': return bet * 2.5;  // 1.5x winst (inzet + 1.5x terug)
+    case 'win': return bet * 2;          // 1x winst (inzet + 1x terug)
+    case 'push': return bet;             // Inzet terug
+    case 'lose': return 0;               // Niets
     default: return 0;
   }
 }
