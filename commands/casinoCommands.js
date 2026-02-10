@@ -1039,7 +1039,7 @@ async function handleCasinoCommands(interaction, client, config) {
       return true;
     }
 
-    const winRate = stats.games_played > 0 ? ((stats.wins + stats.blackjacks) / stats.games_played * 100).toFixed(1) : '0.0';
+    const winRate = stats.games_played > 0 ? (stats.wins / stats.games_played * 100).toFixed(1) : '0.0';
     const netProfit = stats.total_won - stats.total_lost;
     const profitEmoji = netProfit >= 0 ? '📈' : '📉';
 
