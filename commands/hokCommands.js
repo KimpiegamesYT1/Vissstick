@@ -230,10 +230,11 @@ async function handleHokCommands(interaction, client, config, hokState) {
       // Send new message
       const predictedTime = hok.predictOpeningTime(isOpen);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
+      const openingTimestamp = isOpen ? ` (<t:${Math.floor(Date.now() / 1000)}:F>)` : '';
 
       const message = await channel.send(
         isOpen 
-          ? `✅ Het <@&${ROLE_ID}> is nu **open**!${predictionMsg}` 
+          ? `✅ Het <@&${ROLE_ID}> is nu **open**!${openingTimestamp}${predictionMsg}` 
           : `❌ Het <@&${ROLE_ID}> is nu **dicht**!${predictionMsg}`
       );
       

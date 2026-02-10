@@ -694,6 +694,31 @@ function buildResolveEmbed(result) {
   return embed;
 }
 
+/**
+ * Bouw gesloten bet embed voor het originele bet bericht
+ */
+function buildClosedBetEmbed(result) {
+  const betWithEntries = getBetWithEntries(result.bet.id);
+  const jaCount = betWithEntries.jaVotes.length;
+  const neeCount = betWithEntries.neeVotes.length;
+
+  const jaNames = betWithEntries.jaVotes.map(e => e.username).join(', ') || 'Nog niemand';
+  const neeNames = betWithEntries.neeVotes.map(e => e.username).join(', ') || 'Nog niemand';
+
+  const embed = new EmbedBuilder()
+    .setTitle(`🎲 Weddenschap #${result.bet.id} (Afgelopen)`)
+    .setDescription(`**${result.bet.question}**\n\nUitslag: **${result.outcome}**`)
+    .setColor(result.winners.length > 0 ? '#00FF00' : '#FF0000')
+    .addFields(
+      { name: `✅ JA (${jaCount})`, value: jaNames, inline: true },
+      { name: `❌ NEE (${neeCount})`, value: neeNames, inline: true }
+    )
+    .setFooter({ text: `💰 Pot: ${betWithEntries.totalPool} punten • Inzet: ${BET_AMOUNT} punten` })
+    .setTimestamp();
+
+  return embed;
+}
+
 module.exports = {
   // Constants
   BET_AMOUNT,
@@ -735,5 +760,6 @@ module.exports = {
   buildBetButtons,
   buildSaldoEmbed,
   buildShopEmbed,
-  buildResolveEmbed
+  buildResolveEmbed,
+  buildClosedBetEmbed
 };

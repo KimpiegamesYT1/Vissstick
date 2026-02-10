@@ -493,6 +493,7 @@ async function checkStatus(client, config, state) {
       // Voorspel volgende tijd
       const predictedTime = predictOpeningTime(isOpen);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
+      const openingTimestamp = isOpen ? ` (<t:${Math.floor(Date.now() / 1000)}:F>)` : '';
 
       // Bepaal of we moeten pingen
       const currentDay = new Date().getDay();
@@ -504,7 +505,7 @@ async function checkStatus(client, config, state) {
       // Nieuw bericht sturen
       const message = await channel.send(
         isOpen 
-          ? `✅ Het ${hokMention} is nu **open**!${predictionMsg}` 
+          ? `✅ Het ${hokMention} is nu **open**!${openingTimestamp}${predictionMsg}` 
           : `❌ Het ${hokMention} is nu **dicht**!${predictionMsg}`
       );
       

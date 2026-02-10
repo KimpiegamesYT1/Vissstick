@@ -326,6 +326,7 @@ async function handleCasinoCommands(interaction, client, config) {
   const { commandName } = interaction;
   const casinoChannelId = config.CASINO_CHANNEL_ID;
   const logChannelId = config.LOG_CHANNEL_ID;
+  const winnersChannelId = '1414596895191334925';
 
   // /balance
   if (commandName === 'balance') {
@@ -498,17 +499,33 @@ async function handleCasinoCommands(interaction, client, config) {
       }
       
       const embed = casino.buildResolveEmbed(result);
+      const closedEmbed = casino.buildClosedBetEmbed(result);
       
       await interaction.editReply({ embeds: [embed] });
       
-      // Stuur ook naar casino kanaal
+      // Update het originele bet bericht in het casino kanaal
       try {
         const casinoChannel = await client.channels.fetch(casinoChannelId);
-        if (casinoChannel) {
-          await casinoChannel.send({ embeds: [embed] });
+        if (casinoChannel && result.bet.message_id) {
+          const betMessage = await casinoChannel.messages.fetch(result.bet.message_id).catch(() => null);
+          if (betMessage) {
+            await betMessage.edit({ embeds: [closedEmbed], components: [] });
+          } else {
+            console.warn(`Bet bericht niet gevonden voor message_id ${result.bet.message_id}`);
+          }
         }
       } catch (error) {
-        console.error('Fout bij sturen naar casino kanaal:', error);
+        console.error('Fout bij updaten bet embed in casino kanaal:', error);
+      }
+
+      // Plaats overzicht van winnaars in apart kanaal
+      try {
+        const winnersChannel = await client.channels.fetch(winnersChannelId);
+        if (winnersChannel) {
+          await winnersChannel.send({ embeds: [embed] });
+        }
+      } catch (error) {
+        console.error('Fout bij sturen naar winnaars kanaal:', error);
       }
       
       // Update casino embed
