@@ -227,24 +227,10 @@ async function handleHokCommands(interaction, client, config, hokState) {
         }
       }
 
-      const existingState = hok.getHokState();
-      const isSameStatus = existingState && existingState.is_open === (isOpen ? 1 : 0);
-      const lastUpdated = existingState && existingState.last_updated
-        ? new Date(existingState.last_updated.replace(' ', 'T') + 'Z')
-        : null;
+      // Bouw bericht via gedeelde functie (zelfde format als automatisch)
+      const statusContent = hok.buildStatusMessage(isOpen, ROLE_ID);
 
-      // Send new message
-      const predictedTime = hok.predictOpeningTime(isOpen);
-      const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
-      const openingTimestamp = isOpen
-        ? ` (<t:${Math.floor(((isSameStatus && lastUpdated) ? lastUpdated : new Date()).getTime() / 1000)}:F>)`
-        : '';
-
-      const message = await channel.send(
-        isOpen 
-          ? `✅ Het <@&${ROLE_ID}> is nu **open**!${openingTimestamp}${predictionMsg}` 
-          : `❌ Het <@&${ROLE_ID}> is nu **dicht**!${predictionMsg}`
-      );
+      const message = await channel.send(statusContent);
       
       await message.react('🔔');
       
@@ -253,8 +239,8 @@ async function handleHokCommands(interaction, client, config, hokState) {
         hokState.lastStatus = isOpen;
       }
       
-      // Update database state
-      hok.updateHokState(isOpen, message.id, !isSameStatus);
+      // Update database state (altijd timestamp updaten)
+      hok.updateHokState(isOpen, message.id);
 
       await interaction.editReply({ 
         embeds: [

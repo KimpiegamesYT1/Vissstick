@@ -14,10 +14,21 @@ const CHECK_INTERVALS = {
 };
 
 /**
- * Get current date key (YYYY-MM-DD)
+ * Get current Amsterdam hour (0-23)
+ */
+function getAmsterdamHour() {
+  return parseInt(new Date().toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', hour: '2-digit', hour12: false }));
+}
+
+/**
+ * Get current date key (YYYY-MM-DD) in Amsterdam timezone
  */
 function getCurrentDateKey() {
-  return new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const year = now.toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', year: 'numeric' });
+  const month = now.toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', month: '2-digit' });
+  const day = now.toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', day: '2-digit' });
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -416,10 +427,10 @@ function getHokState() {
 }
 
 /**
- * Functie om te bepalen of het nacht is (22:00 - 05:00)
+ * Functie om te bepalen of het nacht is (22:00 - 05:00) in Amsterdam timezone
  */
 function isNightTime() {
-  const hour = new Date().getHours();
+  const hour = getAmsterdamHour();
   return hour >= 22 || hour < 5;
 }
 
@@ -458,11 +469,11 @@ async function checkStatus(client, config, state) {
       { type: ActivityType.Watching }
     );
 
-    // Bij eerste keer alleen status opslaan
+    // Bij eerste keer alleen status opslaan (zonder last_updated te overschrijven)
     if (!state.isInitialized) {
       state.lastStatus = isOpen;
       state.isInitialized = true;
-      updateHokState(isOpen);
+      updateHokState(isOpen, null, false);
       console.log("Initiële status opgehaald:", isOpen ? "open" : "dicht");
       updateCheckInterval(isOpen, state);
       return;
@@ -496,24 +507,9 @@ async function checkStatus(client, config, state) {
       // Naam aanpassen
       await channel.setName(isOpen ? "📗-hok-is-open" : "📕-hok-is-dicht");
 
-      // Voorspel volgende tijd
-      const predictedTime = predictOpeningTime(isOpen);
-      const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
-      const openingTimestamp = isOpen ? ` (<t:${Math.floor(Date.now() / 1000)}:F>)` : '';
-
-      // Bepaal of we moeten pingen
-      const currentDay = new Date().getDay();
-      const isWeekend = currentDay === 0 || currentDay === 6; // 0 = zondag, 6 = zaterdag
-      const shouldPing = isOpen && !isWeekend; // Alleen pingen bij opening en niet in weekend
-      
-      const hokMention = shouldPing ? `<@&${config.ROLE_ID}>` : 'hok';
-
-      // Nieuw bericht sturen
-      const message = await channel.send(
-        isOpen 
-          ? `✅ Het ${hokMention} is nu **open**!${openingTimestamp}${predictionMsg}` 
-          : `❌ Het ${hokMention} is nu **dicht**!${predictionMsg}`
-      );
+      // Nieuw bericht sturen via gedeelde functie
+      const statusContent = buildStatusMessage(isOpen, config.ROLE_ID);
+      const message = await channel.send(statusContent);
       
       // Reactie toevoegen
       await message.react('🔔');
@@ -549,8 +545,56 @@ function updateCheckInterval(isOpen, state) {
 }
 
 /**
- * Start hok monitoring
+ * Converteer een voorspelde tijd (bijv. "09:15") naar een Unix timestamp voor vandaag in Amsterdam
+ * Als de voorspelde tijd al voorbij is, geeft null terug (geen "over -3 uur" tonen)
  */
+function getPredictedUnixTimestamp(timeStr) {
+  try {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    // Maak een Date object voor vandaag in Amsterdam timezone
+    const now = new Date();
+    const amsterdamNow = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+    
+    // Zet de voorspelde uren/minuten
+    amsterdamNow.setHours(hours, minutes, 0, 0);
+    
+    // Bereken het verschil tussen Amsterdam en UTC om correct terug te converteren
+    const utcOffset = now.getTime() - new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' })).getTime();
+    const predictedUtc = amsterdamNow.getTime() + utcOffset;
+    
+    // Alleen tonen als de voorspelde tijd in de toekomst ligt
+    if (predictedUtc <= Date.now()) return null;
+    
+    return Math.floor(predictedUtc / 1000);
+  } catch {
+    return null;
+  }
+}
+
+function buildStatusMessage(isOpen, roleId) {
+  // Voorspel volgende tijd
+  const predictedTime = predictOpeningTime(isOpen);
+  let predictionMsg = '';
+  if (predictedTime) {
+    // Bereken Unix timestamp voor de voorspelde tijd vandaag (Amsterdam timezone)
+    const relativeTimestamp = getPredictedUnixTimestamp(predictedTime);
+    const relativeStr = relativeTimestamp ? `, <t:${relativeTimestamp}:R>` : '';
+    predictionMsg = ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime}${relativeStr})`;
+  }
+  const openingTimestamp = isOpen ? ` (<t:${Math.floor(Date.now() / 1000)}:F>)` : '';
+
+  // Bepaal of we moeten pingen (niet in weekend, niet bij sluiting)
+  const currentDay = new Date().getDay();
+  const isWeekend = currentDay === 0 || currentDay === 6;
+  const shouldPing = isOpen && !isWeekend;
+  const hokMention = shouldPing ? `<@&${roleId}>` : 'hok';
+
+  return isOpen
+    ? `✅ Het ${hokMention} is nu **open**!${openingTimestamp}${predictionMsg}`
+    : `❌ Het ${hokMention} is nu **dicht**!${predictionMsg}`;
+}
+
 function startHokMonitoring(client, config) {
   const state = {
     client,
@@ -599,6 +643,7 @@ module.exports = {
   calculateWeightedMedian,
   updateHokState,
   getHokState,
+  buildStatusMessage,
   checkStatus,
   startHokMonitoring,
   loadHokData,
