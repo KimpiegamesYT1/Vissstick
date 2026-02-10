@@ -2,6 +2,8 @@
  * Blackjack module - Pure spellogica (geen Discord-afhankelijkheid)
  */
 
+const { randomInt } = require('crypto');
+
 const SUITS = ['♠', '♥', '♦', '♣'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
@@ -15,9 +17,9 @@ function createDeck() {
       deck.push({ rank, suit });
     }
   }
-  // Fisher-Yates shuffle
+  // Fisher-Yates shuffle (cryptografisch veilig)
   for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
@@ -27,6 +29,9 @@ function createDeck() {
  * Trek een kaart van het deck
  */
 function dealCard(deck) {
+  if (deck.length === 0) {
+    throw new Error('Deck is leeg - geen kaarten meer beschikbaar');
+  }
   return deck.pop();
 }
 
@@ -147,10 +152,10 @@ function determineOutcome(playerCards, dealerCards) {
  */
 function calculatePayout(bet, outcome) {
   switch (outcome) {
-    case 'blackjack': return bet * 2.5;  // 1.5x winst (inzet + 1.5x terug)
-    case 'win': return bet * 2;          // 1x winst (inzet + 1x terug)
-    case 'push': return bet;             // Inzet terug
-    case 'lose': return 0;               // Niets
+    case 'blackjack': return Math.round(bet * 2.5);  // 1.5x winst (inzet + 1.5x terug)
+    case 'win': return bet * 2;                       // 1x winst (inzet + 1x terug)
+    case 'push': return bet;                          // Inzet terug
+    case 'lose': return 0;                            // Niets
     default: return 0;
   }
 }
