@@ -7,6 +7,7 @@ const casino = require('../modules/casino');
 const quiz = require('../modules/quiz');
 const blackjack = require('../modules/blackjack');
 const { renderBlackjackTable } = require('../modules/cardRenderer');
+const { getDatabase } = require('../database');
 
 // =====================================================
 // DOUBLE OR NOTHING - Game State
@@ -24,6 +25,110 @@ function generateDoNGameId() {
 // =====================================================
 const activeBlackjackGames = new Map();
 const KEEP_GAMBLING_IMG = 'https://i.imgur.com/MUNEEPD.jpeg';
+
+// =====================================================
+// BLACKJACK - Stats Database
+// =====================================================
+
+/**
+ * Registreer een Blackjack spelresultaat in de database
+ */
+function recordBlackjackResult(userId, username, bet, payout, outcome) {
+  const db = getDatabase();
+  const netWin = payout - bet;
+  const isWin = outcome === 'win' || outcome === 'blackjack';
+  const isLoss = outcome === 'lose';
+
+  // Maak tabel aan als die nog niet bestaat
+  db.exec(`CREATE TABLE IF NOT EXISTS blackjack_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0,
+    pushes INTEGER DEFAULT 0,
+    blackjacks INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_won INTEGER DEFAULT 0,
+    total_lost INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    current_streak INTEGER DEFAULT 0,
+    best_streak INTEGER DEFAULT 0,
+    last_played DATETIME
+  )`);
+
+  const existing = db.prepare('SELECT * FROM blackjack_stats WHERE user_id = ?').get(userId);
+
+  if (!existing) {
+    db.prepare(`INSERT INTO blackjack_stats (user_id, username, games_played, wins, losses, pushes, blackjacks, total_bet, total_won, total_lost, biggest_win, current_streak, best_streak, last_played)
+      VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`).run(
+      userId, username,
+      isWin ? 1 : 0,
+      isLoss ? 1 : 0,
+      outcome === 'push' ? 1 : 0,
+      outcome === 'blackjack' ? 1 : 0,
+      bet,
+      payout > bet ? payout - bet : 0,
+      isLoss ? bet : 0,
+      netWin > 0 ? netWin : 0,
+      isWin ? 1 : (isLoss ? -1 : 0),
+      isWin ? 1 : 0
+    );
+    return;
+  }
+
+  let newStreak = existing.current_streak;
+  if (isWin) {
+    newStreak = newStreak >= 0 ? newStreak + 1 : 1;
+  } else if (isLoss) {
+    newStreak = newStreak <= 0 ? newStreak - 1 : -1;
+  } else {
+    newStreak = 0; // push reset streak
+  }
+  const bestStreak = Math.max(existing.best_streak, newStreak);
+  const biggestWin = Math.max(existing.biggest_win, netWin > 0 ? netWin : 0);
+
+  db.prepare(`UPDATE blackjack_stats SET
+    username = ?,
+    games_played = games_played + 1,
+    wins = wins + ?,
+    losses = losses + ?,
+    pushes = pushes + ?,
+    blackjacks = blackjacks + ?,
+    total_bet = total_bet + ?,
+    total_won = total_won + ?,
+    total_lost = total_lost + ?,
+    biggest_win = ?,
+    current_streak = ?,
+    best_streak = ?,
+    last_played = datetime('now')
+    WHERE user_id = ?`).run(
+    username,
+    isWin ? 1 : 0,
+    isLoss ? 1 : 0,
+    outcome === 'push' ? 1 : 0,
+    outcome === 'blackjack' ? 1 : 0,
+    bet,
+    payout > bet ? payout - bet : 0,
+    isLoss ? bet : 0,
+    biggestWin,
+    newStreak,
+    bestStreak,
+    userId
+  );
+}
+
+/**
+ * Haal Blackjack stats op voor een user
+ */
+function getBlackjackStats(userId) {
+  const db = getDatabase();
+  try {
+    return db.prepare('SELECT * FROM blackjack_stats WHERE user_id = ?').get(userId) || null;
+  } catch {
+    return null;
+  }
+}
 
 function generateBJGameId() {
   return 'bj' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
@@ -309,6 +414,18 @@ const casinoCommands = [
   {
     name: 'blackjack',
     description: 'Speel Blackjack tegen de dealer!'
+  },
+  {
+    name: 'blackjackstats',
+    description: 'Bekijk Blackjack statistieken van een speler',
+    options: [
+      {
+        name: 'user',
+        description: 'De speler waarvan je stats wilt zien (optioneel)',
+        type: 6, // USER
+        required: false
+      }
+    ]
   }
 ];
 
@@ -1364,6 +1481,7 @@ async function handleBlackjackButton(interaction, client, config) {
       }
 
       await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
+      recordBlackjackResult(game.userId, game.username, betAmount, payout, outcome);
       cleanupBJGame(gameId);
       return;
     }
@@ -1388,6 +1506,7 @@ async function handleBlackjackButton(interaction, client, config) {
       );
       embed.setThumbnail(KEEP_GAMBLING_IMG);
       await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
+      recordBlackjackResult(game.userId, game.username, game.bet, 0, 'lose');
       cleanupBJGame(gameId);
       return;
     }
@@ -1402,6 +1521,7 @@ async function handleBlackjackButton(interaction, client, config) {
         0x57F287
       );
       await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
+      recordBlackjackResult(game.userId, game.username, game.bet, payout, 'win');
       cleanupBJGame(gameId);
       return;
     }
@@ -1446,6 +1566,7 @@ async function resolveBJDealerTurn(interaction, game, gameId) {
   }
 
   await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
+  recordBlackjackResult(game.userId, game.username, game.bet, payout, outcome);
   cleanupBJGame(gameId);
 }
 

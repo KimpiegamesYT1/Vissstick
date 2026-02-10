@@ -173,6 +173,25 @@ CREATE INDEX IF NOT EXISTS idx_bet_entries_user ON bet_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_shop_purchases_user ON shop_purchases(user_id);
 CREATE INDEX IF NOT EXISTS idx_shop_purchases_month ON shop_purchases(month_key);
 
+-- Blackjack stats
+CREATE TABLE IF NOT EXISTS blackjack_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0,
+    pushes INTEGER DEFAULT 0,
+    blackjacks INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_won INTEGER DEFAULT 0,
+    total_lost INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    current_streak INTEGER DEFAULT 0,
+    best_streak INTEGER DEFAULT 0,
+    last_played DATETIME
+);
+CREATE INDEX IF NOT EXISTS idx_blackjack_stats_games ON blackjack_stats(games_played DESC);
+
 -- =====================================================
 -- INITIAL DATA
 -- =====================================================
