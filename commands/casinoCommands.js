@@ -2,10 +2,11 @@
  * Casino Commands - Slash commands voor het casino systeem
  */
 
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const casino = require('../modules/casino');
 const quiz = require('../modules/quiz');
 const blackjack = require('../modules/blackjack');
+const { renderBlackjackTable } = require('../modules/cardRenderer');
 
 // =====================================================
 // DOUBLE OR NOTHING - Game State
@@ -1148,26 +1149,45 @@ async function handleBetButton(interaction, client, config) {
 /**
  * Bouw de Blackjack game embed
  */
-function buildBlackjackEmbed(game, revealDealer = false, resultText = null, resultColor = null) {
+async function buildBlackjackEmbed(game, revealDealer = false, resultText = null, resultColor = null) {
   const playerValue = blackjack.calculateHandValue(game.playerCards).value;
   const dealerValue = revealDealer
     ? blackjack.calculateHandValue(game.dealerCards).value
     : blackjack.calculateHandValue([game.dealerCards[0]]).value;
 
-  const dealerDisplay = revealDealer
-    ? `**Dealer** (${dealerValue})\n${blackjack.formatHand(game.dealerCards)}`
-    : `**Dealer** (?)\n${blackjack.formatHand(game.dealerCards, true)}`;
-
-  const playerDisplay = `**${game.username}** (${playerValue})\n${blackjack.formatHand(game.playerCards)}`;
+  const dealerLabel = revealDealer ? `Dealer (${dealerValue})` : 'Dealer (?)';
+  const playerLabel = `${game.username} (${playerValue})`;
 
   const separator = '━━━━━━━━━━━━━━━━━━━━';
 
-  let description = `${dealerDisplay}\n\n${separator}\n\n${playerDisplay}`;
+  let description = '';
   if (resultText) {
-    description += `\n\n${separator}\n\n${resultText}`;
+    description = resultText;
   }
 
   const color = resultColor || 0x5865F2; // blurple default
+
+  // Render kaartafbeelding
+  let files = [];
+  try {
+    const imageBuffer = await renderBlackjackTable(
+      game.dealerCards,
+      game.playerCards,
+      !revealDealer,
+      dealerLabel,
+      playerLabel
+    );
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'blackjack.png' });
+    files = [attachment];
+  } catch (err) {
+    console.error('Fout bij renderen kaartafbeelding:', err);
+    // Fallback naar tekst als rendering faalt
+    const dealerDisplay = revealDealer
+      ? `**Dealer** (${dealerValue})\n${blackjack.formatHand(game.dealerCards)}`
+      : `**Dealer** (?)\n${blackjack.formatHand(game.dealerCards, true)}`;
+    const playerDisplay = `**${game.username}** (${playerValue})\n${blackjack.formatHand(game.playerCards)}`;
+    description = `${dealerDisplay}\n\n${separator}\n\n${playerDisplay}` + (resultText ? `\n\n${separator}\n\n${resultText}` : '');
+  }
 
   const embed = new EmbedBuilder()
     .setTitle('🃏 Blackjack')
@@ -1175,7 +1195,11 @@ function buildBlackjackEmbed(game, revealDealer = false, resultText = null, resu
     .setColor(color)
     .setFooter({ text: `Inzet: ${game.bet} punten` });
 
-  return embed;
+  if (files.length > 0) {
+    embed.setImage('attachment://blackjack.png');
+  }
+
+  return { embed, files };
 }
 
 /**
@@ -1274,16 +1298,16 @@ async function handleBlackjackButton(interaction, client, config) {
       }
       const newBalance = casino.getUserBalance(newGame.userId);
       const { text, color } = getOutcomeDisplay(outcome, payout, replayBet);
-      const embed = buildBlackjackEmbed(newGame, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
-      if (outcome === 'lose') embed.setImage(KEEP_GAMBLING_IMG);
-      await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(replayBet, newGameId)] });
+      const { embed, files } = await buildBlackjackEmbed(newGame, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
+      if (outcome === 'lose') embed.setThumbnail(KEEP_GAMBLING_IMG);
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(replayBet, newGameId)] });
       cleanupBJGame(newGameId);
       return;
     }
 
-    const embed = buildBlackjackEmbed(newGame);
+    const { embed, files } = await buildBlackjackEmbed(newGame);
     const buttons = buildBlackjackButtons(newGameId);
-    await interaction.editReply({ embeds: [embed], components: [buttons] });
+    await interaction.editReply({ embeds: [embed], files, components: [buttons] });
     return;
   }
 
@@ -1338,21 +1362,21 @@ async function handleBlackjackButton(interaction, client, config) {
       const newBalance = casino.getUserBalance(game.userId);
 
       const { text, color } = getOutcomeDisplay(outcome, payout, betAmount);
-      const embed = buildBlackjackEmbed(game, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
+      const { embed, files } = await buildBlackjackEmbed(game, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
 
       if (outcome === 'lose') {
-        embed.setImage(KEEP_GAMBLING_IMG);
+        embed.setThumbnail(KEEP_GAMBLING_IMG);
       }
 
-      await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(betAmount, gameId)] });
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(betAmount, gameId)] });
       cleanupBJGame(gameId);
       return;
     }
 
     // Toon initiële hand met buttons
-    const embed = buildBlackjackEmbed(game);
+    const { embed, files } = await buildBlackjackEmbed(game);
     const buttons = buildBlackjackButtons(gameId);
-    await interaction.editReply({ embeds: [embed], components: [buttons] });
+    await interaction.editReply({ embeds: [embed], files, components: [buttons] });
     return;
   }
 
@@ -1363,12 +1387,12 @@ async function handleBlackjackButton(interaction, client, config) {
     if (blackjack.isBusted(game.playerCards)) {
       // Bust - verloren
       const newBalance = casino.getUserBalance(game.userId);
-      const embed = buildBlackjackEmbed(game, true,
+      const { embed, files } = await buildBlackjackEmbed(game, true,
         `💥 **Bust!** Je bent over de 21!\nJe verliest **${game.bet} punten**.\n\n💰 Saldo: ${newBalance} punten`,
         0xED4245
       );
-      embed.setImage(KEEP_GAMBLING_IMG);
-      await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(game.bet, gameId)] });
+      embed.setThumbnail(KEEP_GAMBLING_IMG);
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(game.bet, gameId)] });
       cleanupBJGame(gameId);
       return;
     }
@@ -1378,19 +1402,19 @@ async function handleBlackjackButton(interaction, client, config) {
       const payout = game.bet * 2;
       casino.addBalance(game.userId, game.username, payout, 'Blackjack 21');
       const newBalance = casino.getUserBalance(game.userId);
-      const embed = buildBlackjackEmbed(game, true,
+      const { embed, files } = await buildBlackjackEmbed(game, true,
         `🎯 **21!** Je hebt precies 21, je wint direct!\nJe wint **${game.bet} punten**!\n\n💰 Saldo: ${newBalance} punten`,
         0x57F287
       );
-      await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(game.bet, gameId)] });
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(game.bet, gameId)] });
       cleanupBJGame(gameId);
       return;
     }
 
     // Toon bijgewerkte hand
-    const embed = buildBlackjackEmbed(game);
+    const { embed, files } = await buildBlackjackEmbed(game);
     const buttons = buildBlackjackButtons(gameId);
-    await interaction.editReply({ embeds: [embed], components: [buttons] });
+    await interaction.editReply({ embeds: [embed], files, components: [buttons] });
     return;
   }
 
@@ -1420,13 +1444,13 @@ async function resolveBJDealerTurn(interaction, game, gameId) {
   const newBalance = casino.getUserBalance(game.userId);
   const { text, color } = getOutcomeDisplay(outcome, payout, game.bet);
 
-  const embed = buildBlackjackEmbed(game, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
+  const { embed, files } = await buildBlackjackEmbed(game, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
 
   if (outcome === 'lose') {
-    embed.setImage(KEEP_GAMBLING_IMG);
+    embed.setThumbnail(KEEP_GAMBLING_IMG);
   }
 
-  await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(game.bet, gameId)] });
+  await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(game.bet, gameId)] });
   cleanupBJGame(gameId);
 }
 
