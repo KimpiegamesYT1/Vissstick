@@ -1027,11 +1027,45 @@ async function handleCasinoCommands(interaction, client, config) {
     return true;
   }
 
+  // =====================================================
+  // BLACKJACK STATS - Command Handler
+  // =====================================================
+  if (commandName === 'blackjackstats') {
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+    const stats = getBlackjackStats(targetUser.id);
+
+    if (!stats) {
+      await interaction.reply({ content: `${targetUser.username} heeft nog geen Blackjack gespeeld.`, flags: 64 });
+      return true;
+    }
+
+    const winRate = stats.games_played > 0 ? ((stats.wins + stats.blackjacks) / stats.games_played * 100).toFixed(1) : '0.0';
+    const netProfit = stats.total_won - stats.total_lost;
+    const profitEmoji = netProfit >= 0 ? '📈' : '📉';
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🃏 Blackjack Stats — ${stats.username}`)
+      .setColor(netProfit >= 0 ? 0x57F287 : 0xED4245)
+      .addFields(
+        { name: '🎮 Gespeeld', value: `${stats.games_played}`, inline: true },
+        { name: '✅ Gewonnen', value: `${stats.wins}`, inline: true },
+        { name: '❌ Verloren', value: `${stats.losses}`, inline: true },
+        { name: '🎉 Blackjacks', value: `${stats.blackjacks}`, inline: true },
+        { name: '🤝 Gelijk', value: `${stats.pushes}`, inline: true },
+        { name: '📊 Winrate', value: `${winRate}%`, inline: true },
+        { name: `${profitEmoji} Netto`, value: `${netProfit >= 0 ? '+' : ''}${netProfit} punten`, inline: true },
+        { name: '💰 Totaal ingezet', value: `${stats.total_bet} punten`, inline: true },
+        { name: '🏆 Grootste winst', value: `${stats.biggest_win} punten`, inline: true },
+        { name: '🔥 Huidige streak', value: `${stats.current_streak > 0 ? '+' : ''}${stats.current_streak}`, inline: true },
+        { name: '⭐ Beste streak', value: `${stats.best_streak}`, inline: true }
+      );
+
+    await interaction.reply({ embeds: [embed] });
+    return true;
+  }
+
   return false;
 }
-
-// =====================================================
-// DOUBLE OR NOTHING - Round Logic
 // =====================================================
 
 /**
