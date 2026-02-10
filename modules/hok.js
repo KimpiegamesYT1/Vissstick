@@ -601,7 +601,6 @@ function buildStatusMessage(isOpen, roleId) {
     const dayLabel = daysFromNow > 0 ? ' morgen' : '';
     predictionMsg = ` (${isOpen ? 'Sluit' : 'Opent'}${dayLabel} meestal rond ${time}${relativeStr})`;
   }
-  const openingTimestamp = isOpen ? ` (<t:${Math.floor(Date.now() / 1000)}:F>)` : '';
 
   // Bepaal of we moeten pingen (niet in weekend, niet bij sluiting)
   const currentDay = new Date().getDay();
@@ -610,7 +609,7 @@ function buildStatusMessage(isOpen, roleId) {
   const hokMention = shouldPing ? `<@&${roleId}>` : 'hok';
 
   return isOpen
-    ? `✅ Het ${hokMention} is nu **open**!${openingTimestamp}${predictionMsg}`
+    ? `✅ Het ${hokMention} is nu **open**!${predictionMsg}`
     : `❌ Het ${hokMention} is nu **dicht**!${predictionMsg}`;
 }
 
