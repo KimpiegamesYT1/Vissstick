@@ -838,17 +838,17 @@ function generateDoNBlocks(targetResult) {
 async function showDoNAnimation(interaction, blocks, game) {
   const WINDOW_SIZE = 7; // Aantal zichtbare blokken
   const CURSOR_POS = 3;   // Cursor positie in window (0-indexed)
-  const START_POS = 5;    // Start positie in blocks array
+  const START_POS = 10;   // Start positie in blocks array
   const TARGET_POS = blocks.length - 1; // Eindpositie
   
-  // Animatie fases: [aantal stappen, delay tussen frames in ms]
-  // Totaal: 39 stappen van positie 5 naar 44
+  // Animatie fases: [aantal stappen, sprong grootte, delay tussen frames in ms]
+  // Totaal: ~16 edits om binnen Discord rate limits te blijven (max 5 edits per 5s)
   const phases = [
-    { steps: 18, delay: 80 },   // Fase 1: Snel (1.44s)
-    { steps: 10, delay: 120 },  // Fase 2: Medium (1.2s)
-    { steps: 6, delay: 180 },   // Fase 3: Langzaam (1.08s)
-    { steps: 5, delay: 250 },   // Fase 4: Heel langzaam (1.25s)
-  ];                            // Totaal: ~5s
+    { steps: 6, jump: 3, delay: 150 },   // Fase 1: Snel, grote sprongen (0.9s)
+    { steps: 5, jump: 2, delay: 200 },   // Fase 2: Medium sprongen (1.0s)
+    { steps: 4, jump: 1, delay: 300 },   // Fase 3: Kleine sprongen (1.2s)
+    { steps: 3, jump: 1, delay: 400 },   // Fase 4: Heel langzaam (1.2s)
+  ];                                     // Totaal: 18 edits, ~4.3s
   
   let currentPos = START_POS;
   
@@ -879,10 +879,10 @@ async function showDoNAnimation(interaction, blocks, game) {
       
       await interaction.editReply({ embeds: [animEmbed], components: [] });
       
-      // Beweeg cursor
-      currentPos++;
+      // Beweeg cursor met jump grootte
+      currentPos += phase.jump;
       
-      // Als we bij het einde zijn, stop
+      // Als we bij of voorbij het einde zijn, stop
       if (currentPos >= TARGET_POS) {
         break;
       }
