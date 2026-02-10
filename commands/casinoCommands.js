@@ -923,7 +923,7 @@ async function showDoNAnimation(interaction, blocks, game) {
   await interaction.editReply({ embeds: [finalEmbed], components: [] });
   
   // Extra pauze voor dramatisch effect
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 400));
 }
 
 /**
