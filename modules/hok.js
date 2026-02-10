@@ -371,14 +371,20 @@ function predictOpeningTime(isOpen) {
 /**
  * Update hok state in database
  */
-function updateHokState(isOpen, lastMessageId = null) {
+function updateHokState(isOpen, lastMessageId = null, updateTimestamp = true) {
   const db = getDatabase();
   
-  const stmt = db.prepare(`
-    UPDATE hok_state
-    SET is_open = ?, last_message_id = ?, last_updated = datetime('now')
-    WHERE id = 1
-  `);
+  const stmt = updateTimestamp
+    ? db.prepare(`
+      UPDATE hok_state
+      SET is_open = ?, last_message_id = ?, last_updated = datetime('now')
+      WHERE id = 1
+    `)
+    : db.prepare(`
+      UPDATE hok_state
+      SET is_open = ?, last_message_id = ?
+      WHERE id = 1
+    `);
   
   stmt.run(isOpen ? 1 : 0, lastMessageId);
 }

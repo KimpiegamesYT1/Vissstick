@@ -227,10 +227,18 @@ async function handleHokCommands(interaction, client, config, hokState) {
         }
       }
 
+      const existingState = hok.getHokState();
+      const isSameStatus = existingState && existingState.is_open === (isOpen ? 1 : 0);
+      const lastUpdated = existingState && existingState.last_updated
+        ? new Date(existingState.last_updated.replace(' ', 'T') + 'Z')
+        : null;
+
       // Send new message
       const predictedTime = hok.predictOpeningTime(isOpen);
       const predictionMsg = predictedTime ? ` (${isOpen ? 'Sluit' : 'Opent'} meestal rond ${predictedTime})` : '';
-      const openingTimestamp = isOpen ? ` (<t:${Math.floor(Date.now() / 1000)}:F>)` : '';
+      const openingTimestamp = isOpen
+        ? ` (<t:${Math.floor(((isSameStatus && lastUpdated) ? lastUpdated : new Date()).getTime() / 1000)}:F>)`
+        : '';
 
       const message = await channel.send(
         isOpen 
@@ -246,7 +254,7 @@ async function handleHokCommands(interaction, client, config, hokState) {
       }
       
       // Update database state
-      hok.updateHokState(isOpen, message.id);
+      hok.updateHokState(isOpen, message.id, !isSameStatus);
 
       await interaction.editReply({ 
         embeds: [
