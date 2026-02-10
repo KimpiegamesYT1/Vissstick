@@ -1191,9 +1191,12 @@ async function buildBlackjackEmbed(game, revealDealer = false, resultText = null
 
   const embed = new EmbedBuilder()
     .setTitle('🃏 Blackjack')
-    .setDescription(description)
     .setColor(color)
     .setFooter({ text: `Inzet: ${game.bet} punten` });
+
+  if (description) {
+    embed.setDescription(description);
+  }
 
   if (files.length > 0) {
     embed.setImage('attachment://blackjack.png');
@@ -1221,10 +1224,10 @@ function buildBlackjackButtons(gameId) {
 /**
  * Bouw de "Opnieuw Spelen" button row voor na afloop
  */
-function buildBlackjackReplayButton(bet, gameId) {
+function buildBlackjackReplayButton(gameId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`bj_replay_${bet}_${gameId}`)
+      .setCustomId(`bj_replay_${gameId}`)
       .setLabel('Opnieuw Spelen 🔄')
       .setStyle(ButtonStyle.Success)
   );
@@ -1240,11 +1243,8 @@ async function handleBlackjackButton(interaction, client, config) {
   // parts[0] = 'bj', parts[1] = action, rest = context
   const action = parts[1];
 
-  // ── Opnieuw Spelen (geen actief spel nodig) ──
+  // ── Opnieuw Spelen → toon inzetkeuze ──
   if (action === 'replay') {
-    // Format: bj_replay_{bet}_{oldGameId}
-    const replayBet = parseInt(parts[2]);
-
     // Check of user al een actief spel heeft
     for (const [, g] of activeBlackjackGames) {
       if (g.userId === interaction.user.id) {
@@ -1257,57 +1257,52 @@ async function handleBlackjackButton(interaction, client, config) {
 
     const balance = casino.getUserBalance(interaction.user.id);
 
-    if (balance < replayBet) {
-      await interaction.followUp({ content: `❌ Je hebt niet genoeg punten! Je hebt ${replayBet} punten nodig maar hebt er ${balance}.`, flags: 64 });
+    if (balance < 25) {
+      await interaction.followUp({ content: '❌ Je hebt niet genoeg punten om te spelen! Je hebt minimaal 25 punten nodig.', flags: 64 });
       return;
     }
 
-    // Maak een nieuw spel aan
+    // Maak een nieuw spel in betting fase
     const newGameId = generateBJGameId();
 
-    // Inzet afschrijven
-    casino.subtractBalance(interaction.user.id, replayBet);
-
-    const newGame = {
+    activeBlackjackGames.set(newGameId, {
       userId: interaction.user.id,
       username: interaction.user.username,
-      bet: replayBet,
-      deck: blackjack.createDeck(),
+      bet: 0,
+      deck: null,
       playerCards: [],
       dealerCards: [],
-      phase: 'playing',
+      phase: 'betting',
       gameId: newGameId,
-      timeout: null
-    };
+      timeout: setTimeout(() => {
+        activeBlackjackGames.delete(newGameId);
+      }, 120000)
+    });
 
-    newGame.playerCards = [blackjack.dealCard(newGame.deck), blackjack.dealCard(newGame.deck)];
-    newGame.dealerCards = [blackjack.dealCard(newGame.deck), blackjack.dealCard(newGame.deck)];
+    const embed = new EmbedBuilder()
+      .setTitle('🃏 Blackjack')
+      .setDescription('Kies je inzet:')
+      .setColor(0x5865F2);
 
-    activeBlackjackGames.set(newGameId, newGame);
-    resetBJTimeout(newGameId);
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`bj_25_${newGameId}`)
+        .setLabel('25 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 25),
+      new ButtonBuilder()
+        .setCustomId(`bj_50_${newGameId}`)
+        .setLabel('50 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 50),
+      new ButtonBuilder()
+        .setCustomId(`bj_100_${newGameId}`)
+        .setLabel('100 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 100)
+    );
 
-    // Check voor Blackjack
-    const playerBJ = blackjack.isBlackjack(newGame.playerCards);
-    const dealerBJ = blackjack.isBlackjack(newGame.dealerCards);
-
-    if (playerBJ || dealerBJ) {
-      const outcome = blackjack.determineOutcome(newGame.playerCards, newGame.dealerCards);
-      const payout = blackjack.calculatePayout(replayBet, outcome);
-      if (payout > 0) {
-        casino.addBalance(newGame.userId, newGame.username, payout, `Blackjack ${outcome}`);
-      }
-      const newBalance = casino.getUserBalance(newGame.userId);
-      const { text, color } = getOutcomeDisplay(outcome, payout, replayBet);
-      const { embed, files } = await buildBlackjackEmbed(newGame, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
-      if (outcome === 'lose') embed.setThumbnail(KEEP_GAMBLING_IMG);
-      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(replayBet, newGameId)] });
-      cleanupBJGame(newGameId);
-      return;
-    }
-
-    const { embed, files } = await buildBlackjackEmbed(newGame);
-    const buttons = buildBlackjackButtons(newGameId);
-    await interaction.editReply({ embeds: [embed], files, components: [buttons] });
+    await interaction.editReply({ embeds: [embed], files: [], components: [row] });
     return;
   }
 
@@ -1368,7 +1363,7 @@ async function handleBlackjackButton(interaction, client, config) {
         embed.setThumbnail(KEEP_GAMBLING_IMG);
       }
 
-      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(betAmount, gameId)] });
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
       cleanupBJGame(gameId);
       return;
     }
@@ -1392,7 +1387,7 @@ async function handleBlackjackButton(interaction, client, config) {
         0xED4245
       );
       embed.setThumbnail(KEEP_GAMBLING_IMG);
-      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(game.bet, gameId)] });
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
       cleanupBJGame(gameId);
       return;
     }
@@ -1406,7 +1401,7 @@ async function handleBlackjackButton(interaction, client, config) {
         `🎯 **21!** Je hebt precies 21, je wint direct!\nJe wint **${game.bet} punten**!\n\n💰 Saldo: ${newBalance} punten`,
         0x57F287
       );
-      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(game.bet, gameId)] });
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
       cleanupBJGame(gameId);
       return;
     }
@@ -1450,7 +1445,7 @@ async function resolveBJDealerTurn(interaction, game, gameId) {
     embed.setThumbnail(KEEP_GAMBLING_IMG);
   }
 
-  await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(game.bet, gameId)] });
+  await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
   cleanupBJGame(gameId);
 }
 
