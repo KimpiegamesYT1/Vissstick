@@ -10,7 +10,7 @@ const hok = require('./modules/hok.js');
 const casino = require('./modules/casino.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
-const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton } = require('./commands/casinoCommands.js');
+const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton } = require('./commands/casinoCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID } = config;
@@ -252,6 +252,11 @@ client.on('interactionCreate', async (interaction) => {
     // Try Double or Nothing buttons
     if (interaction.customId.startsWith('don_')) {
       await handleDoubleOrNothingButton(interaction, client, config);
+      return;
+    }
+    // Try Blackjack buttons
+    if (interaction.customId.startsWith('bj_')) {
+      await handleBlackjackButton(interaction, client, config);
       return;
     }
     // Then quiz buttons

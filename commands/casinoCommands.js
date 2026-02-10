@@ -5,6 +5,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const casino = require('../modules/casino');
 const quiz = require('../modules/quiz');
+const blackjack = require('../modules/blackjack');
 
 // =====================================================
 // DOUBLE OR NOTHING - Game State
@@ -15,6 +16,37 @@ const DON_MAX_ROUNDS = 5;
 
 function generateDoNGameId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+}
+
+// =====================================================
+// BLACKJACK - Game State
+// =====================================================
+const activeBlackjackGames = new Map();
+const KEEP_GAMBLING_IMG = 'https://i.imgur.com/MUNEEPD.jpeg';
+
+function generateBJGameId() {
+  return 'bj' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+}
+
+function cleanupBJGame(gameId) {
+  const game = activeBlackjackGames.get(gameId);
+  if (game) {
+    clearTimeout(game.timeout);
+    activeBlackjackGames.delete(gameId);
+  }
+}
+
+function resetBJTimeout(gameId) {
+  const game = activeBlackjackGames.get(gameId);
+  if (!game) return;
+  clearTimeout(game.timeout);
+  game.timeout = setTimeout(() => {
+    const g = activeBlackjackGames.get(gameId);
+    if (g && g.bet > 0) {
+      casino.addBalance(g.userId, g.username, g.bet, 'Blackjack timeout refund');
+    }
+    activeBlackjackGames.delete(gameId);
+  }, 120000);
 }
 
 function cleanupDoNGame(gameId) {
@@ -272,6 +304,10 @@ const casinoCommands = [
   {
     name: 'double',
     description: 'Speel Double or Nothing - verdubbel je inzet of verlies alles!'
+  },
+  {
+    name: 'blackjack',
+    description: 'Speel Blackjack tegen de dealer!'
   }
 ];
 
@@ -805,6 +841,74 @@ async function handleCasinoCommands(interaction, client, config) {
     return true;
   }
 
+  // =====================================================
+  // BLACKJACK - Command Handler
+  // =====================================================
+  if (commandName === 'blackjack') {
+    const userId = interaction.user.id;
+    const username = interaction.user.username;
+
+    // Check of user al een actief blackjack spel heeft
+    for (const [, game] of activeBlackjackGames) {
+      if (game.userId === userId) {
+        await interaction.reply({ content: 'Je hebt al een actief Blackjack spel!', flags: 64 });
+        return true;
+      }
+    }
+
+    const balance = casino.getUserBalance(userId);
+    casino.getOrCreateUser(userId, username);
+
+    if (balance < 25) {
+      await interaction.reply({ content: 'Je hebt niet genoeg punten om te spelen! Je hebt minimaal 25 punten nodig.', flags: 64 });
+      return true;
+    }
+
+    const gameId = generateBJGameId();
+
+    const embed = new EmbedBuilder()
+      .setTitle('🃏 Blackjack')
+      .setDescription('Kies je inzet om te beginnen.')
+      .setColor(0x2B2D31)
+      .setFooter({ text: `Saldo: ${balance} punten` });
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`bj_25_${gameId}`)
+        .setLabel('25 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 25),
+      new ButtonBuilder()
+        .setCustomId(`bj_50_${gameId}`)
+        .setLabel('50 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 50),
+      new ButtonBuilder()
+        .setCustomId(`bj_100_${gameId}`)
+        .setLabel('100 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 100)
+    );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
+
+    activeBlackjackGames.set(gameId, {
+      userId,
+      username,
+      bet: 0,
+      deck: null,
+      playerCards: [],
+      dealerCards: [],
+      phase: 'betting',
+      gameId,
+      timeout: setTimeout(() => {
+        activeBlackjackGames.delete(gameId);
+      }, 120000)
+    });
+
+    return true;
+  }
+
   return false;
 }
 
@@ -1037,11 +1141,238 @@ async function handleBetButton(interaction, client, config) {
   return true;
 }
 
+// =====================================================
+// BLACKJACK - Embed Builders
+// =====================================================
+
+/**
+ * Bouw de Blackjack game embed
+ */
+function buildBlackjackEmbed(game, revealDealer = false, resultText = null, resultColor = null) {
+  const playerValue = blackjack.calculateHandValue(game.playerCards).value;
+  const dealerValue = revealDealer
+    ? blackjack.calculateHandValue(game.dealerCards).value
+    : blackjack.calculateHandValue([game.dealerCards[0]]).value;
+
+  const dealerDisplay = revealDealer
+    ? `**Dealer** (${dealerValue})\n${blackjack.formatHand(game.dealerCards)}`
+    : `**Dealer** (?)\n${blackjack.formatHand(game.dealerCards, true)}`;
+
+  const playerDisplay = `**${game.username}** (${playerValue})\n${blackjack.formatHand(game.playerCards)}`;
+
+  const separator = '━━━━━━━━━━━━━━━━━━━━';
+
+  let description = `${dealerDisplay}\n\n${separator}\n\n${playerDisplay}`;
+  if (resultText) {
+    description += `\n\n${separator}\n\n${resultText}`;
+  }
+
+  const color = resultColor || 0x5865F2; // blurple default
+
+  const embed = new EmbedBuilder()
+    .setTitle('🃏 Blackjack')
+    .setDescription(description)
+    .setColor(color)
+    .setFooter({ text: `Inzet: ${game.bet} punten` });
+
+  return embed;
+}
+
+/**
+ * Bouw de actie-buttons voor Blackjack
+ */
+function buildBlackjackButtons(gameId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`bj_hit_${gameId}`)
+      .setLabel('Hit 🃏')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`bj_stand_${gameId}`)
+      .setLabel('Stand ✋')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+// =====================================================
+// BLACKJACK - Button Handler
+// =====================================================
+
+async function handleBlackjackButton(interaction, client, config) {
+  // Parse: bj_{action}_{gameId}
+  const parts = interaction.customId.split('_');
+  // parts[0] = 'bj', parts[1] = action, rest = gameId
+  const action = parts[1];
+  const gameId = parts.slice(2).join('_');
+
+  const game = activeBlackjackGames.get(gameId);
+
+  if (!game) {
+    await interaction.reply({ content: '❌ Dit spel is verlopen!', flags: 64 });
+    return;
+  }
+
+  if (interaction.user.id !== game.userId) {
+    await interaction.reply({ content: '❌ Dit is niet jouw spel!', flags: 64 });
+    return;
+  }
+
+  await interaction.deferUpdate();
+  resetBJTimeout(gameId);
+
+  // ── Inzet kiezen ──
+  if (['25', '50', '100'].includes(action) && game.phase === 'betting') {
+    const betAmount = parseInt(action);
+    const balance = casino.getUserBalance(game.userId);
+
+    if (balance < betAmount) {
+      await interaction.followUp({ content: '❌ Je hebt niet genoeg punten!', flags: 64 });
+      return;
+    }
+
+    // Inzet afschrijven
+    casino.subtractBalance(game.userId, betAmount);
+    game.bet = betAmount;
+    game.phase = 'playing';
+
+    // Maak deck en deel kaarten
+    game.deck = blackjack.createDeck();
+    game.playerCards = [blackjack.dealCard(game.deck), blackjack.dealCard(game.deck)];
+    game.dealerCards = [blackjack.dealCard(game.deck), blackjack.dealCard(game.deck)];
+
+    // Check voor Blackjack
+    const playerBJ = blackjack.isBlackjack(game.playerCards);
+    const dealerBJ = blackjack.isBlackjack(game.dealerCards);
+
+    if (playerBJ || dealerBJ) {
+      // Direct resultaat
+      const outcome = blackjack.determineOutcome(game.playerCards, game.dealerCards);
+      const payout = blackjack.calculatePayout(betAmount, outcome);
+      if (payout > 0) {
+        casino.addBalance(game.userId, game.username, payout, `Blackjack ${outcome}`);
+      }
+      const newBalance = casino.getUserBalance(game.userId);
+
+      const { text, color } = getOutcomeDisplay(outcome, payout, betAmount);
+      const embed = buildBlackjackEmbed(game, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
+
+      if (outcome === 'lose') {
+        embed.setImage(KEEP_GAMBLING_IMG);
+      }
+
+      await interaction.editReply({ embeds: [embed], components: [] });
+      cleanupBJGame(gameId);
+      return;
+    }
+
+    // Toon initiële hand met buttons
+    const embed = buildBlackjackEmbed(game);
+    const buttons = buildBlackjackButtons(gameId);
+    await interaction.editReply({ embeds: [embed], components: [buttons] });
+    return;
+  }
+
+  // ── Hit ──
+  if (action === 'hit' && game.phase === 'playing') {
+    game.playerCards.push(blackjack.dealCard(game.deck));
+
+    if (blackjack.isBusted(game.playerCards)) {
+      // Bust - verloren
+      const newBalance = casino.getUserBalance(game.userId);
+      const embed = buildBlackjackEmbed(game, true,
+        `💥 **Bust!** Je bent over de 21!\nJe verliest **${game.bet} punten**.\n\n💰 Saldo: ${newBalance} punten`,
+        0xED4245
+      );
+      embed.setImage(KEEP_GAMBLING_IMG);
+      await interaction.editReply({ embeds: [embed], components: [] });
+      cleanupBJGame(gameId);
+      return;
+    }
+
+    // Check voor 21 - automatisch stand
+    if (blackjack.calculateHandValue(game.playerCards).value === 21) {
+      return await resolveBJDealerTurn(interaction, game, gameId);
+    }
+
+    // Toon bijgewerkte hand
+    const embed = buildBlackjackEmbed(game);
+    const buttons = buildBlackjackButtons(gameId);
+    await interaction.editReply({ embeds: [embed], components: [buttons] });
+    return;
+  }
+
+  // ── Stand ──
+  if (action === 'stand' && game.phase === 'playing') {
+    return await resolveBJDealerTurn(interaction, game, gameId);
+  }
+}
+
+/**
+ * Dealer speelt en bepaal resultaat
+ */
+async function resolveBJDealerTurn(interaction, game, gameId) {
+  game.phase = 'dealer';
+
+  // Dealer speelt
+  blackjack.playDealer(game.deck, game.dealerCards);
+
+  // Bepaal resultaat
+  const outcome = blackjack.determineOutcome(game.playerCards, game.dealerCards);
+  const payout = blackjack.calculatePayout(game.bet, outcome);
+
+  if (payout > 0) {
+    casino.addBalance(game.userId, game.username, payout, `Blackjack ${outcome}`);
+  }
+
+  const newBalance = casino.getUserBalance(game.userId);
+  const { text, color } = getOutcomeDisplay(outcome, payout, game.bet);
+
+  const embed = buildBlackjackEmbed(game, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
+
+  if (outcome === 'lose') {
+    embed.setImage(KEEP_GAMBLING_IMG);
+  }
+
+  await interaction.editReply({ embeds: [embed], components: [] });
+  cleanupBJGame(gameId);
+}
+
+/**
+ * Geeft display tekst en kleur voor een uitkomst
+ */
+function getOutcomeDisplay(outcome, payout, bet) {
+  switch (outcome) {
+    case 'blackjack':
+      return {
+        text: `🎉 **BLACKJACK!** Je wint **${payout - bet} punten**!`,
+        color: 0xFFD700
+      };
+    case 'win':
+      return {
+        text: `✅ **Gewonnen!** Je wint **${payout - bet} punten**!`,
+        color: 0x57F287
+      };
+    case 'push':
+      return {
+        text: `🤝 **Gelijkspel!** Je krijgt je inzet van **${bet} punten** terug.`,
+        color: 0xF0B232
+      };
+    case 'lose':
+      return {
+        text: `❌ **Verloren!** Je verliest **${bet} punten**.`,
+        color: 0xED4245
+      };
+    default:
+      return { text: '', color: 0x5865F2 };
+  }
+}
+
 module.exports = {
   casinoCommands,
   handleCasinoCommands,
   handleBetButton,
   handleDoubleOrNothingButton,
+  handleBlackjackButton,
   updateCasinoEmbed,
   sendLog
 };
