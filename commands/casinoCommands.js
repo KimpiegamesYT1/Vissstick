@@ -1194,17 +1194,101 @@ function buildBlackjackButtons(gameId) {
   );
 }
 
+/**
+ * Bouw de "Opnieuw Spelen" button row voor na afloop
+ */
+function buildBlackjackReplayButton(bet, gameId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`bj_replay_${bet}_${gameId}`)
+      .setLabel('Opnieuw Spelen 🔄')
+      .setStyle(ButtonStyle.Success)
+  );
+}
+
 // =====================================================
 // BLACKJACK - Button Handler
 // =====================================================
 
 async function handleBlackjackButton(interaction, client, config) {
-  // Parse: bj_{action}_{gameId}
+  // Parse: bj_{action}_{...}
   const parts = interaction.customId.split('_');
-  // parts[0] = 'bj', parts[1] = action, rest = gameId
+  // parts[0] = 'bj', parts[1] = action, rest = context
   const action = parts[1];
-  const gameId = parts.slice(2).join('_');
 
+  // ── Opnieuw Spelen (geen actief spel nodig) ──
+  if (action === 'replay') {
+    // Format: bj_replay_{bet}_{oldGameId}
+    const replayBet = parseInt(parts[2]);
+
+    // Check of user al een actief spel heeft
+    for (const [, g] of activeBlackjackGames) {
+      if (g.userId === interaction.user.id) {
+        await interaction.reply({ content: 'Je hebt al een actief Blackjack spel!', flags: 64 });
+        return;
+      }
+    }
+
+    await interaction.deferUpdate();
+
+    const balance = casino.getUserBalance(interaction.user.id);
+
+    if (balance < replayBet) {
+      await interaction.followUp({ content: `❌ Je hebt niet genoeg punten! Je hebt ${replayBet} punten nodig maar hebt er ${balance}.`, flags: 64 });
+      return;
+    }
+
+    // Maak een nieuw spel aan
+    const newGameId = generateBJGameId();
+
+    // Inzet afschrijven
+    casino.subtractBalance(interaction.user.id, replayBet);
+
+    const newGame = {
+      userId: interaction.user.id,
+      username: interaction.user.username,
+      bet: replayBet,
+      deck: blackjack.createDeck(),
+      playerCards: [],
+      dealerCards: [],
+      phase: 'playing',
+      gameId: newGameId,
+      timeout: null
+    };
+
+    newGame.playerCards = [blackjack.dealCard(newGame.deck), blackjack.dealCard(newGame.deck)];
+    newGame.dealerCards = [blackjack.dealCard(newGame.deck), blackjack.dealCard(newGame.deck)];
+
+    activeBlackjackGames.set(newGameId, newGame);
+    resetBJTimeout(newGameId);
+
+    // Check voor Blackjack
+    const playerBJ = blackjack.isBlackjack(newGame.playerCards);
+    const dealerBJ = blackjack.isBlackjack(newGame.dealerCards);
+
+    if (playerBJ || dealerBJ) {
+      const outcome = blackjack.determineOutcome(newGame.playerCards, newGame.dealerCards);
+      const payout = blackjack.calculatePayout(replayBet, outcome);
+      if (payout > 0) {
+        casino.addBalance(newGame.userId, newGame.username, payout, `Blackjack ${outcome}`);
+      }
+      const newBalance = casino.getUserBalance(newGame.userId);
+      const { text, color } = getOutcomeDisplay(outcome, payout, replayBet);
+      const embed = buildBlackjackEmbed(newGame, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
+      if (outcome === 'lose') embed.setImage(KEEP_GAMBLING_IMG);
+      await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(replayBet, newGameId)] });
+      cleanupBJGame(newGameId);
+      return;
+    }
+
+    const embed = buildBlackjackEmbed(newGame);
+    const buttons = buildBlackjackButtons(newGameId);
+    await interaction.editReply({ embeds: [embed], components: [buttons] });
+    return;
+  }
+
+  // ── Alle andere acties: game moet bestaan ──
+  const gameId = parts.slice(2).join('_');
   const game = activeBlackjackGames.get(gameId);
 
   if (!game) {
@@ -1260,7 +1344,7 @@ async function handleBlackjackButton(interaction, client, config) {
         embed.setImage(KEEP_GAMBLING_IMG);
       }
 
-      await interaction.editReply({ embeds: [embed], components: [] });
+      await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(betAmount, gameId)] });
       cleanupBJGame(gameId);
       return;
     }
@@ -1284,14 +1368,23 @@ async function handleBlackjackButton(interaction, client, config) {
         0xED4245
       );
       embed.setImage(KEEP_GAMBLING_IMG);
-      await interaction.editReply({ embeds: [embed], components: [] });
+      await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(game.bet, gameId)] });
       cleanupBJGame(gameId);
       return;
     }
 
-    // Check voor 21 - automatisch stand
+    // Check voor 21 - direct gewonnen!
     if (blackjack.calculateHandValue(game.playerCards).value === 21) {
-      return await resolveBJDealerTurn(interaction, game, gameId);
+      const payout = game.bet * 2;
+      casino.addBalance(game.userId, game.username, payout, 'Blackjack 21');
+      const newBalance = casino.getUserBalance(game.userId);
+      const embed = buildBlackjackEmbed(game, true,
+        `🎯 **21!** Je hebt precies 21, je wint direct!\nJe wint **${game.bet} punten**!\n\n💰 Saldo: ${newBalance} punten`,
+        0x57F287
+      );
+      await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(game.bet, gameId)] });
+      cleanupBJGame(gameId);
+      return;
     }
 
     // Toon bijgewerkte hand
@@ -1333,7 +1426,7 @@ async function resolveBJDealerTurn(interaction, game, gameId) {
     embed.setImage(KEEP_GAMBLING_IMG);
   }
 
-  await interaction.editReply({ embeds: [embed], components: [] });
+  await interaction.editReply({ embeds: [embed], components: [buildBlackjackReplayButton(game.bet, gameId)] });
   cleanupBJGame(gameId);
 }
 
