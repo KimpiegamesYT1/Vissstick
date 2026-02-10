@@ -2,6 +2,8 @@
 const { Client, GatewayIntentBits, ActivityType, EmbedBuilder } = require("discord.js");
 const config = require('./config.json');
 const cron = require('node-cron');
+const fs = require('fs');
+const path = require('path');
 const { initDatabase } = require('./database');
 const quiz = require('./modules/quiz.js');
 const hok = require('./modules/hok.js');
@@ -12,6 +14,68 @@ const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID } = config;
+
+function ensureLogDirectory() {
+  const logDir = path.join(__dirname, 'logs');
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+  return logDir;
+}
+
+function getDailyLogFilePath() {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const logDir = ensureLogDirectory();
+  return path.join(logDir, `bot-${date}.log`);
+}
+
+function setupFileLogging() {
+  const originalLog = console.log.bind(console);
+  const originalError = console.error.bind(console);
+  const originalWarn = console.warn.bind(console);
+
+  const writeLine = (level, args) => {
+    const timestamp = new Date().toISOString();
+    const message = args
+      .map((value) => {
+        if (value instanceof Error) return value.stack || value.message;
+        if (typeof value === 'object') {
+          try {
+            return JSON.stringify(value);
+          } catch (err) {
+            return String(value);
+          }
+        }
+        return String(value);
+      })
+      .join(' ');
+
+    const line = `[${timestamp}] [${level}] ${message}\n`;
+    try {
+      fs.appendFileSync(getDailyLogFilePath(), line, 'utf8');
+    } catch (err) {
+      originalError('Kon niet schrijven naar logbestand:', err);
+    }
+  };
+
+  console.log = (...args) => {
+    writeLine('INFO', args);
+    originalLog(...args);
+  };
+
+  console.warn = (...args) => {
+    writeLine('WARN', args);
+    originalWarn(...args);
+  };
+
+  console.error = (...args) => {
+    writeLine('ERROR', args);
+    originalError(...args);
+  };
+}
+
+setupFileLogging();
 
 // Load active quizzes on bot startup
 async function loadActiveQuizzes() {
@@ -237,14 +301,17 @@ client.once("clientReady", async () => {
 
   // Schedule daily quiz at 7:00
   cron.schedule('0 7 * * *', () => {
-    console.log('Starting daily quiz...');
+      console.log('Daily quiz cron triggered.');
+      console.log(`Daily quiz channel: ${QUIZ_CHANNEL_ID}`);
     // Check if there's already an active quiz (e.g., test quiz)
     const activeQuiz = quiz.getActiveQuiz(QUIZ_CHANNEL_ID);
     if (activeQuiz) {
       const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
-      console.log(`⚠️ Er is al een ${quizType} actief! Dagelijkse quiz wordt overgeslagen.`);
+        console.log(`Active quiz detected: ${quizType}. Skipping daily quiz start.`);
+        console.log(`Active quiz message_id=${activeQuiz.message_id}, question_id=${activeQuiz.question_id}`);
       return;
     }
+      console.log('No active quiz found. Starting daily quiz now.');
     quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID);
   }, {
     timezone: "Europe/Amsterdam"
