@@ -803,25 +803,28 @@ async function handleCasinoCommands(interaction, client, config) {
 function generateDoNBlocks(targetResult) {
   const totalBlocks = 45;
   const blocks = [];
+  const targetEmoji = targetResult ? '🟢' : '🔴';
   
   // Start met random kleur
   let currentColor = Math.random() < 0.5 ? '🟢' : '🔴';
   
-  // Genereer blokken in chunks van 1-3 voor variatie
-  while (blocks.length < totalBlocks - 1) {
-    // Random chunk size (1-3 blokken van dezelfde kleur)
-    const chunkSize = Math.floor(Math.random() * 3) + 1;
-    
-    for (let i = 0; i < chunkSize && blocks.length < totalBlocks - 1; i++) {
-      blocks.push(currentColor);
-    }
-    
-    // Wissel van kleur
+  // Genereer strict afwisselend patroon: rood groen rood groen etc
+  for (let i = 0; i < totalBlocks - 1; i++) {
+    blocks.push(currentColor);
+    // Wissel elke keer van kleur
     currentColor = currentColor === '🟢' ? '🔴' : '🟢';
   }
   
   // Laatste blok = eindresultaat
-  blocks.push(targetResult ? '🟢' : '🔴');
+  // Check of dit past in het patroon, zo niet shuffle laatste paar blokken
+  if (blocks[blocks.length - 1] === targetEmoji) {
+    // Het past al, voeg gewoon toe
+    blocks.push(targetEmoji);
+  } else {
+    // Wissel laatste 2 blokken om het patroon te behouden
+    blocks[blocks.length - 1] = targetEmoji;
+    blocks.push(currentColor);
+  }
   
   return blocks;
 }
@@ -839,12 +842,13 @@ async function showDoNAnimation(interaction, blocks, game) {
   const TARGET_POS = blocks.length - 1; // Eindpositie
   
   // Animatie fases: [aantal stappen, delay tussen frames in ms]
+  // Totaal: 39 stappen van positie 5 naar 44
   const phases = [
-    { steps: 12, delay: 120 },  // Fase 1: Snel (1.44s)
-    { steps: 8, delay: 180 },   // Fase 2: Medium (1.44s)
-    { steps: 5, delay: 250 },   // Fase 3: Langzaam (1.25s)
-    { steps: 4, delay: 350 },   // Fase 4: Heel langzaam (1.40s)
-  ];
+    { steps: 18, delay: 80 },   // Fase 1: Snel (1.44s)
+    { steps: 10, delay: 120 },  // Fase 2: Medium (1.2s)
+    { steps: 6, delay: 180 },   // Fase 3: Langzaam (1.08s)
+    { steps: 5, delay: 250 },   // Fase 4: Heel langzaam (1.25s)
+  ];                            // Totaal: ~5s
   
   let currentPos = START_POS;
   
@@ -908,18 +912,18 @@ async function showDoNAnimation(interaction, blocks, game) {
   }
   
   const finalDisplay = finalBlocks.join(' ');
-  const resultEmoji = blocks[TARGET_POS] === '🟢' ? '✨' : '💥';
+  const resultEmoji = blocks[TARGET_POS] === '🟢' ? '✨' : '';
   
   const finalEmbed = new EmbedBuilder()
     .setTitle('Double or Nothing')
-    .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\n${finalDisplay} ${resultEmoji}\n\n`)
+    .setDescription(`Ronde ${game.round} van ${DON_MAX_ROUNDS}\n\n${finalDisplay}${resultEmoji ? ' ' + resultEmoji : ''}\n\n`)
     .setColor(blocks[TARGET_POS] === '🟢' ? 0x57F287 : 0xED4245)
     .addFields({ name: 'Huidige Pot', value: `${game.pot} punten`, inline: true });
   
   await interaction.editReply({ embeds: [finalEmbed], components: [] });
   
   // Extra pauze voor dramatisch effect
-  await new Promise(resolve => setTimeout(resolve, 800));
+  await new Promise(resolve => setTimeout(resolve, 500));
 }
 
 /**
