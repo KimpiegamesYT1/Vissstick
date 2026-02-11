@@ -121,13 +121,32 @@ async function renderCardRow(cards, hideSecond = false) {
 /**
  * Render de volledige Blackjack tafel (dealer + speler handen)
  * @param {Card[]} dealerCards - Dealer kaarten
- * @param {Card[]} playerCards - Speler kaarten
+ * @param {Card[]} playerCards - Speler kaarten (of lege array bij split)
  * @param {boolean} hideDealer - Verberg de tweede dealer kaart
  * @param {string} dealerLabel - Label voor dealer hand
  * @param {string} playerLabel - Label voor speler hand
+ * @param {Object} [splitOptions] - Extra opties voor split-rendering
+ * @param {Array} [splitOptions.hands] - Array van {cards, bet, status}
+ * @param {number} [splitOptions.activeHandIndex] - Welke hand actief is
+ * @param {boolean} [splitOptions.finished] - Of het spel afgelopen is
  * @returns {Buffer} PNG buffer van de volledige tafel
  */
-async function renderBlackjackTable(dealerCards, playerCards, hideDealer = true, dealerLabel = 'Dealer', playerLabel = 'Jij') {
+async function renderBlackjackTable(dealerCards, playerCards, hideDealer = true, dealerLabel = 'Dealer', playerLabel = 'Jij', splitOptions = null) {
+  const isSplit = splitOptions && splitOptions.hands && splitOptions.hands.length > 0;
+
+  if (!isSplit) {
+    // Normale render (1 speler hand)
+    return renderNormalTable(dealerCards, playerCards, hideDealer, dealerLabel, playerLabel);
+  }
+
+  // Split render (meerdere speler handen)
+  return renderSplitTable(dealerCards, hideDealer, dealerLabel, playerLabel, splitOptions);
+}
+
+/**
+ * Render normale (niet-split) Blackjack tafel
+ */
+async function renderNormalTable(dealerCards, playerCards, hideDealer, dealerLabel, playerLabel) {
   const maxCards = Math.max(dealerCards.length, playerCards.length);
   const tableWidth = Math.max(
     maxCards * CARD_WIDTH + (maxCards - 1) * CARD_SPACING,
@@ -154,6 +173,70 @@ async function renderBlackjackTable(dealerCards, playerCards, hideDealer = true,
     // Speler kaarten
     { input: playerRow, left: HAND_PADDING, top: HAND_PADDING + LABEL_HEIGHT + CARD_HEIGHT + SECTION_GAP + LABEL_HEIGHT }
   ];
+
+  return sharp({
+    create: {
+      width: tableWidth,
+      height: tableHeight,
+      channels: 4,
+      background: BG_COLOR
+    }
+  })
+    .composite(composites)
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Render split Blackjack tafel (dealer + 2 speler handen)
+ */
+async function renderSplitTable(dealerCards, hideDealer, dealerLabel, playerLabel, splitOptions) {
+  const { hands, activeHandIndex, finished } = splitOptions;
+  const handCount = hands.length;
+
+  // Bereken maximale kaarten over alle handen
+  let maxCards = dealerCards.length;
+  for (const hand of hands) {
+    maxCards = Math.max(maxCards, hand.cards.length);
+  }
+
+  const tableWidth = Math.max(
+    maxCards * CARD_WIDTH + (maxCards - 1) * CARD_SPACING,
+    200
+  ) + HAND_PADDING * 2;
+
+  // Hoogte: dealer + N handen (elk met label + kaarten + gap)
+  const sectionHeight = LABEL_HEIGHT + CARD_HEIGHT;
+  const tableHeight = HAND_PADDING * 2 + sectionHeight + (handCount * (SECTION_GAP + sectionHeight));
+
+  const composites = [];
+  let yOffset = HAND_PADDING;
+
+  // Dealer
+  const dLabel = await createLabel(dealerLabel, tableWidth);
+  const dealerRow = await renderCardRow(dealerCards, hideDealer);
+  composites.push({ input: dLabel, left: HAND_PADDING, top: yOffset });
+  yOffset += LABEL_HEIGHT;
+  composites.push({ input: dealerRow, left: HAND_PADDING, top: yOffset });
+  yOffset += CARD_HEIGHT;
+
+  // Speler handen
+  for (let i = 0; i < handCount; i++) {
+    yOffset += SECTION_GAP;
+    const hand = hands[i];
+    const handValue = require('./blackjack').calculateHandValue(hand.cards).value;
+    const isActive = !finished && i === activeHandIndex;
+    const marker = isActive ? '▶ ' : '';
+    const statusText = hand.status === 'bust' ? ' 💥' : hand.status === 'stand' ? ' ✋' : '';
+    const handLabel = `${marker}Hand ${i + 1} (${handValue})${statusText} — ${hand.bet} pt`;
+
+    const hLabel = await createLabel(handLabel, tableWidth);
+    const handRow = await renderCardRow(hand.cards);
+    composites.push({ input: hLabel, left: HAND_PADDING, top: yOffset });
+    yOffset += LABEL_HEIGHT;
+    composites.push({ input: handRow, left: HAND_PADDING, top: yOffset });
+    yOffset += CARD_HEIGHT;
+  }
 
   return sharp({
     create: {

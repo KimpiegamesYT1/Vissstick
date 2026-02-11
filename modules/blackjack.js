@@ -99,6 +99,20 @@ function isBusted(cards) {
 }
 
 /**
+ * Check of de speler kan double-downen (precies 2 kaarten)
+ */
+function canDouble(cards) {
+  return cards.length === 2;
+}
+
+/**
+ * Check of de speler kan splitsen (precies 2 kaarten met dezelfde rang)
+ */
+function canSplit(cards) {
+  return cards.length === 2 && cards[0].rank === cards[1].rank;
+}
+
+/**
  * Check of de dealer nog moet trekken (< 17)
  */
 function shouldDealerHit(cards) {
@@ -168,6 +182,8 @@ module.exports = {
   formatHand,
   isBlackjack,
   isBusted,
+  canDouble,
+  canSplit,
   shouldDealerHit,
   playDealer,
   determineOutcome,

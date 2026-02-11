@@ -142,14 +142,24 @@ function cleanupBJGame(gameId) {
   }
 }
 
+function getTotalBet(game) {
+  if (game.hands) {
+    return game.hands.reduce((sum, h) => sum + h.bet, 0);
+  }
+  return game.bet;
+}
+
 function resetBJTimeout(gameId) {
   const game = activeBlackjackGames.get(gameId);
   if (!game) return;
   clearTimeout(game.timeout);
   game.timeout = setTimeout(() => {
     const g = activeBlackjackGames.get(gameId);
-    if (g && g.bet > 0) {
-      casino.addBalance(g.userId, g.username, g.bet, 'Blackjack timeout refund');
+    if (g) {
+      const refund = getTotalBet(g);
+      if (refund > 0) {
+        casino.addBalance(g.userId, g.username, refund, 'Blackjack timeout refund');
+      }
     }
     activeBlackjackGames.delete(gameId);
   }, 120000);
@@ -1038,6 +1048,10 @@ async function handleCasinoCommands(interaction, client, config) {
       playerCards: [],
       dealerCards: [],
       phase: 'betting',
+      doubled: false,
+      isSplit: false,
+      hands: null,
+      activeHandIndex: 0,
       gameId,
       timeout: setTimeout(() => {
         activeBlackjackGames.delete(gameId);
@@ -1321,13 +1335,15 @@ async function handleBetButton(interaction, client, config) {
  * Bouw de Blackjack game embed
  */
 async function buildBlackjackEmbed(game, revealDealer = false, resultText = null, resultColor = null) {
-  const playerValue = blackjack.calculateHandValue(game.playerCards).value;
+  const isSplit = game.isSplit && game.hands;
   const dealerValue = revealDealer
     ? blackjack.calculateHandValue(game.dealerCards).value
     : blackjack.calculateHandValue([game.dealerCards[0]]).value;
 
   const dealerLabel = revealDealer ? `Dealer (${dealerValue})` : 'Dealer (?)';
-  const playerLabel = `${game.username} (${playerValue})`;
+
+  // Totale inzet berekenen
+  const totalBet = getTotalBet(game);
 
   const separator = '━━━━━━━━━━━━━━━━━━━━';
 
@@ -1338,15 +1354,31 @@ async function buildBlackjackEmbed(game, revealDealer = false, resultText = null
 
   const color = resultColor || 0x5865F2; // blurple default
 
+  // Bij split: toon actieve hand indicator in description als er geen resultaat is
+  if (isSplit && !resultText) {
+    const handIdx = game.activeHandIndex + 1;
+    const handValue = blackjack.calculateHandValue(game.hands[game.activeHandIndex].cards).value;
+    description = `✂️ Split — Hand ${handIdx} is aan de beurt (${handValue})`;
+  }
+
   // Render kaartafbeelding
   let files = [];
   try {
+    const splitOptions = isSplit ? {
+      hands: game.hands,
+      activeHandIndex: game.activeHandIndex,
+      finished: revealDealer
+    } : null;
+
+    const playerLabel = isSplit ? game.username : `${game.username} (${blackjack.calculateHandValue(game.playerCards).value})`;
+
     const imageBuffer = await renderBlackjackTable(
       game.dealerCards,
-      game.playerCards,
+      isSplit ? [] : game.playerCards,
       !revealDealer,
       dealerLabel,
-      playerLabel
+      playerLabel,
+      splitOptions
     );
     const attachment = new AttachmentBuilder(imageBuffer, { name: 'blackjack.png' });
     files = [attachment];
@@ -1356,14 +1388,28 @@ async function buildBlackjackEmbed(game, revealDealer = false, resultText = null
     const dealerDisplay = revealDealer
       ? `**Dealer** (${dealerValue})\n${blackjack.formatHand(game.dealerCards)}`
       : `**Dealer** (?)\n${blackjack.formatHand(game.dealerCards, true)}`;
-    const playerDisplay = `**${game.username}** (${playerValue})\n${blackjack.formatHand(game.playerCards)}`;
-    description = `${dealerDisplay}\n\n${separator}\n\n${playerDisplay}` + (resultText ? `\n\n${separator}\n\n${resultText}` : '');
+
+    if (isSplit) {
+      let handsDisplay = '';
+      game.hands.forEach((hand, i) => {
+        const hv = blackjack.calculateHandValue(hand.cards).value;
+        const marker = (!revealDealer && i === game.activeHandIndex) ? '▶ ' : '';
+        handsDisplay += `\n**${marker}Hand ${i + 1}** (${hv})\n${blackjack.formatHand(hand.cards)}`;
+      });
+      description = `${dealerDisplay}\n\n${separator}${handsDisplay}` + (resultText ? `\n\n${separator}\n\n${resultText}` : '');
+    } else {
+      const playerValue = blackjack.calculateHandValue(game.playerCards).value;
+      const playerDisplay = `**${game.username}** (${playerValue})\n${blackjack.formatHand(game.playerCards)}`;
+      description = `${dealerDisplay}\n\n${separator}\n\n${playerDisplay}` + (resultText ? `\n\n${separator}\n\n${resultText}` : '');
+    }
   }
 
+  const doubledText = game.doubled ? ' (Doubled)' : '';
+  const splitText = isSplit ? ' (Split)' : '';
   const embed = new EmbedBuilder()
     .setTitle('🃏 Blackjack')
     .setColor(color)
-    .setFooter({ text: `Inzet: ${game.bet} punten` });
+    .setFooter({ text: `Inzet: ${totalBet} punten${doubledText}${splitText}` });
 
   if (description) {
     embed.setDescription(description);
@@ -1377,10 +1423,14 @@ async function buildBlackjackEmbed(game, revealDealer = false, resultText = null
 }
 
 /**
- * Bouw de actie-buttons voor Blackjack
+ * Bouw de actie-buttons voor Blackjack (dynamisch op basis van game state)
  */
-function buildBlackjackButtons(gameId) {
-  return new ActionRowBuilder().addComponents(
+function buildBlackjackButtons(gameId, game) {
+  const balance = casino.getUserBalance(game.userId);
+  const activeCards = game.hands ? game.hands[game.activeHandIndex].cards : game.playerCards;
+  const currentBet = game.hands ? game.hands[game.activeHandIndex].bet : game.bet;
+
+  const buttons = [
     new ButtonBuilder()
       .setCustomId(`bj_hit_${gameId}`)
       .setLabel('Hit 🃏')
@@ -1389,7 +1439,29 @@ function buildBlackjackButtons(gameId) {
       .setCustomId(`bj_stand_${gameId}`)
       .setLabel('Stand ✋')
       .setStyle(ButtonStyle.Secondary)
-  );
+  ];
+
+  // Double: alleen bij precies 2 kaarten EN genoeg saldo
+  if (blackjack.canDouble(activeCards) && balance >= currentBet) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`bj_double_${gameId}`)
+        .setLabel('Double 💰')
+        .setStyle(ButtonStyle.Success)
+    );
+  }
+
+  // Split: alleen bij paar, eerste 2 kaarten, genoeg saldo, nog niet gesplit
+  if (!game.isSplit && blackjack.canSplit(activeCards) && balance >= currentBet) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`bj_split_${gameId}`)
+        .setLabel('Split ✂️')
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
+
+  return new ActionRowBuilder().addComponents(buttons);
 }
 
 /**
@@ -1444,6 +1516,10 @@ async function handleBlackjackButton(interaction, client, config) {
       playerCards: [],
       dealerCards: [],
       phase: 'betting',
+      doubled: false,
+      isSplit: false,
+      hands: null,
+      activeHandIndex: 0,
       gameId: newGameId,
       timeout: setTimeout(() => {
         activeBlackjackGames.delete(newGameId);
@@ -1547,13 +1623,37 @@ async function handleBlackjackButton(interaction, client, config) {
 
     // Toon initiële hand met buttons
     const { embed, files } = await buildBlackjackEmbed(game);
-    const buttons = buildBlackjackButtons(gameId);
+    const buttons = buildBlackjackButtons(gameId, game);
     await interaction.editReply({ embeds: [embed], files, components: [buttons] });
     return;
   }
 
   // ── Hit ──
   if (action === 'hit' && game.phase === 'playing') {
+    if (game.isSplit && game.hands) {
+      // Split mode: hit op actieve hand
+      const hand = game.hands[game.activeHandIndex];
+      hand.cards.push(blackjack.dealCard(game.deck));
+
+      if (blackjack.isBusted(hand.cards)) {
+        hand.status = 'bust';
+        // Ga naar volgende hand of dealer
+        return await advanceSplitHand(interaction, game, gameId);
+      }
+
+      if (blackjack.calculateHandValue(hand.cards).value === 21) {
+        hand.status = 'stand';
+        return await advanceSplitHand(interaction, game, gameId);
+      }
+
+      // Toon bijgewerkte hand
+      const { embed, files } = await buildBlackjackEmbed(game);
+      const buttons = buildBlackjackButtons(gameId, game);
+      await interaction.editReply({ embeds: [embed], files, components: [buttons] });
+      return;
+    }
+
+    // Normaal (niet-split) mode
     game.playerCards.push(blackjack.dealCard(game.deck));
 
     if (blackjack.isBusted(game.playerCards)) {
@@ -1570,36 +1670,252 @@ async function handleBlackjackButton(interaction, client, config) {
       return;
     }
 
-    // Check voor 21 - direct gewonnen!
+    // Check voor 21 - direct naar dealer turn (niet auto-win, fair play)
     if (blackjack.calculateHandValue(game.playerCards).value === 21) {
-      const payout = game.bet * 2;
-      casino.addBalance(game.userId, game.username, payout, 'Blackjack 21');
-      const newBalance = casino.getUserBalance(game.userId);
-      const { embed, files } = await buildBlackjackEmbed(game, true,
-        `🎯 **21!** Je hebt precies 21, je wint direct!\nJe wint **${game.bet} punten**!\n\n💰 Saldo: ${newBalance} punten`,
-        0x57F287
-      );
-      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
-      recordBlackjackResult(game.userId, game.username, game.bet, payout, 'win');
-      cleanupBJGame(gameId);
-      return;
+      return await resolveBJDealerTurn(interaction, game, gameId);
     }
 
     // Toon bijgewerkte hand
     const { embed, files } = await buildBlackjackEmbed(game);
-    const buttons = buildBlackjackButtons(gameId);
+    const buttons = buildBlackjackButtons(gameId, game);
     await interaction.editReply({ embeds: [embed], files, components: [buttons] });
     return;
   }
 
   // ── Stand ──
   if (action === 'stand' && game.phase === 'playing') {
+    if (game.isSplit && game.hands) {
+      game.hands[game.activeHandIndex].status = 'stand';
+      return await advanceSplitHand(interaction, game, gameId);
+    }
     return await resolveBJDealerTurn(interaction, game, gameId);
+  }
+
+  // ── Double Down ──
+  if (action === 'double' && game.phase === 'playing') {
+    if (game.isSplit && game.hands) {
+      // Double op split-hand
+      const hand = game.hands[game.activeHandIndex];
+      if (!blackjack.canDouble(hand.cards)) {
+        await interaction.followUp({ content: '❌ Je kunt niet meer double-downen!', flags: 64 });
+        return;
+      }
+      const balance = casino.getUserBalance(game.userId);
+      if (balance < hand.bet) {
+        await interaction.followUp({ content: '❌ Je hebt niet genoeg punten om te double-downen!', flags: 64 });
+        return;
+      }
+      casino.subtractBalance(game.userId, hand.bet);
+      hand.bet *= 2;
+      hand.doubled = true;
+      hand.cards.push(blackjack.dealCard(game.deck));
+
+      if (blackjack.isBusted(hand.cards)) {
+        hand.status = 'bust';
+      } else {
+        hand.status = 'stand';
+      }
+      return await advanceSplitHand(interaction, game, gameId);
+    }
+
+    // Normaal (niet-split) double
+    if (!blackjack.canDouble(game.playerCards)) {
+      await interaction.followUp({ content: '❌ Je kunt niet meer double-downen!', flags: 64 });
+      return;
+    }
+    const balance = casino.getUserBalance(game.userId);
+    if (balance < game.bet) {
+      await interaction.followUp({ content: '❌ Je hebt niet genoeg punten om te double-downen!', flags: 64 });
+      return;
+    }
+
+    casino.subtractBalance(game.userId, game.bet);
+    game.bet *= 2;
+    game.doubled = true;
+    game.playerCards.push(blackjack.dealCard(game.deck));
+
+    if (blackjack.isBusted(game.playerCards)) {
+      const newBalance = casino.getUserBalance(game.userId);
+      const { embed, files } = await buildBlackjackEmbed(game, true,
+        `💰 **Doubled & Bust!** Je bent over de 21!\nJe verliest **${game.bet} punten**.\n\n💰 Saldo: ${newBalance} punten`,
+        0xED4245
+      );
+      embed.setThumbnail(KEEP_GAMBLING_IMG);
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
+      recordBlackjackResult(game.userId, game.username, game.bet, 0, 'lose');
+      cleanupBJGame(gameId);
+      return;
+    }
+
+    // Auto-stand na double → dealer turn
+    return await resolveBJDealerTurn(interaction, game, gameId);
+  }
+
+  // ── Split ──
+  if (action === 'split' && game.phase === 'playing') {
+    if (game.isSplit) {
+      await interaction.followUp({ content: '❌ Je hebt al gesplit!', flags: 64 });
+      return;
+    }
+    if (!blackjack.canSplit(game.playerCards)) {
+      await interaction.followUp({ content: '❌ Je kunt deze hand niet splitsen!', flags: 64 });
+      return;
+    }
+    const balance = casino.getUserBalance(game.userId);
+    if (balance < game.bet) {
+      await interaction.followUp({ content: '❌ Je hebt niet genoeg punten om te splitsen!', flags: 64 });
+      return;
+    }
+
+    // Extra inzet afschrijven
+    casino.subtractBalance(game.userId, game.bet);
+
+    const card1 = game.playerCards[0];
+    const card2 = game.playerCards[1];
+    const isAces = card1.rank === 'A';
+
+    // Maak 2 handen
+    game.hands = [
+      { cards: [card1, blackjack.dealCard(game.deck)], bet: game.bet, doubled: false, status: 'playing' },
+      { cards: [card2, blackjack.dealCard(game.deck)], bet: game.bet, doubled: false, status: 'playing' }
+    ];
+    game.isSplit = true;
+    game.activeHandIndex = 0;
+    // Wis playerCards (niet meer in gebruik)
+    game.playerCards = [];
+
+    // Azen-regel: slechts 1 kaart per hand, auto-stand
+    if (isAces) {
+      game.hands[0].status = 'stand';
+      game.hands[1].status = 'stand';
+      return await resolveSplitDealerTurn(interaction, game, gameId);
+    }
+
+    // Check of hand 1 direct 21 heeft
+    if (blackjack.calculateHandValue(game.hands[0].cards).value === 21) {
+      game.hands[0].status = 'stand';
+      return await advanceSplitHand(interaction, game, gameId);
+    }
+
+    // Toon hand 1
+    const { embed, files } = await buildBlackjackEmbed(game);
+    const buttons = buildBlackjackButtons(gameId, game);
+    await interaction.editReply({ embeds: [embed], files, components: [buttons] });
+    return;
   }
 }
 
 /**
- * Dealer speelt en bepaal resultaat
+ * Ga naar de volgende split-hand of start dealer turn
+ */
+async function advanceSplitHand(interaction, game, gameId) {
+  // Probeer naar volgende hand te gaan
+  if (game.activeHandIndex < game.hands.length - 1) {
+    game.activeHandIndex++;
+    const nextHand = game.hands[game.activeHandIndex];
+
+    // Check of volgende hand direct 21 heeft
+    if (blackjack.calculateHandValue(nextHand.cards).value === 21) {
+      nextHand.status = 'stand';
+      // Alle handen klaar → dealer turn
+      return await resolveSplitDealerTurn(interaction, game, gameId);
+    }
+
+    // Toon volgende hand
+    const { embed, files } = await buildBlackjackEmbed(game);
+    const buttons = buildBlackjackButtons(gameId, game);
+    await interaction.editReply({ embeds: [embed], files, components: [buttons] });
+    return;
+  }
+
+  // Alle handen klaar → dealer turn
+  return await resolveSplitDealerTurn(interaction, game, gameId);
+}
+
+/**
+ * Dealer speelt en bepaal resultaat voor split-handen
+ */
+async function resolveSplitDealerTurn(interaction, game, gameId) {
+  game.phase = 'dealer';
+
+  // Check of alle handen bust zijn
+  const allBust = game.hands.every(h => h.status === 'bust');
+  if (!allBust) {
+    blackjack.playDealer(game.deck, game.dealerCards);
+  }
+
+  let totalPayout = 0;
+  let totalBet = 0;
+  let anyWin = false;
+  let anyLose = false;
+  const resultLines = [];
+
+  game.hands.forEach((hand, i) => {
+    totalBet += hand.bet;
+    const handLabel = `Hand ${i + 1}`;
+
+    if (hand.status === 'bust') {
+      resultLines.push(`${handLabel}: 💥 Bust — verlies **${hand.bet}** punten`);
+      anyLose = true;
+      return;
+    }
+
+    // Na split is A+10 geen blackjack, gewoon 21
+    const outcome = determineSplitOutcome(hand.cards, game.dealerCards);
+    const payout = blackjack.calculatePayout(hand.bet, outcome);
+    totalPayout += payout;
+
+    if (outcome === 'win') {
+      resultLines.push(`${handLabel}: ✅ Gewonnen — +**${payout - hand.bet}** punten`);
+      anyWin = true;
+    } else if (outcome === 'push') {
+      resultLines.push(`${handLabel}: 🤝 Gelijk — inzet terug`);
+    } else {
+      resultLines.push(`${handLabel}: ❌ Verloren — -**${hand.bet}** punten`);
+      anyLose = true;
+    }
+  });
+
+  if (totalPayout > 0) {
+    casino.addBalance(game.userId, game.username, totalPayout, 'Blackjack split');
+  }
+
+  const newBalance = casino.getUserBalance(game.userId);
+  const netResult = totalPayout - totalBet;
+  const color = netResult > 0 ? 0x57F287 : netResult === 0 ? 0xF0B232 : 0xED4245;
+  const netText = netResult > 0 ? `+${netResult}` : `${netResult}`;
+
+  const resultText = `✂️ **Split Resultaat**\n${resultLines.join('\n')}\n\n📊 Netto: **${netText} punten**\n💰 Saldo: ${newBalance} punten`;
+  const { embed, files } = await buildBlackjackEmbed(game, true, resultText, color);
+
+  if (anyLose && !anyWin) {
+    embed.setThumbnail(KEEP_GAMBLING_IMG);
+  }
+
+  await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
+
+  // Registreer als 1 game; overall outcome
+  const overallOutcome = netResult > 0 ? 'win' : netResult === 0 ? 'push' : 'lose';
+  recordBlackjackResult(game.userId, game.username, totalBet, totalPayout, overallOutcome);
+  cleanupBJGame(gameId);
+}
+
+/**
+ * Bepaal outcome voor een split-hand (geen blackjack-bonus mogelijk)
+ */
+function determineSplitOutcome(playerCards, dealerCards) {
+  const playerValue = blackjack.calculateHandValue(playerCards).value;
+  const dealerValue = blackjack.calculateHandValue(dealerCards).value;
+
+  if (playerValue > 21) return 'lose';
+  if (dealerValue > 21) return 'win';
+  if (playerValue > dealerValue) return 'win';
+  if (playerValue < dealerValue) return 'lose';
+  return 'push';
+}
+
+/**
+ * Dealer speelt en bepaal resultaat (normaal / niet-split)
  */
 async function resolveBJDealerTurn(interaction, game, gameId) {
   game.phase = 'dealer';
@@ -1616,9 +1932,10 @@ async function resolveBJDealerTurn(interaction, game, gameId) {
   }
 
   const newBalance = casino.getUserBalance(game.userId);
+  const doubledText = game.doubled ? ' (Doubled)' : '';
   const { text, color } = getOutcomeDisplay(outcome, payout, game.bet);
 
-  const { embed, files } = await buildBlackjackEmbed(game, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
+  const { embed, files } = await buildBlackjackEmbed(game, true, `${text}${doubledText}\n\n💰 Saldo: ${newBalance} punten`, color);
 
   if (outcome === 'lose') {
     embed.setThumbnail(KEEP_GAMBLING_IMG);
