@@ -486,12 +486,6 @@ async function handleCasinoCommands(interaction, client, config) {
   if (commandName === 'balance') {
     const targetUser = interaction.options.getUser('user');
     
-    // If a user is specified, check if the requester is an admin
-    if (targetUser && (!interaction.member || !interaction.member.permissions.has('Administrator'))) {
-      await interaction.reply({ content: '❌ Je hebt geen rechten om het saldo van anderen te bekijken!', flags: 64 });
-      return true;
-    }
-    
     const userId = targetUser ? targetUser.id : interaction.user.id;
     const username = targetUser ? targetUser.username : interaction.user.username;
     
