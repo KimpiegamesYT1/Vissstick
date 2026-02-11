@@ -738,6 +738,13 @@ async function handleCasinoCommands(interaction, client, config) {
         flags: 64 
       });
       
+      // Stuur DM aan de gebruiker
+      try {
+        await user.send(`💰 Je hebt ${amount} punten ontvangen van een admin! Nieuw saldo: ${newBalance}`);
+      } catch (err) {
+        console.log(`Kon DM niet verzenden naar ${user.username}`);
+      }
+      
       await sendLog(client, logChannelId, `💰 Admin ${interaction.user.username} heeft ${amount} punten toegevoegd aan ${user.username}`);
       
       return true;
@@ -754,6 +761,13 @@ async function handleCasinoCommands(interaction, client, config) {
         content: `✅ ${amount} punten verwijderd van ${user.username}. Nieuw saldo: ${newBalance}`, 
         flags: 64 
       });
+      
+      // Stuur DM aan de gebruiker
+      try {
+        await user.send(`💸 ${amount} punten zijn van je account verwijderd. Nieuw saldo: ${newBalance}`);
+      } catch (err) {
+        console.log(`Kon DM niet verzenden naar ${user.username}`);
+      }
       
       await sendLog(client, logChannelId, `💸 Admin ${interaction.user.username} heeft ${amount} punten verwijderd van ${user.username}`);
       
@@ -775,6 +789,13 @@ async function handleCasinoCommands(interaction, client, config) {
         content: `✅ Balance van ${user.username} gezet naar ${amount} punten.`, 
         flags: 64 
       });
+      
+      // Stuur DM aan de gebruiker
+      try {
+        await user.send(`⚙️ Je balance is ingesteld op ${amount} punten.`);
+      } catch (err) {
+        console.log(`Kon DM niet verzenden naar ${user.username}`);
+      }
       
       await sendLog(client, logChannelId, `⚙️ Admin ${interaction.user.username} heeft balance van ${user.username} gezet naar ${amount}`);
       
