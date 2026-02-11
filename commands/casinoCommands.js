@@ -787,7 +787,7 @@ async function handleCasinoCommands(interaction, client, config) {
       const db = getDatabase();
       
       casino.getOrCreateUser(user.id, user.username);
-      db.prepare('UPDATE users SET balance = ?, last_updated = datetime("now") WHERE user_id = ?').run(amount, user.id);
+      db.prepare(`UPDATE users SET balance = ?, last_updated = datetime('now') WHERE user_id = ?`).run(amount, user.id);
       
       await interaction.reply({ 
         content: `✅ Balance van ${user.username} gezet naar ${amount} punten.`, 
