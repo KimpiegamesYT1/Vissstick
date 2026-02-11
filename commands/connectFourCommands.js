@@ -163,17 +163,24 @@ function buildC4BetButtons(gameId) {
 }
 
 /**
- * Build accept challenge button
+ * Build accept challenge button (includes decline option)
  */
 function buildC4AcceptButton(gameId) {
-  return new ActionRowBuilder().addComponents(
+  const row = new ActionRowBuilder();
+  row.addComponents(
     new ButtonBuilder()
       .setCustomId(`c4_accept_${gameId}`)
       .setLabel('Accepteer uitdaging!')
       .setStyle(ButtonStyle.Success)
-      .setEmoji('✅')
   );
-}
+  row.addComponents(
+    new ButtonBuilder()
+      .setCustomId(`c4_decline_${gameId}`)
+      .setLabel('Weiger uitdaging')
+      .setStyle(ButtonStyle.Danger)
+  );
+  return row;
+} 
 
 /**
  * Build column selection buttons for gameplay
@@ -412,6 +419,33 @@ async function handleConnectFourButton(interaction, client, config) {
     
     resetC4Timeout(gameId, 120000); // 120 seconds per turn
     
+    return true;
+  }
+  
+  if (customId.startsWith('c4_decline_')) {
+    // Format: c4_decline_{gameId}
+    const gameId = customId.split('_')[2];
+    
+    const game = activeC4Games.get(gameId);
+    if (!game) {
+      await interaction.reply({ content: '❌ Deze uitdaging is verlopen!', flags: 64 });
+      return true;
+    }
+    
+    // Only opponent can decline
+    if (interaction.user.id !== game.player2.id) {
+      await interaction.reply({ content: '❌ Alleen de uitgedaagde speler kan de uitdaging weigeren!', flags: 64 });
+      return true;
+    }
+    
+    // Update message to indicate decline and remove components
+    await interaction.update({
+      content: `❌ ${interaction.user.username} heeft de uitdaging geweigerd.`,
+      embeds: [],
+      components: []
+    });
+    
+    cleanupC4Game(gameId);
     return true;
   }
   
