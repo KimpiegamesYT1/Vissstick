@@ -10,6 +10,16 @@ const { renderBlackjackTable } = require('../modules/cardRenderer');
 const { getDatabase } = require('../database');
 
 // =====================================================
+// ADMIN APPROVAL SYSTEM
+// =====================================================
+const SUPER_ADMIN_ID = '617675043735863327'; // @kimpiegamesyt
+const pendingApprovals = new Map();
+
+function generateApprovalId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+// =====================================================
 // DOUBLE OR NOTHING - Game State
 // =====================================================
 const activeDoNGames = new Map();
@@ -608,6 +618,123 @@ async function handleCasinoCommands(interaction, client, config) {
     
     const subCommandGroup = interaction.options.getSubcommandGroup(false);
     const subCommand = interaction.options.getSubcommand();
+    
+    // Check of dit de super admin is - zo ja, direct uitvoeren
+    const isSuperAdmin = interaction.user.id === SUPER_ADMIN_ID;
+    
+    // Als het niet de super admin is, vraag approval
+    if (!isSuperAdmin) {
+      const approvalId = generateApprovalId();
+      
+      // Bouw commando beschrijving
+      let commandDescription = '';
+      if (subCommandGroup === 'bet' && subCommand === 'create') {
+        const vraag = interaction.options.getString('vraag');
+        commandDescription = `📝 Nieuwe weddenschap: "${vraag}"`;
+      } else if (subCommandGroup === 'bet' && subCommand === 'resolve') {
+        const betId = interaction.options.getInteger('id');
+        const uitslag = interaction.options.getString('uitslag');
+        commandDescription = `🎲 Resolve weddenschap #${betId} met uitslag: ${uitslag}`;
+      } else if (subCommandGroup === 'bet' && subCommand === 'delete') {
+        const betId = interaction.options.getInteger('id');
+        commandDescription = `🗑️ Verwijder weddenschap #${betId}`;
+      } else if (subCommandGroup === 'balance' && subCommand === 'add') {
+        const user = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        commandDescription = `💰 Voeg ${amount} punten toe aan ${user.username}`;
+      } else if (subCommandGroup === 'balance' && subCommand === 'remove') {
+        const user = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        commandDescription = `💸 Verwijder ${amount} punten van ${user.username}`;
+      } else if (subCommandGroup === 'balance' && subCommand === 'set') {
+        const user = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        commandDescription = `⚙️ Zet balance van ${user.username} naar ${amount} punten`;
+      } else if (subCommandGroup === 'quiz' && subCommand === 'start') {
+        commandDescription = `📝 Start dagelijkse quiz`;
+      } else if (subCommandGroup === 'quiz' && subCommand === 'test') {
+        const tijd = interaction.options.getInteger('tijd') || 1;
+        commandDescription = `🧪 Start test quiz (${tijd} min)`;
+      } else if (subCommandGroup === 'quiz' && subCommand === 'reset') {
+        const resetType = interaction.options.getString('type');
+        commandDescription = `🔄 Reset quiz (type: ${resetType})`;
+      } else if (subCommand === 'reset' && !subCommandGroup) {
+        commandDescription = `🔄 Maandelijkse reset uitvoeren`;
+      } else {
+        commandDescription = `⚙️ Admin commando: ${subCommandGroup || ''} ${subCommand}`;
+      }
+      
+      // Sla de approval request op
+      pendingApprovals.set(approvalId, {
+        requesterId: interaction.user.id,
+        requesterName: interaction.user.username,
+        commandName,
+        subCommandGroup,
+        subCommand,
+        options: {
+          vraag: interaction.options.getString('vraag'),
+          betId: interaction.options.getInteger('id'),
+          uitslag: interaction.options.getString('uitslag'),
+          user: interaction.options.getUser('user'),
+          amount: interaction.options.getInteger('amount'),
+          tijd: interaction.options.getInteger('tijd'),
+          resetType: interaction.options.getString('type')
+        },
+        timestamp: Date.now(),
+        interaction
+      });
+      
+      // Maak approval embed
+      const approvalEmbed = new EmbedBuilder()
+        .setTitle('🔐 Admin Commando Goedkeuring Vereist')
+        .setDescription(`<@${SUPER_ADMIN_ID}>, een admin wil een commando uitvoeren dat jouw goedkeuring vereist.`)
+        .addFields(
+          { name: '👤 Aangevraagd door', value: interaction.user.username, inline: true },
+          { name: '⌚ Tijdstip', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+          { name: '📋 Commando', value: commandDescription, inline: false }
+        )
+        .setColor('#FFA500')
+        .setTimestamp();
+      
+      // Maak approval buttons
+      const approvalButtons = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`approval_accept_${approvalId}`)
+            .setLabel('✅ Goedkeuren')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId(`approval_deny_${approvalId}`)
+            .setLabel('❌ Afwijzen')
+            .setStyle(ButtonStyle.Danger)
+        );
+      
+      // Stuur approval request
+      await interaction.reply({ 
+        content: `⏳ Je commando is verzonden naar <@${SUPER_ADMIN_ID}> voor goedkeuring...`,
+        flags: 64 
+      });
+      
+      // Stuur naar kanaal met ping
+      try {
+        await interaction.channel.send({ 
+          content: `<@${SUPER_ADMIN_ID}>`,
+          embeds: [approvalEmbed], 
+          components: [approvalButtons] 
+        });
+      } catch (error) {
+        console.error('Fout bij sturen approval request:', error);
+      }
+      
+      // Timeout na 5 minuten
+      setTimeout(() => {
+        if (pendingApprovals.has(approvalId)) {
+          pendingApprovals.delete(approvalId);
+        }
+      }, 5 * 60 * 1000);
+      
+      return true;
+    }
     
     // /admin bet create
     if (subCommandGroup === 'bet' && subCommand === 'create') {
@@ -1976,12 +2103,280 @@ function getOutcomeDisplay(outcome, payout, bet) {
   }
 }
 
+// =====================================================
+// APPROVAL BUTTON HANDLER
+// =====================================================
+async function handleApprovalButton(interaction, client, config) {
+  const customId = interaction.customId;
+  
+  if (!customId.startsWith('approval_')) return false;
+  
+  // Alleen de super admin mag deze buttons gebruiken
+  if (interaction.user.id !== SUPER_ADMIN_ID) {
+    await interaction.reply({ 
+      content: '❌ Alleen de super admin mag admin commando\'s goedkeuren of afwijzen!', 
+      flags: 64 
+    });
+    return true;
+  }
+  
+  const [, action, approvalId] = customId.split('_');
+  const approval = pendingApprovals.get(approvalId);
+  
+  if (!approval) {
+    await interaction.update({ 
+      content: '⏱️ Deze approval request is verlopen of al verwerkt.',
+      embeds: [],
+      components: [] 
+    });
+    return true;
+  }
+  
+  if (action === 'deny') {
+    pendingApprovals.delete(approvalId);
+    
+    await interaction.update({ 
+      content: `❌ Commando afgewezen door <@${SUPER_ADMIN_ID}>`,
+      embeds: [],
+      components: [] 
+    });
+    
+    // Notify requester
+    try {
+      const requester = await client.users.fetch(approval.requesterId);
+      await requester.send(`❌ Je admin commando is afgewezen door <@${SUPER_ADMIN_ID}>`);
+    } catch (err) {
+      console.log('Kon DM niet sturen naar requester');
+    }
+    
+    return true;
+  }
+  
+  if (action === 'accept') {
+    await interaction.update({ 
+      content: `✅ Commando goedgekeurd door <@${SUPER_ADMIN_ID}> - wordt uitgevoerd...`,
+      embeds: [],
+      components: [] 
+    });
+    
+    const casinoChannelId = config.CASINO_CHANNEL_ID;
+    const logChannelId = config.LOG_CHANNEL_ID;
+    const winnersChannelId = '1414596895191334925';
+    
+    const { subCommandGroup, subCommand, options } = approval;
+    
+    try {
+      // Execute the approved command
+      if (subCommandGroup === 'bet' && subCommand === 'create') {
+        const betId = casino.createBet(options.vraag, approval.requesterId);
+        
+        try {
+          const casinoChannel = await client.channels.fetch(casinoChannelId);
+          if (casinoChannel) {
+            const bet = { id: betId, question: options.vraag };
+            const { embed } = casino.buildBetEmbed(bet);
+            const buttons = casino.buildBetButtons(betId);
+            const message = await casinoChannel.send({ embeds: [embed], components: [buttons] });
+            casino.updateBetMessageId(betId, message.id);
+          }
+        } catch (error) {
+          console.error('Fout bij sturen bet naar casino kanaal:', error);
+        }
+        
+        await interaction.followUp({ 
+          content: `✅ Weddenschap #${betId} aangemaakt: "${options.vraag}"` 
+        });
+        
+        await sendLog(client, logChannelId, `📝 Nieuwe weddenschap #${betId} aangemaakt door ${approval.requesterName} (goedgekeurd door super admin): "${options.vraag}"`);
+        
+      } else if (subCommandGroup === 'bet' && subCommand === 'resolve') {
+        const result = casino.resolveBet(options.betId, options.uitslag);
+        
+        if (!result.success) {
+          await interaction.followUp({ content: `❌ ${result.error}` });
+        } else {
+          const embed = casino.buildResolveEmbed(result);
+          const closedEmbed = casino.buildClosedBetEmbed(result);
+          
+          await interaction.followUp({ embeds: [embed] });
+          
+          try {
+            const casinoChannel = await client.channels.fetch(casinoChannelId);
+            if (casinoChannel && result.bet.message_id) {
+              const betMessage = await casinoChannel.messages.fetch(result.bet.message_id).catch(() => null);
+              if (betMessage) {
+                await betMessage.edit({ embeds: [closedEmbed], components: [] });
+              }
+            }
+          } catch (error) {
+            console.error('Fout bij updaten bet embed:', error);
+          }
+          
+          try {
+            const winnersChannel = await client.channels.fetch(winnersChannelId);
+            if (winnersChannel) {
+              await winnersChannel.send({ embeds: [embed] });
+            }
+          } catch (error) {
+            console.error('Fout bij sturen naar winnaars kanaal:', error);
+          }
+          
+          await updateCasinoEmbed(client, casinoChannelId);
+          await sendLog(client, logChannelId, `🎲 Weddenschap #${options.betId} resolved door ${approval.requesterName} (goedgekeurd door super admin) met uitslag: ${options.uitslag}`);
+        }
+        
+      } else if (subCommandGroup === 'bet' && subCommand === 'delete') {
+        const db = getDatabase();
+        const bet = casino.getBetWithEntries(options.betId);
+        
+        if (!bet) {
+          await interaction.followUp({ content: '❌ Weddenschap niet gevonden!' });
+        } else if (bet.status !== 'open') {
+          await interaction.followUp({ content: '❌ Deze weddenschap is al gesloten!' });
+        } else {
+          bet.entries.forEach(entry => {
+            casino.addBalance(entry.user_id, entry.username, entry.amount, `Terugbetaling verwijderde bet #${options.betId}`);
+          });
+          
+          db.prepare('DELETE FROM bets WHERE id = ?').run(options.betId);
+          
+          await interaction.followUp({ content: `✅ Weddenschap #${options.betId} verwijderd. ${bet.entries.length} inzetten terugbetaald.` });
+          await updateCasinoEmbed(client, casinoChannelId);
+        }
+        
+      } else if (subCommandGroup === 'balance' && subCommand === 'add') {
+        const newBalance = casino.addBalance(options.user.id, options.user.username, options.amount, 'Admin add');
+        
+        await interaction.followUp({ 
+          content: `✅ ${options.amount} punten toegevoegd aan ${options.user.username}. Nieuw saldo: ${newBalance}` 
+        });
+        
+        try {
+          await options.user.send(`💰 Je hebt ${options.amount} punten ontvangen van een admin! Nieuw saldo: ${newBalance}`);
+        } catch (err) {
+          console.log(`Kon DM niet verzenden naar ${options.user.username}`);
+        }
+        
+        await sendLog(client, logChannelId, `💰 Admin ${approval.requesterName} (goedgekeurd door super admin) heeft ${options.amount} punten toegevoegd aan ${options.user.username}`);
+        
+      } else if (subCommandGroup === 'balance' && subCommand === 'remove') {
+        const newBalance = casino.subtractBalance(options.user.id, options.amount);
+        
+        await interaction.followUp({ 
+          content: `✅ ${options.amount} punten verwijderd van ${options.user.username}. Nieuw saldo: ${newBalance}` 
+        });
+        
+        try {
+          await options.user.send(`💸 ${options.amount} punten zijn van je account verwijderd. Nieuw saldo: ${newBalance}`);
+        } catch (err) {
+          console.log(`Kon DM niet verzenden naar ${options.user.username}`);
+        }
+        
+        await sendLog(client, logChannelId, `💸 Admin ${approval.requesterName} (goedgekeurd door super admin) heeft ${options.amount} punten verwijderd van ${options.user.username}`);
+        
+      } else if (subCommandGroup === 'balance' && subCommand === 'set') {
+        const db = getDatabase();
+        casino.getOrCreateUser(options.user.id, options.user.username);
+        db.prepare(`UPDATE users SET balance = ?, last_updated = datetime('now') WHERE user_id = ?`).run(options.amount, options.user.id);
+        
+        await interaction.followUp({ 
+          content: `✅ Balance van ${options.user.username} gezet naar ${options.amount} punten.` 
+        });
+        
+        try {
+          await options.user.send(`⚙️ Je balance is ingesteld op ${options.amount} punten.`);
+        } catch (err) {
+          console.log(`Kon DM niet verzenden naar ${options.user.username}`);
+        }
+        
+        await sendLog(client, logChannelId, `⚙️ Admin ${approval.requesterName} (goedgekeurd door super admin) heeft balance van ${options.user.username} gezet naar ${options.amount}`);
+        
+      } else if (subCommandGroup === 'quiz' && subCommand === 'start') {
+        const activeQuiz = quiz.getActiveQuiz(config.QUIZ_CHANNEL_ID);
+        if (activeQuiz) {
+          const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+          await interaction.followUp({ 
+            content: `⚠️ Er is al een ${quizType} actief!` 
+          });
+        } else {
+          await quiz.startDailyQuiz(client, config.QUIZ_CHANNEL_ID, null);
+          await interaction.followUp({ 
+            content: `✅ Dagelijkse quiz handmatig gestart door ${approval.requesterName} (goedgekeurd door super admin)!` 
+          });
+        }
+        
+      } else if (subCommandGroup === 'quiz' && subCommand === 'test') {
+        const activeQuiz = quiz.getActiveQuiz(config.QUIZ_CHANNEL_ID);
+        if (activeQuiz) {
+          const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+          await interaction.followUp({ 
+            content: `⚠️ Er is al een ${quizType} actief!` 
+          });
+        } else {
+          const tijd = options.tijd || 1;
+          const result = await quiz.startDailyQuiz(client, config.QUIZ_CHANNEL_ID, tijd);
+          const usedMinutes = result && typeof result.timeoutMinutesUsed !== 'undefined' ? result.timeoutMinutesUsed : tijd;
+          await interaction.followUp({ 
+            content: `✅ Test quiz gestart door ${approval.requesterName} (goedgekeurd door super admin)! Eindigt na ${usedMinutes} ${usedMinutes === 1 ? 'minuut' : 'minuten'}.` 
+          });
+        }
+        
+      } else if (subCommandGroup === 'quiz' && subCommand === 'reset') {
+        if (options.resetType === 'database') {
+          const deleted = quiz.deleteAllQuestions();
+          await interaction.followUp({ content: `✅ Alle quiz vragen verwijderd (${deleted} rijen).` });
+        } else if (options.resetType === 'used') {
+          const resetCount = quiz.resetUsedQuestions();
+          await interaction.followUp({ content: `✅ Gebruikte vragen gereset (${resetCount} rijen).` });
+        }
+        
+      } else if (subCommand === 'reset' && !subCommandGroup) {
+        const result = casino.performMonthlyReset();
+        
+        if (!result.success) {
+          await interaction.followUp({ content: `❌ Reset mislukt: ${result.message}` });
+        } else {
+          let message = `✅ Maandelijkse reset uitgevoerd door ${approval.requesterName} (goedgekeurd door super admin)!\n`;
+          message += `📊 ${result.totalUsersReset} users gereset\n\n`;
+          message += `🏆 **Top 3 met startbonus:**\n`;
+          
+          result.topUsers.forEach(user => {
+            const medal = user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉';
+            message += `${medal} ${user.username}: ${user.final_balance} → ${user.bonus} bonus\n`;
+          });
+          
+          await interaction.followUp({ content: message });
+          await sendLog(client, logChannelId, `🔄 Maandelijkse reset uitgevoerd door ${approval.requesterName} (goedgekeurd door super admin))`);
+        }
+      }
+      
+      // Notify requester of success
+      try {
+        const requester = await client.users.fetch(approval.requesterId);
+        await requester.send(`✅ Je admin commando is goedgekeurd door <@${SUPER_ADMIN_ID}> en uitgevoerd!`);
+      } catch (err) {
+        console.log('Kon DM niet sturen naar requester');
+      }
+      
+    } catch (error) {
+      console.error('Fout bij uitvoeren goedgekeurd commando:', error);
+      await interaction.followUp({ content: `❌ Er is een fout opgetreden: ${error.message}` });
+    }
+    
+    pendingApprovals.delete(approvalId);
+    return true;
+  }
+  
+  return false;
+}
+
 module.exports = {
   casinoCommands,
   handleCasinoCommands,
   handleBetButton,
   handleDoubleOrNothingButton,
   handleBlackjackButton,
+  handleApprovalButton,
   updateCasinoEmbed,
   sendLog
 };

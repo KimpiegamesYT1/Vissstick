@@ -10,7 +10,7 @@ const hok = require('./modules/hok.js');
 const casino = require('./modules/casino.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
-const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton } = require('./commands/casinoCommands.js');
+const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton } = require('./commands/casinoCommands.js');
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
@@ -245,7 +245,12 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
   // Handle button interactions
   if (interaction.isButton()) {
-    // Try bet buttons first
+    // Try approval buttons first
+    if (interaction.customId.startsWith('approval_')) {
+      await handleApprovalButton(interaction, client, config);
+      return;
+    }
+    // Try bet buttons
     if (interaction.customId.startsWith('bet_')) {
       await handleBetButton(interaction, client, config);
       return;

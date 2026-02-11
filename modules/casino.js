@@ -632,15 +632,23 @@ function buildSaldoEmbed(userId, username) {
     )
     .setTimestamp();
   
-  // Voeg progress naar Haribo toe
-  const progress = Math.min((user.balance / HARIBO_PRICE) * 100, 100).toFixed(1);
-  const progressBar = '█'.repeat(Math.floor(progress / 10)) + '░'.repeat(10 - Math.floor(progress / 10));
-  
-  embed.addFields({
-    name: '🍬 Progress naar Haribo',
-    value: `${progressBar} ${progress}% (${user.balance}/${HARIBO_PRICE})`,
-    inline: false
-  });
+  // Voeg progress naar Haribo toe (alleen bij positieve balance)
+  if (user.balance >= 0) {
+    const progress = Math.min((user.balance / HARIBO_PRICE) * 100, 100).toFixed(1);
+    const progressBar = '█'.repeat(Math.floor(progress / 10)) + '░'.repeat(10 - Math.floor(progress / 10));
+    
+    embed.addFields({
+      name: '🍬 Progress naar Haribo',
+      value: `${progressBar} ${progress}% (${user.balance}/${HARIBO_PRICE})`,
+      inline: false
+    });
+  } else {
+    embed.addFields({
+      name: '⚠️ Negatieve Balance',
+      value: 'Je saldo is negatief! Contact een admin om dit te fixen.',
+      inline: false
+    });
+  }
   
   return embed;
 }

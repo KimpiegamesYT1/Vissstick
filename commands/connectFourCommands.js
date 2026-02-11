@@ -414,7 +414,7 @@ async function handleConnectFourButton(interaction, client, config) {
     
     await interaction.update({
       embeds: [embed],
-      components: buttons
+      components: buttons.length > 0 ? buttons : []
     });
     
     resetC4Timeout(gameId, 120000); // 120 seconds per turn
@@ -538,7 +538,7 @@ async function handleConnectFourButton(interaction, client, config) {
     
     await interaction.update({
       embeds: [embed],
-      components: buttons
+      components: buttons.length > 0 ? buttons : []
     });
     
     resetC4Timeout(gameId, 120000); // Reset timeout for next turn
