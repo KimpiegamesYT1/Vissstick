@@ -177,16 +177,16 @@ function buildC4AcceptButton(gameId) {
 
 /**
  * Build column selection buttons for gameplay
+ * Returns array of ActionRows (split into 5 + 2 due to Discord's 5-button limit)
  */
 function buildC4ColumnButtons(gameId, board) {
-  const row = new ActionRowBuilder();
-  
   const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣'];
   
-  for (let col = 0; col < 7; col++) {
+  // First row: columns 0-4 (5 buttons - Discord's max per row)
+  const row1 = new ActionRowBuilder();
+  for (let col = 0; col < 5; col++) {
     const isDisabled = c4.isColumnFull(board, col);
-    
-    row.addComponents(
+    row1.addComponents(
       new ButtonBuilder()
         .setCustomId(`c4_col${col}_${gameId}`)
         .setEmoji(emojis[col])
@@ -195,7 +195,20 @@ function buildC4ColumnButtons(gameId, board) {
     );
   }
   
-  return row;
+  // Second row: columns 5-6 (2 buttons)
+  const row2 = new ActionRowBuilder();
+  for (let col = 5; col < 7; col++) {
+    const isDisabled = c4.isColumnFull(board, col);
+    row2.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`c4_col${col}_${gameId}`)
+        .setEmoji(emojis[col])
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(isDisabled)
+    );
+  }
+  
+  return [row1, row2];
 }
 
 // =====================================================
@@ -394,7 +407,7 @@ async function handleConnectFourButton(interaction, client, config) {
     
     await interaction.update({
       embeds: [embed],
-      components: [buttons]
+      components: buttons
     });
     
     resetC4Timeout(gameId, 120000); // 120 seconds per turn
@@ -491,7 +504,7 @@ async function handleConnectFourButton(interaction, client, config) {
     
     await interaction.update({
       embeds: [embed],
-      components: [buttons]
+      components: buttons
     });
     
     resetC4Timeout(gameId, 120000); // Reset timeout for next turn

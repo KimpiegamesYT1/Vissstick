@@ -487,7 +487,7 @@ async function handleCasinoCommands(interaction, client, config) {
     const targetUser = interaction.options.getUser('user');
     
     // If a user is specified, check if the requester is an admin
-    if (targetUser && !interaction.member.permissions.has('Administrator')) {
+    if (targetUser && (!interaction.member || !interaction.member.permissions.has('Administrator'))) {
       await interaction.reply({ content: '❌ Je hebt geen rechten om het saldo van anderen te bekijken!', flags: 64 });
       return true;
     }
@@ -597,7 +597,7 @@ async function handleCasinoCommands(interaction, client, config) {
   // /admin
   if (commandName === 'admin') {
     // Check admin permissions
-    if (!interaction.member.permissions.has('Administrator')) {
+    if (!interaction.member || !interaction.member.permissions.has('Administrator')) {
       await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
       return true;
     }
