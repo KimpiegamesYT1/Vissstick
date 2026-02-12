@@ -12,7 +12,6 @@ const c4AI = require('../modules/connectFourAI');
 // =====================================================
 const activeC4Games = new Map();
 const ALLOWED_BETS = [100, 200, 400];
-const AI_BETS = [50, 100, 200]; // Lagere bedragen voor AI games
 
 function generateC4GameId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
@@ -52,9 +51,9 @@ function resetC4Timeout(gameId, duration = 120000) {
     
     // Refund both players if game was in progress
     if (g.phase === 'playing' && g.betAmount) {
-      casino.addBalance(g.player1.id, g.player1.username, g.betAmount, '4 op een rij timeout');
-      // Only refund player2 if it's not AI mode
+      // Only refund in PvP mode (AI games are free)
       if (g.mode !== 'ai') {
+        casino.addBalance(g.player1.id, g.player1.username, g.betAmount, '4 op een rij timeout');
         casino.addBalance(g.player2.id, g.player2.username, g.betAmount, '4 op een rij timeout');
       }
     }
@@ -71,15 +70,20 @@ function resetC4Timeout(gameId, duration = 120000) {
  * Build initial challenge embed with bet selection
  */
 function buildC4ChallengeEmbed(challenger, opponent, isAI = false) {
-  const description = isAI 
-    ? `${challenger.username} speelt 4 op een rij tegen de **BOT**!\n\n🤖 **${challenger.username}**, kies hoeveel je wilt gokken:\n_Het spel start direct na je keuze!_`
-    : `${challenger.username} daagt ${opponent.username} uit voor een potje 4 op een rij!\n\n**${challenger.username}**, kies hoeveel je wilt gokken:`;
+  if (isAI) {
+    return new EmbedBuilder()
+      .setColor('#00FF00')
+      .setTitle('🤖 4 op een rij tegen BOT')
+      .setDescription(`${challenger.username} speelt 4 op een rij tegen de **BOT**!\n\n🎮 **${challenger.username}**, kies een moeilijkheidsgraad:\n_Dit spel is gratis - geen punten nodig!_`)
+      .setFooter({ text: 'Kies een level om te starten' })
+      .setTimestamp();
+  }
   
   return new EmbedBuilder()
-    .setColor(isAI ? '#00FF00' : '#FFD700')
-    .setTitle(isAI ? '🤖 4 op een rij tegen BOT' : '🎮 4 op een rij Uitdaging!')
-    .setDescription(description)
-    .setFooter({ text: isAI ? 'Lagere inzet, maar ook lagere winst!' : 'Klik op een bedrag om de uitdaging te sturen' })
+    .setColor('#FFD700')
+    .setTitle('🎮 4 op een rij Uitdaging!')
+    .setDescription(`${challenger.username} daagt ${opponent.username} uit voor een potje 4 op een rij!\n\n**${challenger.username}**, kies hoeveel je wilt gokken:`)
+    .setFooter({ text: 'Klik op een bedrag om de uitdaging te sturen' })
     .setTimestamp();
 }
 
@@ -121,9 +125,10 @@ function buildC4GameEmbed(game, message = null, aiThinking = false) {
   
   // Add fields based on mode
   if (game.mode === 'ai') {
+    const difficultyName = c4AI.DIFFICULTY_LEVELS[game.difficulty]?.name || 'Normaal';
     embed.addFields(
-      { name: `🔴 ${game.player1.username}`, value: `Inzet: ${game.betAmount} punten`, inline: true },
-      { name: `🟢 BOT`, value: `Sterke tegenstander`, inline: true }
+      { name: `🔴 ${game.player1.username}`, value: `Speler (Mens)`, inline: true },
+      { name: `🟢 BOT`, value: `${difficultyName}`, inline: true }
     );
   } else {
     embed.addFields(
@@ -150,25 +155,26 @@ function buildC4GameOverEmbed(game, result) {
   if (result.type === 'win') {
     const winner = result.winner === 1 ? game.player1 : game.player2;
     const winnerEmoji = result.winner === 1 ? '🔴' : '🟢';
-    const winAmount = game.betAmount * 2;
     
     if (game.mode === 'ai') {
       if (result.winner === 1) {
         // Human won
-        description += `${winnerEmoji} **${winner.username}** heeft gewonnen!\n\n🏆 **Prijs:** ${winAmount} punten`;
+        description += `${winnerEmoji} **${winner.username}** heeft gewonnen!\n\n🎉 Gefeliciteerd! Je hebt de BOT verslagen!`;
         color = '#FFD700';
       } else {
         // AI won
-        description += `${winnerEmoji} **BOT** heeft gewonnen!\n\n💸 Je verliest ${game.betAmount} punten`;
+        const difficultyName = c4AI.DIFFICULTY_LEVELS[game.difficulty]?.name || 'Normaal';
+        description += `${winnerEmoji} **BOT** heeft gewonnen!\n\n🤖 De ${difficultyName} BOT was te sterk. Probeer het opnieuw!`;
         color = '#FF4444';
       }
     } else {
+      const winAmount = game.betAmount * 2;
       description += `${winnerEmoji} **${winner.username}** heeft gewonnen!\n\n🏆 **Prijs:** ${winAmount} punten`;
       color = '#FFD700';
     }
   } else if (result.type === 'draw') {
     if (game.mode === 'ai') {
-      description += `🤝 **Gelijkspel!**\n\nHet bord is vol! Je krijgt je inzet terug.`;
+      description += `🤝 **Gelijkspel!**\n\nHet bord is vol! Niemand heeft gewonnen.`;
     } else {
       description += `🤝 **Gelijkspel!**\n\nHet bord is vol! Beide spelers krijgen hun inzet terug.`;
     }
@@ -187,20 +193,41 @@ function buildC4GameOverEmbed(game, result) {
 // =====================================================
 
 /**
- * Build bet amount selection buttons
+ * Build bet amount selection buttons  
  */
 function buildC4BetButtons(gameId, isAI = false) {
   const row = new ActionRowBuilder();
-  const bets = isAI ? AI_BETS : ALLOWED_BETS;
   
-  for (const amount of bets) {
+  if (isAI) {
+    // Difficulty selection for AI mode
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`c4_bet_${gameId}_${amount}`)
-        .setLabel(`${amount} punten`)
+        .setCustomId(`c4_diff_${gameId}_easy`)
+        .setLabel('🟢 Makkelijk')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('😊'),
+      new ButtonBuilder()
+        .setCustomId(`c4_diff_${gameId}_normal`)
+        .setLabel('🟡 Normaal')
         .setStyle(ButtonStyle.Primary)
-        .setEmoji('💰')
+        .setEmoji('🤔'),
+      new ButtonBuilder()
+        .setCustomId(`c4_diff_${gameId}_hard`)
+        .setLabel('🔴 Moeilijk')
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji('😤')
     );
+  } else {
+    // Bet selection for PvP mode
+    for (const amount of ALLOWED_BETS) {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`c4_bet_${gameId}_${amount}`)
+          .setLabel(`${amount} punten`)
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('💰')
+      );
+    }
   }
   
   return row;
@@ -336,7 +363,8 @@ async function handleConnectFourCommands(interaction, client, config) {
       board: null,
       currentPlayer: null,
       betAmount: null,
-      phase: 'bet_selection', // bet_selection -> waiting_accept -> playing (AI skips waiting_accept)
+      difficulty: null, // AI difficulty: 'easy', 'normal', or 'hard'
+      phase: isAI ? 'difficulty_selection' : 'bet_selection', // AI: difficulty first, PvP: bet first
       mode: isAI ? 'ai' : 'pvp', // Track game mode
       aiPlayer: isAI ? 2 : null, // AI is always player 2
       timeout: null
@@ -368,6 +396,53 @@ async function handleConnectFourCommands(interaction, client, config) {
 async function handleConnectFourButton(interaction, client, config) {
   const customId = interaction.customId;
   
+  // Handle difficulty selection for AI games
+  if (customId.startsWith('c4_diff_')) {
+    // Format: c4_diff_{gameId}_{difficulty}
+    const parts = customId.split('_');
+    const gameId = parts[2];
+    const difficulty = parts[3]; // 'easy', 'normal', or 'hard'
+    
+    const game = activeC4Games.get(gameId);
+    if (!game) {
+      await interaction.reply({ content: '❌ Deze uitdaging is verlopen!', flags: 64 });
+      return true;
+    }
+    
+    // Only challenger can select difficulty
+    if (interaction.user.id !== game.player1.id) {
+      await interaction.reply({ content: '❌ Alleen de uitdager kan de moeilijkheid kiezen!', flags: 64 });
+      return true;
+    }
+    
+    // Validate difficulty
+    if (!c4AI.DIFFICULTY_LEVELS[difficulty]) {
+      await interaction.reply({ content: '❌ Ongeldige moeilijkheidsgraad!', flags: 64 });
+      return true;
+    }
+    
+    // Set difficulty and start game immediately (AI games are free)
+    game.difficulty = difficulty;
+    game.board = c4.createBoard();
+    game.currentPlayer = 1; // Player 1 (human) starts
+    game.phase = 'playing';
+    
+    const difficultyName = c4AI.DIFFICULTY_LEVELS[difficulty].name;
+    
+    // Update message with game board
+    const embed = buildC4GameEmbed(game);
+    const buttons = buildC4ColumnButtons(gameId, game.board);
+    
+    await interaction.update({
+      content: `🤖 **${game.player1.username}** speelt tegen de BOT op **${difficultyName}** niveau!`,
+      embeds: [embed],
+      components: buttons.length > 0 ? buttons : []
+    });
+    
+    resetC4Timeout(gameId, 120000); // 120 seconds per turn
+    return true;
+  }
+  
   // Parse button type and gameId
   if (customId.startsWith('c4_bet_')) {
     // Format: c4_bet_{gameId}_{amount}
@@ -397,30 +472,6 @@ async function handleConnectFourButton(interaction, client, config) {
     
     // Update game with bet amount
     game.betAmount = betAmount;
-    
-    // If AI mode, start game immediately
-    if (game.mode === 'ai') {
-      // Deduct bet from player only (AI doesn't pay)
-      casino.subtractBalance(game.player1.id, game.betAmount);
-      
-      // Initialize game
-      game.board = c4.createBoard();
-      game.currentPlayer = 1; // Player 1 (human) starts
-      game.phase = 'playing';
-      
-      // Update message with game board
-      const embed = buildC4GameEmbed(game);
-      const buttons = buildC4ColumnButtons(gameId, game.board);
-      
-      await interaction.update({
-        content: `🤖 **${game.player1.username}** speelt tegen de BOT voor **${game.betAmount}** punten!`,
-        embeds: [embed],
-        components: buttons.length > 0 ? buttons : []
-      });
-      
-      resetC4Timeout(gameId, 120000); // 120 seconds per turn
-      return true;
-    }
     
     // PvP mode: proceed to waiting_accept phase
     game.phase = 'waiting_accept';
@@ -589,10 +640,12 @@ async function handleConnectFourButton(interaction, client, config) {
     if (winner) {
       // We have a winner!
       const winnerPlayer = winner === 1 ? game.player1 : game.player2;
-      const winAmount = game.betAmount * 2;
       
-      // Award winnings
-      casino.addBalance(winnerPlayer.id, winnerPlayer.username, winAmount, `Gewonnen 4 op een rij tegen ${winner === 1 ? game.player2.username : game.player1.username}`);
+      // Award winnings (only in PvP mode, AI games are free)
+      if (game.mode !== 'ai') {
+        const winAmount = game.betAmount * 2;
+        casino.addBalance(winnerPlayer.id, winnerPlayer.username, winAmount, `Gewonnen 4 op een rij tegen ${winner === 1 ? game.player2.username : game.player1.username}`);
+      }
       
       // Update message with game over
       const embed = buildC4GameOverEmbed(game, { type: 'win', winner });
@@ -607,10 +660,9 @@ async function handleConnectFourButton(interaction, client, config) {
     
     // Check for draw
     if (c4.isBoardFull(game.board)) {
-      // Refund player(s)
-      casino.addBalance(game.player1.id, game.player1.username, game.betAmount, '4 op een rij gelijkspel');
-      // Only refund player2 in PvP mode
+      // Refund player(s) - only in PvP mode (AI games are free)
       if (game.mode !== 'ai') {
+        casino.addBalance(game.player1.id, game.player1.username, game.betAmount, '4 op een rij gelijkspel');
         casino.addBalance(game.player2.id, game.player2.username, game.betAmount, '4 op een rij gelijkspel');
       }
       
@@ -645,14 +697,13 @@ async function handleConnectFourButton(interaction, client, config) {
         if (!currentGame || currentGame.phase !== 'playing') return;
         
         try {
-          // Get AI move
-          const aiColumn = c4AI.getAIMove(currentGame.board, currentGame.aiPlayer);
+          // Get AI move with difficulty
+          const aiColumn = c4AI.getAIMove(currentGame.board, currentGame.aiPlayer, currentGame.difficulty);
           const aiResult = c4.dropPiece(currentGame.board, aiColumn, currentGame.aiPlayer);
           
           if (!aiResult.success) {
             console.error('[C4 AI] AI made invalid move!');
-            // Fallback: give win to human
-            casino.addBalance(currentGame.player1.id, currentGame.player1.username, currentGame.betAmount * 2, 'Gewonnen 4 op een rij (AI error)');
+            // Fallback: human wins (no money in AI games)
             const errorEmbed = new EmbedBuilder()
               .setColor('#FF0000')
               .setTitle('❌ AI Fout')
@@ -669,7 +720,7 @@ async function handleConnectFourButton(interaction, client, config) {
           const aiWinner = c4.checkWinner(currentGame.board, aiResult.row, aiColumn);
           
           if (aiWinner) {
-            // AI won - human loses bet (no payout)
+            // AI won (no money in AI games)
             const embed = buildC4GameOverEmbed(currentGame, { type: 'win', winner: currentGame.aiPlayer });
             await interaction.editReply({
               embeds: [embed],
@@ -681,9 +732,7 @@ async function handleConnectFourButton(interaction, client, config) {
           
           // Check for draw after AI move
           if (c4.isBoardFull(currentGame.board)) {
-            // Refund human player
-            casino.addBalance(currentGame.player1.id, currentGame.player1.username, currentGame.betAmount, '4 op een rij gelijkspel');
-            
+            // Draw (no money in AI games)
             const embed = buildC4GameOverEmbed(currentGame, { type: 'draw' });
             await interaction.editReply({
               embeds: [embed],

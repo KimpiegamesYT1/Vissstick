@@ -9,7 +9,12 @@ const c4 = require('./connectFour');
 // CONSTANTS
 // =====================================================
 
-const DEPTH = 7; // Search depth (6-7 provides strong play with good performance)
+const DIFFICULTY_LEVELS = {
+  easy: { name: 'Makkelijk', depth: 3, useRandom: true },
+  normal: { name: 'Normaal', depth: 5, useRandom: false },
+  hard: { name: 'Moeilijk', depth: 7, useRandom: false }
+};
+
 const WIN_SCORE = 1000000;
 const LOSE_SCORE = -1000000;
 
@@ -228,13 +233,24 @@ function minimax(board, depth, alpha, beta, maximizingPlayer, aiPlayer) {
 }
 
 /**
+ * Get a random valid move (for easy difficulty)
+ * @param {Array<Array<number>>} board - Current game board
+ * @returns {number} Random valid column (0-6)
+ */
+function getRandomMove(board) {
+  const validCols = getValidColumns(board);
+  return validCols[Math.floor(Math.random() * validCols.length)];
+}
+
+/**
  * Get the best move for the AI player
  * Main entry point for AI decision making
  * @param {Array<Array<number>>} board - Current game board
  * @param {number} aiPlayer - AI player number (1 or 2)
+ * @param {string} difficulty - Difficulty level: 'easy', 'normal', or 'hard'
  * @returns {number} Best column to play (0-6)
  */
-function getAIMove(board, aiPlayer) {
+function getAIMove(board, aiPlayer, difficulty = 'normal') {
   const validCols = getValidColumns(board);
   
   if (validCols.length === 0) {
@@ -245,6 +261,16 @@ function getAIMove(board, aiPlayer) {
   if (validCols.length === 1) {
     // Only one option
     return validCols[0];
+  }
+  
+  const difficultyConfig = DIFFICULTY_LEVELS[difficulty] || DIFFICULTY_LEVELS.normal;
+  console.log(`[C4 AI] Difficulty: ${difficultyConfig.name}, Depth: ${difficultyConfig.depth}`);
+  
+  // Easy mode: 60% random, 40% smart (block wins)
+  if (difficulty === 'easy' && Math.random() < 0.6) {
+    const col = getRandomMove(board);
+    console.log(`[C4 AI] Easy mode - Random move: column ${col + 1}`);
+    return col;
   }
   
   // First move optimization: play center
@@ -297,8 +323,8 @@ function getAIMove(board, aiPlayer) {
     const tempBoard = board.map(r => [...r]);
     tempBoard[row][col] = aiPlayer;
     
-    // Run minimax
-    const score = minimax(tempBoard, DEPTH - 1, -Infinity, Infinity, false, aiPlayer);
+    // Run minimax with difficulty-based depth
+    const score = minimax(tempBoard, difficultyConfig.depth - 1, -Infinity, Infinity, false, aiPlayer);
     
     console.log(`[C4 AI] Column ${col + 1}: score ${score}`);
     
@@ -309,7 +335,7 @@ function getAIMove(board, aiPlayer) {
   }
   
   const elapsed = Date.now() - startTime;
-  console.log(`[C4 AI] Best move: column ${bestCol + 1} (score: ${bestScore}, time: ${elapsed}ms)`);
+  console.log(`[C4 AI] Best move: column ${bestCol + 1} (score: ${bestScore}, time: ${elapsed}ms, depth: ${difficultyConfig.depth})`);
   
   return bestCol;
 }
@@ -321,5 +347,6 @@ function getAIMove(board, aiPlayer) {
 module.exports = {
   getAIMove,
   getValidColumns,
-  evaluateBoard
+  evaluateBoard,
+  DIFFICULTY_LEVELS
 };
