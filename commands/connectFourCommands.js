@@ -203,19 +203,16 @@ function buildC4BetButtons(gameId, isAI = false) {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`c4_diff_${gameId}_easy`)
-        .setLabel('🟢 Makkelijk')
-        .setStyle(ButtonStyle.Success)
-        .setEmoji('😊'),
+        .setLabel('Makkelijk')
+        .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(`c4_diff_${gameId}_normal`)
-        .setLabel('🟡 Normaal')
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji('🤔'),
+        .setLabel('Normaal')
+        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(`c4_diff_${gameId}_hard`)
-        .setLabel('🔴 Moeilijk')
+        .setLabel('Moeilijk')
         .setStyle(ButtonStyle.Danger)
-        .setEmoji('😤')
     );
   } else {
     // Bet selection for PvP mode
