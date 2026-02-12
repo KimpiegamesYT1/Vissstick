@@ -9,7 +9,7 @@ const c4 = require('./connectFour');
 // CONSTANTS
 // =====================================================
 
-const DEPTH = 6; // Search depth (6-7 provides strong play with good performance)
+const DEPTH = 7; // Search depth (6-7 provides strong play with good performance)
 const WIN_SCORE = 1000000;
 const LOSE_SCORE = -1000000;
 
