@@ -16,7 +16,7 @@ class RateLimiter {
         this.LIMITS = {
             REQUESTS_PER_MINUTE: 30,
             REQUESTS_PER_DAY: 1000,
-            TOKENS_PER_MINUTE: 8000,
+            TOKENS_PER_MINUTE: 15000,  // Verhoogd voor conversatie context
             TOKENS_PER_DAY: 200000
         };
     }
@@ -188,7 +188,7 @@ function getConversationHistory(conversationId, limit = 50) {
         const history = [
             {
                 role: 'system',
-                content: 'Je bent een behulpzame AI assistent in de Vissstick Discord server voor "Het HOK van Syntaxis". Wees vriendelijk, casual en helpvol. Antwoord in het Nederlands tenzij anders gevraagd. Houd antwoorden bondig maar informatief.'
+                content: 'Je bent een behulpzame AI assistent in de Vissstick Discord server. Belangrijke regels:\n\n- Houd antwoorden KORT en bondig (max 2-3 zinnen tenzij expliciet om meer gevraagd)\n- Gebruik GEEN HTML tags of code blocks\n- Gebruik alleen plain text met Discord markdown (*vet*, _cursief_)\n- Wees vriendelijk en casual\n- Antwoord altijd in het Nederlands\n\nKort en krachtig is beter dan lang en uitgebreid!'
             }
         ];
 
@@ -254,13 +254,11 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
         // Get or create conversation
         const conversationId = getOrCreateConversation(channelId);
 
-        // Estimate tokens needed
-        const estimatedTokens = estimateTokens(userMessage) + 500; // User message + estimated response
-
-        // Check rate limits
-        if (!rateLimiter.canMakeRequest(estimatedTokens)) {
+        // Check rate limits with conservative estimate (only new tokens, not full history)
+        const estimatedNewTokens = estimateTokens(userMessage) + 300; // User message + estimated response
+        if (!rateLimiter.canMakeRequest(estimatedNewTokens)) {
             const status = rateLimiter.getStatus();
-            throw new Error(`Rate limit bereikt. Requests: ${status.requestsPerMinute}/${status.limits.REQUESTS_PER_MINUTE}/min, Tokens: ${status.tokensPerMinute}/${status.limits.TOKENS_PER_MINUTE}/min`);
+            throw new Error(`Rate limit bereikt. Wacht even voordat je weer een bericht stuurt.\n\nRequests: ${status.requestsPerMinute}/${status.limits.REQUESTS_PER_MINUTE}/min\nTokens: ${status.tokensPerMinute}/${status.limits.TOKENS_PER_MINUTE}/min`);
         }
 
         // Add user message to database
@@ -286,6 +284,11 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
 
         let assistantMessage = response.choices[0].message.content;
         const totalTokens = response.usage?.total_tokens || estimateTokens(assistantMessage);
+        
+        // Calculate only NEW tokens for rate limiter (user message + response, not full history)
+        const userTokens = estimateTokens(userMessage);
+        const responseTokens = estimateTokens(assistantMessage);
+        const newTokens = userTokens + responseTokens;
 
         // Truncate response if too long for Discord embed
         if (assistantMessage.length > MAX_OUTPUT_LENGTH) {
@@ -293,13 +296,13 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             assistantMessage = assistantMessage.substring(0, MAX_OUTPUT_LENGTH - 50) + '\n\n_[...antwoord te lang, ingekort]_';
         }
 
-        // Record request in rate limiter
-        rateLimiter.recordRequest(totalTokens);
+        // Record request in rate limiter (only count new tokens, not full conversation history)
+        rateLimiter.recordRequest(newTokens);
 
         // Add assistant response to database
         addMessageToConversation(conversationId, 'assistant', assistantMessage);
 
-        console.log(`[CHATBOT] Response gegenereerd (${totalTokens} tokens, ${assistantMessage.length} chars)`);
+        console.log(`[CHATBOT] Response gegenereerd (${newTokens} nieuwe tokens, ${assistantMessage.length} chars)`);
 
         return assistantMessage;
     } catch (error) {

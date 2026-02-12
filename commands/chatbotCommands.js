@@ -43,7 +43,7 @@ async function handleChatbotCommands(interaction, client, config) {
 
     try {
         if (subcommand === 'reset') {
-            await handleReset(interaction, config);
+            await handleReset(interaction, client, config);
         } else if (subcommand === 'stats') {
             await handleStats(interaction, config);
         }
@@ -72,7 +72,7 @@ async function handleChatbotCommands(interaction, client, config) {
 // SUBCOMMAND HANDLERS
 // =====================================================
 
-async function handleReset(interaction, config) {
+async function handleReset(interaction, client, config) {
     await interaction.deferReply({ ephemeral: true });
 
     const channelId = config.CHATBOT_CHANNEL_ID;
