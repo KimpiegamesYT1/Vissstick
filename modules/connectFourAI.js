@@ -249,9 +249,10 @@ function getRandomMove(board) {
  * @param {Array<Array<number>>} board - Current game board
  * @param {number} aiPlayer - AI player number (1 or 2)
  * @param {string} difficulty - Difficulty level: 'easy', 'normal', or 'hard'
+ * @param {Function} progressCallback - Optional callback (current, total) for progress updates
  * @returns {number} Best column to play (0-6)
  */
-function getAIMove(board, aiPlayer, difficulty = 'normal') {
+function getAIMove(board, aiPlayer, difficulty = 'normal', progressCallback = null) {
   const validCols = getValidColumns(board);
   
   if (validCols.length === 0) {
@@ -316,9 +317,15 @@ function getAIMove(board, aiPlayer, difficulty = 'normal') {
   }
   
   // Evaluate each possible move with minimax
+  let columnIndex = 0;
   for (const col of validCols) {
     const row = getDropRow(board, col);
     if (row === -1) continue;
+    
+    // Report progress if callback provided
+    if (progressCallback) {
+      progressCallback(columnIndex, validCols.length);
+    }
     
     // Simulate move
     const tempBoard = board.map(r => [...r]);
@@ -333,6 +340,8 @@ function getAIMove(board, aiPlayer, difficulty = 'normal') {
       bestScore = score;
       bestCol = col;
     }
+    
+    columnIndex++;
   }
   
   const elapsed = Date.now() - startTime;

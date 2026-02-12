@@ -147,23 +147,24 @@ function buildLetterButtons(guessedLetters, gameId) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const rows = [];
   
-  // Split alphabet into rows (5-6 letters each)
-  const rowSizes = [5, 5, 5, 5, 6]; // A-E, F-J, K-O, P-T, U-Z
-  let startIndex = 0;
+  // Filter out already guessed letters (hide them instead of disabling)
+  const availableLetters = [...alphabet].filter(letter => !guessedLetters.has(letter));
   
-  for (const size of rowSizes) {
-    const rowLetters = alphabet.slice(startIndex, startIndex + size);
-    const buttons = [...rowLetters].map(letter => {
-      const isGuessed = guessedLetters.has(letter);
+  // Organize into rows of max 5 buttons each
+  // This ensures we never exceed Discord's 5-button-per-row limit
+  for (let i = 0; i < availableLetters.length; i += 5) {
+    const rowLetters = availableLetters.slice(i, i + 5);
+    const buttons = rowLetters.map(letter => {
       return new ButtonBuilder()
         .setCustomId(`hm_letter_${gameId}_${letter}`)
         .setLabel(letter)
-        .setStyle(isGuessed ? ButtonStyle.Secondary : ButtonStyle.Primary)
-        .setDisabled(isGuessed);
+        .setStyle(ButtonStyle.Primary);
     });
     
     rows.push(new ActionRowBuilder().addComponents(...buttons));
-    startIndex += size;
+    
+    // Discord limits to 5 ActionRows per message
+    if (rows.length >= 5) break;
   }
   
   return rows;

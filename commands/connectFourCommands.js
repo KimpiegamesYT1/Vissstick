@@ -102,14 +102,19 @@ function buildC4WaitingEmbed(game) {
 /**
  * Build game board embed
  */
-function buildC4GameEmbed(game, message = null, aiThinking = false) {
+function buildC4GameEmbed(game, message = null, aiThinking = false, aiProgress = null) {
   const boardStr = c4.renderBoard(game.board);
   const currentPlayerName = game.currentPlayer === 1 ? game.player1.username : game.player2.username;
   const currentPlayerEmoji = game.currentPlayer === 1 ? '🔴' : '🟢';
   
   let description;
   if (aiThinking) {
-    description = `${boardStr}\n\n🤖 **BOT denkt na...**`;
+    if (aiProgress !== null) {
+      const progressBar = '█'.repeat(Math.floor(aiProgress / 5)) + '░'.repeat(20 - Math.floor(aiProgress / 5));
+      description = `${boardStr}\n\n🤖 **BOT denkt na...**\n\`${progressBar}\` ${aiProgress}%`;
+    } else {
+      description = `${boardStr}\n\n🤖 **BOT denkt na...**`;
+    }
   } else if (game.mode === 'ai' && game.currentPlayer === game.aiPlayer) {
     description = `${boardStr}\n\n${currentPlayerEmoji} **BOT** is aan de beurt!`;
   } else {
@@ -683,8 +688,10 @@ async function handleConnectFourButton(interaction, client, config) {
     
     // If AI mode and it's now AI's turn, make AI move
     if (game.mode === 'ai' && game.currentPlayer === game.aiPlayer) {
+      const showProgress = game.difficulty === 'hard' || game.difficulty === 'impossible';
+      
       // Update board to show AI is thinking
-      const thinkingEmbed = buildC4GameEmbed(game, null, true);
+      const thinkingEmbed = buildC4GameEmbed(game, null, true, showProgress ? 0 : null);
       const buttons = buildC4ColumnButtons(gameId, game.board);
       
       await interaction.update({
@@ -698,8 +705,35 @@ async function handleConnectFourButton(interaction, client, config) {
         if (!currentGame || currentGame.phase !== 'playing') return;
         
         try {
-          // Get AI move with difficulty
-          const aiColumn = c4AI.getAIMove(currentGame.board, currentGame.aiPlayer, currentGame.difficulty);
+          // Progress callback for normal/hard difficulty  
+          let lastUpdate = 0;
+          let progressCallback = null;
+          if (showProgress) {
+            progressCallback = async (current, total) => {
+              const now = Date.now();
+              // Throttle updates to max once per 300ms to avoid rate limits
+              if (now - lastUpdate < 300) return;
+              lastUpdate = now;
+              
+              const percentage = Math.round((current / total) * 100);
+              const progressEmbed = buildC4GameEmbed(currentGame, null, true, percentage);
+              const progressButtons = buildC4ColumnButtons(gameId, currentGame.board);
+              try {
+                await interaction.editReply({
+                  embeds: [progressEmbed],
+                  components: progressButtons.length > 0 ? progressButtons : []
+                });
+              } catch (err) {
+                // Ignore rate limit errors during progress updates
+                if (err.code !== 50035 && err.code !== 10062) {
+                  console.error('[C4 AI] Progress update error:', err);
+                }
+              }
+            };
+          }
+          
+          // Get AI move with difficulty and progress callback
+          const aiColumn = c4AI.getAIMove(currentGame.board, currentGame.aiPlayer, currentGame.difficulty, progressCallback);
           const aiResult = c4.dropPiece(currentGame.board, aiColumn, currentGame.aiPlayer);
           
           if (!aiResult.success) {
