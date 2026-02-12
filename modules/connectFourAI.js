@@ -322,11 +322,6 @@ function getAIMove(board, aiPlayer, difficulty = 'normal', progressCallback = nu
     const row = getDropRow(board, col);
     if (row === -1) continue;
     
-    // Report progress if callback provided
-    if (progressCallback) {
-      progressCallback(columnIndex, validCols.length);
-    }
-    
     // Simulate move
     const tempBoard = board.map(r => [...r]);
     tempBoard[row][col] = aiPlayer;
@@ -342,6 +337,11 @@ function getAIMove(board, aiPlayer, difficulty = 'normal', progressCallback = nu
     }
     
     columnIndex++;
+    
+    // Report progress AFTER evaluation (so user sees actual progress)
+    if (progressCallback) {
+      progressCallback(columnIndex, validCols.length);
+    }
   }
   
   const elapsed = Date.now() - startTime;

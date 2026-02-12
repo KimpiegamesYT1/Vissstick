@@ -50,7 +50,8 @@ function buildHangmanEmbed(game) {
       `Kies je inzet om te beginnen:\n` +
       `💰 **50 punten** - Win 100 punten\n` +
       `💰 **100 punten** - Win 200 punten\n` +
-      `💰 **200 punten** - Win 400 punten\n\n` +
+      `💰 **200 punten** - Win 400 punten\n` +
+      `🎮 **Gratis spelen** - Geen inzet, geen winst\n\n` +
       `Je hebt 6 foute pogingen voordat je verliest!`
     );
   } else {
@@ -59,9 +60,11 @@ function buildHangmanEmbed(game) {
     const wrongLetters = hangman.getWrongLetters(game.word, game.guessedLetters);
     const hangmanArt = hangman.getHangmanStage(game.wrongGuesses);
     
+    const inzet = game.betAmount ? `${game.betAmount} punten` : 'Gratis';
+    
     embed.setDescription(
       `**Speler:** ${game.player.username}\n` +
-      `**Inzet:** ${game.betAmount} punten\n\n` +
+      `**Inzet:** ${inzet}\n\n` +
       `\`\`\`${hangmanArt}\`\`\`\n` +
       `**Woord:** \`${wordDisplay}\`\n\n` +
       `**Foute letters:** ${wrongLetters.length > 0 ? wrongLetters.join(', ') : 'Nog geen'}\n` +
@@ -86,7 +89,13 @@ function buildGameOverEmbed(game, won) {
     .setTimestamp();
   
   if (won) {
-    const winAmount = game.betAmount * 2;
+    const winAmount = game.betAmount ? game.betAmount * 2 : 0;
+    let resultText = '';
+    if (game.betAmount) {
+      resultText = `💰 **+${winAmount} punten** (+${game.betAmount} winst)`;
+    } else {
+      resultText = `🎮 **Gratis spel** - Goed gespeeld!`;
+    }
     embed
       .setColor('#00FF00')
       .setTitle('🎉 Gewonnen!')
@@ -94,9 +103,15 @@ function buildGameOverEmbed(game, won) {
         `**${game.player.username}** heeft het woord geraden!\n\n` +
         `\`\`\`${hangmanArt}\`\`\`\n` +
         `**Woord:** \`${wordDisplay}\`\n\n` +
-        `💰 **+${winAmount} punten** (+${game.betAmount} winst)`
+        resultText
       );
   } else {
+    let resultText = '';
+    if (game.betAmount) {
+      resultText = `💸 **-${game.betAmount} punten**`;
+    } else {
+      resultText = `🎮 **Gratis spel** - Probeer het nog eens!`;
+    }
     embed
       .setColor('#FF0000')
       .setTitle('💀 Verloren!')
@@ -104,7 +119,7 @@ function buildGameOverEmbed(game, won) {
         `**${game.player.username}** is opgehangen!\n\n` +
         `\`\`\`${hangmanArt}\`\`\`\n` +
         `**Het woord was:** \`${game.word}\`\n\n` +
-        `💸 **-${game.betAmount} punten**`
+        resultText
       );
   }
   
@@ -129,12 +144,20 @@ function buildBetButtons(userId, gameId) {
       .setDisabled(!canAfford);
   });
   
+  const freeButton = new ButtonBuilder()
+    .setCustomId(`hm_bet_${gameId}_0`)
+    .setLabel('Gratis spelen')
+    .setStyle(ButtonStyle.Success);
+  
   const cancelButton = new ButtonBuilder()
     .setCustomId(`hm_cancel_${gameId}`)
     .setLabel('Annuleren')
     .setStyle(ButtonStyle.Danger);
   
-  return [new ActionRowBuilder().addComponents(...buttons, cancelButton)];
+  return [
+    new ActionRowBuilder().addComponents(...buttons),
+    new ActionRowBuilder().addComponents(freeButton, cancelButton)
+  ];
 }
 
 /**
@@ -147,24 +170,23 @@ function buildLetterButtons(guessedLetters, gameId) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const rows = [];
   
-  // Filter out already guessed letters (hide them instead of disabling)
-  const availableLetters = [...alphabet].filter(letter => !guessedLetters.has(letter));
+  // Split alphabet into rows (5 letters each, except last row with 6 split into 3+3)
+  const rowSizes = [5, 5, 5, 5, 3, 3]; // A-E, F-J, K-O, P-T, U-W, X-Z
+  let startIndex = 0;
   
-  // Organize into rows of max 5 buttons each
-  // This ensures we never exceed Discord's 5-button-per-row limit
-  for (let i = 0; i < availableLetters.length; i += 5) {
-    const rowLetters = availableLetters.slice(i, i + 5);
-    const buttons = rowLetters.map(letter => {
+  for (const size of rowSizes) {
+    const rowLetters = alphabet.slice(startIndex, startIndex + size);
+    const buttons = [...rowLetters].map(letter => {
+      const isGuessed = guessedLetters.has(letter);
       return new ButtonBuilder()
         .setCustomId(`hm_letter_${gameId}_${letter}`)
         .setLabel(letter)
-        .setStyle(ButtonStyle.Primary);
+        .setStyle(isGuessed ? ButtonStyle.Secondary : ButtonStyle.Primary)
+        .setDisabled(isGuessed);
     });
     
     rows.push(new ActionRowBuilder().addComponents(...buttons));
-    
-    // Discord limits to 5 ActionRows per message
-    if (rows.length >= 5) break;
+    startIndex += size;
   }
   
   return rows;
@@ -349,24 +371,30 @@ async function handleHangmanButton(interaction, client, config) {
   // Handle bet selection
   if (action === 'bet') {
     const betAmount = parseInt(param);
-    const userBalance = casino.getUserBalance(game.player.id);
     
-    // Validate balance
-    if (userBalance < betAmount) {
-      await interaction.reply({
-        content: `❌ Je hebt niet genoeg punten! Je hebt **${userBalance}** punten, maar je hebt **${betAmount}** nodig.`,
-        ephemeral: true
-      });
-      return true;
+    // Check if it's a free game (betAmount = 0)
+    if (betAmount > 0) {
+      const userBalance = casino.getUserBalance(game.player.id);
+      
+      // Validate balance
+      if (userBalance < betAmount) {
+        await interaction.reply({
+          content: `❌ Je hebt niet genoeg punten! Je hebt **${userBalance}** punten, maar je hebt **${betAmount}** nodig.`,
+          ephemeral: true
+        });
+        return true;
+      }
+      
+      // Deduct bet amount
+      casino.subtractBalance(game.player.id, betAmount);
+      console.log(`[Hangman] ${game.player.username} bet ${betAmount} points`);
+    } else {
+      console.log(`[Hangman] ${game.player.username} started free game`);
     }
-    
-    // Deduct bet amount
-    casino.subtractBalance(game.player.id, betAmount);
-    console.log(`[Hangman] ${game.player.username} bet ${betAmount} points`);
     
     // Initialize game
     game.phase = 'playing';
-    game.betAmount = betAmount;
+    game.betAmount = betAmount > 0 ? betAmount : null;
     game.word = hangman.getRandomWord();
     game.guessedLetters = new Set();
     game.wrongGuesses = 0;
@@ -407,18 +435,22 @@ async function handleHangmanButton(interaction, client, config) {
     if (result.gameOver) {
       clearTimeout(game.timeout);
       
-      // Handle payout
-      if (result.won) {
-        const winAmount = game.betAmount * 2;
-        casino.addBalance(
-          game.player.id,
-          game.player.username,
-          winAmount,
-          `Galgje gewonnen (${game.word})`
-        );
-        console.log(`[Hangman] ${game.player.username} won ${winAmount} points`);
+      // Handle payout (only if not a free game)
+      if (game.betAmount) {
+        if (result.won) {
+          const winAmount = game.betAmount * 2;
+          casino.addBalance(
+            game.player.id,
+            game.player.username,
+            winAmount,
+            `Galgje gewonnen (${game.word})`
+          );
+          console.log(`[Hangman] ${game.player.username} won ${winAmount} points`);
+        } else {
+          console.log(`[Hangman] ${game.player.username} lost ${game.betAmount} points`);
+        }
       } else {
-        console.log(`[Hangman] ${game.player.username} lost ${game.betAmount} points`);
+        console.log(`[Hangman] ${game.player.username} finished free game - ${result.won ? 'won' : 'lost'}`);
       }
       
       // Show game over message

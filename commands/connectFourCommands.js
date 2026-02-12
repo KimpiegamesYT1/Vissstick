@@ -705,14 +705,14 @@ async function handleConnectFourButton(interaction, client, config) {
         if (!currentGame || currentGame.phase !== 'playing') return;
         
         try {
-          // Progress callback for normal/hard difficulty  
+          // Progress callback for hard/impossible difficulty  
           let lastUpdate = 0;
           let progressCallback = null;
           if (showProgress) {
             progressCallback = async (current, total) => {
               const now = Date.now();
-              // Throttle updates to max once per 300ms to avoid rate limits
-              if (now - lastUpdate < 300) return;
+              // Throttle updates to max once per 500ms to avoid rate limits
+              if (now - lastUpdate < 500) return;
               lastUpdate = now;
               
               const percentage = Math.round((current / total) * 100);
