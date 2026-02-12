@@ -241,7 +241,16 @@ function addMessageToConversation(conversationId, role, content, userId = null, 
 async function generateResponse(channelId, userMessage, userId, username, groqApiKey) {
     const db = getDatabase();
 
+    // Constants
+    const MAX_MESSAGE_LENGTH = 2000; // Discord message limit
+    const MAX_OUTPUT_LENGTH = 4000; // Safe limit voor Discord embeds (max 4096)
+
     try {
+        // Check message length
+        if (userMessage.length > MAX_MESSAGE_LENGTH) {
+            throw new Error(`Je bericht is te lang (${userMessage.length} karakters). Maximum is ${MAX_MESSAGE_LENGTH} karakters.`);
+        }
+
         // Get or create conversation
         const conversationId = getOrCreateConversation(channelId);
 
@@ -275,8 +284,14 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             max_tokens: 1000
         });
 
-        const assistantMessage = response.choices[0].message.content;
+        let assistantMessage = response.choices[0].message.content;
         const totalTokens = response.usage?.total_tokens || estimateTokens(assistantMessage);
+
+        // Truncate response if too long for Discord embed
+        if (assistantMessage.length > MAX_OUTPUT_LENGTH) {
+            console.log(`[CHATBOT] Response te lang (${assistantMessage.length} chars), truncating...`);
+            assistantMessage = assistantMessage.substring(0, MAX_OUTPUT_LENGTH - 50) + '\n\n_[...antwoord te lang, ingekort]_';
+        }
 
         // Record request in rate limiter
         rateLimiter.recordRequest(totalTokens);
@@ -284,7 +299,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
         // Add assistant response to database
         addMessageToConversation(conversationId, 'assistant', assistantMessage);
 
-        console.log(`[CHATBOT] Response gegenereerd (${totalTokens} tokens)`);
+        console.log(`[CHATBOT] Response gegenereerd (${totalTokens} tokens, ${assistantMessage.length} chars)`);
 
         return assistantMessage;
     } catch (error) {
