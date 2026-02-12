@@ -12,6 +12,7 @@ const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
 const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton } = require('./commands/casinoCommands.js');
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
+const { handleHangmanButton } = require('./commands/hangmanCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, GROQ_API_KEY } = config;
@@ -332,6 +333,11 @@ client.on('interactionCreate', async (interaction) => {
     // Try Connect Four buttons
     if (interaction.customId.startsWith('c4_')) {
       await handleConnectFourButton(interaction, client, config);
+      return;
+    }
+    // Try Hangman buttons
+    if (interaction.customId.startsWith('hm_')) {
+      await handleHangmanButton(interaction, client, config);
       return;
     }
     // Then quiz buttons

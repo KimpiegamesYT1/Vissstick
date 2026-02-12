@@ -212,7 +212,11 @@ function buildC4BetButtons(gameId, isAI = false) {
       new ButtonBuilder()
         .setCustomId(`c4_diff_${gameId}_hard`)
         .setLabel('Moeilijk')
-        .setStyle(ButtonStyle.Danger)
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`c4_diff_${gameId}_impossible`)
+        .setLabel('Onmogelijk')
+        .setStyle(ButtonStyle.Secondary)
     );
   } else {
     // Bet selection for PvP mode
