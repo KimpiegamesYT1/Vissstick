@@ -167,11 +167,12 @@ function buildBetButtons(userId, gameId) {
  * @returns {ActionRowBuilder[]} Array of action rows with letter buttons
  */
 function buildLetterButtons(guessedLetters, gameId) {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  // Skip X (rarely used in Dutch) to fit exactly 25 letters in 5 rows of 5
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWYZ';
   const rows = [];
   
-  // Split alphabet into rows (5 letters each, except last row with 6 split into 3+3)
-  const rowSizes = [5, 5, 5, 5, 3, 3]; // A-E, F-J, K-O, P-T, U-W, X-Z
+  // Split alphabet into 5 rows of exactly 5 letters each
+  const rowSizes = [5, 5, 5, 5, 5]; // A-E, F-J, K-O, P-T, U-Z (no X)
   let startIndex = 0;
   
   for (const size of rowSizes) {
