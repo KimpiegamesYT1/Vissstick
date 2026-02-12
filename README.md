@@ -1,6 +1,6 @@
 # Vissstick Discord Bot 🐔
 
-Discord bot voor het HOK van Syntaxis.
+Discord bot voor het weergeven van het HOK van Syntaxis.
 
 ## Features
 
@@ -67,7 +67,7 @@ Na het starten van de bot worden de vragen geïmporteerd en wordt `quiz-import.j
 
 ## Audio bestanden toevoegen
 
-De bot kan MP3 bestanden afspelen in voice channels.
+De bot kan .MP3 bestanden afspelen in voice channels.
 
 - Plaats `.mp3` bestanden in de `audio/` folder
 - De bot detecteert automatisch nieuwe bestanden
