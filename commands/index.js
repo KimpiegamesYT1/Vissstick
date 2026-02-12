@@ -3,6 +3,7 @@ const { quizCommands, handleQuizCommands } = require('./quizCommands');
 const { audioCommands, handleAudioCommands } = require('./audioCommands');
 const { casinoCommands, handleCasinoCommands } = require('./casinoCommands');
 const { connectFourCommands, handleConnectFourCommands } = require('./connectFourCommands');
+const { chatbotCommands, handleChatbotCommands } = require('./chatbotCommands');
 
 // Combineer alle commands
 const allCommands = [
@@ -10,7 +11,8 @@ const allCommands = [
   ...quizCommands,
   ...audioCommands,
   ...casinoCommands,
-  ...connectFourCommands
+  ...connectFourCommands,
+  ...chatbotCommands
 ];
 
 // Handle alle commands
@@ -45,6 +47,11 @@ async function handleCommands(interaction, client, config, hokState) {
 
   // Try connect four commands
   if (await handleConnectFourCommands(interaction, client, config)) {
+    return;
+  }
+
+  // Try chatbot commands
+  if (await handleChatbotCommands(interaction, client, config)) {
     return;
   }
 

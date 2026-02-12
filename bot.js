@@ -14,7 +14,7 @@ const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
-const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID } = config;
+const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, GROQ_API_KEY } = config;
 
 function ensureLogDirectory() {
   const logDir = path.join(__dirname, 'logs');
@@ -236,8 +236,72 @@ client.on('messageReactionRemove', async (reaction, user) => {
   // Quiz reactions zijn nu buttons - dit is alleen voor toekomstige functionaliteit
 });
 
-// Message handler voor chat responses
+// Message handler voor chat responses and chatbot
 client.on('messageCreate', async (message) => {
+  // Handle chatbot first if in chatbot channel
+  if (CHATBOT_CHANNEL_ID && GROQ_API_KEY && message.channel.id === CHATBOT_CHANNEL_ID) {
+    // Ignore bot messages
+    if (message.author.bot) {
+      return;
+    }
+
+    // Import chatbot module
+    const { generateResponse } = require('./modules/chatbot');
+
+    try {
+      // Send typing indicator (lasts ~10 seconds)
+      await message.channel.sendTyping();
+
+      // Keep typing indicator alive during processing
+      const typingInterval = setInterval(() => {
+        message.channel.sendTyping().catch(() => clearInterval(typingInterval));
+      }, 8000);
+
+      // Generate AI response
+      const reply = await generateResponse(
+        message.channel.id,
+        message.content,
+        message.author.id,
+        message.author.username,
+        GROQ_API_KEY
+      );
+
+      // Stop typing indicator
+      clearInterval(typingInterval);
+
+      // Send response as embed
+      const embed = new EmbedBuilder()
+        .setDescription(reply)
+        .setColor('#0099ff')
+        .setFooter({ 
+          text: `Gevraagd door ${message.author.username}`, 
+          iconURL: message.author.displayAvatarURL() 
+        })
+        .setTimestamp();
+
+      await message.reply({ embeds: [embed] });
+
+    } catch (error) {
+      console.error('[CHATBOT]', error);
+
+      // Send error embed to channel
+      const errorEmbed = new EmbedBuilder()
+        .setTitle('❌ Chatbot Error')
+        .setDescription(
+          error.message || 'Er ging iets mis met de AI. Probeer het later opnieuw.'
+        )
+        .setColor('#FF0000')
+        .setTimestamp();
+
+      await message.reply({ embeds: [errorEmbed] }).catch(err => 
+        console.error('[CHATBOT] Kon error embed niet versturen:', err)
+      );
+    }
+
+    return; // Don't process chat responses if in chatbot channel
+  }
+
+  // Handle regular chat responses
   await handleChatResponse(message);
 });
 
@@ -298,6 +362,14 @@ client.once("clientReady", async () => {
   } catch (error) {
     console.error('❌ Database initialisatie mislukt:', error);
     process.exit(1);
+  }
+
+  // Valideer chatbot configuratie
+  if (CHATBOT_CHANNEL_ID && GROQ_API_KEY) {
+    console.log('✅ Chatbot configuratie gevonden');
+  } else if (CHATBOT_CHANNEL_ID || GROQ_API_KEY) {
+    console.warn('⚠️ Chatbot configuratie incompleet - chatbot uitgeschakeld');
+    console.warn('   Voeg zowel CHATBOT_CHANNEL_ID als GROQ_API_KEY toe aan config.json');
   }
 
   // Importeer nieuwe quiz vragen uit quiz-import.json (en maak bestand daarna weer leeg)

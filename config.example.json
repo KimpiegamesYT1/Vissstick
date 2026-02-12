@@ -6,5 +6,7 @@
     "QUIZ_CHANNEL_ID": "your-quiz-channel-id",
     "SCOREBOARD_CHANNEL_ID": "your-scoreboard-channel-id",
     "CASINO_CHANNEL_ID": "1468608557279612998",
-    "LOG_CHANNEL_ID": "1415603152400547862"
+    "LOG_CHANNEL_ID": "1415603152400547862",
+    "CHATBOT_CHANNEL_ID": "your-chatbot-channel-id",
+    "GROQ_API_KEY": "your-groq-api-key-here"
 }
