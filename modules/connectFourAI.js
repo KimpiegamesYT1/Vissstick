@@ -12,8 +12,8 @@ const c4 = require('./connectFour');
 const DIFFICULTY_LEVELS = {
   easy: { name: 'Makkelijk', depth: 2, useRandom: true },
   normal: { name: 'Normaal', depth: 4, useRandom: false },
-  hard: { name: 'Moeilijk', depth: 6, useRandom: false },
-  impossible: { name: 'Onmogelijk', depth: 8, useRandom: false }
+  hard: { name: 'Moeilijk', depth: 5, useRandom: false },
+  impossible: { name: 'Onmogelijk', depth: 7, useRandom: false }
 };
 
 const WIN_SCORE = 1000000;
@@ -138,6 +138,18 @@ function evaluateBoard(board, aiPlayer) {
 }
 
 /**
+ * Order columns for better alpha-beta pruning
+ * Center columns are tried first as they're strategically stronger
+ * @param {number[]} columns - Array of valid column indices
+ * @returns {number[]} Ordered columns
+ */
+function orderColumns(columns) {
+  // Order: 3 (center), 2, 4, 1, 5, 0, 6
+  const order = [3, 2, 4, 1, 5, 0, 6];
+  return columns.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+}
+
+/**
  * Check if the game is in a terminal state (win/loss/draw)
  * @param {Array<Array<number>>} board - The game board
  * @returns {boolean} True if game is over
@@ -164,7 +176,7 @@ function isTerminalNode(board) {
  * @returns {number} Best score for this position
  */
 function minimax(board, depth, alpha, beta, maximizingPlayer, aiPlayer) {
-  const validCols = getValidColumns(board);
+  const validCols = orderColumns(getValidColumns(board));
   const opponent = aiPlayer === 1 ? 2 : 1;
   
   // Check terminal conditions
@@ -317,8 +329,10 @@ function getAIMove(board, aiPlayer, difficulty = 'normal', progressCallback = nu
   }
   
   // Evaluate each possible move with minimax
+  // Try center columns first for better alpha-beta pruning
+  const orderedCols = orderColumns([...validCols]);
   let columnIndex = 0;
-  for (const col of validCols) {
+  for (const col of orderedCols) {
     const row = getDropRow(board, col);
     if (row === -1) continue;
     
