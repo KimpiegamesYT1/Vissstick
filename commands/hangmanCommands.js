@@ -16,6 +16,7 @@ const activeHangmanGames = new Map();
 
 // Bet amounts available for selection
 const BET_AMOUNTS = [50, 100, 200];
+const FREE_REWARD = 25;
 
 // Game timeout durations (in milliseconds)
 const BET_SELECTION_TIMEOUT = 60000; // 60 seconds
@@ -51,7 +52,7 @@ function buildHangmanEmbed(game) {
       `💰 **50 punten** - Win 100 punten\n` +
       `💰 **100 punten** - Win 200 punten\n` +
       `💰 **200 punten** - Win 400 punten\n` +
-      `🎮 **Gratis spelen** - Geen inzet, geen winst\n\n` +
+      `🎮 **Gratis spelen** - Win ${FREE_REWARD} punten\n\n` +
       `Je hebt 6 foute pogingen voordat je verliest!`
     );
   } else {
@@ -89,12 +90,12 @@ function buildGameOverEmbed(game, won) {
     .setTimestamp();
   
   if (won) {
-    const winAmount = game.betAmount ? game.betAmount * 2 : 0;
+    const winAmount = game.betAmount ? game.betAmount * 2 : FREE_REWARD;
     let resultText = '';
     if (game.betAmount) {
       resultText = `💰 **+${winAmount} punten** (+${game.betAmount} winst)`;
     } else {
-      resultText = `🎮 **Gratis spel** - Goed gespeeld!`;
+      resultText = `🎮 **Gratis spel** - +${FREE_REWARD} punten`;
     }
     embed
       .setColor('#00FF00')
@@ -436,7 +437,7 @@ async function handleHangmanButton(interaction, client, config) {
     if (result.gameOver) {
       clearTimeout(game.timeout);
       
-      // Handle payout (only if not a free game)
+      // Handle payout (bets + free reward)
       if (game.betAmount) {
         if (result.won) {
           const winAmount = game.betAmount * 2;
@@ -451,7 +452,17 @@ async function handleHangmanButton(interaction, client, config) {
           console.log(`[Hangman] ${game.player.username} lost ${game.betAmount} points`);
         }
       } else {
-        console.log(`[Hangman] ${game.player.username} finished free game - ${result.won ? 'won' : 'lost'}`);
+        if (result.won) {
+          casino.addBalance(
+            game.player.id,
+            game.player.username,
+            FREE_REWARD,
+            `Galgje gratis winst (${game.word})`
+          );
+          console.log(`[Hangman] ${game.player.username} won ${FREE_REWARD} points (free game)`);
+        } else {
+          console.log(`[Hangman] ${game.player.username} finished free game - lost`);
+        }
       }
       
       // Show game over message
