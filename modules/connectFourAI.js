@@ -10,9 +10,9 @@ const c4 = require('./connectFour');
 // =====================================================
 
 const DIFFICULTY_LEVELS = {
-  easy: { name: 'Makkelijk', depth: 3, useRandom: true },
-  normal: { name: 'Normaal', depth: 5, useRandom: false },
-  hard: { name: 'Moeilijk', depth: 7, useRandom: false }
+  easy: { name: 'Makkelijk', depth: 2, useRandom: true },
+  normal: { name: 'Normaal', depth: 4, useRandom: false },
+  hard: { name: 'Moeilijk', depth: 6, useRandom: false }
 };
 
 const WIN_SCORE = 1000000;
