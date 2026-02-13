@@ -376,7 +376,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             console.log(`[CHATBOT] Onderwerpwissel na crisis-context gedetecteerd, conversatie ${conversationId} reset`);
             archiveConversation(conversationId);
             conversationId = getOrCreateConversation(channelId);
-            startedNewConversationReason = 'onderwerpwissel na crisis-context';
+            startedNewConversationReason = 'Automatische onderwerpwissel';
         }
 
         const startedNewConversation = getConversationMessageCount(conversationId) === 0;
