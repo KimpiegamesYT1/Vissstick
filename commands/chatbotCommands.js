@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const { resetConversation, getConversationStats } = require('../modules/chatbot');
 
 // =====================================================
@@ -34,7 +34,7 @@ async function handleChatbotCommands(interaction, client, config) {
     if (!interaction.member.permissions.has('Administrator')) {
         await interaction.reply({
             content: '❌ Je hebt geen permissie om dit commando te gebruiken.',
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         });
         return true;
     }
@@ -59,9 +59,9 @@ async function handleChatbotCommands(interaction, client, config) {
         if (interaction.deferred) {
             await interaction.editReply({ embeds: [errorEmbed] });
         } else if (interaction.replied) {
-            await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
+            await interaction.followUp({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
         } else {
-            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            await interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
         }
     }
 
@@ -73,7 +73,7 @@ async function handleChatbotCommands(interaction, client, config) {
 // =====================================================
 
 async function handleReset(interaction, client, config) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const channelId = config.CHATBOT_CHANNEL_ID;
     const success = resetConversation(channelId);
@@ -113,7 +113,7 @@ async function handleReset(interaction, client, config) {
 }
 
 async function handleStats(interaction, config) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const channelId = config.CHATBOT_CHANNEL_ID;
     const stats = getConversationStats(channelId);

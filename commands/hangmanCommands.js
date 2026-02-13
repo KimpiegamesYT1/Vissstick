@@ -3,7 +3,7 @@
  * Handles slash commands and button interactions for hangman game
  */
 
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const hangman = require('../modules/hangman');
 const casino = require('../modules/casino');
 
@@ -284,7 +284,7 @@ async function handleHangmanCommands(interaction, client, config) {
   if (existingGame) {
     await interaction.reply({
       content: '❌ Je hebt al een actief galgje spel! Maak dat eerst af.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     });
     return true;
   }
@@ -338,7 +338,7 @@ async function handleHangmanButton(interaction, client, config) {
   if (!game) {
     await interaction.reply({
       content: '❌ Dit spel bestaat niet meer.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     });
     return true;
   }
@@ -347,7 +347,7 @@ async function handleHangmanButton(interaction, client, config) {
   if (interaction.user.id !== game.player.id) {
     await interaction.reply({
       content: '❌ Dit is niet jouw spel!',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     });
     return true;
   }
@@ -382,7 +382,7 @@ async function handleHangmanButton(interaction, client, config) {
       if (userBalance < betAmount) {
         await interaction.reply({
           content: `❌ Je hebt niet genoeg punten! Je hebt **${userBalance}** punten, maar je hebt **${betAmount}** nodig.`,
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
         return true;
       }
@@ -428,7 +428,7 @@ async function handleHangmanButton(interaction, client, config) {
     if (result.alreadyGuessed) {
       await interaction.reply({
         content: `❌ Je hebt de letter **${letter}** al geraden!`,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return true;
     }

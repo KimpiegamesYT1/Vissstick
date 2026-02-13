@@ -295,6 +295,18 @@ client.on('messageCreate', async (message) => {
 
         const reply = typeof aiResult === 'string' ? aiResult : aiResult.message;
         const conversationId = typeof aiResult === 'string' ? 'onbekend' : aiResult.conversationId;
+        const startedNewConversation = typeof aiResult === 'string' ? false : aiResult.startedNewConversation;
+
+        if (startedNewConversation) {
+          const newChatEmbed = new EmbedBuilder()
+            .setDescription(`Nieuwe chat gestart • Chat ID: ${conversationId}`)
+            .setColor('#5865F2')
+            .setTimestamp();
+
+          await message.channel.send({ embeds: [newChatEmbed] }).catch(err =>
+            console.error('[CHATBOT] Kon nieuwe-chat embed niet versturen:', err)
+          );
+        }
 
         // Send response as embed
         const embed = new EmbedBuilder()

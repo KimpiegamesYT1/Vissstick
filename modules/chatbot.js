@@ -280,6 +280,18 @@ function addMessageToConversation(conversationId, role, content, userId = null, 
     }
 }
 
+function getConversationMessageCount(conversationId) {
+    const db = getDatabase();
+
+    const row = db.prepare(`
+        SELECT COUNT(*) as count
+        FROM chatbot_messages
+        WHERE conversation_id = ?
+    `).get(conversationId);
+
+    return row?.count || 0;
+}
+
 // =====================================================
 // GROQ API INTEGRATION
 // =====================================================
@@ -303,6 +315,8 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             archiveConversation(conversationId);
             conversationId = getOrCreateConversation(channelId);
         }
+
+        const startedNewConversation = getConversationMessageCount(conversationId) === 0;
 
         // Check rate limits with conservative estimate (only new tokens, not full history)
         const estimatedNewTokens = estimateTokens(userMessage) + 300; // User message + estimated response
@@ -360,7 +374,8 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
 
         return {
             message: assistantMessage,
-            conversationId
+            conversationId,
+            startedNewConversation
         };
     } catch (error) {
         console.error('[CHATBOT] Fout bij generateResponse:', error);
