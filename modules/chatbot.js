@@ -102,6 +102,52 @@ function estimateTokens(text) {
     return Math.ceil(text.length / 4);
 }
 
+function normalizeText(text = '') {
+    return text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function containsCrisisSignals(text = '') {
+    const normalized = normalizeText(text);
+
+    const crisisPatterns = [
+        /\b(ik\s+wil\s+niet\s+meer|ik\s+kan\s+niet\s+meer)\b/,
+        /\b(ga\s+dood|wil\s+dood|dood\s+gaan)\b/,
+        /\b(zelfmoord|suicid|suicide)\b/,
+        /\b(113|0800\s*-?\s*0113|hulplijn|ggz[-\s]?lijn)\b/
+    ];
+
+    return crisisPatterns.some(pattern => pattern.test(normalized));
+}
+
+function getRecentConversationMessages(conversationId, limit = 8) {
+    const db = getDatabase();
+
+    return db.prepare(`
+        SELECT role, content
+        FROM chatbot_messages
+        WHERE conversation_id = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+    `).all(conversationId, limit);
+}
+
+function shouldRotateConversationForTopicShift(conversationId, userMessage) {
+    if (containsCrisisSignals(userMessage)) {
+        return false;
+    }
+
+    const recentMessages = getRecentConversationMessages(conversationId, 8);
+    if (recentMessages.length < 4) {
+        return false;
+    }
+
+    const recentCrisisContext = recentMessages.some(msg => containsCrisisSignals(msg.content));
+    return recentCrisisContext;
+}
+
 // =====================================================
 // CONVERSATION MANAGEMENT
 // =====================================================
@@ -250,7 +296,13 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
         }
 
         // Get or create conversation
-        const conversationId = getOrCreateConversation(channelId);
+        let conversationId = getOrCreateConversation(channelId);
+
+        if (shouldRotateConversationForTopicShift(conversationId, userMessage)) {
+            console.log(`[CHATBOT] Onderwerpwissel na crisis-context gedetecteerd, conversatie ${conversationId} reset`);
+            archiveConversation(conversationId);
+            conversationId = getOrCreateConversation(channelId);
+        }
 
         // Check rate limits with conservative estimate (only new tokens, not full history)
         const estimatedNewTokens = estimateTokens(userMessage) + 300; // User message + estimated response
