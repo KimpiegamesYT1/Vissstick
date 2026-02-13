@@ -299,6 +299,8 @@ client.on('messageCreate', async (message) => {
         const startedNewConversationReason = typeof aiResult === 'string'
           ? null
           : aiResult.startedNewConversationReason;
+        const isInvalidAiReply = typeof reply === 'string' &&
+          reply.trim() === 'Ik kreeg geen geldig antwoord van de AI, probeer het nog eens.';
 
         if (startedNewConversation) {
           const newChatEmbed = new EmbedBuilder()
@@ -317,7 +319,7 @@ client.on('messageCreate', async (message) => {
         // Send response as embed
         const embed = new EmbedBuilder()
           .setDescription(reply)
-          .setColor('#0099ff')
+          .setColor(isInvalidAiReply ? '#FF0000' : '#0099ff')
           .setFooter({ 
             text: `Chat ID: ${conversationId} • Gevraagd door ${message.author.username}`,
             iconURL: message.author.displayAvatarURL() 
