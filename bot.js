@@ -134,6 +134,25 @@ process.on('unhandledRejection', (reason, promise) => {
 
 let activeQuizMessages = new Map(); // Store active quiz message references
 let hokState = null; // State voor hok monitoring
+const chatbotChannelQueues = new Map(); // Voorkom overlappende chatbot requests per kanaal
+
+function enqueueChatbotTask(channelId, task) {
+  const currentQueue = chatbotChannelQueues.get(channelId) || Promise.resolve();
+
+  const nextTask = currentQueue
+    .catch(() => {})
+    .then(task);
+
+  chatbotChannelQueues.set(channelId, nextTask);
+
+  nextTask.finally(() => {
+    if (chatbotChannelQueues.get(channelId) === nextTask) {
+      chatbotChannelQueues.delete(channelId);
+    }
+  });
+
+  return nextTask;
+}
 
 // Show monthly scoreboard
 async function showMonthlyScoreboard(client, channelId) {
@@ -246,58 +265,73 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // Import chatbot module
-    const { generateResponse } = require('./modules/chatbot');
+    await enqueueChatbotTask(message.channel.id, async () => {
+      const cleanedMessage = (message.content || '').trim();
+      if (!cleanedMessage) {
+        return;
+      }
 
-    try {
-      // Send typing indicator (lasts ~10 seconds)
-      await message.channel.sendTyping();
+      // Import chatbot module
+      const { generateResponse } = require('./modules/chatbot');
+      let typingInterval = null;
 
-      // Keep typing indicator alive during processing
-      const typingInterval = setInterval(() => {
-        message.channel.sendTyping().catch(() => clearInterval(typingInterval));
-      }, 8000);
+      try {
+        // Send typing indicator (lasts ~10 seconds)
+        await message.channel.sendTyping();
 
-      // Generate AI response
-      const reply = await generateResponse(
-        message.channel.id,
-        message.content,
-        message.author.id,
-        message.author.username,
-        GROQ_API_KEY
-      );
+        // Keep typing indicator alive during processing
+        typingInterval = setInterval(() => {
+          message.channel.sendTyping().catch(() => clearInterval(typingInterval));
+        }, 8000);
 
-      // Stop typing indicator
-      clearInterval(typingInterval);
+        // Generate AI response
+        const aiResult = await generateResponse(
+          message.channel.id,
+          cleanedMessage,
+          message.author.id,
+          message.author.username,
+          GROQ_API_KEY
+        );
 
-      // Send response as embed
-      const embed = new EmbedBuilder()
-        .setDescription(reply)
-        .setColor('#0099ff')
-        .setFooter({ 
-          text: `Gevraagd door ${message.author.username}`, 
-          iconURL: message.author.displayAvatarURL() 
-        })
-        .setTimestamp();
+        const reply = typeof aiResult === 'string' ? aiResult : aiResult.message;
+        const conversationId = typeof aiResult === 'string' ? 'onbekend' : aiResult.conversationId;
 
-      await message.reply({ embeds: [embed] });
+        // Send response as embed
+        const embed = new EmbedBuilder()
+          .setDescription(reply)
+          .setColor('#0099ff')
+          .setFooter({ 
+            text: `Chat ID: ${conversationId} • Gevraagd door ${message.author.username}`,
+            iconURL: message.author.displayAvatarURL() 
+          })
+          .setTimestamp();
 
-    } catch (error) {
-      console.error('[CHATBOT]', error);
+        await message.reply({ embeds: [embed] }).catch(async (replyError) => {
+          console.error('[CHATBOT] Kon embed reply niet versturen, fallback naar plain text:', replyError);
+          await message.reply(reply);
+        });
 
-      // Send error embed to channel
-      const errorEmbed = new EmbedBuilder()
-        .setTitle('❌ Chatbot Error')
-        .setDescription(
-          error.message || 'Er ging iets mis met de AI. Probeer het later opnieuw.'
-        )
-        .setColor('#FF0000')
-        .setTimestamp();
+      } catch (error) {
+        console.error('[CHATBOT]', error);
 
-      await message.reply({ embeds: [errorEmbed] }).catch(err => 
-        console.error('[CHATBOT] Kon error embed niet versturen:', err)
-      );
-    }
+        // Send error embed to channel
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Chatbot Error')
+          .setDescription(
+            error.message || 'Er ging iets mis met de AI. Probeer het later opnieuw.'
+          )
+          .setColor('#FF0000')
+          .setTimestamp();
+
+        await message.reply({ embeds: [errorEmbed] }).catch(err => 
+          console.error('[CHATBOT] Kon error embed niet versturen:', err)
+        );
+      } finally {
+        if (typingInterval) {
+          clearInterval(typingInterval);
+        }
+      }
+    });
 
     return; // Don't process chat responses if in chatbot channel
   }

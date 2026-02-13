@@ -16,7 +16,7 @@ class RateLimiter {
         this.LIMITS = {
             REQUESTS_PER_MINUTE: 30,
             REQUESTS_PER_DAY: 1000,
-            TOKENS_PER_MINUTE: 15000,  // Verhoogd voor conversatie context
+            TOKENS_PER_MINUTE: 8000,
             TOKENS_PER_DAY: 200000
         };
     }
@@ -172,7 +172,7 @@ function archiveConversation(conversationId) {
     }
 }
 
-function getConversationHistory(conversationId, limit = 50) {
+function getConversationHistory(conversationId, limit = 20) {
     const db = getDatabase();
 
     try {
@@ -180,9 +180,9 @@ function getConversationHistory(conversationId, limit = 50) {
             SELECT role, content, username, user_id
             FROM chatbot_messages
             WHERE conversation_id = ?
-            ORDER BY timestamp ASC
+            ORDER BY timestamp DESC
             LIMIT ?
-        `).all(conversationId, limit);
+        `).all(conversationId, limit).reverse();
 
         // Build OpenAI chat format with system prompt
         const history = [
@@ -239,8 +239,6 @@ function addMessageToConversation(conversationId, role, content, userId = null, 
 // =====================================================
 
 async function generateResponse(channelId, userMessage, userId, username, groqApiKey) {
-    const db = getDatabase();
-
     // Constants
     const MAX_MESSAGE_LENGTH = 2000; // Discord message limit
     const MAX_OUTPUT_LENGTH = 4000; // Safe limit voor Discord embeds (max 4096)
@@ -270,7 +268,9 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
         // Call Groq API
         const client = new OpenAI({
             apiKey: groqApiKey,
-            baseURL: 'https://api.groq.com/openai/v1'
+            baseURL: 'https://api.groq.com/openai/v1',
+            timeout: 15000,
+            maxRetries: 1
         });
 
         console.log(`[CHATBOT] API call voor conversatie ${conversationId}, ${history.length} berichten in history`);
@@ -279,11 +279,13 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             model: 'openai/gpt-oss-120b',
             messages: history,
             temperature: 0.7,
-            max_tokens: 1000
+            max_tokens: 220
         });
 
-        let assistantMessage = response.choices[0].message.content;
-        const totalTokens = response.usage?.total_tokens || estimateTokens(assistantMessage);
+        let assistantMessage = response.choices?.[0]?.message?.content;
+        if (!assistantMessage || typeof assistantMessage !== 'string') {
+            assistantMessage = 'Ik kreeg geen geldig antwoord van de AI, probeer het nog eens.';
+        }
         
         // Calculate only NEW tokens for rate limiter (user message + response, not full history)
         const userTokens = estimateTokens(userMessage);
@@ -304,7 +306,10 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
 
         console.log(`[CHATBOT] Response gegenereerd (${newTokens} nieuwe tokens, ${assistantMessage.length} chars)`);
 
-        return assistantMessage;
+        return {
+            message: assistantMessage,
+            conversationId
+        };
     } catch (error) {
         console.error('[CHATBOT] Fout bij generateResponse:', error);
         
