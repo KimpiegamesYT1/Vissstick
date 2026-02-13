@@ -356,8 +356,8 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
     // Constants
     const MAX_MESSAGE_LENGTH = 2000; // Discord message limit
     const MAX_OUTPUT_LENGTH = 4000; // Safe limit voor Discord embeds (max 4096)
-    const PRIMARY_MODEL = 'openai/gpt-oss-120b';
-    const FALLBACK_MODEL = 'llama-3.3-70b-versatile';
+    const PRIMARY_MODEL = 'meta-llama/llama-4-maverick-17b-128e-instruct';
+    const FALLBACK_MODEL = 'openai/gpt-oss-120b';
 
     try {
         // Check message length
