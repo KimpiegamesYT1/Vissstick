@@ -384,6 +384,11 @@ client.on('interactionCreate', async (interaction) => {
       await handleBlackjackButton(interaction, client, config);
       return;
     }
+    // Try Mines buttons
+    if (interaction.customId.startsWith('mn_')) {
+      await handleMinesButton(interaction, client, config);
+      return;
+    }
     // Try Connect Four buttons
     if (interaction.customId.startsWith('c4_')) {
       await handleConnectFourButton(interaction, client, config);

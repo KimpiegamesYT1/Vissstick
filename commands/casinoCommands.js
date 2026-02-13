@@ -7,6 +7,7 @@ const casino = require('../modules/casino');
 const quiz = require('../modules/quiz');
 const blackjack = require('../modules/blackjack');
 const { renderBlackjackTable } = require('../modules/cardRenderer');
+const mines = require('../modules/mines');
 const { getDatabase } = require('../database');
 
 // =====================================================
@@ -35,6 +36,11 @@ function generateDoNGameId() {
 // =====================================================
 const activeBlackjackGames = new Map();
 const KEEP_GAMBLING_IMG = 'https://i.imgur.com/MUNEEPD.jpeg';
+
+// =====================================================
+// MINES - Game State
+// =====================================================
+const activeMinesGames = new Map();
 
 // =====================================================
 // BLACKJACK - Stats Database
@@ -193,6 +199,34 @@ function resetDoNTimeout(gameId) {
       casino.addBalance(g.userId, g.username, g.pot, 'Double or Nothing timeout');
     }
     activeDoNGames.delete(gameId);
+  }, 120000);
+}
+
+// =====================================================
+// MINES - timeouts / helpers
+// =====================================================
+function generateMinesGameId() {
+  return 'mn' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+}
+
+function cleanupMinesGame(gameId) {
+  const game = activeMinesGames.get(gameId);
+  if (game) {
+    clearTimeout(game.timeout);
+    activeMinesGames.delete(gameId);
+  }
+}
+
+function resetMinesTimeout(gameId) {
+  const game = activeMinesGames.get(gameId);
+  if (!game) return;
+  clearTimeout(game.timeout);
+  game.timeout = setTimeout(() => {
+    const g = activeMinesGames.get(gameId);
+    if (g && g.betAmount > 0) {
+      casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+    }
+    activeMinesGames.delete(gameId);
   }, 120000);
 }
 
@@ -444,6 +478,34 @@ const casinoCommands = [
         description: 'De speler waarvan je stats wilt zien (optioneel)',
         type: 6, // USER
         required: false
+      }
+    ]
+  },
+  {
+    name: 'mines',
+    description: 'Speel Mines — kies inzet en difficulty',
+    options: [
+      {
+        name: 'bet',
+        description: 'Inzet (50 / 100 / 200)',
+        type: 4, // INTEGER
+        required: true,
+        choices: [
+          { name: '50', value: 50 },
+          { name: '100', value: 100 },
+          { name: '200', value: 200 }
+        ]
+      },
+      {
+        name: 'difficulty',
+        description: 'Kies difficulty (easy = 3 mines, medium = 5, hard = 8)',
+        type: 3, // STRING
+        required: true,
+        choices: [
+          { name: 'Easy (3 mines)', value: 'easy' },
+          { name: 'Medium (5 mines)', value: 'medium' },
+          { name: 'Hard (8 mines)', value: 'hard' }
+        ]
       }
     ]
   }
@@ -1225,6 +1287,66 @@ async function handleCasinoCommands(interaction, client, config) {
     return true;
   }
 
+  // =====================================================
+  // MINES - Command Handler
+  // =====================================================
+  if (commandName === 'mines') {
+    const userId = interaction.user.id;
+    const username = interaction.user.username;
+
+    // Check of user al een actief mines spel heeft
+    for (const [, game] of activeMinesGames) {
+      if (game.userId === userId) {
+        await interaction.reply({ content: 'Je hebt al een actief Mines spel!', flags: 64 });
+        return true;
+      }
+    }
+
+    const betAmount = interaction.options.getInteger('bet');
+    const difficulty = interaction.options.getString('difficulty');
+    const minesCount = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 8;
+
+    casino.getOrCreateUser(userId, username);
+    const balance = casino.getUserBalance(userId);
+    if (balance < betAmount) {
+      await interaction.reply({ content: 'Je hebt niet genoeg punten om deze inzet te plaatsen.', flags: 64 });
+      return true;
+    }
+
+    const gameId = generateMinesGameId();
+    const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
+
+    // subtract bet
+    casino.subtractBalance(userId, betAmount);
+
+    const game = {
+      userId,
+      username,
+      betAmount,
+      minesCount,
+      mines: minesSet,
+      opened: new Set(),
+      multiplier: 1.00,
+      ended: false,
+      gameId,
+      timeout: setTimeout(() => {
+        const g = activeMinesGames.get(gameId);
+        if (g) {
+          casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+        }
+        activeMinesGames.delete(gameId);
+      }, 120000)
+    };
+
+    activeMinesGames.set(gameId, game);
+
+    const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
+    const components = buildMinesButtons(gameId, game);
+
+    await interaction.reply({ embeds: [embed], components });
+    return true;
+  }
+
   return false;
 }
 // =====================================================
@@ -1601,6 +1723,184 @@ function buildBlackjackReplayButton(gameId) {
       .setLabel('Opnieuw Spelen 🔄')
       .setStyle(ButtonStyle.Success)
   );
+}
+
+// =====================================================
+// MINES - Embed + Buttons + Button Handler
+// =====================================================
+
+function buildMinesEmbed(game, resultText = null, resultColor = null) {
+  const opened = game.opened.size;
+  const diamonds = opened; // opened safe tiles count
+  const color = resultColor || 0x2B2D31;
+  const embed = new EmbedBuilder()
+    .setTitle('💣 Mines')
+    .setColor(color)
+    .addFields(
+      { name: 'Inzet', value: `${game.betAmount} punten`, inline: true },
+      { name: 'Difficulty', value: `${game.minesCount} mines`, inline: true },
+      { name: 'Diamanten', value: `${diamonds}`, inline: true },
+      { name: 'Multiplier', value: `${game.multiplier.toFixed(2)}x`, inline: true },
+      { name: 'Potentiële Uitbetaling', value: `${mines.calculatePayout(game.betAmount, game.multiplier, 3)} punten`, inline: true }
+    )
+    .setFooter({ text: `${game.username}` });
+
+  if (resultText) embed.setDescription(resultText);
+  return embed;
+}
+
+function buildMinesButtons(gameId, game) {
+  const rows = [];
+  // 4 rows of 5 buttons
+  for (let r = 0; r < 4; r++) {
+    const row = new ActionRowBuilder();
+    for (let c = 0; c < 5; c++) {
+      const idx = r * 5 + c;
+      const opened = game.opened.has(idx);
+      const isMine = game.mines.has(idx);
+      let label = (idx + 1).toString();
+      let style = ButtonStyle.Secondary;
+      let disabled = false;
+
+      if (opened) {
+        disabled = true;
+        if (isMine) {
+          label = '💣';
+          style = ButtonStyle.Danger;
+        } else {
+          label = '💎';
+          style = ButtonStyle.Success;
+        }
+      }
+
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`mn_tile_${idx}_${gameId}`)
+          .setLabel(label)
+          .setStyle(style)
+          .setDisabled(disabled)
+      );
+    }
+    rows.push(row);
+  }
+
+  // Cashout row
+  const cashRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`mn_cashout_${gameId}`)
+      .setLabel('Cash Out')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`mn_forfeit_${gameId}`)
+      .setLabel('Stoppen (forfeit)')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true) // reserved for future
+  );
+  rows.push(cashRow);
+  return rows;
+}
+
+async function handleMinesButton(interaction, client, config) {
+  if (!interaction.customId.startsWith('mn_')) return false;
+  const parts = interaction.customId.split('_');
+  // mn_tile_{index}_{gameId}  OR mn_cashout_{gameId}
+  const action = parts[1];
+
+  await interaction.deferUpdate();
+
+  if (action === 'tile') {
+    const idx = parseInt(parts[2], 10);
+    const gameId = parts[3];
+    const game = activeMinesGames.get(gameId);
+    if (!game) {
+      await interaction.followUp({ content: 'Dit spel bestaat niet (verlopen of verwijderd).', flags: 64 });
+      return true;
+    }
+    if (interaction.user.id !== game.userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw Mines spel.', flags: 64 });
+      return true;
+    }
+    if (game.ended) {
+      await interaction.followUp({ content: 'Het spel is al afgelopen.', flags: 64 });
+      return true;
+    }
+    if (game.opened.has(idx)) {
+      await interaction.followUp({ content: 'Deze tegel is al onthuld.', flags: 64 });
+      return true;
+    }
+
+    // Reveal
+    game.opened.add(idx);
+
+    if (game.mines.has(idx)) {
+      // Boom — verloren
+      game.ended = true;
+      // disable timeout
+      clearTimeout(game.timeout);
+
+      const embed = buildMinesEmbed(game, `💥 Je hebt een bom geraakt — Je verliest je inzet van ${game.betAmount} punten.`, 0xED4245);
+      const rows = buildMinesButtons(gameId, game);
+      // disable all buttons
+      rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
+
+      await interaction.editReply({ embeds: [embed], components: rows });
+      cleanupMinesGame(gameId);
+      return true;
+    }
+
+    // Safe pick — update multiplier and continue
+    const openedSafeBefore = game.openedSafeCountBefore !== undefined ? game.openedSafeCountBefore : 0;
+    // Count safe opened excluding mines (we already added this tile)
+    const safeOpened = Array.from(game.opened).filter(i => !game.mines.has(i)).length;
+    game.openedSafeCountBefore = safeOpened - 1; // before this pick
+
+    // Update multiplier
+    const prevMultiplier = game.multiplier;
+    game.multiplier = mines.calculateNextMultiplier(prevMultiplier, game.openedSafeCountBefore, mines.TOTAL_TILES, game.minesCount, 0.97);
+
+    // reset timeout
+    resetMinesTimeout(gameId);
+
+    const embed = buildMinesEmbed(game, `✅ Je vond een diamant — multiplier verhoogd naar ${game.multiplier.toFixed(2)}x`, 0x57F287);
+    const rows = buildMinesButtons(gameId, game);
+
+    await interaction.editReply({ embeds: [embed], components: rows });
+    return true;
+  }
+
+  if (action === 'cashout') {
+    const gameId = parts[2];
+    const game = activeMinesGames.get(gameId);
+    if (!game) {
+      await interaction.followUp({ content: 'Dit spel bestaat niet (verlopen of verwijderd).', flags: 64 });
+      return true;
+    }
+    if (interaction.user.id !== game.userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw Mines spel.', flags: 64 });
+      return true;
+    }
+    if (game.ended) {
+      await interaction.followUp({ content: 'Het spel is al afgelopen.', flags: 64 });
+      return true;
+    }
+
+    // Compute payout and award
+    const payout = mines.calculatePayout(game.betAmount, game.multiplier, 3);
+    casino.addBalance(game.userId, game.username, payout, 'Mines cashout');
+
+    game.ended = true;
+    clearTimeout(game.timeout);
+
+    const embed = buildMinesEmbed(game, `💸 Cashout — Je ontvangt ${payout} punten (multiplier ${game.multiplier.toFixed(2)}x)`, 0x57F287);
+    const rows = buildMinesButtons(gameId, game);
+    rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
+
+    await interaction.editReply({ embeds: [embed], components: rows });
+    cleanupMinesGame(gameId);
+    return true;
+  }
+
+  return true;
 }
 
 // =====================================================
@@ -2376,6 +2676,7 @@ module.exports = {
   handleBetButton,
   handleDoubleOrNothingButton,
   handleBlackjackButton,
+  handleMinesButton,
   handleApprovalButton,
   updateCasinoEmbed,
   sendLog
