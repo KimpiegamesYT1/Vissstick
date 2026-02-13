@@ -306,7 +306,7 @@ client.on('messageCreate', async (message) => {
               `Nieuwe chat gestart • Chat ID: ${conversationId}` +
               (startedNewConversationReason ? `\nReden: ${startedNewConversationReason}` : '')
             )
-            .setColor('#5865F2')
+            .setColor('#FFA500')
             .setTimestamp();
 
           await message.channel.send({ embeds: [newChatEmbed] }).catch(err =>

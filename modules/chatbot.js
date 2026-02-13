@@ -331,6 +331,8 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
     // Constants
     const MAX_MESSAGE_LENGTH = 2000; // Discord message limit
     const MAX_OUTPUT_LENGTH = 4000; // Safe limit voor Discord embeds (max 4096)
+    const PRIMARY_MODEL = 'openai/gpt-oss-120b';
+    const FALLBACK_MODEL = 'llama-3.3-70b-versatile';
 
     try {
         // Check message length
@@ -377,12 +379,30 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
 
         console.log(`[CHATBOT] API call voor conversatie ${conversationId}, ${history.length} berichten in history`);
 
-        const response = await client.chat.completions.create({
-            model: 'openai/gpt-oss-120b',
-            messages: history,
-            temperature: 0.7,
-            max_tokens: 220
-        });
+        let response;
+
+        try {
+            response = await client.chat.completions.create({
+                model: PRIMARY_MODEL,
+                messages: history,
+                temperature: 0.7,
+                max_tokens: 220
+            });
+        } catch (apiError) {
+            const isToolUseFailure = apiError?.status === 400 && apiError?.code === 'tool_use_failed';
+
+            if (!isToolUseFailure) {
+                throw apiError;
+            }
+
+            console.warn('[CHATBOT] Primary model gaf tool_use_failed, retry met fallback model');
+            response = await client.chat.completions.create({
+                model: FALLBACK_MODEL,
+                messages: history,
+                temperature: 0.5,
+                max_tokens: 220
+            });
+        }
 
         let assistantMessage = response.choices?.[0]?.message?.content;
         if (!assistantMessage || typeof assistantMessage !== 'string') {
