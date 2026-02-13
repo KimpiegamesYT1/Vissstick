@@ -296,10 +296,16 @@ client.on('messageCreate', async (message) => {
         const reply = typeof aiResult === 'string' ? aiResult : aiResult.message;
         const conversationId = typeof aiResult === 'string' ? 'onbekend' : aiResult.conversationId;
         const startedNewConversation = typeof aiResult === 'string' ? false : aiResult.startedNewConversation;
+        const startedNewConversationReason = typeof aiResult === 'string'
+          ? null
+          : aiResult.startedNewConversationReason;
 
         if (startedNewConversation) {
           const newChatEmbed = new EmbedBuilder()
-            .setDescription(`Nieuwe chat gestart • Chat ID: ${conversationId}`)
+            .setDescription(
+              `Nieuwe chat gestart • Chat ID: ${conversationId}` +
+              (startedNewConversationReason ? `\nReden: ${startedNewConversationReason}` : '')
+            )
             .setColor('#5865F2')
             .setTimestamp();
 

@@ -93,6 +93,9 @@ class RateLimiter {
 // Singleton rate limiter
 const rateLimiter = new RateLimiter();
 
+const CONVERSATION_INACTIVITY_SECONDS = 60 * 60;
+const CONVERSATION_TOKEN_LIMIT = 6000;
+
 // =====================================================
 // HELPER FUNCTIONS
 // =====================================================
@@ -148,6 +151,35 @@ function shouldRotateConversationForTopicShift(conversationId, userMessage) {
     return recentCrisisContext;
 }
 
+function getActiveConversation(channelId) {
+    const db = getDatabase();
+
+    return db.prepare(`
+        SELECT * FROM chatbot_conversations
+        WHERE channel_id = ? AND status = 'active'
+        ORDER BY last_message_at DESC
+        LIMIT 1
+    `).get(channelId);
+}
+
+function getConversationStartReason(activeConversation, now) {
+    const oneHourAgo = now - CONVERSATION_INACTIVITY_SECONDS;
+
+    if (!activeConversation) {
+        return 'geen actieve conversatie';
+    }
+
+    if (activeConversation.last_message_at < oneHourAgo) {
+        return 'inactiviteit (>60min)';
+    }
+
+    if (activeConversation.total_tokens > CONVERSATION_TOKEN_LIMIT) {
+        return `token limiet (${activeConversation.total_tokens}/${CONVERSATION_TOKEN_LIMIT})`;
+    }
+
+    return null;
+}
+
 // =====================================================
 // CONVERSATION MANAGEMENT
 // =====================================================
@@ -155,8 +187,7 @@ function shouldRotateConversationForTopicShift(conversationId, userMessage) {
 function getOrCreateConversation(channelId) {
     const db = getDatabase();
     const now = Math.floor(Date.now() / 1000);
-    const oneHourAgo = now - (60 * 60); // 60 minutes inactivity threshold
-    const TOKEN_LIMIT = 6000; // 75% of 8000 token/minute limit
+    const oneHourAgo = now - CONVERSATION_INACTIVITY_SECONDS;
 
     try {
         // Find active conversation
@@ -178,9 +209,9 @@ function getOrCreateConversation(channelId) {
             needNewConversation = true;
             reason = 'inactiviteit (>60min)';
             archiveConversation(activeConversation.id);
-        } else if (activeConversation.total_tokens > TOKEN_LIMIT) {
+        } else if (activeConversation.total_tokens > CONVERSATION_TOKEN_LIMIT) {
             needNewConversation = true;
-            reason = `token limiet (${activeConversation.total_tokens}/${TOKEN_LIMIT})`;
+            reason = `token limiet (${activeConversation.total_tokens}/${CONVERSATION_TOKEN_LIMIT})`;
             archiveConversation(activeConversation.id);
         }
 
@@ -307,6 +338,10 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             throw new Error(`Je bericht is te lang (${userMessage.length} karakters). Maximum is ${MAX_MESSAGE_LENGTH} karakters.`);
         }
 
+        const now = Math.floor(Date.now() / 1000);
+        const activeConversationBefore = getActiveConversation(channelId);
+        let startedNewConversationReason = getConversationStartReason(activeConversationBefore, now);
+
         // Get or create conversation
         let conversationId = getOrCreateConversation(channelId);
 
@@ -314,6 +349,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             console.log(`[CHATBOT] Onderwerpwissel na crisis-context gedetecteerd, conversatie ${conversationId} reset`);
             archiveConversation(conversationId);
             conversationId = getOrCreateConversation(channelId);
+            startedNewConversationReason = 'onderwerpwissel na crisis-context';
         }
 
         const startedNewConversation = getConversationMessageCount(conversationId) === 0;
@@ -375,7 +411,8 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
         return {
             message: assistantMessage,
             conversationId,
-            startedNewConversation
+            startedNewConversation,
+            startedNewConversationReason
         };
     } catch (error) {
         console.error('[CHATBOT] Fout bij generateResponse:', error);
