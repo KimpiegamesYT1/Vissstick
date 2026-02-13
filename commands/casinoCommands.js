@@ -489,7 +489,7 @@ const casinoCommands = [
         name: 'bet',
         description: 'Inzet (50 / 100 / 200)',
         type: 4, // INTEGER
-        required: true,
+        required: false,
         choices: [
           { name: '50', value: 50 },
           { name: '100', value: 100 },
@@ -500,7 +500,7 @@ const casinoCommands = [
         name: 'difficulty',
         description: 'Kies difficulty (easy = 3 mines, medium = 5, hard = 8)',
         type: 3, // STRING
-        required: true,
+        required: false,
         choices: [
           { name: 'Easy (3 mines)', value: 'easy' },
           { name: 'Medium (5 mines)', value: 'medium' },
@@ -1294,7 +1294,7 @@ async function handleCasinoCommands(interaction, client, config) {
     const userId = interaction.user.id;
     const username = interaction.user.username;
 
-    // Check of user al een actief mines spel heeft
+    // Check of user al een actief mines spel of selector heeft
     for (const [, game] of activeMinesGames) {
       if (game.userId === userId) {
         await interaction.reply({ content: 'Je hebt al een actief Mines spel!', flags: 64 });
@@ -1302,46 +1302,74 @@ async function handleCasinoCommands(interaction, client, config) {
       }
     }
 
-    const betAmount = interaction.options.getInteger('bet');
-    const difficulty = interaction.options.getString('difficulty');
-    const minesCount = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 8;
+    const optBet = interaction.options.getInteger('bet');
+    const optDiff = interaction.options.getString('difficulty');
 
-    casino.getOrCreateUser(userId, username);
-    const balance = casino.getUserBalance(userId);
-    if (balance < betAmount) {
-      await interaction.reply({ content: 'Je hebt niet genoeg punten om deze inzet te plaatsen.', flags: 64 });
+    // Als zowel inzet als difficulty meegegeven zijn — start direct
+    if (optBet && optDiff) {
+      const betAmount = optBet;
+      const difficulty = optDiff;
+      const minesCount = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 8;
+
+      casino.getOrCreateUser(userId, username);
+      const balance = casino.getUserBalance(userId);
+      if (balance < betAmount) {
+        await interaction.reply({ content: 'Je hebt niet genoeg punten om deze inzet te plaatsen.', flags: 64 });
+        return true;
+      }
+
+      const gameId = generateMinesGameId();
+      const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
+
+      // subtract bet
+      casino.subtractBalance(userId, betAmount);
+
+      const game = {
+        userId,
+        username,
+        betAmount,
+        minesCount,
+        mines: minesSet,
+        opened: new Set(),
+        multiplier: 1.00,
+        ended: false,
+        gameId,
+        timeout: setTimeout(() => {
+          const g = activeMinesGames.get(gameId);
+          if (g) {
+            casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+          }
+          activeMinesGames.delete(gameId);
+        }, 120000)
+      };
+
+      activeMinesGames.set(gameId, game);
+
+      const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
+      const components = buildMinesButtons(gameId, game);
+
+      await interaction.reply({ embeds: [embed], components });
       return true;
     }
 
-    const gameId = generateMinesGameId();
-    const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
-
-    // subtract bet
-    casino.subtractBalance(userId, betAmount);
-
-    const game = {
+    // Anders: toon setup embed met knoppen (in-embed selectie zoals de rest)
+    const selectorId = generateMinesGameId();
+    const selector = {
       userId,
       username,
-      betAmount,
-      minesCount,
-      mines: minesSet,
-      opened: new Set(),
-      multiplier: 1.00,
-      ended: false,
-      gameId,
+      phase: 'setup',
+      selectedBet: optBet || null,
+      selectedDiff: optDiff || null,
+      selectorId,
       timeout: setTimeout(() => {
-        const g = activeMinesGames.get(gameId);
-        if (g) {
-          casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
-        }
-        activeMinesGames.delete(gameId);
+        activeMinesGames.delete(selectorId);
       }, 120000)
     };
 
-    activeMinesGames.set(gameId, game);
+    activeMinesGames.set(selectorId, selector);
 
-    const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
-    const components = buildMinesButtons(gameId, game);
+    const embed = buildMinesSetupEmbed(selector);
+    const components = buildMinesSetupButtons(selectorId, selector);
 
     await interaction.reply({ embeds: [embed], components });
     return true;
@@ -1730,8 +1758,8 @@ function buildBlackjackReplayButton(gameId) {
 // =====================================================
 
 function buildMinesEmbed(game, resultText = null, resultColor = null) {
-  const opened = game.opened.size;
-  const diamonds = opened; // opened safe tiles count
+  const safeOpened = Array.from(game.opened).filter(i => !game.mines.has(i)).length;
+  const remainingTiles = mines.TOTAL_TILES - game.opened.size;
   const color = resultColor || 0x2B2D31;
   const embed = new EmbedBuilder()
     .setTitle('💣 Mines')
@@ -1739,14 +1767,50 @@ function buildMinesEmbed(game, resultText = null, resultColor = null) {
     .addFields(
       { name: 'Inzet', value: `${game.betAmount} punten`, inline: true },
       { name: 'Difficulty', value: `${game.minesCount} mines`, inline: true },
-      { name: 'Diamanten', value: `${diamonds}`, inline: true },
+      { name: 'Diamanten (gevonden)', value: `${safeOpened}`, inline: true },
       { name: 'Multiplier', value: `${game.multiplier.toFixed(2)}x`, inline: true },
-      { name: 'Potentiële Uitbetaling', value: `${mines.calculatePayout(game.betAmount, game.multiplier, 3)} punten`, inline: true }
+      { name: 'Potentiële Uitbetaling', value: `${mines.calculatePayout(game.betAmount, game.multiplier, 3)} punten`, inline: true },
+      { name: 'Overgebleven tegels', value: `${remainingTiles}`, inline: true }
     )
     .setFooter({ text: `${game.username}` });
 
   if (resultText) embed.setDescription(resultText);
   return embed;
+}
+
+function buildMinesSetupEmbed(selector) {
+  const embed = new EmbedBuilder()
+    .setTitle('💣 Mines — Kies inzet & difficulty')
+    .setColor(0x5865F2)
+    .addFields(
+      { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true },
+      { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true },
+      { name: 'Instruktie', value: 'Kies eerst inzet en daarna difficulty. Het spel start automatisch wanneer beide gekozen zijn.' }
+    )
+    .setFooter({ text: `${selector.username}` });
+  return embed;
+}
+
+function buildMinesSetupButtons(selectorId, selector) {
+  const betRow = new ActionRowBuilder().addComponents(
+    [50,100,200].map(a => new ButtonBuilder()
+      .setCustomId(`mn_selectbet_${a}_${selectorId}`)
+      .setLabel(`${a}`)
+      .setStyle(selector.selectedBet === a ? ButtonStyle.Primary : ButtonStyle.Primary)
+      .setDisabled(false)
+    )
+  );
+
+  const diffRow = new ActionRowBuilder().addComponents(
+    ['easy','medium','hard'].map(d => new ButtonBuilder()
+      .setCustomId(`mn_selectdiff_${d}_${selectorId}`)
+      .setLabel(d === 'easy' ? 'Easy (3)' : d === 'medium' ? 'Medium (5)' : 'Hard (8)')
+      .setStyle(selector.selectedDiff === d ? ButtonStyle.Primary : ButtonStyle.Primary)
+      .setDisabled(false)
+    )
+  );
+
+  return [betRow, diffRow];
 }
 
 function buildMinesButtons(gameId, game) {
@@ -1759,7 +1823,7 @@ function buildMinesButtons(gameId, game) {
       const opened = game.opened.has(idx);
       const isMine = game.mines.has(idx);
       let label = (idx + 1).toString();
-      let style = ButtonStyle.Secondary;
+      let style = ButtonStyle.Primary; // default blue
       let disabled = false;
 
       if (opened) {
@@ -1784,17 +1848,12 @@ function buildMinesButtons(gameId, game) {
     rows.push(row);
   }
 
-  // Cashout row
+  // Cashout row (only cashout — removed unused forfeit button)
   const cashRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`mn_cashout_${gameId}`)
       .setLabel('Cash Out')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId(`mn_forfeit_${gameId}`)
-      .setLabel('Stoppen (forfeit)')
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true) // reserved for future
+      .setStyle(ButtonStyle.Primary)
   );
   rows.push(cashRow);
   return rows;
@@ -1808,6 +1867,128 @@ async function handleMinesButton(interaction, client, config) {
 
   await interaction.deferUpdate();
 
+  // ---- Setup selection handlers ----
+  if (action === 'selectbet') {
+    const amount = parseInt(parts[2], 10);
+    const selectorId = parts[3];
+    const selector = activeMinesGames.get(selectorId);
+    if (!selector || selector.phase !== 'setup') {
+      await interaction.followUp({ content: 'Deze selectie bestaat niet meer.', flags: 64 });
+      return true;
+    }
+    if (interaction.user.id !== selector.userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw setup.', flags: 64 });
+      return true;
+    }
+
+    selector.selectedBet = amount;
+    // update embed
+    await interaction.editReply({ embeds: [buildMinesSetupEmbed(selector)], components: buildMinesSetupButtons(selectorId, selector) });
+
+    // If both chosen, start game
+    if (selector.selectedBet && selector.selectedDiff) {
+      // validate balance
+      const balance = casino.getUserBalance(selector.userId);
+      if (balance < selector.selectedBet) {
+        await interaction.followUp({ content: 'Je hebt niet genoeg punten voor deze inzet.', flags: 64 });
+        return true;
+      }
+
+      // start actual game (reuse selectorId as gameId)
+      const minesCount = selector.selectedDiff === 'easy' ? 3 : selector.selectedDiff === 'medium' ? 5 : 8;
+      const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
+
+      casino.subtractBalance(selector.userId, selector.selectedBet);
+
+      const game = {
+        userId: selector.userId,
+        username: selector.username,
+        betAmount: selector.selectedBet,
+        minesCount,
+        mines: minesSet,
+        opened: new Set(),
+        multiplier: 1.00,
+        ended: false,
+        gameId: selectorId,
+        timeout: setTimeout(() => {
+          const g = activeMinesGames.get(selectorId);
+          if (g) {
+            casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+          }
+          activeMinesGames.delete(selectorId);
+        }, 120000)
+      };
+
+      clearTimeout(selector.timeout);
+      activeMinesGames.set(selectorId, game);
+
+      const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
+      const components = buildMinesButtons(selectorId, game);
+      await interaction.editReply({ embeds: [embed], components });
+    }
+
+    return true;
+  }
+
+  if (action === 'selectdiff') {
+    const diff = parts[2];
+    const selectorId = parts[3];
+    const selector = activeMinesGames.get(selectorId);
+    if (!selector || selector.phase !== 'setup') {
+      await interaction.followUp({ content: 'Deze selectie bestaat niet meer.', flags: 64 });
+      return true;
+    }
+    if (interaction.user.id !== selector.userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw setup.', flags: 64 });
+      return true;
+    }
+
+    selector.selectedDiff = diff;
+    await interaction.editReply({ embeds: [buildMinesSetupEmbed(selector)], components: buildMinesSetupButtons(selectorId, selector) });
+
+    if (selector.selectedBet && selector.selectedDiff) {
+      const balance = casino.getUserBalance(selector.userId);
+      if (balance < selector.selectedBet) {
+        await interaction.followUp({ content: 'Je hebt niet genoeg punten voor deze inzet.', flags: 64 });
+        return true;
+      }
+
+      const minesCount = selector.selectedDiff === 'easy' ? 3 : selector.selectedDiff === 'medium' ? 5 : 8;
+      const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
+
+      casino.subtractBalance(selector.userId, selector.selectedBet);
+
+      const game = {
+        userId: selector.userId,
+        username: selector.username,
+        betAmount: selector.selectedBet,
+        minesCount,
+        mines: minesSet,
+        opened: new Set(),
+        multiplier: 1.00,
+        ended: false,
+        gameId: selectorId,
+        timeout: setTimeout(() => {
+          const g = activeMinesGames.get(selectorId);
+          if (g) {
+            casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+          }
+          activeMinesGames.delete(selectorId);
+        }, 120000)
+      };
+
+      clearTimeout(selector.timeout);
+      activeMinesGames.set(selectorId, game);
+
+      const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
+      const components = buildMinesButtons(selectorId, game);
+      await interaction.editReply({ embeds: [embed], components });
+    }
+
+    return true;
+  }
+
+  // ---- Gameplay: tile reveal ----
   if (action === 'tile') {
     const idx = parseInt(parts[2], 10);
     const gameId = parts[3];
@@ -1824,50 +2005,52 @@ async function handleMinesButton(interaction, client, config) {
       await interaction.followUp({ content: 'Het spel is al afgelopen.', flags: 64 });
       return true;
     }
+    if (game.processing) {
+      await interaction.followUp({ content: 'Even wachten — verwerking loopt.', flags: 64 });
+      return true;
+    }
     if (game.opened.has(idx)) {
       await interaction.followUp({ content: 'Deze tegel is al onthuld.', flags: 64 });
       return true;
     }
 
-    // Reveal
-    game.opened.add(idx);
+    game.processing = true;
+    try {
+      game.opened.add(idx);
 
-    if (game.mines.has(idx)) {
-      // Boom — verloren
-      game.ended = true;
-      // disable timeout
-      clearTimeout(game.timeout);
+      if (game.mines.has(idx)) {
+        game.ended = true;
+        clearTimeout(game.timeout);
 
-      const embed = buildMinesEmbed(game, `💥 Je hebt een bom geraakt — Je verliest je inzet van ${game.betAmount} punten.`, 0xED4245);
+        const embed = buildMinesEmbed(game, `💥 Je hebt een bom geraakt — Je verliest je inzet van ${game.betAmount} punten.`, 0xED4245);
+        const rows = buildMinesButtons(gameId, game);
+        rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
+
+        await interaction.editReply({ embeds: [embed], components: rows });
+        cleanupMinesGame(gameId);
+        return true;
+      }
+
+      const safeOpened = Array.from(game.opened).filter(i => !game.mines.has(i)).length;
+      const safeOpenedBeforeThisPick = Math.max(0, safeOpened - 1);
+
+      const prevMultiplier = game.multiplier;
+      game.multiplier = mines.calculateNextMultiplier(prevMultiplier, safeOpenedBeforeThisPick, mines.TOTAL_TILES, game.minesCount, 0.97);
+      game.openedSafeCountBefore = safeOpenedBeforeThisPick;
+
+      resetMinesTimeout(gameId);
+
+      const embed = buildMinesEmbed(game, `✅ Je vond een diamant — multiplier verhoogd naar ${game.multiplier.toFixed(2)}x`, 0x57F287);
       const rows = buildMinesButtons(gameId, game);
-      // disable all buttons
-      rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
 
       await interaction.editReply({ embeds: [embed], components: rows });
-      cleanupMinesGame(gameId);
       return true;
+    } finally {
+      game.processing = false;
     }
-
-    // Safe pick — update multiplier and continue
-    const openedSafeBefore = game.openedSafeCountBefore !== undefined ? game.openedSafeCountBefore : 0;
-    // Count safe opened excluding mines (we already added this tile)
-    const safeOpened = Array.from(game.opened).filter(i => !game.mines.has(i)).length;
-    game.openedSafeCountBefore = safeOpened - 1; // before this pick
-
-    // Update multiplier
-    const prevMultiplier = game.multiplier;
-    game.multiplier = mines.calculateNextMultiplier(prevMultiplier, game.openedSafeCountBefore, mines.TOTAL_TILES, game.minesCount, 0.97);
-
-    // reset timeout
-    resetMinesTimeout(gameId);
-
-    const embed = buildMinesEmbed(game, `✅ Je vond een diamant — multiplier verhoogd naar ${game.multiplier.toFixed(2)}x`, 0x57F287);
-    const rows = buildMinesButtons(gameId, game);
-
-    await interaction.editReply({ embeds: [embed], components: rows });
-    return true;
   }
 
+  // ---- Gameplay: cashout ----
   if (action === 'cashout') {
     const gameId = parts[2];
     const game = activeMinesGames.get(gameId);
@@ -1883,21 +2066,29 @@ async function handleMinesButton(interaction, client, config) {
       await interaction.followUp({ content: 'Het spel is al afgelopen.', flags: 64 });
       return true;
     }
+    if (game.processing) {
+      await interaction.followUp({ content: 'Even wachten — verwerking loopt.', flags: 64 });
+      return true;
+    }
 
-    // Compute payout and award
-    const payout = mines.calculatePayout(game.betAmount, game.multiplier, 3);
-    casino.addBalance(game.userId, game.username, payout, 'Mines cashout');
+    game.processing = true;
+    try {
+      const payout = mines.calculatePayout(game.betAmount, game.multiplier, 3);
+      casino.addBalance(game.userId, game.username, payout, 'Mines cashout');
 
-    game.ended = true;
-    clearTimeout(game.timeout);
+      game.ended = true;
+      clearTimeout(game.timeout);
 
-    const embed = buildMinesEmbed(game, `💸 Cashout — Je ontvangt ${payout} punten (multiplier ${game.multiplier.toFixed(2)}x)`, 0x57F287);
-    const rows = buildMinesButtons(gameId, game);
-    rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
+      const embed = buildMinesEmbed(game, `💸 Cashout — Je ontvangt ${payout} punten (multiplier ${game.multiplier.toFixed(2)}x)`, 0x57F287);
+      const rows = buildMinesButtons(gameId, game);
+      rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
 
-    await interaction.editReply({ embeds: [embed], components: rows });
-    cleanupMinesGame(gameId);
-    return true;
+      await interaction.editReply({ embeds: [embed], components: rows });
+      cleanupMinesGame(gameId);
+      return true;
+    } finally {
+      game.processing = false;
+    }
   }
 
   return true;
