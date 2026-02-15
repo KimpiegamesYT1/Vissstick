@@ -1944,14 +1944,13 @@ function buildMinesButtons(gameId, game) {
     const row = new ActionRowBuilder();
     for (let c = 0; c < 5; c++) {
       const idx = r * 5 + c;
-      const opened = game.opened.has(idx);
       const isMine = game.mines.has(idx);
       let label = '';
       let style = ButtonStyle.Secondary; // default gray
       let disabled = game.ended;
 
-      if (opened) {
-        disabled = true;
+      if (game.ended) {
+        // Geëindigd spel: toon alle
         if (isMine) {
           label = '💣';
           style = ButtonStyle.Danger;
@@ -1959,22 +1958,12 @@ function buildMinesButtons(gameId, game) {
           label = '💎';
           style = ButtonStyle.Success;
         }
+        disabled = true;
       } else {
-        if (!game.ended) {
-          // Actief spel: lege grijze knoppen
-          label = '\u200B';
-          style = ButtonStyle.Secondary;
-          disabled = false;
-        } else {
-          // Geëindigd spel: toon alle
-          if (isMine) {
-            label = '💣';
-            style = ButtonStyle.Danger;
-          } else {
-            label = '💎';
-            style = ButtonStyle.Success;
-          }
-        }
+        // Actief spel: lege grijze knoppen
+        label = '\u200B';
+        style = ButtonStyle.Secondary;
+        disabled = false;
       }
 
       row.addComponents(
