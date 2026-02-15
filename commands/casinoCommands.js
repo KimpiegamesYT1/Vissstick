@@ -1756,8 +1756,7 @@ async function buildBlackjackEmbed(game, revealDealer = false, resultText = null
       finished: revealDealer
     } : null;
 
-    // Let the renderer compute and display hand values to avoid duplication
-    const playerLabel = game.username;
+    const playerLabel = isSplit ? game.username : `${game.username} (${blackjack.calculateHandValue(game.playerCards).value})`;
 
     const imageBuffer = await renderBlackjackTable(
       game.dealerCards,
