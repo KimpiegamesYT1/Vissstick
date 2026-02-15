@@ -2373,7 +2373,8 @@ async function handleBlackjackButton(interaction, client, config) {
     game.deck = blackjack.createDeck(6);
     game.numDecks = 6;
     // Penetration: reshuffle when 25% or less remain (75% penetration)
-    game.cutCardThreshold = Math.floor(game.deck.length * 0.25);
+    game.penetrationPercent = 0.25;
+    game.cutCardThreshold = Math.floor(game.deck.length * game.penetrationPercent);
     // Reshuffle guard check before dealing
     blackjack.reshuffleIfNeeded(game);
     game.playerCards = [blackjack.dealCard(game.deck), blackjack.dealCard(game.deck)];

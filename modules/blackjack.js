@@ -31,9 +31,14 @@ function createDeck(numDecks = 1) {
  * Trek een kaart van het deck
  */
 function dealCard(deck) {
-  if (deck.length === 0) {
-    // Fallback: creëer een nieuwe 6-deck shoe en voeg toe aan het lege deck
+  // Guard tegen null/undefined decks
+  if (!deck || deck.length === 0) {
     const newShoe = createDeck(6);
+    // Als caller geen geldige array doorgaf, geef gewoon een kaart terug
+    if (!deck) {
+      return newShoe.pop();
+    }
+    // Anders vul de bestaande array op
     for (const c of newShoe) deck.push(c);
   }
   return deck.pop();
@@ -51,10 +56,14 @@ function reshuffleIfNeeded(game) {
     if (threshold === null) return;
     if (game.deck.length <= threshold) {
       const newShoe = createDeck(numDecks);
-      // Vervang bestaande deck-inhoud
+      // Vervang bestaande deck-inhoud maar behoud referentie
       game.deck.length = 0;
       Array.prototype.push.apply(game.deck, newShoe);
-      console.log('[blackjack] Shoe reshuffled (automatic)');
+      // Werk metadata bij zodat cutCardThreshold overeenkomt met nieuwe shoe
+      game.numDecks = numDecks;
+      const penetration = typeof game.penetrationPercent === 'number' ? game.penetrationPercent : 0.25;
+      game.cutCardThreshold = Math.floor(game.deck.length * penetration);
+      console.log('[blackjack] Shoe reshuffled (automatic) - decks:', game.deck.length, 'threshold:', game.cutCardThreshold);
     }
   } catch (e) {
     // swallow errors to avoid crashing game loop

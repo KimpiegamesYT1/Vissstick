@@ -160,8 +160,13 @@ async function renderNormalTable(dealerCards, playerCards, hideDealer, dealerLab
   const playerRow = await renderCardRow(playerCards);
 
   // Render labels
-  const dLabel = await createLabel(dealerLabel, tableWidth);
-  const pLabel = await createLabel(playerLabel, tableWidth);
+  const bj = require('./blackjack');
+  const dealerValue = bj.calculateHandValue(dealerCards).value;
+  const playerValue = bj.calculateHandValue(playerCards).value;
+  const dLabelText = hideDealer ? dealerLabel : `${dealerLabel} (${dealerValue})`;
+  const pLabelText = `${playerLabel} (${playerValue})`;
+  const dLabel = await createLabel(dLabelText, tableWidth);
+  const pLabel = await createLabel(pLabelText, tableWidth);
 
   const composites = [
     // Dealer label
