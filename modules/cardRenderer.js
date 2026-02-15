@@ -163,7 +163,7 @@ async function renderNormalTable(dealerCards, playerCards, hideDealer, dealerLab
   const bj = require('./blackjack');
   const dealerValue = bj.calculateHandValue(dealerCards).value;
   const playerValue = bj.calculateHandValue(playerCards).value;
-  const dLabelText = hideDealer ? dealerLabel : `${dealerLabel} (${dealerValue})`;
+  const dLabelText = hideDealer ? `${dealerLabel} (?)` : `${dealerLabel} (${dealerValue})`;
   const pLabelText = `${playerLabel} (${playerValue})`;
   const dLabel = await createLabel(dLabelText, tableWidth);
   const pLabel = await createLabel(pLabelText, tableWidth);
@@ -218,7 +218,8 @@ async function renderSplitTable(dealerCards, hideDealer, dealerLabel, playerLabe
   let yOffset = HAND_PADDING;
 
   // Dealer
-  const dLabel = await createLabel(dealerLabel, tableWidth);
+  const dLabelText = hideDealer ? `${dealerLabel} (?)` : `${dealerLabel} (${require('./blackjack').calculateHandValue(dealerCards).value})`;
+  const dLabel = await createLabel(dLabelText, tableWidth);
   const dealerRow = await renderCardRow(dealerCards, hideDealer);
   composites.push({ input: dLabel, left: HAND_PADDING, top: yOffset });
   yOffset += LABEL_HEIGHT;
