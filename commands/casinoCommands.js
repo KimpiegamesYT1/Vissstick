@@ -1962,7 +1962,7 @@ function buildMinesButtons(gameId, game) {
       } else {
         if (!game.ended) {
           // Actief spel: lege grijze knoppen
-          label = '';
+          label = ' ';
           style = ButtonStyle.Secondary;
           disabled = false;
         } else {
