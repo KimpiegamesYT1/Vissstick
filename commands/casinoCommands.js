@@ -1876,7 +1876,7 @@ function buildMinesEmbed(game, resultText = null, resultColor = null) {
       { name: 'Multiplier', value: `${game.multiplier.toFixed(2)}x`, inline: true },
       { name: 'Potentiële Uitbetaling', value: `${mines.calculatePayout(game.betAmount, game.multiplier, 3)} punten`, inline: true }
     )
-    .setFooter({ text: `${game.username}` });
+    .setFooter({ text: `Saldo: ${casino.getUserBalance(game.userId)} punten` });
 
   if (resultText) embed.setDescription(resultText);
   return embed;
@@ -1907,7 +1907,7 @@ function buildMinesSetupEmbed(selector) {
     .setTitle(title)
     .setColor(0x5865F2)
     .addFields(fields)
-    .setFooter({ text: `${selector.username}` });
+    .setFooter({ text: `Saldo: ${casino.getUserBalance(selector.userId)} punten` });
   return embed;
 }
 
@@ -1916,8 +1916,8 @@ function buildMinesSetupButtons(selectorId, selector) {
     const betRow = new ActionRowBuilder().addComponents(
       [50,100,200].map(a => new ButtonBuilder()
         .setCustomId(`mn_selectbet_${a}_${selectorId}`)
-        .setLabel(`${a}`)
-        .setStyle(selector.selectedBet === a ? ButtonStyle.Success : ButtonStyle.Primary)
+        .setLabel(`${a} punten`)
+        .setStyle(ButtonStyle.Success)
         .setDisabled(false)
       )
     );
