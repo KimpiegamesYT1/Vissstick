@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-const TOTAL_TILES = 20;
+const TOTAL_TILES = 25;
 
 function shuffleArrayCrypto(arr) {
   for (let i = arr.length - 1; i > 0; i--) {

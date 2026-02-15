@@ -1939,8 +1939,8 @@ function buildMinesSetupButtons(selectorId, selector) {
 
 function buildMinesButtons(gameId, game) {
   const rows = [];
-  // 4 rows of 5 buttons
-  for (let r = 0; r < 4; r++) {
+  // 5 rows of 5 buttons
+  for (let r = 0; r < 5; r++) {
     const row = new ActionRowBuilder();
     for (let c = 0; c < 5; c++) {
       const idx = r * 5 + c;
