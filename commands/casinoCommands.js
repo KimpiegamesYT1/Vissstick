@@ -1883,27 +1883,24 @@ function buildMinesEmbed(game, resultText = null, resultColor = null) {
 }
 
 function buildMinesSetupEmbed(selector) {
-  let title, fields, instruction;
+  let title, fields;
   if (selector.phase === 'bet') {
     title = '💣 Mines — Kies inzet';
     fields = [
-      { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true },
-      { name: 'Instruktie', value: 'Kies je inzet.' }
+      { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true }
     ];
   } else if (selector.phase === 'difficulty') {
     title = '💣 Mines — Kies aantal bommen';
     fields = [
       { name: 'Inzet', value: `${selector.selectedBet} punten`, inline: true },
-      { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true },
-      { name: 'Instruktie', value: 'Kies difficulty.' }
+      { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true }
     ];
   } else {
     // Fallback
     title = '💣 Mines — Setup';
     fields = [
       { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true },
-      { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true },
-      { name: 'Instruktie', value: 'Setup fase.' }
+      { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true }
     ];
   }
   const embed = new EmbedBuilder()
@@ -1954,7 +1951,6 @@ function buildMinesButtons(gameId, game) {
       let disabled = false;
 
       if (opened) {
-        disabled = true;
         if (isMine) {
           label = '💣';
           style = ButtonStyle.Danger;
@@ -1963,6 +1959,8 @@ function buildMinesButtons(gameId, game) {
           style = ButtonStyle.Success;
         }
       }
+
+      if (game.ended) disabled = true;
 
       row.addComponents(
         new ButtonBuilder()
@@ -1975,14 +1973,24 @@ function buildMinesButtons(gameId, game) {
     rows.push(row);
   }
 
-  // Cashout row (only cashout — removed unused forfeit button)
-  const cashRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`mn_cashout_${gameId}`)
-      .setLabel('💸 Cashout')
-      .setStyle(ButtonStyle.Success)
-  );
-  rows.push(cashRow);
+  // Action row
+  if (game.ended) {
+    const replayRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`mn_replay_${game.userId}`)
+        .setLabel('🔄 Opnieuw Spelen')
+        .setStyle(ButtonStyle.Primary)
+    );
+    rows.push(replayRow);
+  } else {
+    const cashRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`mn_cashout_${gameId}`)
+        .setLabel('💸 Cashout')
+        .setStyle(ButtonStyle.Success)
+    );
+    rows.push(cashRow);
+  }
   return rows;
 }
 
@@ -2110,16 +2118,6 @@ async function handleMinesButton(interaction, client, config) {
 
         const embed = buildMinesEmbed(game, `💥 Je hebt een bom geraakt — Je verliest je inzet van ${game.betAmount} punten.`, 0xED4245);
         const rows = buildMinesButtons(gameId, game);
-        rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
-
-        // Add replay button
-        const replayRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`mn_replay_${game.userId}`)
-            .setLabel('🔄 Opnieuw Spelen')
-            .setStyle(ButtonStyle.Primary)
-        );
-        rows.push(replayRow);
 
         await interaction.editReply({ embeds: [embed], components: rows });
         cleanupMinesGame(gameId);
@@ -2178,16 +2176,6 @@ async function handleMinesButton(interaction, client, config) {
 
       const embed = buildMinesEmbed(game, `💸 Cashout — Je ontvangt ${payout} punten (multiplier ${game.multiplier.toFixed(2)}x)`, 0x57F287);
       const rows = buildMinesButtons(gameId, game);
-      rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
-
-      // Add replay button
-      const replayRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`mn_replay_${game.userId}`)
-          .setLabel('🔄 Opnieuw Spelen')
-          .setStyle(ButtonStyle.Primary)
-      );
-      rows.push(replayRow);
 
       await interaction.editReply({ embeds: [embed], components: rows });
       cleanupMinesGame(gameId);
