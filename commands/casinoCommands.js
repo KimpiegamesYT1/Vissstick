@@ -1454,7 +1454,7 @@ async function handleCasinoCommands(interaction, client, config) {
 
       activeMinesGames.set(gameId, game);
 
-      const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
+      const embed = buildMinesEmbed(game, 'Kies een tegel om te openen');
       const components = buildMinesButtons(gameId, game);
 
       await interaction.reply({ embeds: [embed], components });
@@ -1867,19 +1867,14 @@ function buildBlackjackReplayButton(gameId) {
 // =====================================================
 
 function buildMinesEmbed(game, resultText = null, resultColor = null) {
-  const safeOpened = Array.from(game.opened).filter(i => !game.mines.has(i)).length;
-  const remainingTiles = mines.TOTAL_TILES - game.opened.size;
   const color = resultColor || 0x2B2D31;
   const embed = new EmbedBuilder()
     .setTitle('💣 Mines')
     .setColor(color)
     .addFields(
       { name: 'Inzet', value: `${game.betAmount} punten`, inline: true },
-      { name: 'Difficulty', value: `${game.minesCount} mines`, inline: true },
-      { name: 'Diamanten (gevonden)', value: `${safeOpened}`, inline: true },
       { name: 'Multiplier', value: `${game.multiplier.toFixed(2)}x`, inline: true },
-      { name: 'Potentiële Uitbetaling', value: `${mines.calculatePayout(game.betAmount, game.multiplier, 3)} punten`, inline: true },
-      { name: 'Overgebleven tegels', value: `${remainingTiles}`, inline: true }
+      { name: 'Potentiële Uitbetaling', value: `${mines.calculatePayout(game.betAmount, game.multiplier, 3)} punten`, inline: true }
     )
     .setFooter({ text: `${game.username}` });
 
@@ -1893,14 +1888,14 @@ function buildMinesSetupEmbed(selector) {
     title = '💣 Mines — Kies inzet';
     fields = [
       { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true },
-      { name: 'Instruktie', value: 'Kies je inzet om door te gaan naar het kiezen van het aantal bommen.' }
+      { name: 'Instruktie', value: 'Kies je inzet.' }
     ];
   } else if (selector.phase === 'difficulty') {
     title = '💣 Mines — Kies aantal bommen';
     fields = [
       { name: 'Inzet', value: `${selector.selectedBet} punten`, inline: true },
       { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true },
-      { name: 'Instruktie', value: 'Kies difficulty om het spel te starten.' }
+      { name: 'Instruktie', value: 'Kies difficulty.' }
     ];
   } else {
     // Fallback
@@ -1985,7 +1980,7 @@ function buildMinesButtons(gameId, game) {
     new ButtonBuilder()
       .setCustomId(`mn_cashout_${gameId}`)
       .setLabel('💸 Cashout')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Success)
   );
   rows.push(cashRow);
   return rows;
@@ -2070,7 +2065,7 @@ async function handleMinesButton(interaction, client, config) {
     clearTimeout(selector.timeout);
     activeMinesGames.set(selectorId, game);
 
-    const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
+    const embed = buildMinesEmbed(game, 'Kies een tegel om te openen');
     const components = buildMinesButtons(selectorId, game);
     await interaction.editReply({ embeds: [embed], components });
 
@@ -2116,6 +2111,15 @@ async function handleMinesButton(interaction, client, config) {
         const embed = buildMinesEmbed(game, `💥 Je hebt een bom geraakt — Je verliest je inzet van ${game.betAmount} punten.`, 0xED4245);
         const rows = buildMinesButtons(gameId, game);
         rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
+
+        // Add replay button
+        const replayRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`mn_replay_${game.userId}`)
+            .setLabel('🔄 Opnieuw Spelen')
+            .setStyle(ButtonStyle.Primary)
+        );
+        rows.push(replayRow);
 
         await interaction.editReply({ embeds: [embed], components: rows });
         cleanupMinesGame(gameId);
@@ -2176,12 +2180,60 @@ async function handleMinesButton(interaction, client, config) {
       const rows = buildMinesButtons(gameId, game);
       rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
 
+      // Add replay button
+      const replayRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`mn_replay_${game.userId}`)
+          .setLabel('🔄 Opnieuw Spelen')
+          .setStyle(ButtonStyle.Primary)
+      );
+      rows.push(replayRow);
+
       await interaction.editReply({ embeds: [embed], components: rows });
       cleanupMinesGame(gameId);
       return true;
     } finally {
       game.processing = false;
     }
+  }
+
+  // ---- Replay ----
+  if (action === 'replay') {
+    const userId = parts[2];
+    if (interaction.user.id !== userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw replay.', flags: 64 });
+      return true;
+    }
+
+    // Check of user al een actief mines spel of selector heeft
+    for (const [, game] of activeMinesGames) {
+      if (game.userId === userId) {
+        await interaction.followUp({ content: 'Je hebt al een actief Mines spel!', flags: 64 });
+        return true;
+      }
+    }
+
+    // Start nieuwe setup
+    const selectorId = generateMinesGameId();
+    const selector = {
+      userId,
+      username: interaction.user.username,
+      phase: 'bet',
+      selectedBet: null,
+      selectedDiff: null,
+      selectorId,
+      timeout: setTimeout(() => {
+        activeMinesGames.delete(selectorId);
+      }, 120000)
+    };
+
+    activeMinesGames.set(selectorId, selector);
+
+    const embed = buildMinesSetupEmbed(selector);
+    const components = buildMinesSetupButtons(selectorId, selector);
+
+    await interaction.update({ embeds: [embed], components });
+    return true;
   }
 
   return true;
