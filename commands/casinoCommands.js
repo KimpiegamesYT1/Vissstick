@@ -135,12 +135,98 @@ function recordBlackjackResult(userId, username, bet, payout, outcome) {
 }
 
 /**
+ * Registreer een Mines spelresultaat in de database
+ */
+function recordMinesResult(userId, username, bet, payout, outcome) {
+  const db = getDatabase();
+  const netWin = payout - bet;
+  const isWin = outcome === 'win';
+  const isLoss = outcome === 'lose';
+
+  // Maak tabel aan als die nog niet bestaat
+  db.exec(`CREATE TABLE IF NOT EXISTS mines_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    current_streak INTEGER DEFAULT 0,
+    best_streak INTEGER DEFAULT 0,
+    last_played DATETIME
+  )`);
+
+  const existing = db.prepare('SELECT * FROM mines_stats WHERE user_id = ?').get(userId);
+
+  if (!existing) {
+    db.prepare(`INSERT INTO mines_stats (user_id, username, games_played, wins, losses, total_bet, total_payout, biggest_win, current_streak, best_streak, last_played)
+      VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`).run(
+      userId, username,
+      isWin ? 1 : 0,
+      isLoss ? 1 : 0,
+      bet,
+      payout,
+      netWin > 0 ? netWin : 0,
+      isWin ? 1 : (isLoss ? -1 : 0),
+      isWin ? 1 : 0
+    );
+    return;
+  }
+
+  let newStreak = existing.current_streak;
+  if (isWin) {
+    newStreak = newStreak >= 0 ? newStreak + 1 : 1;
+  } else if (isLoss) {
+    newStreak = newStreak <= 0 ? newStreak - 1 : -1;
+  }
+  const bestStreak = Math.max(existing.best_streak, newStreak);
+  const biggestWin = Math.max(existing.biggest_win, netWin > 0 ? netWin : 0);
+
+  db.prepare(`UPDATE mines_stats SET
+    username = ?,
+    games_played = games_played + 1,
+    wins = wins + ?,
+    losses = losses + ?,
+    total_bet = total_bet + ?,
+    total_payout = total_payout + ?,
+    biggest_win = ?,
+    current_streak = ?,
+    best_streak = ?,
+    last_played = datetime('now')
+    WHERE user_id = ?`).run(
+    username,
+    isWin ? 1 : 0,
+    isLoss ? 1 : 0,
+    bet,
+    payout,
+    biggestWin,
+    newStreak,
+    bestStreak,
+    userId
+  );
+}
+
+/**
  * Haal Blackjack stats op voor een user
  */
 function getBlackjackStats(userId) {
   const db = getDatabase();
   try {
     return db.prepare('SELECT * FROM blackjack_stats WHERE user_id = ?').get(userId) || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Haal Mines stats op voor een user
+ */
+function getMinesStats(userId) {
+  const db = getDatabase();
+  try {
+    return db.prepare('SELECT * FROM mines_stats WHERE user_id = ?').get(userId) || null;
   } catch {
     return null;
   }
@@ -472,6 +558,18 @@ const casinoCommands = [
   {
     name: 'blackjackstats',
     description: 'Bekijk Blackjack statistieken van een speler',
+    options: [
+      {
+        name: 'user',
+        description: 'De speler waarvan je stats wilt zien (optioneel)',
+        type: 6, // USER
+        required: false
+      }
+    ]
+  },
+  {
+    name: 'minesstats',
+    description: 'Bekijk Mines statistieken van een speler',
     options: [
       {
         name: 'user',
@@ -1288,6 +1386,41 @@ async function handleCasinoCommands(interaction, client, config) {
   }
 
   // =====================================================
+  // MINES STATS - Command Handler
+  // =====================================================
+  if (commandName === 'minesstats') {
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+    const stats = getMinesStats(targetUser.id);
+
+    if (!stats) {
+      await interaction.reply({ content: `${targetUser.username} heeft nog geen Mines gespeeld.`, flags: 64 });
+      return true;
+    }
+
+    const winRate = stats.games_played > 0 ? (stats.wins / stats.games_played * 100).toFixed(1) : '0.0';
+    const netProfit = stats.total_payout - stats.total_bet;
+    const profitEmoji = netProfit >= 0 ? '📈' : '📉';
+
+    const embed = new EmbedBuilder()
+      .setTitle(`💣 Mines Stats — ${stats.username}`)
+      .setColor(netProfit >= 0 ? 0x57F287 : 0xED4245)
+      .addFields(
+        { name: '🎮 Gespeeld', value: `${stats.games_played}`, inline: true },
+        { name: '✅ Gewonnen', value: `${stats.wins}`, inline: true },
+        { name: '❌ Verloren', value: `${stats.losses}`, inline: true },
+        { name: '📊 Winrate', value: `${winRate}%`, inline: true },
+        { name: `${profitEmoji} Netto`, value: `${netProfit >= 0 ? '+' : ''}${netProfit} punten`, inline: true },
+        { name: '💰 Totaal ingezet', value: `${stats.total_bet} punten`, inline: true },
+        { name: '🏆 Grootste winst', value: `${stats.biggest_win} punten`, inline: true },
+        { name: '🔥 Huidige streak', value: `${stats.current_streak > 0 ? '+' : ''}${stats.current_streak}`, inline: true },
+        { name: '⭐ Beste streak', value: `${stats.best_streak}`, inline: true }
+      );
+
+    await interaction.reply({ embeds: [embed] });
+    return true;
+  }
+
+  // =====================================================
   // MINES - Command Handler
   // =====================================================
   if (commandName === 'mines') {
@@ -1357,7 +1490,7 @@ async function handleCasinoCommands(interaction, client, config) {
     const selector = {
       userId,
       username,
-      phase: 'setup',
+      phase: optBet ? 'difficulty' : 'bet',
       selectedBet: optBet || null,
       selectedDiff: optDiff || null,
       selectorId,
@@ -1779,38 +1912,61 @@ function buildMinesEmbed(game, resultText = null, resultColor = null) {
 }
 
 function buildMinesSetupEmbed(selector) {
-  const embed = new EmbedBuilder()
-    .setTitle('💣 Mines — Kies inzet & difficulty')
-    .setColor(0x5865F2)
-    .addFields(
+  let title, fields, instruction;
+  if (selector.phase === 'bet') {
+    title = '💣 Mines — Kies inzet';
+    fields = [
+      { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true },
+      { name: 'Instruktie', value: 'Kies je inzet om door te gaan naar het kiezen van het aantal bommen.' }
+    ];
+  } else if (selector.phase === 'difficulty') {
+    title = '💣 Mines — Kies aantal bommen';
+    fields = [
+      { name: 'Inzet', value: `${selector.selectedBet} punten`, inline: true },
+      { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true },
+      { name: 'Instruktie', value: 'Kies difficulty om het spel te starten.' }
+    ];
+  } else {
+    // Fallback
+    title = '💣 Mines — Setup';
+    fields = [
       { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true },
       { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true },
-      { name: 'Instruktie', value: 'Kies eerst inzet en daarna difficulty. Het spel start automatisch wanneer beide gekozen zijn.' }
-    )
+      { name: 'Instruktie', value: 'Setup fase.' }
+    ];
+  }
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setColor(0x5865F2)
+    .addFields(fields)
     .setFooter({ text: `${selector.username}` });
   return embed;
 }
 
 function buildMinesSetupButtons(selectorId, selector) {
-  const betRow = new ActionRowBuilder().addComponents(
-    [50,100,200].map(a => new ButtonBuilder()
-      .setCustomId(`mn_selectbet_${a}_${selectorId}`)
-      .setLabel(`${a}`)
-      .setStyle(selector.selectedBet === a ? ButtonStyle.Primary : ButtonStyle.Primary)
-      .setDisabled(false)
-    )
-  );
-
-  const diffRow = new ActionRowBuilder().addComponents(
-    ['easy','medium','hard'].map(d => new ButtonBuilder()
-      .setCustomId(`mn_selectdiff_${d}_${selectorId}`)
-      .setLabel(d === 'easy' ? 'Easy (3)' : d === 'medium' ? 'Medium (5)' : 'Hard (8)')
-      .setStyle(selector.selectedDiff === d ? ButtonStyle.Primary : ButtonStyle.Primary)
-      .setDisabled(false)
-    )
-  );
-
-  return [betRow, diffRow];
+  if (selector.phase === 'bet') {
+    const betRow = new ActionRowBuilder().addComponents(
+      [50,100,200].map(a => new ButtonBuilder()
+        .setCustomId(`mn_selectbet_${a}_${selectorId}`)
+        .setLabel(`${a}`)
+        .setStyle(selector.selectedBet === a ? ButtonStyle.Success : ButtonStyle.Primary)
+        .setDisabled(false)
+      )
+    );
+    return [betRow];
+  } else if (selector.phase === 'difficulty') {
+    const diffRow = new ActionRowBuilder().addComponents(
+      ['easy','medium','hard'].map(d => new ButtonBuilder()
+        .setCustomId(`mn_selectdiff_${d}_${selectorId}`)
+        .setLabel(d === 'easy' ? 'Easy (3)' : d === 'medium' ? 'Medium (5)' : 'Hard (8)')
+        .setStyle(selector.selectedDiff === d ? ButtonStyle.Success : ButtonStyle.Primary)
+        .setDisabled(false)
+      )
+    );
+    return [diffRow];
+  }
+  // Fallback
+  return [];
 }
 
 function buildMinesButtons(gameId, game) {
@@ -1852,7 +2008,7 @@ function buildMinesButtons(gameId, game) {
   const cashRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`mn_cashout_${gameId}`)
-      .setLabel('Cash Out')
+      .setLabel('💸 Cashout')
       .setStyle(ButtonStyle.Primary)
   );
   rows.push(cashRow);
@@ -1872,7 +2028,7 @@ async function handleMinesButton(interaction, client, config) {
     const amount = parseInt(parts[2], 10);
     const selectorId = parts[3];
     const selector = activeMinesGames.get(selectorId);
-    if (!selector || selector.phase !== 'setup') {
+    if (!selector || selector.phase !== 'bet') {
       await interaction.followUp({ content: 'Deze selectie bestaat niet meer.', flags: 64 });
       return true;
     }
@@ -1882,50 +2038,9 @@ async function handleMinesButton(interaction, client, config) {
     }
 
     selector.selectedBet = amount;
+    selector.phase = 'difficulty';
     // update embed
     await interaction.editReply({ embeds: [buildMinesSetupEmbed(selector)], components: buildMinesSetupButtons(selectorId, selector) });
-
-    // If both chosen, start game
-    if (selector.selectedBet && selector.selectedDiff) {
-      // validate balance
-      const balance = casino.getUserBalance(selector.userId);
-      if (balance < selector.selectedBet) {
-        await interaction.followUp({ content: 'Je hebt niet genoeg punten voor deze inzet.', flags: 64 });
-        return true;
-      }
-
-      // start actual game (reuse selectorId as gameId)
-      const minesCount = selector.selectedDiff === 'easy' ? 3 : selector.selectedDiff === 'medium' ? 5 : 8;
-      const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
-
-      casino.subtractBalance(selector.userId, selector.selectedBet);
-
-      const game = {
-        userId: selector.userId,
-        username: selector.username,
-        betAmount: selector.selectedBet,
-        minesCount,
-        mines: minesSet,
-        opened: new Set(),
-        multiplier: 1.00,
-        ended: false,
-        gameId: selectorId,
-        timeout: setTimeout(() => {
-          const g = activeMinesGames.get(selectorId);
-          if (g) {
-            casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
-          }
-          activeMinesGames.delete(selectorId);
-        }, 120000)
-      };
-
-      clearTimeout(selector.timeout);
-      activeMinesGames.set(selectorId, game);
-
-      const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
-      const components = buildMinesButtons(selectorId, game);
-      await interaction.editReply({ embeds: [embed], components });
-    }
 
     return true;
   }
@@ -1934,7 +2049,7 @@ async function handleMinesButton(interaction, client, config) {
     const diff = parts[2];
     const selectorId = parts[3];
     const selector = activeMinesGames.get(selectorId);
-    if (!selector || selector.phase !== 'setup') {
+    if (!selector || selector.phase !== 'difficulty') {
       await interaction.followUp({ content: 'Deze selectie bestaat niet meer.', flags: 64 });
       return true;
     }
@@ -1944,46 +2059,44 @@ async function handleMinesButton(interaction, client, config) {
     }
 
     selector.selectedDiff = diff;
-    await interaction.editReply({ embeds: [buildMinesSetupEmbed(selector)], components: buildMinesSetupButtons(selectorId, selector) });
 
-    if (selector.selectedBet && selector.selectedDiff) {
-      const balance = casino.getUserBalance(selector.userId);
-      if (balance < selector.selectedBet) {
-        await interaction.followUp({ content: 'Je hebt niet genoeg punten voor deze inzet.', flags: 64 });
-        return true;
-      }
-
-      const minesCount = selector.selectedDiff === 'easy' ? 3 : selector.selectedDiff === 'medium' ? 5 : 8;
-      const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
-
-      casino.subtractBalance(selector.userId, selector.selectedBet);
-
-      const game = {
-        userId: selector.userId,
-        username: selector.username,
-        betAmount: selector.selectedBet,
-        minesCount,
-        mines: minesSet,
-        opened: new Set(),
-        multiplier: 1.00,
-        ended: false,
-        gameId: selectorId,
-        timeout: setTimeout(() => {
-          const g = activeMinesGames.get(selectorId);
-          if (g) {
-            casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
-          }
-          activeMinesGames.delete(selectorId);
-        }, 120000)
-      };
-
-      clearTimeout(selector.timeout);
-      activeMinesGames.set(selectorId, game);
-
-      const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
-      const components = buildMinesButtons(selectorId, game);
-      await interaction.editReply({ embeds: [embed], components });
+    // Start game
+    const balance = casino.getUserBalance(selector.userId);
+    if (balance < selector.selectedBet) {
+      await interaction.followUp({ content: 'Je hebt niet genoeg punten voor deze inzet.', flags: 64 });
+      return true;
     }
+
+    const minesCount = selector.selectedDiff === 'easy' ? 3 : selector.selectedDiff === 'medium' ? 5 : 8;
+    const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
+
+    casino.subtractBalance(selector.userId, selector.selectedBet);
+
+    const game = {
+      userId: selector.userId,
+      username: selector.username,
+      betAmount: selector.selectedBet,
+      minesCount,
+      mines: minesSet,
+      opened: new Set(),
+      multiplier: 1.00,
+      ended: false,
+      gameId: selectorId,
+      timeout: setTimeout(() => {
+        const g = activeMinesGames.get(selectorId);
+        if (g) {
+          casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+        }
+        activeMinesGames.delete(selectorId);
+      }, 120000)
+    };
+
+    clearTimeout(selector.timeout);
+    activeMinesGames.set(selectorId, game);
+
+    const embed = buildMinesEmbed(game, 'Kies een tegel om te openen — 20 tegels (4x5).');
+    const components = buildMinesButtons(selectorId, game);
+    await interaction.editReply({ embeds: [embed], components });
 
     return true;
   }
@@ -2022,6 +2135,8 @@ async function handleMinesButton(interaction, client, config) {
         game.ended = true;
         clearTimeout(game.timeout);
 
+        recordMinesResult(game.userId, game.username, game.betAmount, 0, 'lose');
+
         const embed = buildMinesEmbed(game, `💥 Je hebt een bom geraakt — Je verliest je inzet van ${game.betAmount} punten.`, 0xED4245);
         const rows = buildMinesButtons(gameId, game);
         rows.forEach(r => r.components.forEach(b => b.setDisabled(true)));
@@ -2032,11 +2147,11 @@ async function handleMinesButton(interaction, client, config) {
       }
 
       const safeOpened = Array.from(game.opened).filter(i => !game.mines.has(i)).length;
-      const safeOpenedBeforeThisPick = Math.max(0, safeOpened - 1);
+      const openedSafeCountBeforePick = Math.max(0, safeOpened - 1);
 
       const prevMultiplier = game.multiplier;
-      game.multiplier = mines.calculateNextMultiplier(prevMultiplier, safeOpenedBeforeThisPick, mines.TOTAL_TILES, game.minesCount, 0.97);
-      game.openedSafeCountBefore = safeOpenedBeforeThisPick;
+      game.multiplier = mines.calculateNextMultiplier(prevMultiplier, openedSafeCountBeforePick, mines.TOTAL_TILES, game.minesCount, 0.97);
+      game.openedSafeCountBefore = openedSafeCountBeforePick;
 
       resetMinesTimeout(gameId);
 
@@ -2078,6 +2193,8 @@ async function handleMinesButton(interaction, client, config) {
 
       game.ended = true;
       clearTimeout(game.timeout);
+
+      recordMinesResult(game.userId, game.username, game.betAmount, payout, 'win');
 
       const embed = buildMinesEmbed(game, `💸 Cashout — Je ontvangt ${payout} punten (multiplier ${game.multiplier.toFixed(2)}x)`, 0x57F287);
       const rows = buildMinesButtons(gameId, game);
