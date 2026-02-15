@@ -102,7 +102,9 @@ function isBusted(cards) {
  * Check of de speler kan double-downen (precies 2 kaarten)
  */
 function canDouble(cards) {
-  return cards.length === 2;
+  if (cards.length !== 2) return false;
+  const { value } = calculateHandValue(cards);
+  return value === 9 || value === 10 || value === 11;
 }
 
 /**
@@ -166,7 +168,7 @@ function determineOutcome(playerCards, dealerCards) {
  */
 function calculatePayout(bet, outcome) {
   switch (outcome) {
-    case 'blackjack': return Math.round(bet * 2.5);  // 1.5x winst (inzet + 1.5x terug)
+    case 'blackjack': return bet + Math.floor(bet * 1.5);  // inzet + 1.5x winst (house uses floor)
     case 'win': return bet * 2;                       // 1x winst (inzet + 1x terug)
     case 'push': return bet;                          // Inzet terug
     case 'lose': return 0;                            // Niets
