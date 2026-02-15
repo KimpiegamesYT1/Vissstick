@@ -15,14 +15,22 @@ function createDeck(numDecks = 1) {
   for (let d = 0; d < numDecks; d++) {
     for (const suit of SUITS) {
       for (const rank of RANKS) {
-        deck.push({ rank, suit });
+        // Precompute numeric value for the card to avoid repeated work
+        let val;
+        if (rank === 'A') val = 11;
+        else if (['K', 'Q', 'J'].includes(rank)) val = 10;
+        else val = parseInt(rank);
+        deck.push({ rank, suit, value: val });
       }
     }
   }
   // Fisher-Yates shuffle (cryptografisch veilig)
   for (let i = deck.length - 1; i > 0; i--) {
     const j = randomInt(i + 1);
-    [deck[i], deck[j]] = [deck[j], deck[i]];
+    // Use a temporary variable instead of array destructuring to reduce allocations
+    const tmp = deck[i];
+    deck[i] = deck[j];
+    deck[j] = tmp;
   }
   return deck;
 }
@@ -39,7 +47,8 @@ function dealCard(deck) {
       return newShoe.pop();
     }
     // Anders vul de bestaande array op
-    for (const c of newShoe) deck.push(c);
+    // Vul bestaande array efficiënter
+    deck.push(...newShoe);
   }
   return deck.pop();
 }
@@ -58,7 +67,8 @@ function reshuffleIfNeeded(game) {
       const newShoe = createDeck(numDecks);
       // Vervang bestaande deck-inhoud maar behoud referentie
       game.deck.length = 0;
-      Array.prototype.push.apply(game.deck, newShoe);
+      // Vul bestaande array efficiënter
+      game.deck.push(...newShoe);
       // Werk metadata bij zodat cutCardThreshold overeenkomt met nieuwe shoe
       game.numDecks = numDecks;
       const penetration = typeof game.penetrationPercent === 'number' ? game.penetrationPercent : 0.25;
@@ -75,6 +85,9 @@ function reshuffleIfNeeded(game) {
  * Numerieke waarde van een kaart (Aas = 11, plaatjes = 10)
  */
 function cardValue(card) {
+  // Use cached numeric value when present
+  if (card && typeof card.value === 'number') return card.value;
+  if (!card || !card.rank) return 0;
   if (card.rank === 'A') return 11;
   if (['K', 'Q', 'J'].includes(card.rank)) return 10;
   return parseInt(card.rank);
@@ -89,8 +102,13 @@ function calculateHandValue(cards) {
   let aces = 0;
 
   for (const card of cards) {
-    value += cardValue(card);
-    if (card.rank === 'A') aces++;
+    // Prefer the precomputed numeric value when available to avoid function overhead
+    if (card && typeof card.value === 'number') {
+      value += card.value;
+    } else {
+      value += cardValue(card);
+    }
+    if (card && card.rank === 'A') aces++;
   }
 
   // Verlaag Azen van 11 naar 1 als we boven 21 zitten
