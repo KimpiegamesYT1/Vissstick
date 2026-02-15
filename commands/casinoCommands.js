@@ -1946,11 +1946,12 @@ function buildMinesButtons(gameId, game) {
       const idx = r * 5 + c;
       const opened = game.opened.has(idx);
       const isMine = game.mines.has(idx);
-      let label = (idx + 1).toString();
-      let style = ButtonStyle.Primary; // default blue
-      let disabled = false;
+      let label = '';
+      let style = ButtonStyle.Secondary; // default gray
+      let disabled = game.ended;
 
       if (opened) {
+        disabled = true;
         if (isMine) {
           label = '💣';
           style = ButtonStyle.Danger;
@@ -1958,9 +1959,16 @@ function buildMinesButtons(gameId, game) {
           label = '💎';
           style = ButtonStyle.Success;
         }
+      } else {
+        if (!game.ended) {
+          label = (idx + 1).toString();
+          style = ButtonStyle.Primary;
+          disabled = false;
+        } else {
+          label = '⚪';
+          style = ButtonStyle.Secondary;
+        }
       }
-
-      if (game.ended) disabled = true;
 
       row.addComponents(
         new ButtonBuilder()
@@ -2008,7 +2016,11 @@ async function handleMinesButton(interaction, client, config) {
     const selectorId = parts[3];
     const selector = activeMinesGames.get(selectorId);
     if (!selector || selector.phase !== 'bet') {
-      await interaction.followUp({ content: 'Deze selectie bestaat niet meer.', flags: 64 });
+      const expiredEmbed = new EmbedBuilder()
+        .setTitle('💣 Mines — Setup Verlopen')
+        .setDescription('Deze setup is verlopen. Start een nieuw spel met `/mines`.')
+        .setColor(0xED4245);
+      await interaction.editReply({ embeds: [expiredEmbed], components: [] });
       return true;
     }
     if (interaction.user.id !== selector.userId) {
@@ -2029,7 +2041,11 @@ async function handleMinesButton(interaction, client, config) {
     const selectorId = parts[3];
     const selector = activeMinesGames.get(selectorId);
     if (!selector || selector.phase !== 'difficulty') {
-      await interaction.followUp({ content: 'Deze selectie bestaat niet meer.', flags: 64 });
+      const expiredEmbed = new EmbedBuilder()
+        .setTitle('💣 Mines — Setup Verlopen')
+        .setDescription('Deze setup is verlopen. Start een nieuw spel met `/mines`.')
+        .setColor(0xED4245);
+      await interaction.editReply({ embeds: [expiredEmbed], components: [] });
       return true;
     }
     if (interaction.user.id !== selector.userId) {
@@ -2086,7 +2102,11 @@ async function handleMinesButton(interaction, client, config) {
     const gameId = parts[3];
     const game = activeMinesGames.get(gameId);
     if (!game) {
-      await interaction.followUp({ content: 'Dit spel bestaat niet (verlopen of verwijderd).', flags: 64 });
+      const expiredEmbed = new EmbedBuilder()
+        .setTitle('💣 Mines — Spel Verlopen')
+        .setDescription('Dit spel is verlopen door inactiviteit. Start een nieuw spel met `/mines`.')
+        .setColor(0xED4245);
+      await interaction.editReply({ embeds: [expiredEmbed], components: [] });
       return true;
     }
     if (interaction.user.id !== game.userId) {
@@ -2148,7 +2168,11 @@ async function handleMinesButton(interaction, client, config) {
     const gameId = parts[2];
     const game = activeMinesGames.get(gameId);
     if (!game) {
-      await interaction.followUp({ content: 'Dit spel bestaat niet (verlopen of verwijderd).', flags: 64 });
+      const expiredEmbed = new EmbedBuilder()
+        .setTitle('💣 Mines — Spel Verlopen')
+        .setDescription('Dit spel is verlopen door inactiviteit. Start een nieuw spel met `/mines`.')
+        .setColor(0xED4245);
+      await interaction.editReply({ embeds: [expiredEmbed], components: [] });
       return true;
     }
     if (interaction.user.id !== game.userId) {
