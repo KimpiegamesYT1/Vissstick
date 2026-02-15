@@ -2631,32 +2631,10 @@ async function advanceSplitHand(interaction, game, gameId) {
  */
 async function resolveSplitDealerTurn(interaction, game, gameId) {
   game.phase = 'dealer';
-
   // Check of alle handen bust zijn
   const allBust = game.hands.every(h => h.status === 'bust');
-  const revealDelay = 800;
   if (!allBust) {
-    // Reveal dealer hole card first
-    try {
-      const { embed: revealEmbed, files: revealFiles } = await buildBlackjackEmbed(game, true);
-      await interaction.editReply({ embeds: [revealEmbed], files: revealFiles, components: [] });
-    } catch (err) {
-      console.error('Error revealing dealer hole card (split):', err);
-    }
-    await new Promise(r => setTimeout(r, revealDelay));
-
-    // Draw one-by-one
-    while (blackjack.shouldDealerHit(game.dealerCards)) {
-      if (typeof blackjack.reshuffleIfNeeded === 'function') blackjack.reshuffleIfNeeded(game);
-      game.dealerCards.push(blackjack.dealCard(game.deck));
-      try {
-        const { embed: midEmbed, files: midFiles } = await buildBlackjackEmbed(game, true);
-        await interaction.editReply({ embeds: [midEmbed], files: midFiles, components: [] });
-      } catch (err) {
-        console.error('Error updating dealer reveal (split):', err);
-      }
-      await new Promise(r => setTimeout(r, revealDelay));
-    }
+    await processDealerTurn(interaction, game, gameId);
   }
 
   let totalPayout = 0;
@@ -2732,16 +2710,13 @@ function determineSplitOutcome(playerCards, dealerCards) {
 /**
  * Dealer speelt en bepaal resultaat (normaal / niet-split)
  */
-async function resolveBJDealerTurn(interaction, game, gameId) {
-  game.phase = 'dealer';
-  // Reveal dealer hole card first
+async function processDealerTurn(interaction, game, gameId) {
   const revealDelay = 800; // ms between reveals
   // Edit reply to reveal dealer hole card
   try {
     const { embed: revealEmbed, files: revealFiles } = await buildBlackjackEmbed(game, true);
     await interaction.editReply({ embeds: [revealEmbed], files: revealFiles, components: [] });
   } catch (err) {
-    // ignore render errors
     console.error('Error revealing dealer hole card:', err);
   }
 
@@ -2766,6 +2741,11 @@ async function resolveBJDealerTurn(interaction, game, gameId) {
     // Pause between draws
     await new Promise(r => setTimeout(r, revealDelay));
   }
+}
+
+async function resolveBJDealerTurn(interaction, game, gameId) {
+  game.phase = 'dealer';
+  await processDealerTurn(interaction, game, gameId);
 
   // Bepaal resultaat
   const outcome = blackjack.determineOutcome(game.playerCards, game.dealerCards);
