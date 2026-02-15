@@ -2346,6 +2346,14 @@ async function handleBlackjackButton(interaction, client, config) {
   await interaction.deferUpdate();
   resetBJTimeout(gameId);
 
+  // Concurrency guard: voorkom gelijktijdige verwerking van dezelfde game
+  if (game.processing) {
+    await interaction.followUp({ content: '❌ Actie wordt al verwerkt, probeer het over een ogenblik opnieuw.', flags: 64 });
+    return;
+  }
+  game.processing = true;
+  try {
+
   // ── Inzet kiezen ──
   if (['25', '50', '100', '200'].includes(action) && game.phase === 'betting') {
     const balance = casino.getUserBalance(game.userId);
@@ -2361,9 +2369,15 @@ async function handleBlackjackButton(interaction, client, config) {
     game.bet = betAmount;
     game.phase = 'playing';
 
-    // Maak deck en deel kaarten
-    game.deck = blackjack.createDeck();
+    // Maak deck (6-deck shoe) en deel kaarten
+    game.deck = blackjack.createDeck(6);
+    game.numDecks = 6;
+    // Penetration: reshuffle when 25% or less remain (75% penetration)
+    game.cutCardThreshold = Math.floor(game.deck.length * 0.25);
+    // Reshuffle guard check before dealing
+    blackjack.reshuffleIfNeeded(game);
     game.playerCards = [blackjack.dealCard(game.deck), blackjack.dealCard(game.deck)];
+    blackjack.reshuffleIfNeeded(game);
     game.dealerCards = [blackjack.dealCard(game.deck), blackjack.dealCard(game.deck)];
 
     // Check voor Blackjack
@@ -2404,6 +2418,7 @@ async function handleBlackjackButton(interaction, client, config) {
     if (game.isSplit && game.hands) {
       // Split mode: hit op actieve hand
       const hand = game.hands[game.activeHandIndex];
+      blackjack.reshuffleIfNeeded(game);
       hand.cards.push(blackjack.dealCard(game.deck));
 
       if (blackjack.isBusted(hand.cards)) {
@@ -2425,6 +2440,7 @@ async function handleBlackjackButton(interaction, client, config) {
     }
 
     // Normaal (niet-split) mode
+    blackjack.reshuffleIfNeeded(game);
     game.playerCards.push(blackjack.dealCard(game.deck));
 
     if (blackjack.isBusted(game.playerCards)) {
@@ -2479,6 +2495,7 @@ async function handleBlackjackButton(interaction, client, config) {
       casino.subtractBalance(game.userId, hand.bet);
       hand.bet *= 2;
       hand.doubled = true;
+      blackjack.reshuffleIfNeeded(game);
       hand.cards.push(blackjack.dealCard(game.deck));
 
       if (blackjack.isBusted(hand.cards)) {
@@ -2503,6 +2520,7 @@ async function handleBlackjackButton(interaction, client, config) {
     casino.subtractBalance(game.userId, game.bet);
     game.bet *= 2;
     game.doubled = true;
+    blackjack.reshuffleIfNeeded(game);
     game.playerCards.push(blackjack.dealCard(game.deck));
 
     if (blackjack.isBusted(game.playerCards)) {
@@ -2547,8 +2565,8 @@ async function handleBlackjackButton(interaction, client, config) {
 
     // Maak 2 handen
     game.hands = [
-      { cards: [card1, blackjack.dealCard(game.deck)], bet: game.bet, doubled: false, status: 'playing' },
-      { cards: [card2, blackjack.dealCard(game.deck)], bet: game.bet, doubled: false, status: 'playing' }
+      { cards: [card1, (blackjack.reshuffleIfNeeded(game), blackjack.dealCard(game.deck))], bet: game.bet, doubled: false, status: 'playing' },
+      { cards: [card2, (blackjack.reshuffleIfNeeded(game), blackjack.dealCard(game.deck))], bet: game.bet, doubled: false, status: 'playing' }
     ];
     game.isSplit = true;
     game.activeHandIndex = 0;
@@ -2573,6 +2591,10 @@ async function handleBlackjackButton(interaction, client, config) {
     const buttons = buildBlackjackButtons(gameId, game);
     await interaction.editReply({ embeds: [embed], files, components: [buttons] });
     return;
+  }
+  } finally {
+    // Zorg dat processing altijd weer wordt teruggezet
+    if (game) game.processing = false;
   }
 }
 

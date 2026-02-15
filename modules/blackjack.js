@@ -10,11 +10,13 @@ const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 /**
  * Maak een geschud deck van 52 kaarten
  */
-function createDeck() {
+function createDeck(numDecks = 1) {
   const deck = [];
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      deck.push({ rank, suit });
+  for (let d = 0; d < numDecks; d++) {
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        deck.push({ rank, suit });
+      }
     }
   }
   // Fisher-Yates shuffle (cryptografisch veilig)
@@ -30,9 +32,34 @@ function createDeck() {
  */
 function dealCard(deck) {
   if (deck.length === 0) {
-    throw new Error('Deck is leeg - geen kaarten meer beschikbaar');
+    // Fallback: creëer een nieuwe 6-deck shoe en voeg toe aan het lege deck
+    const newShoe = createDeck(6);
+    for (const c of newShoe) deck.push(c);
   }
   return deck.pop();
+}
+
+/**
+ * Controleer of de shoe bijna op is en reshuffle indien nodig.
+ * Verwacht een `game` object met `deck`, optional `cutCardThreshold` en `numDecks`.
+ */
+function reshuffleIfNeeded(game) {
+  try {
+    if (!game || !Array.isArray(game.deck)) return;
+    const threshold = typeof game.cutCardThreshold === 'number' ? game.cutCardThreshold : null;
+    const numDecks = game.numDecks || 6;
+    if (threshold === null) return;
+    if (game.deck.length <= threshold) {
+      const newShoe = createDeck(numDecks);
+      // Vervang bestaande deck-inhoud
+      game.deck.length = 0;
+      Array.prototype.push.apply(game.deck, newShoe);
+      console.log('[blackjack] Shoe reshuffled (automatic)');
+    }
+  } catch (e) {
+    // swallow errors to avoid crashing game loop
+    console.error('[blackjack] reshuffleIfNeeded error', e);
+  }
 }
 
 /**
@@ -191,3 +218,4 @@ module.exports = {
   determineOutcome,
   calculatePayout
 };
+module.exports.reshuffleIfNeeded = reshuffleIfNeeded;
