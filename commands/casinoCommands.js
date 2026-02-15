@@ -1961,12 +1961,19 @@ function buildMinesButtons(gameId, game) {
         }
       } else {
         if (!game.ended) {
-          label = (idx + 1).toString();
-          style = ButtonStyle.Primary;
+          // Actief spel: lege grijze knoppen
+          label = '';
+          style = ButtonStyle.Secondary;
           disabled = false;
         } else {
-          label = '⚪';
-          style = ButtonStyle.Secondary;
+          // Geëindigd spel: toon alle
+          if (isMine) {
+            label = '💣';
+            style = ButtonStyle.Danger;
+          } else {
+            label = '💎';
+            style = ButtonStyle.Success;
+          }
         }
       }
 
