@@ -581,31 +581,7 @@ const casinoCommands = [
   },
   {
     name: 'mines',
-    description: 'Speel Mines — kies inzet en difficulty',
-    options: [
-      {
-        name: 'bet',
-        description: 'Inzet (50 / 100 / 200)',
-        type: 4, // INTEGER
-        required: false,
-        choices: [
-          { name: '50', value: 50 },
-          { name: '100', value: 100 },
-          { name: '200', value: 200 }
-        ]
-      },
-      {
-        name: 'difficulty',
-        description: 'Kies difficulty (easy = 3 mines, medium = 5, hard = 8)',
-        type: 3, // STRING
-        required: false,
-        choices: [
-          { name: 'Easy (3 mines)', value: 'easy' },
-          { name: 'Medium (5 mines)', value: 'medium' },
-          { name: 'Hard (8 mines)', value: 'hard' }
-        ]
-      }
-    ]
+    description: 'Speel Mines — kies inzet en difficulty'
   }
 ];
 
@@ -1438,7 +1414,7 @@ async function handleCasinoCommands(interaction, client, config) {
     const optBet = interaction.options.getInteger('bet');
     const optDiff = interaction.options.getString('difficulty');
 
-    // Als zowel inzet als difficulty meegegeven zijn — start direct
+    // Als beide opties gegeven zijn — start direct (voor backward compatibility)
     if (optBet && optDiff) {
       const betAmount = optBet;
       const difficulty = optDiff;
@@ -1485,14 +1461,14 @@ async function handleCasinoCommands(interaction, client, config) {
       return true;
     }
 
-    // Anders: toon setup embed met knoppen (in-embed selectie zoals de rest)
+    // Anders: toon setup embed met knoppen (stapsgewijze selectie)
     const selectorId = generateMinesGameId();
     const selector = {
       userId,
       username,
-      phase: optBet ? 'difficulty' : 'bet',
-      selectedBet: optBet || null,
-      selectedDiff: optDiff || null,
+      phase: 'bet',
+      selectedBet: null,
+      selectedDiff: null,
       selectorId,
       timeout: setTimeout(() => {
         activeMinesGames.delete(selectorId);

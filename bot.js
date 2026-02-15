@@ -10,7 +10,7 @@ const hok = require('./modules/hok.js');
 const casino = require('./modules/casino.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
-const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton } = require('./commands/casinoCommands.js');
+const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton, handleMinesButton } = require('./commands/casinoCommands.js');
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
 const { handleHangmanButton } = require('./commands/hangmanCommands.js');
 
