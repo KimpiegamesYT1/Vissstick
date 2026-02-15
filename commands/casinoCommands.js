@@ -1944,13 +1944,13 @@ function buildMinesButtons(gameId, game) {
     const row = new ActionRowBuilder();
     for (let c = 0; c < 5; c++) {
       const idx = r * 5 + c;
+      const opened = game.opened.has(idx);
       const isMine = game.mines.has(idx);
       let label = '';
       let style = ButtonStyle.Secondary; // default gray
       let disabled = game.ended;
 
-      if (game.ended) {
-        // Geëindigd spel: toon alle
+      if (opened || game.ended) {
         if (isMine) {
           label = '💣';
           style = ButtonStyle.Danger;
