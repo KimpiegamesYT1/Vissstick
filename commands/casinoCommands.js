@@ -1958,7 +1958,7 @@ function buildMinesButtons(gameId, game) {
           label = '💎';
           style = ButtonStyle.Success;
         }
-        disabled = true;
+        disabled = game.ended;  // Alleen disablen aan het einde
       } else {
         // Actief spel: lege grijze knoppen
         label = '\u200B';
