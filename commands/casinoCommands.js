@@ -1403,9 +1403,9 @@ async function handleCasinoCommands(interaction, client, config) {
     const userId = interaction.user.id;
     const username = interaction.user.username;
 
-    // Check of user al een actief mines spel of selector heeft
+    // Check of user al een actief mines spel heeft (geen setup)
     for (const [, game] of activeMinesGames) {
-      if (game.userId === userId) {
+      if (game.userId === userId && game.mines) {
         await interaction.reply({ content: 'Je hebt al een actief Mines spel!', flags: 64 });
         return true;
       }
@@ -2193,9 +2193,9 @@ async function handleMinesButton(interaction, client, config) {
       return true;
     }
 
-    // Check of user al een actief mines spel of selector heeft
+    // Check of user al een actief mines spel heeft (geen setup)
     for (const [, game] of activeMinesGames) {
-      if (game.userId === userId) {
+      if (game.userId === userId && game.mines) {
         await interaction.followUp({ content: 'Je hebt al een actief Mines spel!', flags: 64 });
         return true;
       }
@@ -2220,7 +2220,7 @@ async function handleMinesButton(interaction, client, config) {
     const embed = buildMinesSetupEmbed(selector);
     const components = buildMinesSetupButtons(selectorId, selector);
 
-    await interaction.update({ embeds: [embed], components });
+    await interaction.editReply({ embeds: [embed], components });
     return true;
   }
 
