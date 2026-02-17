@@ -303,17 +303,35 @@ function cleanupMinesGame(gameId) {
   }
 }
 
-function resetMinesTimeout(gameId) {
+function resetMinesTimeout(gameId, interaction) {
   const game = activeMinesGames.get(gameId);
   if (!game) return;
   clearTimeout(game.timeout);
   game.timeout = setTimeout(() => {
     const g = activeMinesGames.get(gameId);
-    if (g && g.betAmount > 0) {
-      casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+    if (g) {
+      try {
+        const expiredEmbed = new EmbedBuilder()
+          .setTitle('💣 Mines — Spel Verlopen')
+          .setDescription('Dit spel is verlopen door inactiviteit. Start een nieuw spel met `/mines`.')
+          .setColor(0xED4245);
+        if (interaction && interaction.channel) {
+          interaction.channel.messages.fetch(g.messageId).then(m => m.edit({ embeds: [expiredEmbed], components: [] }).catch(() => {})).catch(() => {});
+        } else if (g.messageId && g.channelId && globalThis.client) {
+          globalThis.client.channels.fetch(g.channelId).then(ch => {
+            if (!ch || !ch.messages) return;
+            ch.messages.fetch(g.messageId).then(msg => msg.edit({ embeds: [expiredEmbed], components: [] }).catch(() => {})).catch(() => {});
+          }).catch(() => {});
+        }
+      } catch (e) {
+        // ignore
+      }
+      if (g.betAmount > 0) {
+        casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+      }
     }
     activeMinesGames.delete(gameId);
-  }, 120000);
+  }, 30000);
 }
 
 // Casino slash commands
@@ -1451,13 +1469,9 @@ async function handleCasinoCommands(interaction, client, config) {
         multiplier: 1.00,
         ended: false,
         gameId,
-        timeout: setTimeout(() => {
-          const g = activeMinesGames.get(gameId);
-          if (g) {
-            casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
-          }
-          activeMinesGames.delete(gameId);
-        }, 120000)
+        messageId: null,
+        channelId: interaction.channelId,
+        timeout: null
       };
 
       activeMinesGames.set(gameId, game);
@@ -1466,6 +1480,28 @@ async function handleCasinoCommands(interaction, client, config) {
       const components = buildMinesButtons(gameId, game);
 
       await interaction.reply({ embeds: [embed], components });
+      // store message id and set 30s timeout that edits the embed and refunds
+      try {
+        const msg = await interaction.fetchReply();
+        game.messageId = msg.id;
+        game.channelId = msg.channelId || interaction.channelId;
+        game.timeout = setTimeout(() => {
+          const g = activeMinesGames.get(gameId);
+          if (g) {
+            const expiredEmbed = new EmbedBuilder()
+              .setTitle('💣 Mines — Spel Verlopen')
+              .setDescription('Dit spel is verlopen door inactiviteit. Start een nieuw spel met `/mines`.')
+              .setColor(0xED4245);
+            try {
+              interaction.channel.messages.fetch(g.messageId).then(m => m.edit({ embeds: [expiredEmbed], components: [] }).catch(() => {})).catch(() => {});
+            } catch (e) {}
+            if (g.betAmount > 0) casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+          }
+          activeMinesGames.delete(gameId);
+        }, 30000);
+      } catch (e) {
+        // ignore fetch errors
+      }
       return true;
     }
 
@@ -1478,9 +1514,9 @@ async function handleCasinoCommands(interaction, client, config) {
       selectedBet: null,
       selectedDiff: null,
       selectorId,
-      timeout: setTimeout(() => {
-        activeMinesGames.delete(selectorId);
-      }, 120000)
+      messageId: null,
+      channelId: interaction.channelId,
+      timeout: null
     };
 
     activeMinesGames.set(selectorId, selector);
@@ -1489,6 +1525,25 @@ async function handleCasinoCommands(interaction, client, config) {
     const components = buildMinesSetupButtons(selectorId, selector);
 
     await interaction.reply({ embeds: [embed], components });
+    // store message and set 30s timeout to mark setup expired
+    try {
+      const msg = await interaction.fetchReply();
+      selector.messageId = msg.id;
+      selector.channelId = msg.channelId || interaction.channelId;
+      selector.timeout = setTimeout(() => {
+        const s = activeMinesGames.get(selectorId);
+        if (s) {
+          const expiredEmbed = new EmbedBuilder()
+            .setTitle('💣 Mines — Setup Verlopen')
+            .setDescription('Deze setup is verlopen. Start een nieuw spel met `/mines`.')
+            .setColor(0xED4245);
+          try {
+            interaction.channel.messages.fetch(s.messageId).then(m => m.edit({ embeds: [expiredEmbed], components: [] }).catch(() => {})).catch(() => {});
+          } catch (e) {}
+        }
+        activeMinesGames.delete(selectorId);
+      }, 30000);
+    } catch (e) {}
     return true;
   }
 
@@ -2072,22 +2127,18 @@ async function handleMinesButton(interaction, client, config) {
     casino.subtractBalance(selector.userId, selector.selectedBet);
 
     const game = {
-      userId: selector.userId,
-      username: selector.username,
-      betAmount: selector.selectedBet,
-      minesCount,
-      mines: minesSet,
-      opened: new Set(),
-      multiplier: 1.00,
-      ended: false,
-      gameId: selectorId,
-      timeout: setTimeout(() => {
-        const g = activeMinesGames.get(selectorId);
-        if (g) {
-          casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
-        }
-        activeMinesGames.delete(selectorId);
-      }, 120000)
+          userId: selector.userId,
+          username: selector.username,
+          betAmount: selector.selectedBet,
+          minesCount,
+          mines: minesSet,
+          opened: new Set(),
+          multiplier: 1.00,
+          ended: false,
+          gameId: selectorId,
+          messageId: null,
+          channelId: interaction.channelId,
+          timeout: null
     };
 
     clearTimeout(selector.timeout);
@@ -2096,6 +2147,26 @@ async function handleMinesButton(interaction, client, config) {
     const embed = buildMinesEmbed(game, 'Kies een tegel om te openen');
     const components = buildMinesButtons(selectorId, game);
     await interaction.editReply({ embeds: [embed], components });
+        // store message id and set 30s timeout
+        try {
+          const msg = await interaction.fetchReply();
+          game.messageId = msg.id;
+          game.channelId = msg.channelId || interaction.channelId;
+          game.timeout = setTimeout(() => {
+            const g = activeMinesGames.get(selectorId);
+            if (g) {
+              const expiredEmbed = new EmbedBuilder()
+                .setTitle('💣 Mines — Spel Verlopen')
+                .setDescription('Dit spel is verlopen door inactiviteit. Start een nieuw spel met `/mines`.')
+                .setColor(0xED4245);
+              try {
+                interaction.channel.messages.fetch(g.messageId).then(m => m.edit({ embeds: [expiredEmbed], components: [] }).catch(() => {})).catch(() => {});
+              } catch (e) {}
+              if (g.betAmount > 0) casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+            }
+            activeMinesGames.delete(selectorId);
+          }, 30000);
+        } catch (e) {}
 
     return true;
   }
@@ -2155,7 +2226,7 @@ async function handleMinesButton(interaction, client, config) {
       game.multiplier = mines.calculateNextMultiplier(prevMultiplier, openedSafeCountBeforePick, mines.TOTAL_TILES, game.minesCount, 0.97);
       game.openedSafeCountBefore = openedSafeCountBeforePick;
 
-      resetMinesTimeout(gameId);
+      resetMinesTimeout(gameId, interaction);
 
       const embed = buildMinesEmbed(game, `✅ Je vond een diamant — multiplier verhoogd naar ${game.multiplier.toFixed(2)}x`, 0x57F287);
       const rows = buildMinesButtons(gameId, game);
@@ -2238,9 +2309,9 @@ async function handleMinesButton(interaction, client, config) {
       selectedBet: null,
       selectedDiff: null,
       selectorId,
-      timeout: setTimeout(() => {
-        activeMinesGames.delete(selectorId);
-      }, 120000)
+      messageId: null,
+      channelId: interaction.channelId,
+      timeout: null
     };
 
     activeMinesGames.set(selectorId, selector);
@@ -2249,6 +2320,24 @@ async function handleMinesButton(interaction, client, config) {
     const components = buildMinesSetupButtons(selectorId, selector);
 
     await interaction.editReply({ embeds: [embed], components });
+    try {
+      const msg = await interaction.fetchReply();
+      selector.messageId = msg.id;
+      selector.channelId = msg.channelId || interaction.channelId;
+      selector.timeout = setTimeout(() => {
+        const s = activeMinesGames.get(selectorId);
+        if (s) {
+          const expiredEmbed = new EmbedBuilder()
+            .setTitle('💣 Mines — Setup Verlopen')
+            .setDescription('Deze setup is verlopen. Start een nieuw spel met `/mines`.')
+            .setColor(0xED4245);
+          try {
+            interaction.channel.messages.fetch(s.messageId).then(m => m.edit({ embeds: [expiredEmbed], components: [] }).catch(() => {})).catch(() => {});
+          } catch (e) {}
+        }
+        activeMinesGames.delete(selectorId);
+      }, 30000);
+    } catch (e) {}
     return true;
   }
 
