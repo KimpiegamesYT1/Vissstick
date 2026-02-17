@@ -7,38 +7,19 @@
 // CONSTANTS
 // =====================================================
 
-/**
- * Dutch word list for hangman game
- * ~100 common Dutch words (5-10 letters)
- */
-const DUTCH_WORDS = [
-  'APPEL', 'BOEK', 'COMPUTER', 'DEUR', 'ENERGIE',
-  'FIETS', 'GEZICHT', 'HOND', 'IJZER', 'JASJE',
-  'KAAS', 'LAMP', 'MAAN', 'NACHT', 'OGEN',
-  'PIANO', 'QUILTEN', 'REGEN', 'STORM', 'TAFEL',
-  'FLORIS', 'VADER', 'WATER', 'STIJN', 'YOGA',
-  'ZEBRA', 'AARDE', 'BAKKER', 'CIRCUS', 'DROOM',
-  'EILAND', 'FABRIEK', 'GELUID', 'HAVEN', 'INDIA',
-  'JURK', 'KAMER', 'LERAAR', 'MARKT', 'NIEUW',
-  'ORKEST', 'PAPIER', 'RADIO', 'SCHOOL', 'THEATER',
-  'UURWERK', 'VERHAAL', 'WINKEL', 'ZOMER', 'BANAAN',
-  'CHOCOLA', 'DIAMANT', 'EEKHOORN', 'FAMILIE', 'GOUDEN',
-  'HOOFD', 'IJSJE', 'KOFFIE', 'LENTE', 'MELK',
-  'NUMMER', 'OKTOBER', 'PENNEN', 'RAPPORT', 'SLEUTEL',
-  'TREIN', 'VAKANTIE', 'WERELD', 'ZAAG', 'BLOEM',
-  'CIJFER', 'DANSEN', 'FEIT', 'FRUIT', 'GROEN',
-  'HERFST', 'IDEE', 'JANUARI', 'KRANT', 'LOPEN',
-  'MOEDER', 'NATUUR', 'OEFENING', 'PLASTIC', 'ROBOT',
-  'SCHRIJVEN', 'TEKEN', 'VRAGEN', 'WINTER', 'ZINGEN',
-  'ARTIKEL', 'BEDRIJF', 'CULTUUR', 'DOKTER', 'ETEN',
-  'FIETSEN', 'GEMEENTE', 'HORIZON', 'INTERNET', 'JURKEN',
-  'KINDERCARNAVALSOPTOCHTVOORBEREIDINGSWERKZAAMHEDENCOMITÉLEDEN',
-  'TOETSENBORD', 'JAVA', 'SCHAALMODEL', 'WINTERSLAAP', 'RECLAMEFOLDER',
-  'INFRASTRUCTUUR', 'Gira E2 Inbouw Enkel Geaard Stopcontact met Klepje Mat Zwart',
-  'COMPLEET', 'WINDOWS', 'MACBOOK', 'LINUX', 'ANDROID', 'HUIS',
-  'TUIN', 'STRAAT', 'AUTO', 'BUS', 'TREIN', 'VLIEGTUIG',
-  'BANAAN', 'APPEL', 'ORANJE', 'GROEN', 'BLAUW', 'ROOD'
-];
+// Haal de woordenlijst uit de config.json, fallback naar lege lijst
+let DUTCH_WORDS = [];
+let config = null;
+try {
+  config = require('../config.json');
+} catch (e) {
+  console.warn('[Hangman] Kan config.json niet laden:', e.message);
+}
+if (config && Array.isArray(config.HANGMAN_WORDS) && config.HANGMAN_WORDS.length > 0) {
+  DUTCH_WORDS = config.HANGMAN_WORDS.map(w => w.toUpperCase());
+} else {
+  console.warn('[Hangman] Geen HANGMAN_WORDS gevonden in config.json! Hangman werkt niet zonder woordenlijst.');
+}
 
 /**
  * ASCII art stages for hangman (7 stages: 0 = empty, 6 = complete)
@@ -239,7 +220,7 @@ function getHangmanStage(wrongGuesses) {
 // =====================================================
 
 module.exports = {
-  DUTCH_WORDS,
+  get WORDS() { return DUTCH_WORDS; },
   HANGMAN_STAGES,
   MAX_WRONG_GUESSES,
   getRandomWord,
