@@ -1403,6 +1403,14 @@ async function handleCasinoCommands(interaction, client, config) {
     const userId = interaction.user.id;
     const username = interaction.user.username;
 
+    // Require player to have more than 25 points before starting Mines
+    casino.getOrCreateUser(userId, username);
+    const startingBalance = casino.getUserBalance(userId);
+    if (startingBalance <= 25) {
+      await interaction.reply({ content: 'Je hebt niet genoeg punten om Mines te spelen. Je moet meer dan 25 punten hebben.', flags: 64 });
+      return true;
+    }
+
     // Check of user al een actief mines spel heeft (geen setup)
     for (const [, game] of activeMinesGames) {
       if (game.userId === userId && game.mines) {
