@@ -96,7 +96,7 @@ const HANGMAN_STAGES = [
   ─┴─────`
 ];
 
-const MAX_WRONG_GUESSES = 6;
+const MAX_WRONG_GUESSES = 5;
 
 // =====================================================
 // GAME LOGIC FUNCTIONS

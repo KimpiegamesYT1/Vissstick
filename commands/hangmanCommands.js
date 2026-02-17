@@ -49,11 +49,11 @@ function buildHangmanEmbed(game) {
     embed.setDescription(
       `**${game.player.username}** wil galgje spelen!\n\n` +
       `Kies je inzet om te beginnen:\n` +
-      `💰 **50 punten** - Win 100 punten\n` +
-      `💰 **100 punten** - Win 200 punten\n` +
-      `💰 **200 punten** - Win 400 punten\n` +
+      `💰 **50 punten** - Win 75 punten\n` +
+      `💰 **100 punten** - Win 150 punten\n` +
+      `💰 **200 punten** - Win 300 punten\n` +
       `🎮 **Gratis spelen** - Win ${FREE_REWARD} punten\n\n` +
-      `Je hebt 6 foute pogingen voordat je verliest!`
+      `Je hebt 5 foute pogingen voordat je verliest!`
     );
   } else {
     // Playing phase
@@ -90,10 +90,11 @@ function buildGameOverEmbed(game, won) {
     .setTimestamp();
   
   if (won) {
-    const winAmount = game.betAmount ? game.betAmount * 2 : FREE_REWARD;
+    const winAmount = game.betAmount ? Math.floor(game.betAmount * 1.5) : FREE_REWARD;
+    const profit = game.betAmount ? (winAmount - game.betAmount) : FREE_REWARD;
     let resultText = '';
     if (game.betAmount) {
-      resultText = `💰 **+${winAmount} punten** (+${game.betAmount} winst)`;
+      resultText = `💰 **+${winAmount} punten** (+${profit} winst)`;
     } else {
       resultText = `🎮 **Gratis spel** - +${FREE_REWARD} punten`;
     }
