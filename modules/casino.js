@@ -8,7 +8,7 @@ const { getDatabase } = require('../database');
 
 // Constanten
 const BET_AMOUNT = 400;
-const TAX_RATE = 0.10; // 10% belasting
+const TAX_RATE = 0; // Belasting uitgeschakeld (voorheen 0.10)
 const MAX_PAYOUT = 1200; // 3x inzet
 const HARIBO_PRICE = 5000;
 const HARIBO_STOCK_PER_MONTH = 4;
@@ -265,21 +265,19 @@ function resolveBet(betId, outcome) {
   
   const winners = bet.entries.filter(e => e.choice === outcome);
   const losers = bet.entries.filter(e => e.choice !== outcome);
-  
-  // Bereken uitbetaling
+  // Nieuwe logica: verdeel alleen het verloren deel (losingPool) minus belasting
+  // Proportionele verdeling: winnaar krijgt zijn inzet terug + aandeel van het belastbare verliezende deel
   const totalPool = bet.totalPool;
-  const poolAfterTax = Math.floor(totalPool * (1 - TAX_RATE));
-  
-  let payoutPerWinner = 0;
-  let actualPayout = 0;
+
+  const losingPool = losers.reduce((s, e) => s + (e.amount || 0), 0);
+  // Geen belasting meer: het volledige verliezende deel wordt verdeeld
+  const taxedLosingPool = losingPool;
+  const taxBurned = 0;
+
+  const winnersTotalStake = winners.reduce((s, e) => s + (e.amount || 0), 0);
+
   let excessBurned = 0;
-  
-  if (winners.length > 0) {
-    payoutPerWinner = Math.floor(poolAfterTax / winners.length);
-    actualPayout = Math.min(payoutPerWinner, MAX_PAYOUT);
-    excessBurned = (payoutPerWinner - actualPayout) * winners.length;
-  }
-  
+
   // Transaction voor atomiciteit
   const transaction = db.transaction(() => {
     // Update bet status
@@ -288,22 +286,37 @@ function resolveBet(betId, outcome) {
       SET status = 'resolved', outcome = ?, resolved_at = datetime('now')
       WHERE id = ?
     `).run(outcome, betId);
-    
-    // Betaal winnaars uit
-    if (winners.length > 0) {
-      const updatePayout = db.prepare(`
-        UPDATE bet_entries SET payout = ? WHERE bet_id = ? AND user_id = ?
-      `);
-      
+
+    const updatePayout = db.prepare(`
+      UPDATE bet_entries SET payout = ? WHERE bet_id = ? AND user_id = ?
+    `);
+
+    if (winners.length > 0 && losingPool > 0 && winnersTotalStake > 0) {
+      // Verdeelde shares van het belastbare verliezende deel
       winners.forEach(winner => {
+        const share = Math.floor(taxedLosingPool * ((winner.amount || 0) / winnersTotalStake));
+        const rawPayout = (winner.amount || 0) + share; // inzet terug + deel van verliezende pot
+        const actualPayout = Math.min(rawPayout, MAX_PAYOUT);
+
+        // Track excess (wanneer cap kleiner is dan rawPayout)
+        excessBurned += (rawPayout - actualPayout);
+
         addBalance(winner.user_id, winner.username, actualPayout, `Gewonnen bet #${betId}`);
         updatePayout.run(actualPayout, betId, winner.user_id);
       });
+    } else if (winners.length > 0 && losingPool === 0) {
+      // Geen verliezers: refund van inzet (geen belasting)
+      winners.forEach(winner => {
+        const refund = (winner.amount || 0);
+        addBalance(winner.user_id, winner.username, refund, `Terugbetaling - geen verliezers bet #${betId}`);
+        updatePayout.run(refund, betId, winner.user_id);
+      });
     }
+    // Als er geen winners zijn, betalen we niets uit
   });
-  
+
   transaction();
-  
+
   return {
     success: true,
     bet,
@@ -311,9 +324,10 @@ function resolveBet(betId, outcome) {
     winners,
     losers,
     totalPool,
-    poolAfterTax,
-    payoutPerWinner: actualPayout,
-    taxBurned: Math.floor(totalPool * TAX_RATE),
+    losingPool,
+    taxedLosingPool,
+    payoutPerWinner: null,
+    taxBurned,
     excessBurned
   };
 }
@@ -672,14 +686,24 @@ function buildShopEmbed() {
  * Bouw resolve resultaat embed
  */
 function buildResolveEmbed(result) {
+  const betWithEntries = getBetWithEntries(result.bet.id);
+
+  const winnersField = result.winners.length > 0
+    ? betWithEntries.entries.filter(e => e.choice === result.outcome).map(e => `${e.username} (+${e.payout || 0})`).join('\n')
+    : 'Niemand';
+
+  const losersField = result.losers.length > 0
+    ? result.losers.map(l => `${l.username} (-${BET_AMOUNT})`).join('\n')
+    : 'Niemand';
+
   const embed = new EmbedBuilder()
     .setTitle('🎲 Weddenschap Afgelopen!')
     .setColor(result.winners.length > 0 ? '#00FF00' : '#FF0000')
     .setDescription(`**${result.bet.question}**\n\nUitslag: **${result.outcome}**`)
     .addFields(
-      { name: '🏆 Winnaars', value: result.winners.length > 0 ? result.winners.map(w => `${w.username} (+${result.payoutPerWinner})`).join('\n') : 'Niemand', inline: true },
-      { name: '💔 Verliezers', value: result.losers.length > 0 ? result.losers.map(l => `${l.username} (-${BET_AMOUNT})`).join('\n') : 'Niemand', inline: true },
-      { name: '📊 Statistieken', value: `Pot: ${result.totalPool}\nBelasting (10%): ${result.taxBurned}\nUitbetaling p.p.: ${result.payoutPerWinner}`, inline: false }
+      { name: '🏆 Winnaars', value: winnersField, inline: true },
+      { name: '💔 Verliezers', value: losersField, inline: true },
+      { name: '📊 Statistieken', value: `Pot: ${result.totalPool}`, inline: false }
     )
     .setTimestamp();
   
