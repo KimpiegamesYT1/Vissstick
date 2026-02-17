@@ -10,17 +10,27 @@ const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 /**
  * Maak een geschud deck van 52 kaarten
  */
-function createDeck() {
+function createDeck(numDecks = 1) {
   const deck = [];
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      deck.push({ rank, suit });
+  for (let d = 0; d < numDecks; d++) {
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        // Precompute numeric value for the card to avoid repeated work
+        let val;
+        if (rank === 'A') val = 11;
+        else if (['K', 'Q', 'J'].includes(rank)) val = 10;
+        else val = parseInt(rank);
+        deck.push({ rank, suit, value: val });
+      }
     }
   }
   // Fisher-Yates shuffle (cryptografisch veilig)
   for (let i = deck.length - 1; i > 0; i--) {
     const j = randomInt(i + 1);
-    [deck[i], deck[j]] = [deck[j], deck[i]];
+    // Use a temporary variable instead of array destructuring to reduce allocations
+    const tmp = deck[i];
+    deck[i] = deck[j];
+    deck[j] = tmp;
   }
   return deck;
 }
@@ -29,16 +39,55 @@ function createDeck() {
  * Trek een kaart van het deck
  */
 function dealCard(deck) {
-  if (deck.length === 0) {
-    throw new Error('Deck is leeg - geen kaarten meer beschikbaar');
+  // Guard tegen null/undefined decks
+  if (!deck || deck.length === 0) {
+    const newShoe = createDeck(6);
+    // Als caller geen geldige array doorgaf, geef gewoon een kaart terug
+    if (!deck) {
+      return newShoe.pop();
+    }
+    // Anders vul de bestaande array op
+    // Vul bestaande array efficiënter
+    deck.push(...newShoe);
   }
   return deck.pop();
+}
+
+/**
+ * Controleer of de shoe bijna op is en reshuffle indien nodig.
+ * Verwacht een `game` object met `deck`, optional `cutCardThreshold` en `numDecks`.
+ */
+function reshuffleIfNeeded(game) {
+  try {
+    if (!game || !Array.isArray(game.deck)) return;
+    const threshold = typeof game.cutCardThreshold === 'number' ? game.cutCardThreshold : null;
+    const numDecks = game.numDecks || 6;
+    if (threshold === null) return;
+    if (game.deck.length <= threshold) {
+      const newShoe = createDeck(numDecks);
+      // Vervang bestaande deck-inhoud maar behoud referentie
+      game.deck.length = 0;
+      // Vul bestaande array efficiënter
+      game.deck.push(...newShoe);
+      // Werk metadata bij zodat cutCardThreshold overeenkomt met nieuwe shoe
+      game.numDecks = numDecks;
+      const penetration = typeof game.penetrationPercent === 'number' ? game.penetrationPercent : 0.25;
+      game.cutCardThreshold = Math.floor(game.deck.length * penetration);
+      console.log('[blackjack] Shoe reshuffled (automatic) - decks:', game.deck.length, 'threshold:', game.cutCardThreshold);
+    }
+  } catch (e) {
+    // swallow errors to avoid crashing game loop
+    console.error('[blackjack] reshuffleIfNeeded error', e);
+  }
 }
 
 /**
  * Numerieke waarde van een kaart (Aas = 11, plaatjes = 10)
  */
 function cardValue(card) {
+  // Use cached numeric value when present
+  if (card && typeof card.value === 'number') return card.value;
+  if (!card || !card.rank) return 0;
   if (card.rank === 'A') return 11;
   if (['K', 'Q', 'J'].includes(card.rank)) return 10;
   return parseInt(card.rank);
@@ -53,8 +102,13 @@ function calculateHandValue(cards) {
   let aces = 0;
 
   for (const card of cards) {
-    value += cardValue(card);
-    if (card.rank === 'A') aces++;
+    // Prefer the precomputed numeric value when available to avoid function overhead
+    if (card && typeof card.value === 'number') {
+      value += card.value;
+    } else {
+      value += cardValue(card);
+    }
+    if (card && card.rank === 'A') aces++;
   }
 
   // Verlaag Azen van 11 naar 1 als we boven 21 zitten
@@ -96,6 +150,22 @@ function isBlackjack(cards) {
  */
 function isBusted(cards) {
   return calculateHandValue(cards).value > 21;
+}
+
+/**
+ * Check of de speler kan double-downen (precies 2 kaarten)
+ */
+function canDouble(cards) {
+  if (cards.length !== 2) return false;
+  const { value } = calculateHandValue(cards);
+  return value === 9 || value === 10 || value === 11;
+}
+
+/**
+ * Check of de speler kan splitsen (precies 2 kaarten met dezelfde rang)
+ */
+function canSplit(cards) {
+  return cards.length === 2 && cards[0].rank === cards[1].rank;
 }
 
 /**
@@ -152,7 +222,7 @@ function determineOutcome(playerCards, dealerCards) {
  */
 function calculatePayout(bet, outcome) {
   switch (outcome) {
-    case 'blackjack': return Math.round(bet * 2.5);  // 1.5x winst (inzet + 1.5x terug)
+    case 'blackjack': return bet + Math.floor(bet * 1.5);  // inzet + 1.5x winst (house uses floor)
     case 'win': return bet * 2;                       // 1x winst (inzet + 1x terug)
     case 'push': return bet;                          // Inzet terug
     case 'lose': return 0;                            // Niets
@@ -168,8 +238,11 @@ module.exports = {
   formatHand,
   isBlackjack,
   isBusted,
+  canDouble,
+  canSplit,
   shouldDealerHit,
   playDealer,
   determineOutcome,
   calculatePayout
 };
+module.exports.reshuffleIfNeeded = reshuffleIfNeeded;

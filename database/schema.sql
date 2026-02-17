@@ -192,6 +192,54 @@ CREATE TABLE IF NOT EXISTS blackjack_stats (
 );
 CREATE INDEX IF NOT EXISTS idx_blackjack_stats_games ON blackjack_stats(games_played DESC);
 
+-- Mines stats
+CREATE TABLE IF NOT EXISTS mines_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    current_streak INTEGER DEFAULT 0,
+    best_streak INTEGER DEFAULT 0,
+    last_played DATETIME
+);
+CREATE INDEX IF NOT EXISTS idx_mines_stats_games ON mines_stats(games_played DESC);
+
+-- =====================================================
+-- CHATBOT MODULE
+-- =====================================================
+
+-- Chatbot conversations
+CREATE TABLE IF NOT EXISTS chatbot_conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    last_message_at INTEGER NOT NULL,
+    total_tokens INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'active' CHECK(status IN ('active', 'archived')),
+    UNIQUE(channel_id, status) -- Only one active conversation per channel
+);
+
+CREATE INDEX IF NOT EXISTS idx_chatbot_conversations_status ON chatbot_conversations(status, last_message_at);
+
+-- Chatbot messages
+CREATE TABLE IF NOT EXISTS chatbot_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL,
+    user_id TEXT,
+    username TEXT,
+    role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+    content TEXT NOT NULL,
+    tokens INTEGER DEFAULT 0,
+    timestamp INTEGER NOT NULL,
+    FOREIGN KEY (conversation_id) REFERENCES chatbot_conversations(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chatbot_messages_conversation ON chatbot_messages(conversation_id, timestamp);
+
 -- =====================================================
 -- INITIAL DATA
 -- =====================================================

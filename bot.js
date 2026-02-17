@@ -10,10 +10,12 @@ const hok = require('./modules/hok.js');
 const casino = require('./modules/casino.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
-const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton } = require('./commands/casinoCommands.js');
+const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton, handleMinesButton } = require('./commands/casinoCommands.js');
+const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
+const { handleHangmanButton } = require('./commands/hangmanCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
-const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID } = config;
+const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, GROQ_API_KEY } = config;
 
 function ensureLogDirectory() {
   const logDir = path.join(__dirname, 'logs');
@@ -132,6 +134,25 @@ process.on('unhandledRejection', (reason, promise) => {
 
 let activeQuizMessages = new Map(); // Store active quiz message references
 let hokState = null; // State voor hok monitoring
+const chatbotChannelQueues = new Map(); // Voorkom overlappende chatbot requests per kanaal
+
+function enqueueChatbotTask(channelId, task) {
+  const currentQueue = chatbotChannelQueues.get(channelId) || Promise.resolve();
+
+  const nextTask = currentQueue
+    .catch(() => {})
+    .then(task);
+
+  chatbotChannelQueues.set(channelId, nextTask);
+
+  nextTask.finally(() => {
+    if (chatbotChannelQueues.get(channelId) === nextTask) {
+      chatbotChannelQueues.delete(channelId);
+    }
+  });
+
+  return nextTask;
+}
 
 // Show monthly scoreboard
 async function showMonthlyScoreboard(client, channelId) {
@@ -235,8 +256,107 @@ client.on('messageReactionRemove', async (reaction, user) => {
   // Quiz reactions zijn nu buttons - dit is alleen voor toekomstige functionaliteit
 });
 
-// Message handler voor chat responses
+// Message handler voor chat responses and chatbot
 client.on('messageCreate', async (message) => {
+  // Handle chatbot first if in chatbot channel
+  if (CHATBOT_CHANNEL_ID && GROQ_API_KEY && message.channel.id === CHATBOT_CHANNEL_ID) {
+    // Ignore bot messages
+    if (message.author.bot) {
+      return;
+    }
+
+    await enqueueChatbotTask(message.channel.id, async () => {
+      const cleanedMessage = (message.content || '').trim();
+      if (!cleanedMessage) {
+        return;
+      }
+
+      // Import chatbot module
+      const { generateResponse } = require('./modules/chatbot');
+      let typingInterval = null;
+
+      try {
+        // Send typing indicator (lasts ~10 seconds)
+        await message.channel.sendTyping();
+
+        // Keep typing indicator alive during processing
+        typingInterval = setInterval(() => {
+          message.channel.sendTyping().catch(() => clearInterval(typingInterval));
+        }, 8000);
+
+        // Generate AI response
+        const aiResult = await generateResponse(
+          message.channel.id,
+          cleanedMessage,
+          message.author.id,
+          message.author.username,
+          GROQ_API_KEY
+        );
+
+        const reply = typeof aiResult === 'string' ? aiResult : aiResult.message;
+        const conversationId = typeof aiResult === 'string' ? 'onbekend' : aiResult.conversationId;
+        const startedNewConversation = typeof aiResult === 'string' ? false : aiResult.startedNewConversation;
+        const startedNewConversationReason = typeof aiResult === 'string'
+          ? null
+          : aiResult.startedNewConversationReason;
+        const isInvalidAiReply = typeof reply === 'string' &&
+          reply.trim() === 'Ik kreeg geen geldig antwoord van de AI, probeer het nog eens.';
+
+        if (startedNewConversation) {
+          const newChatEmbed = new EmbedBuilder()
+            .setDescription(
+              `Nieuwe chat gestart • Chat ID: ${conversationId}` +
+              (startedNewConversationReason ? `\nReden: ${startedNewConversationReason}` : '')
+            )
+            .setColor('#FFA500')
+            .setTimestamp();
+
+          await message.channel.send({ embeds: [newChatEmbed] }).catch(err =>
+            console.error('[CHATBOT] Kon nieuwe-chat embed niet versturen:', err)
+          );
+        }
+
+        // Send response as embed
+        const embed = new EmbedBuilder()
+          .setDescription(reply)
+          .setColor(isInvalidAiReply ? '#FF0000' : '#0099ff')
+          .setFooter({ 
+            text: `Chat ID: ${conversationId} • Gevraagd door ${message.author.username}`,
+            iconURL: message.author.displayAvatarURL() 
+          })
+          .setTimestamp();
+
+        await message.reply({ embeds: [embed] }).catch(async (replyError) => {
+          console.error('[CHATBOT] Kon embed reply niet versturen, fallback naar plain text:', replyError);
+          await message.reply(reply);
+        });
+
+      } catch (error) {
+        console.error('[CHATBOT]', error);
+
+        // Send error embed to channel
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Chatbot Error')
+          .setDescription(
+            error.message || 'Er ging iets mis met de AI. Probeer het later opnieuw.'
+          )
+          .setColor('#FF0000')
+          .setTimestamp();
+
+        await message.reply({ embeds: [errorEmbed] }).catch(err => 
+          console.error('[CHATBOT] Kon error embed niet versturen:', err)
+        );
+      } finally {
+        if (typingInterval) {
+          clearInterval(typingInterval);
+        }
+      }
+    });
+
+    return; // Don't process chat responses if in chatbot channel
+  }
+
+  // Handle regular chat responses
   await handleChatResponse(message);
 });
 
@@ -244,7 +364,12 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
   // Handle button interactions
   if (interaction.isButton()) {
-    // Try bet buttons first
+    // Try approval buttons first
+    if (interaction.customId.startsWith('approval_')) {
+      await handleApprovalButton(interaction, client, config);
+      return;
+    }
+    // Try bet buttons
     if (interaction.customId.startsWith('bet_')) {
       await handleBetButton(interaction, client, config);
       return;
@@ -257,6 +382,21 @@ client.on('interactionCreate', async (interaction) => {
     // Try Blackjack buttons
     if (interaction.customId.startsWith('bj_')) {
       await handleBlackjackButton(interaction, client, config);
+      return;
+    }
+    // Try Mines buttons
+    if (interaction.customId.startsWith('mn_')) {
+      await handleMinesButton(interaction, client, config);
+      return;
+    }
+    // Try Connect Four buttons
+    if (interaction.customId.startsWith('c4_')) {
+      await handleConnectFourButton(interaction, client, config);
+      return;
+    }
+    // Try Hangman buttons
+    if (interaction.customId.startsWith('hm_')) {
+      await handleHangmanButton(interaction, client, config);
       return;
     }
     // Then quiz buttons
@@ -287,6 +427,14 @@ client.once("clientReady", async () => {
   } catch (error) {
     console.error('❌ Database initialisatie mislukt:', error);
     process.exit(1);
+  }
+
+  // Valideer chatbot configuratie
+  if (CHATBOT_CHANNEL_ID && GROQ_API_KEY) {
+    console.log('✅ Chatbot configuratie gevonden');
+  } else if (CHATBOT_CHANNEL_ID || GROQ_API_KEY) {
+    console.warn('⚠️ Chatbot configuratie incompleet - chatbot uitgeschakeld');
+    console.warn('   Voeg zowel CHATBOT_CHANNEL_ID als GROQ_API_KEY toe aan config.json');
   }
 
   // Importeer nieuwe quiz vragen uit quiz-import.json (en maak bestand daarna weer leeg)

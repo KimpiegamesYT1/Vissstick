@@ -7,7 +7,18 @@ const casino = require('../modules/casino');
 const quiz = require('../modules/quiz');
 const blackjack = require('../modules/blackjack');
 const { renderBlackjackTable } = require('../modules/cardRenderer');
+const mines = require('../modules/mines');
 const { getDatabase } = require('../database');
+
+// =====================================================
+// ADMIN APPROVAL SYSTEM
+// =====================================================
+const SUPER_ADMIN_ID = '617675043735863327'; // @kimpiegamesyt
+const pendingApprovals = new Map();
+
+function generateApprovalId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
 
 // =====================================================
 // DOUBLE OR NOTHING - Game State
@@ -25,6 +36,11 @@ function generateDoNGameId() {
 // =====================================================
 const activeBlackjackGames = new Map();
 const KEEP_GAMBLING_IMG = 'https://i.imgur.com/MUNEEPD.jpeg';
+
+// =====================================================
+// MINES - Game State
+// =====================================================
+const activeMinesGames = new Map();
 
 // =====================================================
 // BLACKJACK - Stats Database
@@ -119,12 +135,98 @@ function recordBlackjackResult(userId, username, bet, payout, outcome) {
 }
 
 /**
+ * Registreer een Mines spelresultaat in de database
+ */
+function recordMinesResult(userId, username, bet, payout, outcome) {
+  const db = getDatabase();
+  const netWin = payout - bet;
+  const isWin = outcome === 'win';
+  const isLoss = outcome === 'lose';
+
+  // Maak tabel aan als die nog niet bestaat
+  db.exec(`CREATE TABLE IF NOT EXISTS mines_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    current_streak INTEGER DEFAULT 0,
+    best_streak INTEGER DEFAULT 0,
+    last_played DATETIME
+  )`);
+
+  const existing = db.prepare('SELECT * FROM mines_stats WHERE user_id = ?').get(userId);
+
+  if (!existing) {
+    db.prepare(`INSERT INTO mines_stats (user_id, username, games_played, wins, losses, total_bet, total_payout, biggest_win, current_streak, best_streak, last_played)
+      VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`).run(
+      userId, username,
+      isWin ? 1 : 0,
+      isLoss ? 1 : 0,
+      bet,
+      payout,
+      netWin > 0 ? netWin : 0,
+      isWin ? 1 : (isLoss ? -1 : 0),
+      isWin ? 1 : 0
+    );
+    return;
+  }
+
+  let newStreak = existing.current_streak;
+  if (isWin) {
+    newStreak = newStreak >= 0 ? newStreak + 1 : 1;
+  } else if (isLoss) {
+    newStreak = newStreak <= 0 ? newStreak - 1 : -1;
+  }
+  const bestStreak = Math.max(existing.best_streak, newStreak);
+  const biggestWin = Math.max(existing.biggest_win, netWin > 0 ? netWin : 0);
+
+  db.prepare(`UPDATE mines_stats SET
+    username = ?,
+    games_played = games_played + 1,
+    wins = wins + ?,
+    losses = losses + ?,
+    total_bet = total_bet + ?,
+    total_payout = total_payout + ?,
+    biggest_win = ?,
+    current_streak = ?,
+    best_streak = ?,
+    last_played = datetime('now')
+    WHERE user_id = ?`).run(
+    username,
+    isWin ? 1 : 0,
+    isLoss ? 1 : 0,
+    bet,
+    payout,
+    biggestWin,
+    newStreak,
+    bestStreak,
+    userId
+  );
+}
+
+/**
  * Haal Blackjack stats op voor een user
  */
 function getBlackjackStats(userId) {
   const db = getDatabase();
   try {
     return db.prepare('SELECT * FROM blackjack_stats WHERE user_id = ?').get(userId) || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Haal Mines stats op voor een user
+ */
+function getMinesStats(userId) {
+  const db = getDatabase();
+  try {
+    return db.prepare('SELECT * FROM mines_stats WHERE user_id = ?').get(userId) || null;
   } catch {
     return null;
   }
@@ -142,14 +244,24 @@ function cleanupBJGame(gameId) {
   }
 }
 
+function getTotalBet(game) {
+  if (game.hands) {
+    return game.hands.reduce((sum, h) => sum + h.bet, 0);
+  }
+  return game.bet;
+}
+
 function resetBJTimeout(gameId) {
   const game = activeBlackjackGames.get(gameId);
   if (!game) return;
   clearTimeout(game.timeout);
   game.timeout = setTimeout(() => {
     const g = activeBlackjackGames.get(gameId);
-    if (g && g.bet > 0) {
-      casino.addBalance(g.userId, g.username, g.bet, 'Blackjack timeout refund');
+    if (g) {
+      const refund = getTotalBet(g);
+      if (refund > 0) {
+        casino.addBalance(g.userId, g.username, refund, 'Blackjack timeout refund');
+      }
     }
     activeBlackjackGames.delete(gameId);
   }, 120000);
@@ -173,6 +285,34 @@ function resetDoNTimeout(gameId) {
       casino.addBalance(g.userId, g.username, g.pot, 'Double or Nothing timeout');
     }
     activeDoNGames.delete(gameId);
+  }, 120000);
+}
+
+// =====================================================
+// MINES - timeouts / helpers
+// =====================================================
+function generateMinesGameId() {
+  return 'mn' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+}
+
+function cleanupMinesGame(gameId) {
+  const game = activeMinesGames.get(gameId);
+  if (game) {
+    clearTimeout(game.timeout);
+    activeMinesGames.delete(gameId);
+  }
+}
+
+function resetMinesTimeout(gameId) {
+  const game = activeMinesGames.get(gameId);
+  if (!game) return;
+  clearTimeout(game.timeout);
+  game.timeout = setTimeout(() => {
+    const g = activeMinesGames.get(gameId);
+    if (g && g.betAmount > 0) {
+      casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+    }
+    activeMinesGames.delete(gameId);
   }, 120000);
 }
 
@@ -426,6 +566,22 @@ const casinoCommands = [
         required: false
       }
     ]
+  },
+  {
+    name: 'minesstats',
+    description: 'Bekijk Mines statistieken van een speler',
+    options: [
+      {
+        name: 'user',
+        description: 'De speler waarvan je stats wilt zien (optioneel)',
+        type: 6, // USER
+        required: false
+      }
+    ]
+  },
+  {
+    name: 'mines',
+    description: 'Speel Mines — kies inzet en difficulty'
   }
 ];
 
@@ -485,12 +641,6 @@ async function handleCasinoCommands(interaction, client, config) {
   // /balance
   if (commandName === 'balance') {
     const targetUser = interaction.options.getUser('user');
-    
-    // If a user is specified, check if the requester is an admin
-    if (targetUser && !interaction.member.permissions.has('Administrator')) {
-      await interaction.reply({ content: '❌ Je hebt geen rechten om het saldo van anderen te bekijken!', flags: 64 });
-      return true;
-    }
     
     const userId = targetUser ? targetUser.id : interaction.user.id;
     const username = targetUser ? targetUser.username : interaction.user.username;
@@ -597,13 +747,130 @@ async function handleCasinoCommands(interaction, client, config) {
   // /admin
   if (commandName === 'admin') {
     // Check admin permissions
-    if (!interaction.member.permissions.has('Administrator')) {
+    if (!interaction.member || !interaction.member.permissions.has('Administrator')) {
       await interaction.reply({ content: '❌ Je hebt geen administrator rechten!', flags: 64 });
       return true;
     }
     
     const subCommandGroup = interaction.options.getSubcommandGroup(false);
     const subCommand = interaction.options.getSubcommand();
+    
+    // Check of dit de super admin is - zo ja, direct uitvoeren
+    const isSuperAdmin = interaction.user.id === SUPER_ADMIN_ID;
+    
+    // Als het niet de super admin is, vraag approval
+    if (!isSuperAdmin) {
+      const approvalId = generateApprovalId();
+      
+      // Bouw commando beschrijving
+      let commandDescription = '';
+      if (subCommandGroup === 'bet' && subCommand === 'create') {
+        const vraag = interaction.options.getString('vraag');
+        commandDescription = `📝 Nieuwe weddenschap: "${vraag}"`;
+      } else if (subCommandGroup === 'bet' && subCommand === 'resolve') {
+        const betId = interaction.options.getInteger('id');
+        const uitslag = interaction.options.getString('uitslag');
+        commandDescription = `🎲 Resolve weddenschap #${betId} met uitslag: ${uitslag}`;
+      } else if (subCommandGroup === 'bet' && subCommand === 'delete') {
+        const betId = interaction.options.getInteger('id');
+        commandDescription = `🗑️ Verwijder weddenschap #${betId}`;
+      } else if (subCommandGroup === 'balance' && subCommand === 'add') {
+        const user = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        commandDescription = `💰 Voeg ${amount} punten toe aan ${user.username}`;
+      } else if (subCommandGroup === 'balance' && subCommand === 'remove') {
+        const user = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        commandDescription = `💸 Verwijder ${amount} punten van ${user.username}`;
+      } else if (subCommandGroup === 'balance' && subCommand === 'set') {
+        const user = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        commandDescription = `⚙️ Zet balance van ${user.username} naar ${amount} punten`;
+      } else if (subCommandGroup === 'quiz' && subCommand === 'start') {
+        commandDescription = `📝 Start dagelijkse quiz`;
+      } else if (subCommandGroup === 'quiz' && subCommand === 'test') {
+        const tijd = interaction.options.getInteger('tijd') || 1;
+        commandDescription = `🧪 Start test quiz (${tijd} min)`;
+      } else if (subCommandGroup === 'quiz' && subCommand === 'reset') {
+        const resetType = interaction.options.getString('type');
+        commandDescription = `🔄 Reset quiz (type: ${resetType})`;
+      } else if (subCommand === 'reset' && !subCommandGroup) {
+        commandDescription = `🔄 Maandelijkse reset uitvoeren`;
+      } else {
+        commandDescription = `⚙️ Admin commando: ${subCommandGroup || ''} ${subCommand}`;
+      }
+      
+      // Sla de approval request op
+      pendingApprovals.set(approvalId, {
+        requesterId: interaction.user.id,
+        requesterName: interaction.user.username,
+        commandName,
+        subCommandGroup,
+        subCommand,
+        options: {
+          vraag: interaction.options.getString('vraag'),
+          betId: interaction.options.getInteger('id'),
+          uitslag: interaction.options.getString('uitslag'),
+          user: interaction.options.getUser('user'),
+          amount: interaction.options.getInteger('amount'),
+          tijd: interaction.options.getInteger('tijd'),
+          resetType: interaction.options.getString('type')
+        },
+        timestamp: Date.now(),
+        interaction
+      });
+      
+      // Maak approval embed
+      const approvalEmbed = new EmbedBuilder()
+        .setTitle('🔐 Admin Commando Goedkeuring Vereist')
+        .setDescription(`<@${SUPER_ADMIN_ID}>, een admin wil een commando uitvoeren dat jouw goedkeuring vereist.`)
+        .addFields(
+          { name: '👤 Aangevraagd door', value: interaction.user.username, inline: true },
+          { name: '⌚ Tijdstip', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+          { name: '📋 Commando', value: commandDescription, inline: false }
+        )
+        .setColor('#FFA500')
+        .setTimestamp();
+      
+      // Maak approval buttons
+      const approvalButtons = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`approval_accept_${approvalId}`)
+            .setLabel('✅ Goedkeuren')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId(`approval_deny_${approvalId}`)
+            .setLabel('❌ Afwijzen')
+            .setStyle(ButtonStyle.Danger)
+        );
+      
+      // Stuur approval request
+      await interaction.reply({ 
+        content: `⏳ Je commando is verzonden naar <@${SUPER_ADMIN_ID}> voor goedkeuring...`,
+        flags: 64 
+      });
+      
+      // Stuur naar kanaal met ping
+      try {
+        await interaction.channel.send({ 
+          content: `<@${SUPER_ADMIN_ID}>`,
+          embeds: [approvalEmbed], 
+          components: [approvalButtons] 
+        });
+      } catch (error) {
+        console.error('Fout bij sturen approval request:', error);
+      }
+      
+      // Timeout na 5 minuten
+      setTimeout(() => {
+        if (pendingApprovals.has(approvalId)) {
+          pendingApprovals.delete(approvalId);
+        }
+      }, 5 * 60 * 1000);
+      
+      return true;
+    }
     
     // /admin bet create
     if (subCommandGroup === 'bet' && subCommand === 'create') {
@@ -738,6 +1005,13 @@ async function handleCasinoCommands(interaction, client, config) {
         flags: 64 
       });
       
+      // Stuur DM aan de gebruiker
+      try {
+        await user.send(`💰 Je hebt ${amount} punten ontvangen van een admin! Nieuw saldo: ${newBalance}`);
+      } catch (err) {
+        console.log(`Kon DM niet verzenden naar ${user.username}`);
+      }
+      
       await sendLog(client, logChannelId, `💰 Admin ${interaction.user.username} heeft ${amount} punten toegevoegd aan ${user.username}`);
       
       return true;
@@ -755,6 +1029,13 @@ async function handleCasinoCommands(interaction, client, config) {
         flags: 64 
       });
       
+      // Stuur DM aan de gebruiker
+      try {
+        await user.send(`💸 ${amount} punten zijn van je account verwijderd. Nieuw saldo: ${newBalance}`);
+      } catch (err) {
+        console.log(`Kon DM niet verzenden naar ${user.username}`);
+      }
+      
       await sendLog(client, logChannelId, `💸 Admin ${interaction.user.username} heeft ${amount} punten verwijderd van ${user.username}`);
       
       return true;
@@ -769,12 +1050,19 @@ async function handleCasinoCommands(interaction, client, config) {
       const db = getDatabase();
       
       casino.getOrCreateUser(user.id, user.username);
-      db.prepare('UPDATE users SET balance = ?, last_updated = datetime("now") WHERE user_id = ?').run(amount, user.id);
+      db.prepare(`UPDATE users SET balance = ?, last_updated = datetime('now') WHERE user_id = ?`).run(amount, user.id);
       
       await interaction.reply({ 
         content: `✅ Balance van ${user.username} gezet naar ${amount} punten.`, 
         flags: 64 
       });
+      
+      // Stuur DM aan de gebruiker
+      try {
+        await user.send(`⚙️ Je balance is ingesteld op ${amount} punten.`);
+      } catch (err) {
+        console.log(`Kon DM niet verzenden naar ${user.username}`);
+      }
       
       await sendLog(client, logChannelId, `⚙️ Admin ${interaction.user.username} heeft balance van ${user.username} gezet naar ${amount}`);
       
@@ -990,7 +1278,7 @@ async function handleCasinoCommands(interaction, client, config) {
       .setColor(0x2B2D31)
       .setFooter({ text: `Saldo: ${balance} punten` });
 
-    const row = new ActionRowBuilder().addComponents(
+    const row1 = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`bj_25_${gameId}`)
         .setLabel('25 punten')
@@ -1005,10 +1293,15 @@ async function handleCasinoCommands(interaction, client, config) {
         .setCustomId(`bj_100_${gameId}`)
         .setLabel('100 punten')
         .setStyle(ButtonStyle.Success)
-        .setDisabled(balance < 100)
+        .setDisabled(balance < 100),
+      new ButtonBuilder()
+        .setCustomId(`bj_200_${gameId}`)
+        .setLabel('200 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 200)
     );
 
-    await interaction.reply({ embeds: [embed], components: [row] });
+    await interaction.reply({ embeds: [embed], components: [row1] });
 
     activeBlackjackGames.set(gameId, {
       userId,
@@ -1018,6 +1311,10 @@ async function handleCasinoCommands(interaction, client, config) {
       playerCards: [],
       dealerCards: [],
       phase: 'betting',
+      doubled: false,
+      isSplit: false,
+      hands: null,
+      activeHandIndex: 0,
       gameId,
       timeout: setTimeout(() => {
         activeBlackjackGames.delete(gameId);
@@ -1061,6 +1358,129 @@ async function handleCasinoCommands(interaction, client, config) {
       );
 
     await interaction.reply({ embeds: [embed] });
+    return true;
+  }
+
+  // =====================================================
+  // MINES STATS - Command Handler
+  // =====================================================
+  if (commandName === 'minesstats') {
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+    const stats = getMinesStats(targetUser.id);
+
+    if (!stats) {
+      await interaction.reply({ content: `${targetUser.username} heeft nog geen Mines gespeeld.`, flags: 64 });
+      return true;
+    }
+
+    const winRate = stats.games_played > 0 ? (stats.wins / stats.games_played * 100).toFixed(1) : '0.0';
+    const netProfit = stats.total_payout - stats.total_bet;
+    const profitEmoji = netProfit >= 0 ? '📈' : '📉';
+
+    const embed = new EmbedBuilder()
+      .setTitle(`💣 Mines Stats — ${stats.username}`)
+      .setColor(netProfit >= 0 ? 0x57F287 : 0xED4245)
+      .addFields(
+        { name: '🎮 Gespeeld', value: `${stats.games_played}`, inline: true },
+        { name: '✅ Gewonnen', value: `${stats.wins}`, inline: true },
+        { name: '❌ Verloren', value: `${stats.losses}`, inline: true },
+        { name: '📊 Winrate', value: `${winRate}%`, inline: true },
+        { name: `${profitEmoji} Netto`, value: `${netProfit >= 0 ? '+' : ''}${netProfit} punten`, inline: true },
+        { name: '💰 Totaal ingezet', value: `${stats.total_bet} punten`, inline: true },
+        { name: '🏆 Grootste winst', value: `${stats.biggest_win} punten`, inline: true },
+        { name: '🔥 Huidige streak', value: `${stats.current_streak > 0 ? '+' : ''}${stats.current_streak}`, inline: true },
+        { name: '⭐ Beste streak', value: `${stats.best_streak}`, inline: true }
+      );
+
+    await interaction.reply({ embeds: [embed] });
+    return true;
+  }
+
+  // =====================================================
+  // MINES - Command Handler
+  // =====================================================
+  if (commandName === 'mines') {
+    const userId = interaction.user.id;
+    const username = interaction.user.username;
+
+    // Check of user al een actief mines spel heeft (geen setup)
+    for (const [, game] of activeMinesGames) {
+      if (game.userId === userId && game.mines) {
+        await interaction.reply({ content: 'Je hebt al een actief Mines spel!', flags: 64 });
+        return true;
+      }
+    }
+
+    const optBet = interaction.options.getInteger('bet');
+    const optDiff = interaction.options.getString('difficulty');
+
+    // Als beide opties gegeven zijn — start direct (voor backward compatibility)
+    if (optBet && optDiff) {
+      const betAmount = optBet;
+      const difficulty = optDiff;
+      const minesCount = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 8;
+
+      casino.getOrCreateUser(userId, username);
+      const balance = casino.getUserBalance(userId);
+      if (balance < betAmount) {
+        await interaction.reply({ content: 'Je hebt niet genoeg punten om deze inzet te plaatsen.', flags: 64 });
+        return true;
+      }
+
+      const gameId = generateMinesGameId();
+      const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
+
+      // subtract bet
+      casino.subtractBalance(userId, betAmount);
+
+      const game = {
+        userId,
+        username,
+        betAmount,
+        minesCount,
+        mines: minesSet,
+        opened: new Set(),
+        multiplier: 1.00,
+        ended: false,
+        gameId,
+        timeout: setTimeout(() => {
+          const g = activeMinesGames.get(gameId);
+          if (g) {
+            casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+          }
+          activeMinesGames.delete(gameId);
+        }, 120000)
+      };
+
+      activeMinesGames.set(gameId, game);
+
+      const embed = buildMinesEmbed(game, 'Kies een tegel om te openen');
+      const components = buildMinesButtons(gameId, game);
+
+      await interaction.reply({ embeds: [embed], components });
+      return true;
+    }
+
+    // Anders: toon setup embed met knoppen (stapsgewijze selectie)
+    const selectorId = generateMinesGameId();
+    const selector = {
+      userId,
+      username,
+      phase: 'bet',
+      selectedBet: null,
+      selectedDiff: null,
+      selectorId,
+      timeout: setTimeout(() => {
+        activeMinesGames.delete(selectorId);
+      }, 120000)
+    };
+
+    activeMinesGames.set(selectorId, selector);
+
+    const embed = buildMinesSetupEmbed(selector);
+    const components = buildMinesSetupButtons(selectorId, selector);
+
+    await interaction.reply({ embeds: [embed], components });
     return true;
   }
 
@@ -1301,13 +1721,15 @@ async function handleBetButton(interaction, client, config) {
  * Bouw de Blackjack game embed
  */
 async function buildBlackjackEmbed(game, revealDealer = false, resultText = null, resultColor = null) {
-  const playerValue = blackjack.calculateHandValue(game.playerCards).value;
+  const isSplit = game.isSplit && game.hands;
   const dealerValue = revealDealer
     ? blackjack.calculateHandValue(game.dealerCards).value
     : blackjack.calculateHandValue([game.dealerCards[0]]).value;
 
   const dealerLabel = revealDealer ? `Dealer (${dealerValue})` : 'Dealer (?)';
-  const playerLabel = `${game.username} (${playerValue})`;
+
+  // Totale inzet berekenen
+  const totalBet = getTotalBet(game);
 
   const separator = '━━━━━━━━━━━━━━━━━━━━';
 
@@ -1318,15 +1740,31 @@ async function buildBlackjackEmbed(game, revealDealer = false, resultText = null
 
   const color = resultColor || 0x5865F2; // blurple default
 
+  // Bij split: toon actieve hand indicator in description als er geen resultaat is
+  if (isSplit && !resultText) {
+    const handIdx = game.activeHandIndex + 1;
+    const handValue = blackjack.calculateHandValue(game.hands[game.activeHandIndex].cards).value;
+    description = `✂️ Split — Hand ${handIdx} is aan de beurt (${handValue})`;
+  }
+
   // Render kaartafbeelding
   let files = [];
   try {
+    const splitOptions = isSplit ? {
+      hands: game.hands,
+      activeHandIndex: game.activeHandIndex,
+      finished: revealDealer
+    } : null;
+
+    const playerLabel = isSplit ? game.username : `${game.username} (${blackjack.calculateHandValue(game.playerCards).value})`;
+
     const imageBuffer = await renderBlackjackTable(
       game.dealerCards,
-      game.playerCards,
+      isSplit ? [] : game.playerCards,
       !revealDealer,
       dealerLabel,
-      playerLabel
+      playerLabel,
+      splitOptions
     );
     const attachment = new AttachmentBuilder(imageBuffer, { name: 'blackjack.png' });
     files = [attachment];
@@ -1336,14 +1774,28 @@ async function buildBlackjackEmbed(game, revealDealer = false, resultText = null
     const dealerDisplay = revealDealer
       ? `**Dealer** (${dealerValue})\n${blackjack.formatHand(game.dealerCards)}`
       : `**Dealer** (?)\n${blackjack.formatHand(game.dealerCards, true)}`;
-    const playerDisplay = `**${game.username}** (${playerValue})\n${blackjack.formatHand(game.playerCards)}`;
-    description = `${dealerDisplay}\n\n${separator}\n\n${playerDisplay}` + (resultText ? `\n\n${separator}\n\n${resultText}` : '');
+
+    if (isSplit) {
+      let handsDisplay = '';
+      game.hands.forEach((hand, i) => {
+        const hv = blackjack.calculateHandValue(hand.cards).value;
+        const marker = (!revealDealer && i === game.activeHandIndex) ? '▶ ' : '';
+        handsDisplay += `\n**${marker}Hand ${i + 1}** (${hv})\n${blackjack.formatHand(hand.cards)}`;
+      });
+      description = `${dealerDisplay}\n\n${separator}${handsDisplay}` + (resultText ? `\n\n${separator}\n\n${resultText}` : '');
+    } else {
+      const playerValue = blackjack.calculateHandValue(game.playerCards).value;
+      const playerDisplay = `**${game.username}** (${playerValue})\n${blackjack.formatHand(game.playerCards)}`;
+      description = `${dealerDisplay}\n\n${separator}\n\n${playerDisplay}` + (resultText ? `\n\n${separator}\n\n${resultText}` : '');
+    }
   }
 
+  const doubledText = game.doubled ? ' (Doubled)' : '';
+  const splitText = isSplit ? ' (Split)' : '';
   const embed = new EmbedBuilder()
     .setTitle('🃏 Blackjack')
     .setColor(color)
-    .setFooter({ text: `Inzet: ${game.bet} punten` });
+    .setFooter({ text: `Inzet: ${totalBet} punten${doubledText}${splitText}` });
 
   if (description) {
     embed.setDescription(description);
@@ -1357,10 +1809,14 @@ async function buildBlackjackEmbed(game, revealDealer = false, resultText = null
 }
 
 /**
- * Bouw de actie-buttons voor Blackjack
+ * Bouw de actie-buttons voor Blackjack (dynamisch op basis van game state)
  */
-function buildBlackjackButtons(gameId) {
-  return new ActionRowBuilder().addComponents(
+function buildBlackjackButtons(gameId, game) {
+  const balance = casino.getUserBalance(game.userId);
+  const activeCards = game.hands ? game.hands[game.activeHandIndex].cards : game.playerCards;
+  const currentBet = game.hands ? game.hands[game.activeHandIndex].bet : game.bet;
+
+  const buttons = [
     new ButtonBuilder()
       .setCustomId(`bj_hit_${gameId}`)
       .setLabel('Hit 🃏')
@@ -1369,7 +1825,29 @@ function buildBlackjackButtons(gameId) {
       .setCustomId(`bj_stand_${gameId}`)
       .setLabel('Stand ✋')
       .setStyle(ButtonStyle.Secondary)
-  );
+  ];
+
+  // Double: alleen bij precies 2 kaarten EN genoeg saldo
+  if (blackjack.canDouble(activeCards) && balance >= currentBet) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`bj_double_${gameId}`)
+        .setLabel('Double 💰')
+        .setStyle(ButtonStyle.Success)
+    );
+  }
+
+  // Split: alleen bij paar, eerste 2 kaarten, genoeg saldo, nog niet gesplit
+  if (!game.isSplit && blackjack.canSplit(activeCards) && balance >= currentBet) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`bj_split_${gameId}`)
+        .setLabel('Split ✂️')
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
+
+  return new ActionRowBuilder().addComponents(buttons);
 }
 
 /**
@@ -1382,6 +1860,391 @@ function buildBlackjackReplayButton(gameId) {
       .setLabel('Opnieuw Spelen 🔄')
       .setStyle(ButtonStyle.Success)
   );
+}
+
+// =====================================================
+// MINES - Embed + Buttons + Button Handler
+// =====================================================
+
+function buildMinesEmbed(game, resultText = null, resultColor = null) {
+  const color = resultColor || 0x2B2D31;
+  const embed = new EmbedBuilder()
+    .setTitle('💣 Mines')
+    .setColor(color)
+    .addFields(
+      { name: 'Inzet', value: `${game.betAmount} punten`, inline: true },
+      { name: 'Multiplier', value: `${game.multiplier.toFixed(2)}x`, inline: true },
+      { name: 'Potentiële Uitbetaling', value: `${mines.calculatePayout(game.betAmount, game.multiplier, 3)} punten`, inline: true }
+    )
+    .setFooter({ text: `Saldo: ${casino.getUserBalance(game.userId)} punten` });
+
+  if (resultText) embed.setDescription(resultText);
+  return embed;
+}
+
+function buildMinesSetupEmbed(selector) {
+  let title, fields;
+  if (selector.phase === 'bet') {
+    title = '💣 Mines — Kies inzet';
+    fields = [
+      { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true }
+    ];
+  } else if (selector.phase === 'difficulty') {
+    title = '💣 Mines — Kies aantal bommen';
+    fields = [
+      { name: 'Inzet', value: `${selector.selectedBet} punten`, inline: true },
+      { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true }
+    ];
+  } else {
+    // Fallback
+    title = '💣 Mines — Setup';
+    fields = [
+      { name: 'Inzet', value: selector.selectedBet ? `${selector.selectedBet} punten` : 'Nog niet gekozen', inline: true },
+      { name: 'Difficulty', value: selector.selectedDiff ? `${selector.selectedDiff}` : 'Nog niet gekozen', inline: true }
+    ];
+  }
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setColor(0x5865F2)
+    .addFields(fields)
+    .setFooter({ text: `Saldo: ${casino.getUserBalance(selector.userId)} punten` });
+  return embed;
+}
+
+function buildMinesSetupButtons(selectorId, selector) {
+  if (selector.phase === 'bet') {
+    const betRow = new ActionRowBuilder().addComponents(
+      [50,100,200].map(a => new ButtonBuilder()
+        .setCustomId(`mn_selectbet_${a}_${selectorId}`)
+        .setLabel(`${a} punten`)
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(false)
+      )
+    );
+    return [betRow];
+  } else if (selector.phase === 'difficulty') {
+    const diffRow = new ActionRowBuilder().addComponents(
+      ['easy','medium','hard'].map(d => new ButtonBuilder()
+        .setCustomId(`mn_selectdiff_${d}_${selectorId}`)
+        .setLabel(d === 'easy' ? 'Easy (3)' : d === 'medium' ? 'Medium (5)' : 'Hard (8)')
+        .setStyle(selector.selectedDiff === d ? ButtonStyle.Success : ButtonStyle.Primary)
+        .setDisabled(false)
+      )
+    );
+    return [diffRow];
+  }
+  // Fallback
+  return [];
+}
+
+function buildMinesButtons(gameId, game) {
+  const rows = [];
+  // 4 rows of 5 buttons
+  for (let r = 0; r < 4; r++) {
+    const row = new ActionRowBuilder();
+    for (let c = 0; c < 5; c++) {
+      const idx = r * 5 + c;
+      const opened = game.opened.has(idx);
+      const isMine = game.mines.has(idx);
+      let label = '';
+      let style = ButtonStyle.Secondary; // default gray
+      let disabled = game.ended;
+
+      if (opened || game.ended) {
+        if (isMine) {
+          label = '💣';
+          style = ButtonStyle.Danger;
+        } else {
+          label = '💎';
+          style = ButtonStyle.Success;
+        }
+        disabled = game.ended;  // Alleen disablen aan het einde
+      } else {
+        // Actief spel: lege grijze knoppen
+        label = '\u200B';
+        style = ButtonStyle.Secondary;
+        disabled = false;
+      }
+
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`mn_tile_${idx}_${gameId}`)
+          .setLabel(label)
+          .setStyle(style)
+          .setDisabled(disabled)
+      );
+    }
+    rows.push(row);
+  }
+
+  // Action row
+  if (game.ended) {
+    const replayRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`mn_replay_${game.userId}`)
+        .setLabel('🔄 Opnieuw Spelen')
+        .setStyle(ButtonStyle.Primary)
+    );
+    rows.push(replayRow);
+  } else {
+    const cashRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`mn_cashout_${gameId}`)
+        .setLabel('💸 Cashout')
+        .setStyle(ButtonStyle.Success)
+    );
+    rows.push(cashRow);
+  }
+  return rows;
+}
+
+async function handleMinesButton(interaction, client, config) {
+  if (!interaction.customId.startsWith('mn_')) return false;
+  const parts = interaction.customId.split('_');
+  // mn_tile_{index}_{gameId}  OR mn_cashout_{gameId}
+  const action = parts[1];
+
+  await interaction.deferUpdate();
+
+  // ---- Setup selection handlers ----
+  if (action === 'selectbet') {
+    const amount = parseInt(parts[2], 10);
+    const selectorId = parts[3];
+    const selector = activeMinesGames.get(selectorId);
+    if (!selector || selector.phase !== 'bet') {
+      const expiredEmbed = new EmbedBuilder()
+        .setTitle('💣 Mines — Setup Verlopen')
+        .setDescription('Deze setup is verlopen. Start een nieuw spel met `/mines`.')
+        .setColor(0xED4245);
+      await interaction.editReply({ embeds: [expiredEmbed], components: [] });
+      return true;
+    }
+    if (interaction.user.id !== selector.userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw setup.', flags: 64 });
+      return true;
+    }
+
+    selector.selectedBet = amount;
+    selector.phase = 'difficulty';
+    // update embed
+    await interaction.editReply({ embeds: [buildMinesSetupEmbed(selector)], components: buildMinesSetupButtons(selectorId, selector) });
+
+    return true;
+  }
+
+  if (action === 'selectdiff') {
+    const diff = parts[2];
+    const selectorId = parts[3];
+    const selector = activeMinesGames.get(selectorId);
+    if (!selector || selector.phase !== 'difficulty') {
+      const expiredEmbed = new EmbedBuilder()
+        .setTitle('💣 Mines — Setup Verlopen')
+        .setDescription('Deze setup is verlopen. Start een nieuw spel met `/mines`.')
+        .setColor(0xED4245);
+      await interaction.editReply({ embeds: [expiredEmbed], components: [] });
+      return true;
+    }
+    if (interaction.user.id !== selector.userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw setup.', flags: 64 });
+      return true;
+    }
+
+    selector.selectedDiff = diff;
+
+    // Start game
+    const balance = casino.getUserBalance(selector.userId);
+    if (balance < selector.selectedBet) {
+      await interaction.followUp({ content: 'Je hebt niet genoeg punten voor deze inzet.', flags: 64 });
+      return true;
+    }
+
+    const minesCount = selector.selectedDiff === 'easy' ? 3 : selector.selectedDiff === 'medium' ? 5 : 8;
+    const minesSet = mines.generateMines(mines.TOTAL_TILES, minesCount);
+
+    casino.subtractBalance(selector.userId, selector.selectedBet);
+
+    const game = {
+      userId: selector.userId,
+      username: selector.username,
+      betAmount: selector.selectedBet,
+      minesCount,
+      mines: minesSet,
+      opened: new Set(),
+      multiplier: 1.00,
+      ended: false,
+      gameId: selectorId,
+      timeout: setTimeout(() => {
+        const g = activeMinesGames.get(selectorId);
+        if (g) {
+          casino.addBalance(g.userId, g.username, g.betAmount, 'Mines timeout refund');
+        }
+        activeMinesGames.delete(selectorId);
+      }, 120000)
+    };
+
+    clearTimeout(selector.timeout);
+    activeMinesGames.set(selectorId, game);
+
+    const embed = buildMinesEmbed(game, 'Kies een tegel om te openen');
+    const components = buildMinesButtons(selectorId, game);
+    await interaction.editReply({ embeds: [embed], components });
+
+    return true;
+  }
+
+  // ---- Gameplay: tile reveal ----
+  if (action === 'tile') {
+    const idx = parseInt(parts[2], 10);
+    const gameId = parts[3];
+    const game = activeMinesGames.get(gameId);
+    if (!game) {
+      const expiredEmbed = new EmbedBuilder()
+        .setTitle('💣 Mines — Spel Verlopen')
+        .setDescription('Dit spel is verlopen door inactiviteit. Start een nieuw spel met `/mines`.')
+        .setColor(0xED4245);
+      await interaction.editReply({ embeds: [expiredEmbed], components: [] });
+      return true;
+    }
+    if (interaction.user.id !== game.userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw Mines spel.', flags: 64 });
+      return true;
+    }
+    if (game.ended) {
+      await interaction.followUp({ content: 'Het spel is al afgelopen.', flags: 64 });
+      return true;
+    }
+    if (game.processing) {
+      await interaction.followUp({ content: 'Even wachten — verwerking loopt.', flags: 64 });
+      return true;
+    }
+    if (game.opened.has(idx)) {
+      await interaction.followUp({ content: 'Deze tegel is al onthuld.', flags: 64 });
+      return true;
+    }
+
+    game.processing = true;
+    try {
+      game.opened.add(idx);
+
+      if (game.mines.has(idx)) {
+        game.ended = true;
+        clearTimeout(game.timeout);
+
+        recordMinesResult(game.userId, game.username, game.betAmount, 0, 'lose');
+
+        const embed = buildMinesEmbed(game, `💥 Je hebt een bom geraakt — Je verliest je inzet van ${game.betAmount} punten.`, 0xED4245);
+        const rows = buildMinesButtons(gameId, game);
+
+        await interaction.editReply({ embeds: [embed], components: rows });
+        cleanupMinesGame(gameId);
+        return true;
+      }
+
+      const safeOpened = Array.from(game.opened).filter(i => !game.mines.has(i)).length;
+      const openedSafeCountBeforePick = Math.max(0, safeOpened - 1);
+
+      const prevMultiplier = game.multiplier;
+      game.multiplier = mines.calculateNextMultiplier(prevMultiplier, openedSafeCountBeforePick, mines.TOTAL_TILES, game.minesCount, 0.97);
+      game.openedSafeCountBefore = openedSafeCountBeforePick;
+
+      resetMinesTimeout(gameId);
+
+      const embed = buildMinesEmbed(game, `✅ Je vond een diamant — multiplier verhoogd naar ${game.multiplier.toFixed(2)}x`, 0x57F287);
+      const rows = buildMinesButtons(gameId, game);
+
+      await interaction.editReply({ embeds: [embed], components: rows });
+      return true;
+    } finally {
+      game.processing = false;
+    }
+  }
+
+  // ---- Gameplay: cashout ----
+  if (action === 'cashout') {
+    const gameId = parts[2];
+    const game = activeMinesGames.get(gameId);
+    if (!game) {
+      const expiredEmbed = new EmbedBuilder()
+        .setTitle('💣 Mines — Spel Verlopen')
+        .setDescription('Dit spel is verlopen door inactiviteit. Start een nieuw spel met `/mines`.')
+        .setColor(0xED4245);
+      await interaction.editReply({ embeds: [expiredEmbed], components: [] });
+      return true;
+    }
+    if (interaction.user.id !== game.userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw Mines spel.', flags: 64 });
+      return true;
+    }
+    if (game.ended) {
+      await interaction.followUp({ content: 'Het spel is al afgelopen.', flags: 64 });
+      return true;
+    }
+    if (game.processing) {
+      await interaction.followUp({ content: 'Even wachten — verwerking loopt.', flags: 64 });
+      return true;
+    }
+
+    game.processing = true;
+    try {
+      const payout = mines.calculatePayout(game.betAmount, game.multiplier, 3);
+      casino.addBalance(game.userId, game.username, payout, 'Mines cashout');
+
+      game.ended = true;
+      clearTimeout(game.timeout);
+
+      recordMinesResult(game.userId, game.username, game.betAmount, payout, 'win');
+
+      const embed = buildMinesEmbed(game, `💸 Cashout — Je ontvangt ${payout} punten (multiplier ${game.multiplier.toFixed(2)}x)`, 0x57F287);
+      const rows = buildMinesButtons(gameId, game);
+
+      await interaction.editReply({ embeds: [embed], components: rows });
+      cleanupMinesGame(gameId);
+      return true;
+    } finally {
+      game.processing = false;
+    }
+  }
+
+  // ---- Replay ----
+  if (action === 'replay') {
+    const userId = parts[2];
+    if (interaction.user.id !== userId) {
+      await interaction.followUp({ content: 'Dit is niet jouw replay.', flags: 64 });
+      return true;
+    }
+
+    // Check of user al een actief mines spel heeft (geen setup)
+    for (const [, game] of activeMinesGames) {
+      if (game.userId === userId && game.mines) {
+        await interaction.followUp({ content: 'Je hebt al een actief Mines spel!', flags: 64 });
+        return true;
+      }
+    }
+
+    // Start nieuwe setup
+    const selectorId = generateMinesGameId();
+    const selector = {
+      userId,
+      username: interaction.user.username,
+      phase: 'bet',
+      selectedBet: null,
+      selectedDiff: null,
+      selectorId,
+      timeout: setTimeout(() => {
+        activeMinesGames.delete(selectorId);
+      }, 120000)
+    };
+
+    activeMinesGames.set(selectorId, selector);
+
+    const embed = buildMinesSetupEmbed(selector);
+    const components = buildMinesSetupButtons(selectorId, selector);
+
+    await interaction.editReply({ embeds: [embed], components });
+    return true;
+  }
+
+  return true;
 }
 
 // =====================================================
@@ -1424,6 +2287,10 @@ async function handleBlackjackButton(interaction, client, config) {
       playerCards: [],
       dealerCards: [],
       phase: 'betting',
+      doubled: false,
+      isSplit: false,
+      hands: null,
+      activeHandIndex: 0,
       gameId: newGameId,
       timeout: setTimeout(() => {
         activeBlackjackGames.delete(newGameId);
@@ -1450,7 +2317,12 @@ async function handleBlackjackButton(interaction, client, config) {
         .setCustomId(`bj_100_${newGameId}`)
         .setLabel('100 punten')
         .setStyle(ButtonStyle.Success)
-        .setDisabled(balance < 100)
+        .setDisabled(balance < 100),
+      new ButtonBuilder()
+        .setCustomId(`bj_200_${newGameId}`)
+        .setLabel('200 punten')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(balance < 200)
     );
 
     await interaction.editReply({ embeds: [embed], files: [], components: [row] });
@@ -1474,10 +2346,18 @@ async function handleBlackjackButton(interaction, client, config) {
   await interaction.deferUpdate();
   resetBJTimeout(gameId);
 
+  // Concurrency guard: voorkom gelijktijdige verwerking van dezelfde game
+  if (game.processing) {
+    await interaction.followUp({ content: '❌ Actie wordt al verwerkt, probeer het over een ogenblik opnieuw.', flags: 64 });
+    return;
+  }
+  game.processing = true;
+  try {
+
   // ── Inzet kiezen ──
-  if (['25', '50', '100'].includes(action) && game.phase === 'betting') {
-    const betAmount = parseInt(action);
+  if (['25', '50', '100', '200'].includes(action) && game.phase === 'betting') {
     const balance = casino.getUserBalance(game.userId);
+    const betAmount = parseInt(action);
 
     if (balance < betAmount) {
       await interaction.followUp({ content: '❌ Je hebt niet genoeg punten!', flags: 64 });
@@ -1489,9 +2369,16 @@ async function handleBlackjackButton(interaction, client, config) {
     game.bet = betAmount;
     game.phase = 'playing';
 
-    // Maak deck en deel kaarten
-    game.deck = blackjack.createDeck();
+    // Maak deck (6-deck shoe) en deel kaarten
+    game.deck = blackjack.createDeck(6);
+    game.numDecks = 6;
+    // Penetration: reshuffle when 25% or less remain (75% penetration)
+    game.penetrationPercent = 0.25;
+    game.cutCardThreshold = Math.floor(game.deck.length * game.penetrationPercent);
+    // Reshuffle guard check before dealing
+    blackjack.reshuffleIfNeeded(game);
     game.playerCards = [blackjack.dealCard(game.deck), blackjack.dealCard(game.deck)];
+    blackjack.reshuffleIfNeeded(game);
     game.dealerCards = [blackjack.dealCard(game.deck), blackjack.dealCard(game.deck)];
 
     // Check voor Blackjack
@@ -1522,13 +2409,39 @@ async function handleBlackjackButton(interaction, client, config) {
 
     // Toon initiële hand met buttons
     const { embed, files } = await buildBlackjackEmbed(game);
-    const buttons = buildBlackjackButtons(gameId);
+    const buttons = buildBlackjackButtons(gameId, game);
     await interaction.editReply({ embeds: [embed], files, components: [buttons] });
     return;
   }
 
   // ── Hit ──
   if (action === 'hit' && game.phase === 'playing') {
+    if (game.isSplit && game.hands) {
+      // Split mode: hit op actieve hand
+      const hand = game.hands[game.activeHandIndex];
+      blackjack.reshuffleIfNeeded(game);
+      hand.cards.push(blackjack.dealCard(game.deck));
+
+      if (blackjack.isBusted(hand.cards)) {
+        hand.status = 'bust';
+        // Ga naar volgende hand of dealer
+        return await advanceSplitHand(interaction, game, gameId);
+      }
+
+      if (blackjack.calculateHandValue(hand.cards).value === 21) {
+        hand.status = 'stand';
+        return await advanceSplitHand(interaction, game, gameId);
+      }
+
+      // Toon bijgewerkte hand
+      const { embed, files } = await buildBlackjackEmbed(game);
+      const buttons = buildBlackjackButtons(gameId, game);
+      await interaction.editReply({ embeds: [embed], files, components: [buttons] });
+      return;
+    }
+
+    // Normaal (niet-split) mode
+    blackjack.reshuffleIfNeeded(game);
     game.playerCards.push(blackjack.dealCard(game.deck));
 
     if (blackjack.isBusted(game.playerCards)) {
@@ -1545,42 +2458,294 @@ async function handleBlackjackButton(interaction, client, config) {
       return;
     }
 
-    // Check voor 21 - direct gewonnen!
+    // Check voor 21 - direct naar dealer turn (niet auto-win, fair play)
     if (blackjack.calculateHandValue(game.playerCards).value === 21) {
-      const payout = game.bet * 2;
-      casino.addBalance(game.userId, game.username, payout, 'Blackjack 21');
-      const newBalance = casino.getUserBalance(game.userId);
-      const { embed, files } = await buildBlackjackEmbed(game, true,
-        `🎯 **21!** Je hebt precies 21, je wint direct!\nJe wint **${game.bet} punten**!\n\n💰 Saldo: ${newBalance} punten`,
-        0x57F287
-      );
-      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
-      recordBlackjackResult(game.userId, game.username, game.bet, payout, 'win');
-      cleanupBJGame(gameId);
-      return;
+      return await resolveBJDealerTurn(interaction, game, gameId);
     }
 
     // Toon bijgewerkte hand
     const { embed, files } = await buildBlackjackEmbed(game);
-    const buttons = buildBlackjackButtons(gameId);
+    const buttons = buildBlackjackButtons(gameId, game);
     await interaction.editReply({ embeds: [embed], files, components: [buttons] });
     return;
   }
 
   // ── Stand ──
   if (action === 'stand' && game.phase === 'playing') {
+    if (game.isSplit && game.hands) {
+      game.hands[game.activeHandIndex].status = 'stand';
+      return await advanceSplitHand(interaction, game, gameId);
+    }
     return await resolveBJDealerTurn(interaction, game, gameId);
+  }
+
+  // ── Double Down ──
+  if (action === 'double' && game.phase === 'playing') {
+    if (game.isSplit && game.hands) {
+      // Double op split-hand
+      const hand = game.hands[game.activeHandIndex];
+      if (!blackjack.canDouble(hand.cards)) {
+        await interaction.followUp({ content: '❌ Je kunt niet meer double-downen!', flags: 64 });
+        return;
+      }
+      const balance = casino.getUserBalance(game.userId);
+      if (balance < hand.bet) {
+        await interaction.followUp({ content: '❌ Je hebt niet genoeg punten om te double-downen!', flags: 64 });
+        return;
+      }
+      casino.subtractBalance(game.userId, hand.bet);
+      hand.bet *= 2;
+      hand.doubled = true;
+      blackjack.reshuffleIfNeeded(game);
+      hand.cards.push(blackjack.dealCard(game.deck));
+
+      if (blackjack.isBusted(hand.cards)) {
+        hand.status = 'bust';
+      } else {
+        hand.status = 'stand';
+      }
+      return await advanceSplitHand(interaction, game, gameId);
+    }
+
+    // Normaal (niet-split) double
+    if (!blackjack.canDouble(game.playerCards)) {
+      await interaction.followUp({ content: '❌ Je kunt niet meer double-downen!', flags: 64 });
+      return;
+    }
+    const balance = casino.getUserBalance(game.userId);
+    if (balance < game.bet) {
+      await interaction.followUp({ content: '❌ Je hebt niet genoeg punten om te double-downen!', flags: 64 });
+      return;
+    }
+
+    casino.subtractBalance(game.userId, game.bet);
+    game.bet *= 2;
+    game.doubled = true;
+    blackjack.reshuffleIfNeeded(game);
+    game.playerCards.push(blackjack.dealCard(game.deck));
+
+    if (blackjack.isBusted(game.playerCards)) {
+      const newBalance = casino.getUserBalance(game.userId);
+      const { embed, files } = await buildBlackjackEmbed(game, true,
+        `💰 **Doubled & Bust!** Je bent over de 21!\nJe verliest **${game.bet} punten**.\n\n💰 Saldo: ${newBalance} punten`,
+        0xED4245
+      );
+      embed.setThumbnail(KEEP_GAMBLING_IMG);
+      await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
+      recordBlackjackResult(game.userId, game.username, game.bet, 0, 'lose');
+      cleanupBJGame(gameId);
+      return;
+    }
+
+    // Auto-stand na double → dealer turn
+    return await resolveBJDealerTurn(interaction, game, gameId);
+  }
+
+  // ── Split ──
+  if (action === 'split' && game.phase === 'playing') {
+    if (game.isSplit) {
+      await interaction.followUp({ content: '❌ Je hebt al gesplit!', flags: 64 });
+      return;
+    }
+    if (!blackjack.canSplit(game.playerCards)) {
+      await interaction.followUp({ content: '❌ Je kunt deze hand niet splitsen!', flags: 64 });
+      return;
+    }
+    const balance = casino.getUserBalance(game.userId);
+    if (balance < game.bet) {
+      await interaction.followUp({ content: '❌ Je hebt niet genoeg punten om te splitsen!', flags: 64 });
+      return;
+    }
+
+    // Extra inzet afschrijven
+    casino.subtractBalance(game.userId, game.bet);
+
+    const card1 = game.playerCards[0];
+    const card2 = game.playerCards[1];
+    const isAces = card1.rank === 'A';
+
+    // Maak 2 handen
+    game.hands = [
+      { cards: [card1, (blackjack.reshuffleIfNeeded(game), blackjack.dealCard(game.deck))], bet: game.bet, doubled: false, status: 'playing' },
+      { cards: [card2, (blackjack.reshuffleIfNeeded(game), blackjack.dealCard(game.deck))], bet: game.bet, doubled: false, status: 'playing' }
+    ];
+    game.isSplit = true;
+    game.activeHandIndex = 0;
+    // Wis playerCards (niet meer in gebruik)
+    game.playerCards = [];
+
+    // Azen-regel: slechts 1 kaart per hand, auto-stand
+    if (isAces) {
+      game.hands[0].status = 'stand';
+      game.hands[1].status = 'stand';
+      return await resolveSplitDealerTurn(interaction, game, gameId);
+    }
+
+    // Check of hand 1 direct 21 heeft
+    if (blackjack.calculateHandValue(game.hands[0].cards).value === 21) {
+      game.hands[0].status = 'stand';
+      return await advanceSplitHand(interaction, game, gameId);
+    }
+
+    // Toon hand 1
+    const { embed, files } = await buildBlackjackEmbed(game);
+    const buttons = buildBlackjackButtons(gameId, game);
+    await interaction.editReply({ embeds: [embed], files, components: [buttons] });
+    return;
+  }
+  } finally {
+    // Zorg dat processing altijd weer wordt teruggezet
+    if (game) game.processing = false;
   }
 }
 
 /**
- * Dealer speelt en bepaal resultaat
+ * Ga naar de volgende split-hand of start dealer turn
  */
+async function advanceSplitHand(interaction, game, gameId) {
+  // Probeer naar volgende hand te gaan
+  if (game.activeHandIndex < game.hands.length - 1) {
+    game.activeHandIndex++;
+    const nextHand = game.hands[game.activeHandIndex];
+
+    // Check of volgende hand direct 21 heeft
+    if (blackjack.calculateHandValue(nextHand.cards).value === 21) {
+      nextHand.status = 'stand';
+      // Alle handen klaar → dealer turn
+      return await resolveSplitDealerTurn(interaction, game, gameId);
+    }
+
+    // Toon volgende hand
+    const { embed, files } = await buildBlackjackEmbed(game);
+    const buttons = buildBlackjackButtons(gameId, game);
+    await interaction.editReply({ embeds: [embed], files, components: [buttons] });
+    return;
+  }
+
+  // Alle handen klaar → dealer turn
+  return await resolveSplitDealerTurn(interaction, game, gameId);
+}
+
+/**
+ * Dealer speelt en bepaal resultaat voor split-handen
+ */
+async function resolveSplitDealerTurn(interaction, game, gameId) {
+  game.phase = 'dealer';
+  // Check of alle handen bust zijn
+  const allBust = game.hands.every(h => h.status === 'bust');
+  if (!allBust) {
+    await processDealerTurn(interaction, game, gameId);
+  }
+
+  let totalPayout = 0;
+  let totalBet = 0;
+  let anyWin = false;
+  let anyLose = false;
+  const resultLines = [];
+
+  game.hands.forEach((hand, i) => {
+    totalBet += hand.bet;
+    const handLabel = `Hand ${i + 1}`;
+
+    if (hand.status === 'bust') {
+      resultLines.push(`${handLabel}: 💥 Bust — verlies **${hand.bet}** punten`);
+      anyLose = true;
+      return;
+    }
+
+    // Na split is A+10 geen blackjack, gewoon 21
+    const outcome = determineSplitOutcome(hand.cards, game.dealerCards);
+    const payout = blackjack.calculatePayout(hand.bet, outcome);
+    totalPayout += payout;
+
+    if (outcome === 'win') {
+      resultLines.push(`${handLabel}: ✅ Gewonnen — +**${payout - hand.bet}** punten`);
+      anyWin = true;
+    } else if (outcome === 'push') {
+      resultLines.push(`${handLabel}: 🤝 Gelijk — inzet terug`);
+    } else {
+      resultLines.push(`${handLabel}: ❌ Verloren — -**${hand.bet}** punten`);
+      anyLose = true;
+    }
+  });
+
+  if (totalPayout > 0) {
+    casino.addBalance(game.userId, game.username, totalPayout, 'Blackjack split');
+  }
+
+  const newBalance = casino.getUserBalance(game.userId);
+  const netResult = totalPayout - totalBet;
+  const color = netResult > 0 ? 0x57F287 : netResult === 0 ? 0xF0B232 : 0xED4245;
+  const netText = netResult > 0 ? `+${netResult}` : `${netResult}`;
+
+  const resultText = `✂️ **Split Resultaat**\n${resultLines.join('\n')}\n\n📊 Netto: **${netText} punten**\n💰 Saldo: ${newBalance} punten`;
+  const { embed, files } = await buildBlackjackEmbed(game, true, resultText, color);
+
+  if (anyLose && !anyWin) {
+    embed.setThumbnail(KEEP_GAMBLING_IMG);
+  }
+
+  await interaction.editReply({ embeds: [embed], files, components: [buildBlackjackReplayButton(gameId)] });
+
+  // Registreer als 1 game; overall outcome
+  const overallOutcome = netResult > 0 ? 'win' : netResult === 0 ? 'push' : 'lose';
+  recordBlackjackResult(game.userId, game.username, totalBet, totalPayout, overallOutcome);
+  cleanupBJGame(gameId);
+}
+
+/**
+ * Bepaal outcome voor een split-hand (geen blackjack-bonus mogelijk)
+ */
+function determineSplitOutcome(playerCards, dealerCards) {
+  const playerValue = blackjack.calculateHandValue(playerCards).value;
+  const dealerValue = blackjack.calculateHandValue(dealerCards).value;
+
+  if (playerValue > 21) return 'lose';
+  if (dealerValue > 21) return 'win';
+  if (playerValue > dealerValue) return 'win';
+  if (playerValue < dealerValue) return 'lose';
+  return 'push';
+}
+
+/**
+ * Dealer speelt en bepaal resultaat (normaal / niet-split)
+ */
+async function processDealerTurn(interaction, game, gameId) {
+  const revealDelay = 800; // ms between reveals
+  // Edit reply to reveal dealer hole card
+  try {
+    const { embed: revealEmbed, files: revealFiles } = await buildBlackjackEmbed(game, true);
+    await interaction.editReply({ embeds: [revealEmbed], files: revealFiles, components: [] });
+  } catch (err) {
+    console.error('Error revealing dealer hole card:', err);
+  }
+
+  // Short pause so player sees hole card
+  await new Promise(r => setTimeout(r, revealDelay));
+
+  // Draw dealer cards one-by-one with small delays and updates
+  while (blackjack.shouldDealerHit(game.dealerCards)) {
+    // Ensure shoe not exhausted
+    if (typeof blackjack.reshuffleIfNeeded === 'function') blackjack.reshuffleIfNeeded(game);
+    // Draw one card
+    game.dealerCards.push(blackjack.dealCard(game.deck));
+
+    // Update embed to show new dealer card
+    try {
+      const { embed: midEmbed, files: midFiles } = await buildBlackjackEmbed(game, true);
+      await interaction.editReply({ embeds: [midEmbed], files: midFiles, components: [] });
+    } catch (err) {
+      console.error('Error updating dealer reveal:', err);
+    }
+
+    // Pause between draws
+    await new Promise(r => setTimeout(r, revealDelay));
+  }
+}
+
 async function resolveBJDealerTurn(interaction, game, gameId) {
   game.phase = 'dealer';
-
-  // Dealer speelt
-  blackjack.playDealer(game.deck, game.dealerCards);
+  await processDealerTurn(interaction, game, gameId);
 
   // Bepaal resultaat
   const outcome = blackjack.determineOutcome(game.playerCards, game.dealerCards);
@@ -1591,9 +2756,10 @@ async function resolveBJDealerTurn(interaction, game, gameId) {
   }
 
   const newBalance = casino.getUserBalance(game.userId);
+  const doubledText = game.doubled ? ' (Doubled)' : '';
   const { text, color } = getOutcomeDisplay(outcome, payout, game.bet);
 
-  const { embed, files } = await buildBlackjackEmbed(game, true, `${text}\n\n💰 Saldo: ${newBalance} punten`, color);
+  const { embed, files } = await buildBlackjackEmbed(game, true, `${text}${doubledText}\n\n💰 Saldo: ${newBalance} punten`, color);
 
   if (outcome === 'lose') {
     embed.setThumbnail(KEEP_GAMBLING_IMG);
@@ -1634,12 +2800,281 @@ function getOutcomeDisplay(outcome, payout, bet) {
   }
 }
 
+// =====================================================
+// APPROVAL BUTTON HANDLER
+// =====================================================
+async function handleApprovalButton(interaction, client, config) {
+  const customId = interaction.customId;
+  
+  if (!customId.startsWith('approval_')) return false;
+  
+  // Alleen de super admin mag deze buttons gebruiken
+  if (interaction.user.id !== SUPER_ADMIN_ID) {
+    await interaction.reply({ 
+      content: '❌ Alleen de super admin mag admin commando\'s goedkeuren of afwijzen!', 
+      flags: 64 
+    });
+    return true;
+  }
+  
+  const [, action, approvalId] = customId.split('_');
+  const approval = pendingApprovals.get(approvalId);
+  
+  if (!approval) {
+    await interaction.update({ 
+      content: '⏱️ Deze approval request is verlopen of al verwerkt.',
+      embeds: [],
+      components: [] 
+    });
+    return true;
+  }
+  
+  if (action === 'deny') {
+    pendingApprovals.delete(approvalId);
+    
+    await interaction.update({ 
+      content: `❌ Commando afgewezen door <@${SUPER_ADMIN_ID}>`,
+      embeds: [],
+      components: [] 
+    });
+    
+    // Notify requester
+    try {
+      const requester = await client.users.fetch(approval.requesterId);
+      await requester.send(`❌ Je admin commando is afgewezen door <@${SUPER_ADMIN_ID}>`);
+    } catch (err) {
+      console.log('Kon DM niet sturen naar requester');
+    }
+    
+    return true;
+  }
+  
+  if (action === 'accept') {
+    await interaction.update({ 
+      content: `✅ Commando goedgekeurd door <@${SUPER_ADMIN_ID}> - wordt uitgevoerd...`,
+      embeds: [],
+      components: [] 
+    });
+    
+    const casinoChannelId = config.CASINO_CHANNEL_ID;
+    const logChannelId = config.LOG_CHANNEL_ID;
+    const winnersChannelId = '1414596895191334925';
+    
+    const { subCommandGroup, subCommand, options } = approval;
+    
+    try {
+      // Execute the approved command
+      if (subCommandGroup === 'bet' && subCommand === 'create') {
+        const betId = casino.createBet(options.vraag, approval.requesterId);
+        
+        try {
+          const casinoChannel = await client.channels.fetch(casinoChannelId);
+          if (casinoChannel) {
+            const bet = { id: betId, question: options.vraag };
+            const { embed } = casino.buildBetEmbed(bet);
+            const buttons = casino.buildBetButtons(betId);
+            const message = await casinoChannel.send({ embeds: [embed], components: [buttons] });
+            casino.updateBetMessageId(betId, message.id);
+          }
+        } catch (error) {
+          console.error('Fout bij sturen bet naar casino kanaal:', error);
+        }
+        
+        await interaction.followUp({ 
+          content: `✅ Weddenschap #${betId} aangemaakt: "${options.vraag}"` 
+        });
+        
+        await sendLog(client, logChannelId, `📝 Nieuwe weddenschap #${betId} aangemaakt door ${approval.requesterName} (goedgekeurd door super admin): "${options.vraag}"`);
+        
+      } else if (subCommandGroup === 'bet' && subCommand === 'resolve') {
+        const result = casino.resolveBet(options.betId, options.uitslag);
+        
+        if (!result.success) {
+          await interaction.followUp({ content: `❌ ${result.error}` });
+        } else {
+          const embed = casino.buildResolveEmbed(result);
+          const closedEmbed = casino.buildClosedBetEmbed(result);
+          
+          await interaction.followUp({ embeds: [embed] });
+          
+          try {
+            const casinoChannel = await client.channels.fetch(casinoChannelId);
+            if (casinoChannel && result.bet.message_id) {
+              const betMessage = await casinoChannel.messages.fetch(result.bet.message_id).catch(() => null);
+              if (betMessage) {
+                await betMessage.edit({ embeds: [closedEmbed], components: [] });
+              }
+            }
+          } catch (error) {
+            console.error('Fout bij updaten bet embed:', error);
+          }
+          
+          try {
+            const winnersChannel = await client.channels.fetch(winnersChannelId);
+            if (winnersChannel) {
+              await winnersChannel.send({ embeds: [embed] });
+            }
+          } catch (error) {
+            console.error('Fout bij sturen naar winnaars kanaal:', error);
+          }
+          
+          await updateCasinoEmbed(client, casinoChannelId);
+          await sendLog(client, logChannelId, `🎲 Weddenschap #${options.betId} resolved door ${approval.requesterName} (goedgekeurd door super admin) met uitslag: ${options.uitslag}`);
+        }
+        
+      } else if (subCommandGroup === 'bet' && subCommand === 'delete') {
+        const db = getDatabase();
+        const bet = casino.getBetWithEntries(options.betId);
+        
+        if (!bet) {
+          await interaction.followUp({ content: '❌ Weddenschap niet gevonden!' });
+        } else if (bet.status !== 'open') {
+          await interaction.followUp({ content: '❌ Deze weddenschap is al gesloten!' });
+        } else {
+          bet.entries.forEach(entry => {
+            casino.addBalance(entry.user_id, entry.username, entry.amount, `Terugbetaling verwijderde bet #${options.betId}`);
+          });
+          
+          db.prepare('DELETE FROM bets WHERE id = ?').run(options.betId);
+          
+          await interaction.followUp({ content: `✅ Weddenschap #${options.betId} verwijderd. ${bet.entries.length} inzetten terugbetaald.` });
+          await updateCasinoEmbed(client, casinoChannelId);
+        }
+        
+      } else if (subCommandGroup === 'balance' && subCommand === 'add') {
+        const newBalance = casino.addBalance(options.user.id, options.user.username, options.amount, 'Admin add');
+        
+        await interaction.followUp({ 
+          content: `✅ ${options.amount} punten toegevoegd aan ${options.user.username}. Nieuw saldo: ${newBalance}` 
+        });
+        
+        try {
+          await options.user.send(`💰 Je hebt ${options.amount} punten ontvangen van een admin! Nieuw saldo: ${newBalance}`);
+        } catch (err) {
+          console.log(`Kon DM niet verzenden naar ${options.user.username}`);
+        }
+        
+        await sendLog(client, logChannelId, `💰 Admin ${approval.requesterName} (goedgekeurd door super admin) heeft ${options.amount} punten toegevoegd aan ${options.user.username}`);
+        
+      } else if (subCommandGroup === 'balance' && subCommand === 'remove') {
+        const newBalance = casino.subtractBalance(options.user.id, options.amount);
+        
+        await interaction.followUp({ 
+          content: `✅ ${options.amount} punten verwijderd van ${options.user.username}. Nieuw saldo: ${newBalance}` 
+        });
+        
+        try {
+          await options.user.send(`💸 ${options.amount} punten zijn van je account verwijderd. Nieuw saldo: ${newBalance}`);
+        } catch (err) {
+          console.log(`Kon DM niet verzenden naar ${options.user.username}`);
+        }
+        
+        await sendLog(client, logChannelId, `💸 Admin ${approval.requesterName} (goedgekeurd door super admin) heeft ${options.amount} punten verwijderd van ${options.user.username}`);
+        
+      } else if (subCommandGroup === 'balance' && subCommand === 'set') {
+        const db = getDatabase();
+        casino.getOrCreateUser(options.user.id, options.user.username);
+        db.prepare(`UPDATE users SET balance = ?, last_updated = datetime('now') WHERE user_id = ?`).run(options.amount, options.user.id);
+        
+        await interaction.followUp({ 
+          content: `✅ Balance van ${options.user.username} gezet naar ${options.amount} punten.` 
+        });
+        
+        try {
+          await options.user.send(`⚙️ Je balance is ingesteld op ${options.amount} punten.`);
+        } catch (err) {
+          console.log(`Kon DM niet verzenden naar ${options.user.username}`);
+        }
+        
+        await sendLog(client, logChannelId, `⚙️ Admin ${approval.requesterName} (goedgekeurd door super admin) heeft balance van ${options.user.username} gezet naar ${options.amount}`);
+        
+      } else if (subCommandGroup === 'quiz' && subCommand === 'start') {
+        const activeQuiz = quiz.getActiveQuiz(config.QUIZ_CHANNEL_ID);
+        if (activeQuiz) {
+          const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+          await interaction.followUp({ 
+            content: `⚠️ Er is al een ${quizType} actief!` 
+          });
+        } else {
+          await quiz.startDailyQuiz(client, config.QUIZ_CHANNEL_ID, null);
+          await interaction.followUp({ 
+            content: `✅ Dagelijkse quiz handmatig gestart door ${approval.requesterName} (goedgekeurd door super admin)!` 
+          });
+        }
+        
+      } else if (subCommandGroup === 'quiz' && subCommand === 'test') {
+        const activeQuiz = quiz.getActiveQuiz(config.QUIZ_CHANNEL_ID);
+        if (activeQuiz) {
+          const quizType = activeQuiz.is_test_quiz ? 'test quiz' : 'dagelijkse quiz';
+          await interaction.followUp({ 
+            content: `⚠️ Er is al een ${quizType} actief!` 
+          });
+        } else {
+          const tijd = options.tijd || 1;
+          const result = await quiz.startDailyQuiz(client, config.QUIZ_CHANNEL_ID, tijd);
+          const usedMinutes = result && typeof result.timeoutMinutesUsed !== 'undefined' ? result.timeoutMinutesUsed : tijd;
+          await interaction.followUp({ 
+            content: `✅ Test quiz gestart door ${approval.requesterName} (goedgekeurd door super admin)! Eindigt na ${usedMinutes} ${usedMinutes === 1 ? 'minuut' : 'minuten'}.` 
+          });
+        }
+        
+      } else if (subCommandGroup === 'quiz' && subCommand === 'reset') {
+        if (options.resetType === 'database') {
+          const deleted = quiz.deleteAllQuestions();
+          await interaction.followUp({ content: `✅ Alle quiz vragen verwijderd (${deleted} rijen).` });
+        } else if (options.resetType === 'used') {
+          const resetCount = quiz.resetUsedQuestions();
+          await interaction.followUp({ content: `✅ Gebruikte vragen gereset (${resetCount} rijen).` });
+        }
+        
+      } else if (subCommand === 'reset' && !subCommandGroup) {
+        const result = casino.performMonthlyReset();
+        
+        if (!result.success) {
+          await interaction.followUp({ content: `❌ Reset mislukt: ${result.message}` });
+        } else {
+          let message = `✅ Maandelijkse reset uitgevoerd door ${approval.requesterName} (goedgekeurd door super admin)!\n`;
+          message += `📊 ${result.totalUsersReset} users gereset\n\n`;
+          message += `🏆 **Top 3 met startbonus:**\n`;
+          
+          result.topUsers.forEach(user => {
+            const medal = user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉';
+            message += `${medal} ${user.username}: ${user.final_balance} → ${user.bonus} bonus\n`;
+          });
+          
+          await interaction.followUp({ content: message });
+          await sendLog(client, logChannelId, `🔄 Maandelijkse reset uitgevoerd door ${approval.requesterName} (goedgekeurd door super admin))`);
+        }
+      }
+      
+      // Notify requester of success
+      try {
+        const requester = await client.users.fetch(approval.requesterId);
+        await requester.send(`✅ Je admin commando is goedgekeurd door <@${SUPER_ADMIN_ID}> en uitgevoerd!`);
+      } catch (err) {
+        console.log('Kon DM niet sturen naar requester');
+      }
+      
+    } catch (error) {
+      console.error('Fout bij uitvoeren goedgekeurd commando:', error);
+      await interaction.followUp({ content: `❌ Er is een fout opgetreden: ${error.message}` });
+    }
+    
+    pendingApprovals.delete(approvalId);
+    return true;
+  }
+  
+  return false;
+}
+
 module.exports = {
   casinoCommands,
   handleCasinoCommands,
   handleBetButton,
   handleDoubleOrNothingButton,
   handleBlackjackButton,
+  handleMinesButton,
+  handleApprovalButton,
   updateCasinoEmbed,
   sendLog
 };

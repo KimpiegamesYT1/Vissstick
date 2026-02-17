@@ -2,13 +2,19 @@ const { hokCommands, handleHokCommands } = require('./hokCommands');
 const { quizCommands, handleQuizCommands } = require('./quizCommands');
 const { audioCommands, handleAudioCommands } = require('./audioCommands');
 const { casinoCommands, handleCasinoCommands } = require('./casinoCommands');
+const { connectFourCommands, handleConnectFourCommands } = require('./connectFourCommands');
+const { chatbotCommands, handleChatbotCommands } = require('./chatbotCommands');
+const { hangmanCommands, handleHangmanCommands } = require('./hangmanCommands');
 
 // Combineer alle commands
 const allCommands = [
   ...hokCommands,
   ...quizCommands,
   ...audioCommands,
-  ...casinoCommands
+  ...casinoCommands,
+  ...connectFourCommands,
+  ...chatbotCommands,
+  ...hangmanCommands
 ];
 
 // Handle alle commands
@@ -38,6 +44,21 @@ async function handleCommands(interaction, client, config, hokState) {
 
   // Try casino commands
   if (await handleCasinoCommands(interaction, client, config)) {
+    return;
+  }
+
+  // Try connect four commands
+  if (await handleConnectFourCommands(interaction, client, config)) {
+    return;
+  }
+
+  // Try chatbot commands
+  if (await handleChatbotCommands(interaction, client, config)) {
+    return;
+  }
+
+  // Try hangman commands
+  if (await handleHangmanCommands(interaction, client, config)) {
     return;
   }
 
