@@ -1865,7 +1865,7 @@ function buildBlackjackReplayButton(gameId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`bj_replay_${gameId}`)
-      .setLabel('Opnieuw Spelen 🔄')
+      .setLabel('Opnieuw Spelen')
       .setStyle(ButtonStyle.Success)
   );
 }
@@ -1990,7 +1990,7 @@ function buildMinesButtons(gameId, game) {
     const replayRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`mn_replay_${game.userId}`)
-        .setLabel('🔄 Opnieuw Spelen')
+        .setLabel('Opnieuw Spelen')
         .setStyle(ButtonStyle.Primary)
     );
     rows.push(replayRow);
@@ -1998,7 +1998,7 @@ function buildMinesButtons(gameId, game) {
     const cashRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`mn_cashout_${gameId}`)
-        .setLabel('💸 Cashout')
+        .setLabel('Cashout')
         .setStyle(ButtonStyle.Success)
     );
     rows.push(cashRow);
