@@ -20,6 +20,9 @@ const LABEL_HEIGHT = 30;
 const BG_COLOR = { r: 43, g: 45, b: 49, alpha: 1 }; // Discord dark theme
 const CARD_BACK_COLOR = { r: 59, g: 99, b: 184, alpha: 1 };
 
+// Simple in-memory cache for rendered card buffers
+const cardCache = new Map();
+
 /**
  * Map een kaartobject naar een bestandsnaam
  */
@@ -42,6 +45,9 @@ function cardToFilename(card) {
  * Maak een kaart-achterkant afbeelding (voor verborgen dealer kaart)
  */
 async function createCardBack() {
+  const cacheKey = '__card_back__';
+  if (cardCache.has(cacheKey)) return cardCache.get(cacheKey);
+
   // Blauwe kaartrug met randje
   const svg = `
     <svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}">
@@ -51,7 +57,9 @@ async function createCardBack() {
       <text x="${CARD_WIDTH / 2}" y="${CARD_HEIGHT / 2 + 5}" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#5b83d8" text-anchor="middle">?</text>
     </svg>`;
 
-  return sharp(Buffer.from(svg)).png().toBuffer();
+  const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
+  cardCache.set(cacheKey, buffer);
+  return buffer;
 }
 
 /**
@@ -59,12 +67,16 @@ async function createCardBack() {
  */
 async function loadCardImage(card) {
   const filename = cardToFilename(card);
-  const filepath = path.join(CARDS_DIR, filename);
+  if (cardCache.has(filename)) return cardCache.get(filename);
 
-  return sharp(filepath)
+  const filepath = path.join(CARDS_DIR, filename);
+  const buffer = await sharp(filepath)
     .resize(CARD_WIDTH, CARD_HEIGHT, { fit: 'fill' })
     .png()
     .toBuffer();
+
+  cardCache.set(filename, buffer);
+  return buffer;
 }
 
 /**
@@ -72,12 +84,17 @@ async function loadCardImage(card) {
  */
 async function createLabel(text, width) {
   const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const cacheKey = `label_${width}_${escapedText}`;
+  if (cardCache.has(cacheKey)) return cardCache.get(cacheKey);
+
   const svg = `
     <svg width="${width}" height="${LABEL_HEIGHT}">
       <text x="0" y="22" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">${escapedText}</text>
     </svg>`;
 
-  return sharp(Buffer.from(svg)).png().toBuffer();
+  const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
+  cardCache.set(cacheKey, buffer);
+  return buffer;
 }
 
 /**

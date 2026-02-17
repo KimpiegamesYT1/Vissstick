@@ -192,6 +192,22 @@ CREATE TABLE IF NOT EXISTS blackjack_stats (
 );
 CREATE INDEX IF NOT EXISTS idx_blackjack_stats_games ON blackjack_stats(games_played DESC);
 
+-- Mines stats
+CREATE TABLE IF NOT EXISTS mines_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    current_streak INTEGER DEFAULT 0,
+    best_streak INTEGER DEFAULT 0,
+    last_played DATETIME
+);
+CREATE INDEX IF NOT EXISTS idx_mines_stats_games ON mines_stats(games_played DESC);
+
 -- =====================================================
 -- CHATBOT MODULE
 -- =====================================================
