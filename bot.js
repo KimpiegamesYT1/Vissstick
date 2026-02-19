@@ -10,6 +10,7 @@ const hok = require('./modules/hok.js');
 const casino = require('./modules/casino.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
+const usecaseDiagram = require('./modules/usecaseDiagram');
 const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton, handleMinesButton } = require('./commands/casinoCommands.js');
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
 const { handleHangmanButton } = require('./commands/hangmanCommands.js');
@@ -358,6 +359,12 @@ client.on('messageCreate', async (message) => {
 
   // Handle regular chat responses
   await handleChatResponse(message);
+  // Fire-and-forget: check for use-case diagram trigger in target channel
+  try {
+    usecaseDiagram.handleMessage(message, client).catch(err => console.error('[USECASE] handler error:', err));
+  } catch (err) {
+    console.error('[USECASE] Error scheduling handler:', err);
+  }
 });
 
 // Replace the messageCreate handler with slash commands
