@@ -365,7 +365,7 @@ async function startDailyQuiz(client, channelId, timeoutMinutes = null) {
     const buttons = Object.keys(opties).map(letter => 
       new ButtonBuilder()
         .setCustomId(`quiz_${letter}`)
-        .setLabel(opties[letter])
+        .setLabel(opties[letter].length > 80 ? opties[letter].substring(0, 77) + '...' : opties[letter])
         .setEmoji(EMOJI_MAP[letter])
         .setStyle(ButtonStyle.Primary)
     );
