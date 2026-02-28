@@ -1179,7 +1179,7 @@ async function handleCasinoCommands(interaction, client, config) {
     if (subCommand === 'reset' && !subCommandGroup) {
       await interaction.deferReply({ flags: 64 });
       
-      const result = casino.performMonthlyReset();
+      const result = casino.performMonthlyReset({ force: true });
       
       if (!result.success) {
         await interaction.editReply({ content: `❌ Reset mislukt: ${result.message}` });
@@ -3125,7 +3125,7 @@ async function handleApprovalButton(interaction, client, config) {
         }
         
       } else if (subCommand === 'reset' && !subCommandGroup) {
-        const result = casino.performMonthlyReset();
+        const result = casino.performMonthlyReset({ force: true });
         
         if (!result.success) {
           await interaction.followUp({ content: `❌ Reset mislukt: ${result.message}` });

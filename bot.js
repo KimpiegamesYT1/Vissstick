@@ -205,7 +205,7 @@ async function showMonthlyScoreboard(client, channelId) {
     });
     
     // Add top 3 bonus info
-    description += `\n📢 **De top 3 ontvangt een startbonus volgende maand:**\n`;
+    description += `\n📢 **De top 3 ontvangt direct hierna een startbonus voor de nieuwe maand:**\n`;
     description += `🥇 ${casino.START_BONUSES[1]} punten | 🥈 ${casino.START_BONUSES[2]} punten | 🥉 ${casino.START_BONUSES[3]} punten`;
 
     embed.setDescription(description);
@@ -485,7 +485,7 @@ client.once("clientReady", async () => {
     timezone: "Europe/Amsterdam"
   });
 
-  // Schedule monthly scoreboard on last day of month at 18:00
+  // Schedule monthly scoreboard + reset on last day of month at 18:00
   // Check daily at 18:00 if it's the last day of the month
   cron.schedule('0 18 28-31 * *', async () => {
     const today = new Date();
@@ -521,59 +521,58 @@ client.once("clientReady", async () => {
       
       // Update casino embed
       await updateCasinoEmbed(client, CASINO_CHANNEL_ID);
-    }
-  }, {
-    timezone: "Europe/Amsterdam"
-  });
 
-  // Schedule monthly reset on the 1st of each month at 00:01
-  // Dit gebeurt NA het scoreboard van de vorige dag (18:00) en VOOR de eerste quiz (07:00)
-  cron.schedule('1 0 1 * *', async () => {
-    console.log('Performing monthly balance reset...');
-    
-    try {
-      const result = casino.performMonthlyReset();
-      
-      if (result.success && result.topUsers.length > 0) {
-        // Stuur melding naar log kanaal
-        let logMessage = `🔄 **Maandelijkse Reset Uitgevoerd**\n`;
-        logMessage += `📊 ${result.totalUsersReset} users gereset\n\n`;
-        logMessage += `🏆 **Top 3 met startbonus:**\n`;
-        
-        result.topUsers.forEach(user => {
-          const medal = user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉';
-          logMessage += `${medal} ${user.username}: ${user.final_balance} punten → ${user.bonus} bonus\n`;
-        });
-        
-        await sendLog(client, LOG_CHANNEL_ID, logMessage);
-        
-        // Stuur ook melding naar scoreboard kanaal
-        try {
-          const scoreboardChannel = await client.channels.fetch(SCOREBOARD_CHANNEL_ID);
-          if (scoreboardChannel) {
-            const resetEmbed = new EmbedBuilder()
-              .setTitle('🎊 Nieuwe Maand - Balances Gereset!')
-              .setColor('#00FF00')
-              .setDescription(`Alle balances zijn gereset naar 0.\n\nDe top 3 van vorige maand heeft een startbonus ontvangen!`)
-              .addFields(
-                result.topUsers.map(user => ({
-                  name: `${user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉'} ${user.username}`,
-                  value: `Had ${user.final_balance} punten → Start met ${user.bonus} bonus`,
-                  inline: true
-                }))
-              )
-              .setTimestamp();
-            
-            await scoreboardChannel.send({ embeds: [resetEmbed] });
+      // Voer maandelijkse reset direct uit
+      console.log('Performing monthly balance reset...');
+      try {
+        const result = casino.performMonthlyReset();
+
+        if (result.success && !result.skipped && result.topUsers.length > 0) {
+          // Stuur melding naar log kanaal
+          let logMessage = `🔄 **Maandelijkse Reset Uitgevoerd**\n`;
+          logMessage += `📊 ${result.totalUsersReset} users gereset\n\n`;
+          logMessage += `🏆 **Top 3 met startbonus:**\n`;
+
+          result.topUsers.forEach(user => {
+            const medal = user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉';
+            logMessage += `${medal} ${user.username}: ${user.final_balance} punten → ${user.bonus} bonus\n`;
+          });
+
+          await sendLog(client, LOG_CHANNEL_ID, logMessage);
+
+          // Stuur ook melding naar scoreboard kanaal
+          try {
+            const scoreboardChannel = await client.channels.fetch(SCOREBOARD_CHANNEL_ID);
+            if (scoreboardChannel) {
+              const resetEmbed = new EmbedBuilder()
+                .setTitle('🎊 Nieuwe Maand - Balances Gereset!')
+                .setColor('#00FF00')
+                .setDescription('Alle balances zijn gereset naar 0.\n\nDe top 3 van de maandscore heeft een startbonus ontvangen!')
+                .addFields(
+                  result.topUsers.map(user => ({
+                    name: `${user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉'} ${user.username}`,
+                    value: `Had ${user.final_balance} punten → Start met ${user.bonus} bonus`,
+                    inline: true
+                  }))
+                )
+                .setTimestamp();
+
+              await scoreboardChannel.send({ embeds: [resetEmbed] });
+            }
+          } catch (error) {
+            console.error('Fout bij sturen reset melding:', error);
           }
-        } catch (error) {
-          console.error('Fout bij sturen reset melding:', error);
+        } else if (result.success && result.skipped) {
+          console.log(`Monthly reset overgeslagen: ${result.message}`);
         }
+
+        console.log('Monthly reset completed!');
+      } catch (error) {
+        console.error('Fout bij maandelijkse reset:', error);
       }
-      
-      console.log('Monthly reset completed!');
-    } catch (error) {
-      console.error('Fout bij maandelijkse reset:', error);
+
+      // Update casino embed opnieuw na reset zodat leaderboard direct klopt
+      await updateCasinoEmbed(client, CASINO_CHANNEL_ID);
     }
   }, {
     timezone: "Europe/Amsterdam"

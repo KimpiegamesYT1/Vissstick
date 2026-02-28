@@ -453,11 +453,15 @@ function buyHaribo(userId, username) {
 
 /**
  * Voer maandelijkse reset uit
- * - Log top 3 
+ * - Log top 3
  * - Reset alle balances naar 0
  * - Geef top 3 hun startbonus
+ *
+ * @param {Object} options
+ * @param {boolean} options.force - Forceer reset ook als deze maand al gereset is
  */
-function performMonthlyReset() {
+function performMonthlyReset(options = {}) {
+  const { force = false } = options;
   const db = getDatabase();
   const monthKey = getCurrentMonthKey();
   
@@ -465,12 +469,39 @@ function performMonthlyReset() {
   const now = new Date();
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const prevMonthKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+
+  // Voorkom dubbele reset voor dezelfde maand (tenzij geforceerd)
+  if (!force) {
+    const existingReset = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM monthly_reset_log
+      WHERE month_key = ?
+    `).get(prevMonthKey);
+
+    if (existingReset && existingReset.count > 0) {
+      return {
+        success: true,
+        skipped: true,
+        message: `Reset voor ${prevMonthKey} is al uitgevoerd`,
+        prevMonthKey,
+        topUsers: [],
+        totalUsersReset: 0
+      };
+    }
+  }
   
   // Haal alle users met balance op
   const allUsers = getAllUsersWithBalance();
   
   if (allUsers.length === 0) {
-    return { success: true, message: 'Geen users met balance om te resetten', topUsers: [] };
+    return {
+      success: true,
+      skipped: true,
+      message: 'Geen users met balance om te resetten',
+      prevMonthKey,
+      topUsers: [],
+      totalUsersReset: 0
+    };
   }
   
   // Top 3 bepalen
@@ -523,6 +554,7 @@ function performMonthlyReset() {
   
   return {
     success: true,
+    skipped: false,
     prevMonthKey,
     topUsers: resetLog,
     totalUsersReset: allUsers.length
