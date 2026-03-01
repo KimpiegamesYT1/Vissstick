@@ -116,3 +116,13 @@ sqlite3 bot.db "SELECT * FROM active_quizzes"  # Check stuck quizzes
 - Quiz timeout during active quiz (should refund points but doesn't currently)
 - Multiple users clicking Double-or-Nothing buttons (enforces single-user ownership)
 - Monthly reset on months with 28/29/30/31 days (cron checks if tomorrow.getDate() === 1)
+
+
+## Updated for the discord bot 
+Incase there is a major change that effects the user experience, please send the change in the chat in the dutch language. Use the follwing format:
+
+```
+[-] <description of the feature that is removed in dutch>
+[+] <description of the feature that is added in dutch>
+[!] <description of the feature that is changed/updated in dutch>
+```
