@@ -461,7 +461,7 @@ function buyHaribo(userId, username) {
  * @param {boolean} options.force - Forceer reset ook als deze maand al gereset is
  */
 function performMonthlyReset(options = {}) {
-  const { force = false } = options;
+  const { force = false, quizTop3 = null } = options;
   const db = getDatabase();
   const monthKey = getCurrentMonthKey();
   
@@ -492,8 +492,9 @@ function performMonthlyReset(options = {}) {
   
   // Haal alle users met balance op
   const allUsers = getAllUsersWithBalance();
+  const useQuizTop3 = quizTop3 && quizTop3.length > 0;
   
-  if (allUsers.length === 0) {
+  if (allUsers.length === 0 && !useQuizTop3) {
     return {
       success: true,
       skipped: true,
@@ -504,33 +505,73 @@ function performMonthlyReset(options = {}) {
     };
   }
   
-  // Top 3 bepalen
-  const top3 = allUsers.slice(0, 3);
+  // Top 3 bepalen (quiz scoreboard of casino balance)
+  const top3 = useQuizTop3
+    ? quizTop3.map(q => ({
+        user_id: q.userId,
+        username: q.username,
+        current_balance: (allUsers.find(u => u.user_id === q.userId) || { balance: 0 }).balance,
+        quizScore: { correct: q.correct, total: q.total, percentage: q.percentage }
+      }))
+    : allUsers.slice(0, 3).map(u => ({ ...u, current_balance: u.balance }));
   
   const resetLog = [];
   
   const transaction = db.transaction(() => {
-    // Log alle users en reset
+    // Log alle users
     allUsers.forEach((user, index) => {
-      const position = index + 1;
-      const bonus = START_BONUSES[position] || 0;
+      const position = useQuizTop3 ? null : (index < 3 ? index + 1 : null);
+      const bonus = useQuizTop3 ? 0 : (START_BONUSES[index + 1] || 0);
       
-      // Log in reset log
       db.prepare(`
         INSERT INTO monthly_reset_log (month_key, user_id, username, final_balance, position, bonus_received)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(prevMonthKey, user.user_id, user.username, user.balance, position <= 3 ? position : null, bonus);
-      
-      if (position <= 3) {
+      `).run(prevMonthKey, user.user_id, user.username, user.balance, position, bonus);
+    });
+    
+    // Als quiz top 3 gebruikt, verwerk die apart in de log
+    if (useQuizTop3) {
+      top3.forEach((user, index) => {
+        const position = index + 1;
+        const bonus = START_BONUSES[position];
+        const alreadyLogged = allUsers.find(u => u.user_id === user.user_id);
+        
+        if (alreadyLogged) {
+          // Werk bestaande logrij bij met quiz positie en bonus
+          db.prepare(`
+            UPDATE monthly_reset_log
+            SET position = ?, bonus_received = ?
+            WHERE month_key = ? AND user_id = ?
+          `).run(position, bonus, prevMonthKey, user.user_id);
+        } else {
+          // Voeg toe als ze balance = 0 hadden en nog niet gelogd zijn
+          db.prepare(`
+            INSERT INTO monthly_reset_log (month_key, user_id, username, final_balance, position, bonus_received)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).run(prevMonthKey, user.user_id, user.username, 0, position, bonus);
+        }
+        
+        resetLog.push({
+          user_id: user.user_id,
+          username: user.username,
+          final_balance: user.current_balance,
+          position,
+          bonus,
+          quizScore: user.quizScore
+        });
+      });
+    } else {
+      // Balance-gebaseerde top 3
+      top3.forEach((user, index) => {
         resetLog.push({
           user_id: user.user_id,
           username: user.username,
           final_balance: user.balance,
-          position,
-          bonus
+          position: index + 1,
+          bonus: START_BONUSES[index + 1]
         });
-      }
-    });
+      });
+    }
     
     // Reset alle balances naar 0
     db.prepare(`

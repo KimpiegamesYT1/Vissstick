@@ -161,7 +161,7 @@ async function showMonthlyScoreboard(client, channelId) {
     const channel = await client.channels.fetch(channelId);
     if (!channel) {
       console.error('Quiz channel niet gevonden');
-      return;
+      return [];
     }
 
     const scores = quiz.getQuizScores();
@@ -169,7 +169,7 @@ async function showMonthlyScoreboard(client, channelId) {
 
     if (!scores || scores.length === 0) {
       await channel.send('📊 Er zijn nog geen quiz scores voor deze maand!');
-      return;
+      return [];
     }
 
     // Scores zijn al gesorteerd uit database
@@ -178,12 +178,10 @@ async function showMonthlyScoreboard(client, channelId) {
       username: data.username,
       correct: data.correct_count,
       total: data.total_count,
-      percentage: data.total_count > 0 ? ((data.correct_count / data.total_count) * 100).toFixed(1) : 0,
-      pointsEarned: data.correct_count * casino.QUIZ_REWARD
+      percentage: data.total_count > 0 ? ((data.correct_count / data.total_count) * 100).toFixed(1) : 0
     }));
 
     // Calculate totals
-    const totalPointsEarned = sortedScores.reduce((sum, s) => sum + s.pointsEarned, 0);
     const totalCorrect = sortedScores.reduce((sum, s) => sum + s.correct, 0);
 
     // Create embed
@@ -201,7 +199,7 @@ async function showMonthlyScoreboard(client, channelId) {
     const topScores = sortedScores.slice(0, 10);
     topScores.forEach((score, index) => {
       const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-      description += `${medal} **${score.username}**: ${score.correct}/${score.total} correct (${score.percentage}%) • 💰 ${score.pointsEarned} punten\n`;
+      description += `${medal} **${score.username}**: ${score.correct}/${score.total} correct (${score.percentage}%)\n`;
     });
     
     // Add top 3 bonus info
@@ -209,13 +207,15 @@ async function showMonthlyScoreboard(client, channelId) {
     description += `🥇 ${casino.START_BONUSES[1]} punten | 🥈 ${casino.START_BONUSES[2]} punten | 🥉 ${casino.START_BONUSES[3]} punten`;
 
     embed.setDescription(description);
-    embed.setFooter({ text: `${sortedScores.length} deelnemers • ${totalCorrect} goede antwoorden • ${totalPointsEarned} punten uitgedeeld` });
+    embed.setFooter({ text: `${sortedScores.length} deelnemers • ${totalCorrect} goede antwoorden` });
 
     // Send @everyone first, then the embed (so the mention works properly)
     await channel.send({ content: '@everyone 🏆 De maandelijkse quiz resultaten zijn binnen!', embeds: [embed] });
     console.log('Maandelijks scoreboard verstuurd!');
+    return sortedScores.slice(0, 3);
   } catch (error) {
     console.error('Fout bij tonen maandelijks scoreboard:', error);
+    return [];
   }
 }
 
@@ -495,7 +495,7 @@ client.once("clientReady", async () => {
     // Check if tomorrow is the first day of next month (meaning today is last day)
     if (tomorrow.getDate() === 1) {
       console.log('Showing monthly scoreboard...');
-      await showMonthlyScoreboard(client, SCOREBOARD_CHANNEL_ID);
+      const quizTopScorers = await showMonthlyScoreboard(client, SCOREBOARD_CHANNEL_ID);
       
       // Expire all open bets (geef inzetten terug)
       console.log('Expiring open bets...');
@@ -525,7 +525,7 @@ client.once("clientReady", async () => {
       // Voer maandelijkse reset direct uit
       console.log('Performing monthly balance reset...');
       try {
-        const result = casino.performMonthlyReset();
+        const result = casino.performMonthlyReset({ quizTop3: quizTopScorers });
 
         if (result.success && !result.skipped && result.topUsers.length > 0) {
           // Stuur melding naar log kanaal
@@ -535,7 +535,10 @@ client.once("clientReady", async () => {
 
           result.topUsers.forEach(user => {
             const medal = user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉';
-            logMessage += `${medal} ${user.username}: ${user.final_balance} punten → ${user.bonus} bonus\n`;
+            const scoreInfo = user.quizScore
+              ? `${user.quizScore.correct}/${user.quizScore.total} correct (${user.quizScore.percentage}%)`
+              : `${user.final_balance} punten`;
+            logMessage += `${medal} ${user.username}: ${scoreInfo} → ${user.bonus} bonus\n`;
           });
 
           await sendLog(client, LOG_CHANNEL_ID, logMessage);
@@ -547,11 +550,13 @@ client.once("clientReady", async () => {
               const resetEmbed = new EmbedBuilder()
                 .setTitle('🎊 Nieuwe Maand - Balances Gereset!')
                 .setColor('#00FF00')
-                .setDescription('Alle balances zijn gereset naar 0.\n\nDe top 3 van de maandscore heeft een startbonus ontvangen!')
+                .setDescription('Alle balances zijn gereset naar 0.\n\nDe top 3 van de maandelijkse quiz heeft een startbonus ontvangen!')
                 .addFields(
                   result.topUsers.map(user => ({
                     name: `${user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : '🥉'} ${user.username}`,
-                    value: `Had ${user.final_balance} punten → Start met ${user.bonus} bonus`,
+                    value: user.quizScore
+                      ? `Had ${user.quizScore.correct}/${user.quizScore.total} correct (${user.quizScore.percentage}%) → Start met ${user.bonus} bonus`
+                      : `Had ${user.final_balance} punten → Start met ${user.bonus} bonus`,
                     inline: true
                   }))
                 )
