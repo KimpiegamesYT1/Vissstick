@@ -76,8 +76,8 @@ async function handleMessage(message, client) {
     // Increment count for every user message
     state.count += 1;
 
-    // If reached exact multiple of 50, start waiting for qualifying message
-    if (state.count % 50 === 0) {
+    // If reached exact multiple of 30, start waiting for qualifying message
+    if (state.count % 30 === 0) {
       state.waitingForQualifyingMessage = true;
       console.log(`[USECASE] Reached ${state.count} messages in ${message.channel.id}, waiting for qualifying message (>=10 words)`);
       return;
