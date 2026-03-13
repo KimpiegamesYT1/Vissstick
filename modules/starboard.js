@@ -67,6 +67,15 @@ async function handleReactionChange(reaction, userId, isAdding, client, starboar
     // === 3. Haal De Unieke Actuele Sterren Telling Op ===
     const starCount = getStarCount(db, originalMessageId);
     
+    // Log the action
+    try {
+        const userAction = isAdding ? 'toegevoegd' : 'verwijderd';
+        const fetchedUser = await client.users.fetch(userId);
+        console.log(`[Starboard] Gebruiker ${fetchedUser.username} heeft een ster ${userAction} bij bericht ${originalMessageId}. Totaal unieke sterren: ${starCount}`);
+    } catch (e) {
+        console.log(`[Starboard] Gebruiker ${userId} heeft een ster ${isAdding ? 'toegevoegd' : 'verwijderd'} bij bericht ${originalMessageId}. Totaal unieke sterren: ${starCount}`);
+    }
+    
     // === 4. Maak of Update Starboard Bericht ===
     await updateStarboardMessage(db, client, originalMessageId, message, starCount, starboardChannelId);
 }
