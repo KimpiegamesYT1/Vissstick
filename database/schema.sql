@@ -151,6 +151,36 @@ CREATE TABLE IF NOT EXISTS monthly_reset_log (
 );
 
 -- =====================================================
+-- STARBOARD SYSTEEM
+-- =====================================================
+
+-- Starboard berichten mapping en stats
+CREATE TABLE IF NOT EXISTS starboard (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    original_message_id TEXT NOT NULL UNIQUE,
+    starboard_message_id TEXT,
+    channel_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    content TEXT,
+    star_count INTEGER DEFAULT 1,
+    starred_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Starboard individuele stemmen (deduplicatie)
+CREATE TABLE IF NOT EXISTS starboard_votes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    original_message_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    is_vote BOOLEAN DEFAULT 1, 
+    voted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(original_message_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_starboard_votes_count ON starboard_votes(original_message_id, is_vote);
+
+
+-- =====================================================
 -- INDEXES
 -- =====================================================
 

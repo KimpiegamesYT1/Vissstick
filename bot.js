@@ -1,5 +1,5 @@
 // installeer eerst met: npm install discord.js node-fetch better-sqlite3
-const { Client, GatewayIntentBits, ActivityType, EmbedBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, ActivityType, EmbedBuilder } = require("discord.js");
 const config = require('./config.json');
 const cron = require('node-cron');
 const fs = require('fs');
@@ -16,7 +16,7 @@ const { handleConnectFourButton } = require('./commands/connectFourCommands.js')
 const { handleHangmanButton } = require('./commands/hangmanCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
-const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, GROQ_API_KEY } = config;
+const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, STARBOARD_CHANNEL_ID, GROQ_API_KEY } = config;
 
 function ensureLogDirectory() {
   const logDir = path.join(__dirname, 'logs');
@@ -122,6 +122,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates,
   ],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
 // Global error handler
@@ -219,11 +220,11 @@ async function showMonthlyScoreboard(client, channelId) {
   }
 }
 
-// Reactie handler (alleen voor hok notificaties)
+// Reactie handler (voor hok notificaties en starboard)
 client.on('messageReactionAdd', async (reaction, user) => {
   if (user.bot) return;
   
-  // Only handle bell reactions for hok notifications
+  // Hok notificaties (🔔)
   if (hokState && reaction.message.id === hokState.lastMessage?.id && reaction.emoji.name === '🔔') {
     try {
       const guild = reaction.message.guild;
@@ -250,11 +251,31 @@ client.on('messageReactionAdd', async (reaction, user) => {
       console.error("Fout bij toevoegen rol:", err);
     }
   }
+
+  // Starboard functionaliteit (⭐)
+  if (reaction.emoji.name === '⭐' && STARBOARD_CHANNEL_ID) {
+    try {
+      const { handleReactionChange } = require('./modules/starboard');
+      await handleReactionChange(reaction, user.id, true, client, STARBOARD_CHANNEL_ID);
+    } catch (error) {
+      console.error('Starboard reaction add error:', error);
+    }
+  }
 });
 
-// Reaction removal handler (niet meer nodig voor quiz)
+// Reaction removal handler
 client.on('messageReactionRemove', async (reaction, user) => {
-  // Quiz reactions zijn nu buttons - dit is alleen voor toekomstige functionaliteit
+  if (user.bot) return;
+
+  // Starboard functionaliteit (⭐ verwijderen)
+  if (reaction.emoji.name === '⭐' && STARBOARD_CHANNEL_ID) {
+    try {
+      const { handleReactionChange } = require('./modules/starboard');
+      await handleReactionChange(reaction, user.id, false, client, STARBOARD_CHANNEL_ID);
+    } catch (error) {
+      console.error('Starboard reaction remove error:', error);
+    }
+  }
 });
 
 // Message handler voor chat responses and chatbot
