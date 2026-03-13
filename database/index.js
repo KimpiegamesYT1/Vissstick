@@ -28,13 +28,16 @@ function initDatabase() {
     // Check of database nieuw is
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
     
+    // Voer altijd het schema uit. Omdat schema.sql werkt met 'CREATE TABLE IF NOT EXISTS',
+    // zorgt dit ervoor dat nieuwe tabellen (zoals starboard) automatisch worden aangemaakt
+    // in een bestaande database, zonder data-verlies.
+    const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
+    db.exec(schema);
+    
     if (tables.length === 0) {
-      console.log('📊 Database wordt geïnitialiseerd...');
-      const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-      db.exec(schema);
-      console.log('✅ Database schema succesvol aangemaakt!');
+      console.log('📊 Database was leeg, schema succesvol geïnitialiseerd!');
     } else {
-      console.log('✅ Database connectie succesvol!');
+      console.log('✅ Database connectie succesvol (schema geüpdatet indien nodig)!');
     }
     
     return db;
