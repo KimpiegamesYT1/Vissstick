@@ -121,9 +121,6 @@ async function updateStarboardMessage(db, client, originalMessageId, message, st
         // Want het starboard embed bestaat dan nog niet!
         const attachmentUrl = message.attachments?.first() ? message.attachments.first().url : null;
         let cContent = message.content || "";
-        if (attachmentUrl && cContent === "") {
-             cContent = "[Afbeelding/Bijlage]";
-        }
 
         db.prepare(`
             INSERT INTO starboard (original_message_id, channel_id, user_id, username, content, star_count) 
@@ -188,16 +185,19 @@ async function updateStarboardMessage(db, client, originalMessageId, message, st
                     // Kon hem niet vinden, maak een nieuwe
                     const nieuweMsg = await starboardChannel.send({ content: botMessageContent, embeds: [embed] });
                     db.prepare('UPDATE starboard SET starboard_message_id = ? WHERE original_message_id = ?').run(nieuweMsg.id, originalMessageId);
+                    await nieuweMsg.react(STAR_EMOJI);
                 }
             } catch (e) {
                 // Kon message niet fetchen (miss handmatig verwijderd door admin?) > Maak nieuw
                 const nieuweMsg = await starboardChannel.send({ content: botMessageContent, embeds: [embed] });
                 db.prepare('UPDATE starboard SET starboard_message_id = ? WHERE original_message_id = ?').run(nieuweMsg.id, originalMessageId);
+                await nieuweMsg.react(STAR_EMOJI);
             }
         } else {
             // Maak nieuwe post in starboard kanaal
             const nieuweMsg = await starboardChannel.send({ content: botMessageContent, embeds: [embed] });
             db.prepare('UPDATE starboard SET starboard_message_id = ? WHERE original_message_id = ?').run(nieuweMsg.id, originalMessageId);
+            await nieuweMsg.react(STAR_EMOJI);
         }
 
     } catch (error) {
