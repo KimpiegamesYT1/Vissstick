@@ -6,6 +6,7 @@ Discord bot voor het weergeven van het HOK van Syntaxis.
 
 - **Hok Monitoring** - Realtime status of het hok open/dicht is met tijdsschatting
 - **Dagelijkse Quiz** - Elke dag om 7:00 een nieuwe vraag, antwoord om 17:00 (150 punten per goed antwoord)
+- **Dagelijkse Rekensom** - Elke dag 1x willekeurig tussen 07:00 en 16:00, eerste juiste chatantwoord wint 200 punten
 - **Casino Systeem** - Wedden op JA/NEE vragen, verdien punten
 - **Shop** - Koop Haribo zakjes met 5.000 punten
 - **Maandelijks Scoreboard** - Laatste dag om 18:00 resultaten + directe maandreset met top 3 startbonus (2000/1000/500 punten)

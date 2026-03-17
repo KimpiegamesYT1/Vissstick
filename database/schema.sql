@@ -105,6 +105,24 @@ CREATE TABLE IF NOT EXISTS bets (
     created_by TEXT NOT NULL
 );
 
+-- Dagelijkse rekensom challenge (persistente daily reactie test)
+CREATE TABLE IF NOT EXISTS daily_math_challenges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    challenge_date TEXT NOT NULL UNIQUE, -- Format: YYYY-MM-DD (Europe/Amsterdam)
+    channel_id TEXT NOT NULL,
+    message_id TEXT,
+    question_text TEXT NOT NULL,
+    correct_answer TEXT NOT NULL,
+    reward_points INTEGER NOT NULL DEFAULT 200,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'active', 'won', 'expired', 'skipped')),
+    scheduled_for TEXT NOT NULL, -- Format: HH:MM (Europe/Amsterdam)
+    started_at DATETIME,
+    ended_at DATETIME,
+    winner_user_id TEXT,
+    winner_username TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Bet entries (individuele inzetten)
 CREATE TABLE IF NOT EXISTS bet_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -202,6 +220,8 @@ CREATE INDEX IF NOT EXISTS idx_bet_entries_bet ON bet_entries(bet_id);
 CREATE INDEX IF NOT EXISTS idx_bet_entries_user ON bet_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_shop_purchases_user ON shop_purchases(user_id);
 CREATE INDEX IF NOT EXISTS idx_shop_purchases_month ON shop_purchases(month_key);
+CREATE INDEX IF NOT EXISTS idx_math_challenge_status_date ON daily_math_challenges(status, challenge_date);
+CREATE INDEX IF NOT EXISTS idx_math_challenge_channel_status ON daily_math_challenges(channel_id, status);
 
 -- Blackjack stats
 CREATE TABLE IF NOT EXISTS blackjack_stats (

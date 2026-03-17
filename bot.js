@@ -8,6 +8,7 @@ const { initDatabase } = require('./database');
 const quiz = require('./modules/quiz.js');
 const hok = require('./modules/hok.js');
 const casino = require('./modules/casino.js');
+const mathChallenge = require('./modules/mathChallenge.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
 const usecaseDiagram = require('./modules/usecaseDiagram');
@@ -17,6 +18,19 @@ const { handleHangmanButton } = require('./commands/hangmanCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, STARBOARD_CHANNEL_ID, GROQ_API_KEY } = config;
+const DEFAULT_MATH_CHALLENGE_CHANNEL_ID = '1414596895191334928';
+const MATH_CHALLENGE_CHANNEL_ID = config.MATH_CHALLENGE_CHANNEL_ID || DEFAULT_MATH_CHALLENGE_CHANNEL_ID;
+const MATH_CHALLENGE_REWARD_POINTS = Number.isFinite(Number(config.MATH_CHALLENGE_REWARD_POINTS))
+  ? Number(config.MATH_CHALLENGE_REWARD_POINTS)
+  : mathChallenge.DEFAULT_REWARD_POINTS;
+
+function logMath(message) {
+  console.log(`[MATH] ${message}`);
+}
+
+function logMathError(message, error) {
+  console.error(`[MATH] ${message}`, error);
+}
 
 function ensureLogDirectory() {
   const logDir = path.join(__dirname, 'logs');
@@ -137,6 +151,167 @@ process.on('unhandledRejection', (reason, promise) => {
 let activeQuizMessages = new Map(); // Store active quiz message references
 let hokState = null; // State voor hok monitoring
 const chatbotChannelQueues = new Map(); // Voorkom overlappende chatbot requests per kanaal
+
+function timeToMinutes(timeText) {
+  const [hours, minutes] = String(timeText || '').split(':').map((value) => Number(value));
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return (hours * 60) + minutes;
+}
+
+function minutesToTime(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+async function startPendingMathChallenge(challengeDate) {
+  try {
+    const challenge = mathChallenge.getChallengeByDate(challengeDate);
+    if (!challenge || challenge.status !== 'pending') {
+      logMath(`Geen pending challenge om te starten voor ${challengeDate}`);
+      return;
+    }
+
+    const channel = await client.channels.fetch(challenge.channel_id);
+    if (!channel) {
+      logMathError(`Kanaal niet gevonden: ${challenge.channel_id}`);
+      return;
+    }
+
+    const embed = mathChallenge.buildChallengeEmbed(challenge.question_text, challenge.reward_points);
+    const challengeMessage = await channel.send({ embeds: [embed] });
+    const activated = mathChallenge.activateChallenge(challengeDate, challengeMessage.id);
+
+    if (!activated || activated.status !== 'active') {
+      console.warn(`[MATH] Challenge kon niet geactiveerd worden voor ${challengeDate}`);
+      return;
+    }
+
+    logMath(`Dagelijkse rekensom gestart voor ${challengeDate} (gepland: ${challenge.scheduled_for})`);
+  } catch (error) {
+    logMathError('Fout bij starten dagelijkse rekensom challenge:', error);
+  }
+}
+
+async function ensureDailyMathChallengeScheduled() {
+  if (!MATH_CHALLENGE_CHANNEL_ID) return;
+
+  const dateKey = mathChallenge.getDateKeyAmsterdam();
+  const nowTime = mathChallenge.getCurrentTimeAmsterdam();
+  const nowMinutes = timeToMinutes(nowTime);
+  const challenge = mathChallenge.getChallengeByDate(dateKey);
+
+  // Na 16:00 plannen we niet meer voor vandaag.
+  if (nowMinutes === null || nowMinutes >= 16 * 60) {
+    logMath(`Geen planning uitgevoerd voor ${dateKey}; buiten venster (nu ${nowTime})`);
+    return;
+  }
+
+  if (challenge) {
+    if (challenge.status === 'pending') {
+      const scheduledMinutes = timeToMinutes(challenge.scheduled_for);
+      if (scheduledMinutes === null) {
+        logMathError(`Ongeldige scheduled_for tijd voor challenge ${challenge.id}: ${challenge.scheduled_for}`);
+        return;
+      }
+
+      // Als de bot tijdens het geplande moment offline was, start nu alsnog.
+      if (scheduledMinutes <= nowMinutes) {
+        logMath(`Catch-up: challenge voor ${dateKey} gepland om ${challenge.scheduled_for}, nu ${nowTime}. Start alsnog.`);
+        await startPendingMathChallenge(dateKey);
+        return;
+      }
+
+      logMath(`Challenge voor ${dateKey} staat gepland om ${challenge.scheduled_for}, nu ${nowTime}`);
+    }
+    return;
+  }
+
+  const earliestMinute = 7 * 60;
+  const latestMinute = (16 * 60) - 1;
+  if (earliestMinute > latestMinute) {
+    return;
+  }
+
+  const randomMinute = randomInt(earliestMinute, latestMinute);
+  const scheduledFor = minutesToTime(randomMinute);
+  const created = mathChallenge.createPendingChallenge({
+    dateKey,
+    channelId: MATH_CHALLENGE_CHANNEL_ID,
+    rewardPoints: MATH_CHALLENGE_REWARD_POINTS,
+    scheduledFor
+  });
+
+  logMath(`Dagelijkse rekensom ingepland voor ${dateKey} om ${created.scheduled_for}`);
+
+  const createdMinutes = timeToMinutes(created.scheduled_for);
+  if (createdMinutes !== null && createdMinutes <= nowMinutes) {
+    logMath(`Nieuw ingeplande challenge-tijd ligt in het verleden (${created.scheduled_for}); start alsnog direct.`);
+    await startPendingMathChallenge(dateKey);
+  }
+}
+
+async function processDailyMathChallengeTick() {
+  if (!MATH_CHALLENGE_CHANNEL_ID) return;
+
+  const dateKey = mathChallenge.getDateKeyAmsterdam();
+  const nowTime = mathChallenge.getCurrentTimeAmsterdam();
+  const nowMinutes = timeToMinutes(nowTime);
+  const challenge = mathChallenge.getChallengeByDate(dateKey);
+
+  if (!challenge || challenge.status !== 'pending') {
+    return;
+  }
+
+  const scheduledMinutes = timeToMinutes(challenge.scheduled_for);
+  if (scheduledMinutes === null || nowMinutes === null) {
+    logMath(`Tick overgeslagen door ongeldige tijd (challenge=${challenge.scheduled_for}, now=${nowTime})`);
+    return;
+  }
+
+  if (nowMinutes >= scheduledMinutes) {
+    if (nowMinutes > scheduledMinutes) {
+      logMath(`Tick catch-up voor ${dateKey}: gepland ${challenge.scheduled_for}, nu ${nowTime}.`);
+    }
+    await startPendingMathChallenge(dateKey);
+    return;
+  }
+}
+
+async function closeDailyMathChallengeAtSixteen() {
+  if (!MATH_CHALLENGE_CHANNEL_ID) return;
+
+  const activeChallenge = mathChallenge.getActiveChallenge(MATH_CHALLENGE_CHANNEL_ID);
+  if (activeChallenge) {
+    const expired = mathChallenge.expireActiveChallenge(MATH_CHALLENGE_CHANNEL_ID);
+    if (expired && expired.status === 'expired') {
+      try {
+        const channel = await client.channels.fetch(MATH_CHALLENGE_CHANNEL_ID);
+        if (channel) {
+          const embed = mathChallenge.buildExpiredEmbed(expired.correct_answer);
+          await channel.send({ embeds: [embed] });
+        }
+      } catch (error) {
+        logMathError('Fout bij sturen rekensom verlopen bericht:', error);
+      }
+
+      logMath(`Dagelijkse rekensom verlopen om 16:00 voor ${expired.challenge_date}`);
+    }
+    return;
+  }
+
+  const dateKey = mathChallenge.getDateKeyAmsterdam();
+  const todayChallenge = mathChallenge.getChallengeByDate(dateKey);
+  if (todayChallenge && todayChallenge.status === 'pending') {
+    mathChallenge.expireChallenge(dateKey);
+    logMath(`Pending rekensom challenge gemarkeerd als verlopen voor ${dateKey}`);
+  }
+}
 
 function enqueueChatbotTask(channelId, task) {
   const currentQueue = chatbotChannelQueues.get(channelId) || Promise.resolve();
@@ -378,6 +553,38 @@ client.on('messageCreate', async (message) => {
     return; // Don't process chat responses if in chatbot channel
   }
 
+  if (MATH_CHALLENGE_CHANNEL_ID && message.channel.id === MATH_CHALLENGE_CHANNEL_ID && !message.author.bot) {
+    const activeChallenge = mathChallenge.getActiveChallenge(MATH_CHALLENGE_CHANNEL_ID);
+    if (activeChallenge) {
+      const answerResult = mathChallenge.submitAnswer({
+        challengeId: activeChallenge.id,
+        userId: message.author.id,
+        username: message.author.username,
+        submittedAnswer: message.content
+      });
+
+      if (answerResult.success) {
+        const rewardPoints = activeChallenge.reward_points || MATH_CHALLENGE_REWARD_POINTS;
+        casino.addBalance(
+          message.author.id,
+          message.author.username,
+          rewardPoints,
+          'Dagelijkse rekensom challenge gewonnen'
+        );
+
+        const winnerEmbed = mathChallenge.buildWinnerEmbed({
+          username: message.author.username,
+          correctAnswer: activeChallenge.correct_answer,
+          rewardPoints
+        });
+
+        await message.channel.send({ embeds: [winnerEmbed] });
+        logMath(`Winnaar: ${message.author.username} (${message.author.id}) won ${rewardPoints} punten op ${activeChallenge.challenge_date}`);
+        return;
+      }
+    }
+  }
+
   // Handle regular chat responses
   await handleChatResponse(message);
   // Fire-and-forget: check for use-case diagram trigger in target channel
@@ -506,6 +713,27 @@ client.once("clientReady", async () => {
     timezone: "Europe/Amsterdam"
   });
 
+  // Plan een nieuwe dagelijkse rekensom om middernacht.
+  cron.schedule('0 0 * * *', async () => {
+    await ensureDailyMathChallengeScheduled();
+  }, {
+    timezone: 'Europe/Amsterdam'
+  });
+
+  // Check elke minuut of het random startmoment bereikt is.
+  cron.schedule('* 7-15 * * *', async () => {
+    await processDailyMathChallengeTick();
+  }, {
+    timezone: 'Europe/Amsterdam'
+  });
+
+  // Sluit challenge om 16:00 als niemand heeft gewonnen.
+  cron.schedule('0 16 * * *', async () => {
+    await closeDailyMathChallengeAtSixteen();
+  }, {
+    timezone: 'Europe/Amsterdam'
+  });
+
   // Schedule monthly scoreboard + reset on last day of month at 18:00
   // Check daily at 18:00 if it's the last day of the month
   cron.schedule('0 18 28-31 * *', async () => {
@@ -615,6 +843,10 @@ client.once("clientReady", async () => {
 
   // Start hok monitoring
   hokState = hok.startHokMonitoring(client, config);
+
+  // Plan/restore dagelijkse rekensom voor vandaag.
+  await ensureDailyMathChallengeScheduled();
+  await processDailyMathChallengeTick();
   
   // Load active quizzes after startup
   await loadActiveQuizzes();

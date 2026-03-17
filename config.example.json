@@ -5,6 +5,8 @@
     "API_URL": "https://beheer.syntaxis.nl/api/ishethokalopen",
     "QUIZ_CHANNEL_ID": "your-quiz-channel-id",
     "SCOREBOARD_CHANNEL_ID": "your-scoreboard-channel-id",
+    "MATH_CHALLENGE_CHANNEL_ID": "1414596895191334928",
+    "MATH_CHALLENGE_REWARD_POINTS": 200,
     "CASINO_CHANNEL_ID": "1468608557279612998",
     "LOG_CHANNEL_ID": "1415603152400547862",
     "STARBOARD_CHANNEL_ID": "1481907064878923816",
