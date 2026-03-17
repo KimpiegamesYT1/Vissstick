@@ -6,6 +6,14 @@
 const path = require('path');
 const fs = require('fs');
 
+const sixtySevenGifs = [
+  'https://media0.giphy.com/media/v1.Y2lkPTZjMDliOTUyYWY0emlrOGRvOThieTF5Z2JnZnllYXV3a3Z0eWlocjVhbWpodzlpYSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/TKa7fQzChHylCQ89to/giphy.gif',
+  'https://media.tenor.com/6COMq6z3l5oAAAAM/bosnov-67.gif',
+  'https://media.tenor.com/R_SeKejTinEAAAAM/shaquille-o%27neal-shaq.gif',
+  'https://media3.giphy.com/media/v1.Y2lkPTZjMDliOTUyMDIzOG5iejVkaml4ZDl6Y201a2NrN3FjbHYzZm4yMm4ydmh6a212MyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/08uBcURaMq6vA93TGc/200.gif',
+  'https://media4.giphy.com/media/v1.Y2lkPTZjMDliOTUyMmt1dDJobWlrMDk3bmszank5dHF3bjJ2YWI5Zm44OXVnaGJkcWgxdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dYtbmkLlAxoLumhGqv/giphy.gif'
+];
+
 // Lijst met chat triggers en responses
 const chatTriggers = [
   // Bestaande klassiekers
@@ -16,8 +24,8 @@ const chatTriggers = [
   { trigger: 'hoe', response: 'zo', exactMatch: true },
   { trigger: 'waar', response: 'daar', exactMatch: true },
   { trigger: '69', response: 'nice', exactMatch: true },
-  { trigger: '67', response: 'https://i.makeagif.com/media/9-10-2025/Amta8Q.gif', exactMatch: false },
-  { trigger: '6 7', response: 'https://i.makeagif.com/media/9-10-2025/Amta8Q.gif', exactMatch: false },
+  { trigger: '67', responses: sixtySevenGifs, exactMatch: false },
+  { trigger: '6 7', responses: sixtySevenGifs, exactMatch: false },
   { trigger: 'is het hok open', response: 'Kijk naar mijn status! 👀', exactMatch: false },
   { trigger: 'hok', response: '🐔', exactMatch: true },
   { trigger: 'goedemorgen', response: 'Goedemorgen! ☀️', exactMatch: true },
@@ -62,13 +70,17 @@ async function handleChatResponse(message) {
     }
 
     if (shouldRespond) {
+      const response = Array.isArray(trigger.responses) && trigger.responses.length > 0
+        ? trigger.responses[Math.floor(Math.random() * trigger.responses.length)]
+        : trigger.response;
+
       // Check of er een audio bestand moet worden gestuurd
       if (trigger.audioFile) {
         const audioPath = path.join(__dirname, '..', 'audio', trigger.audioFile);
         
         if (fs.existsSync(audioPath)) {
           await message.reply({
-            content: trigger.response,
+            content: response,
             files: [{
               attachment: audioPath,
               name: trigger.audioFile
@@ -76,11 +88,11 @@ async function handleChatResponse(message) {
           });
         } else {
           // Als bestand niet bestaat, stuur alleen de tekst
-          await message.reply(trigger.response);
+          await message.reply(response);
         }
       } else {
         // Normale response zonder bestand
-        await message.reply(trigger.response);
+        await message.reply(response);
       }
       return true;
     }
