@@ -2,7 +2,7 @@ const { getDatabase } = require('../database');
 const { EmbedBuilder } = require('discord.js');
 
 // Configuratie
-const STARBOARD_THRESHOLD = 2; // Minimaal 2 sterren
+const STARBOARD_THRESHOLD = 3; // Minimaal 3 sterren
 const STAR_EMOJI = '⭐'; // Reactie die we volgen
 
 /**
@@ -61,6 +61,13 @@ async function handleReactionChange(reaction, userId, isAdding, client, starboar
         }
     }
 
+    // Als de gebruiker al een actieve stem heeft, telt alleen de eerste locatie.
+    // Een extra ster op de andere locatie verwijderen we direct weer.
+    if (isAdding && hasActiveVote(db, originalMessageId, userId)) {
+        await removeDuplicateReaction(reaction, userId, originalMessageId);
+        return;
+    }
+
     // === 2. Registreer Stem (Upsert in starboard_votes voor Deduplicatie) ===
     registerVote(db, originalMessageId, userId, isAdding);
     
@@ -78,6 +85,23 @@ async function handleReactionChange(reaction, userId, isAdding, client, starboar
     
     // === 4. Maak of Update Starboard Bericht ===
     await updateStarboardMessage(db, client, originalMessageId, message, starCount, starboardChannelId);
+}
+
+function hasActiveVote(db, originalMessageId, userId) {
+    const existing = db
+        .prepare('SELECT is_vote FROM starboard_votes WHERE original_message_id = ? AND user_id = ?')
+        .get(originalMessageId, userId);
+
+    return Boolean(existing && existing.is_vote === 1);
+}
+
+async function removeDuplicateReaction(reaction, userId, originalMessageId) {
+    try {
+        await reaction.users.remove(userId);
+        console.log(`[Starboard] Dubbele ster verwijderd voor gebruiker ${userId} op bericht ${reaction.message.id} (origineel: ${originalMessageId}).`);
+    } catch (error) {
+        console.warn(`[Starboard] Kon dubbele ster niet verwijderen voor gebruiker ${userId} op bericht ${reaction.message.id}:`, error?.message || error);
+    }
 }
 
 /**
