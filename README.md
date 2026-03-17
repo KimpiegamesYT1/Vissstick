@@ -5,6 +5,7 @@ Discord bot voor het weergeven van het HOK van Syntaxis.
 ## Features
 
 - **Hok Monitoring** - Realtime status of het hok open/dicht is met tijdsschatting
+- **Publieke Hok API** - Read-only endpoint voor apps/website (`/api/public/hok/status`)
 - **Dagelijkse Quiz** - Elke dag om 7:00 een nieuwe vraag, antwoord om 17:00 (150 punten per goed antwoord)
 - **Dagelijkse Rekensom** - Elke dag 1x willekeurig tussen 07:00 en 16:00, eerste juiste chatantwoord wint 200 punten
 - **Casino Systeem** - Wedden op JA/NEE vragen, verdien punten
@@ -40,6 +41,23 @@ npm start
 ## Configuratie
 
 Zie `config.example.json` voor de benodigde instellingen.
+
+### Publieke Hok API
+
+De bot kan een publieke read-only API starten in dezelfde process.
+
+- Endpoint: `GET /api/public/hok/status`
+- Doel: status open/dicht + voorspelde open/sluit tijd (geen gevoelige data)
+- Security: rate limiting, cache, method guard (`GET`/`OPTIONS`), security headers
+
+Config keys:
+
+- `PUBLIC_API_ENABLED` - `true`/`false` (default: `true`)
+- `PUBLIC_API_PORT` - poort voor de API server (default: `3000`)
+- `PUBLIC_API_CACHE_SECONDS` - response cache TTL (default: `30`)
+- `PUBLIC_API_RATE_LIMIT_WINDOW_MS` - rate-limit window in ms (default: `60000`)
+- `PUBLIC_API_RATE_LIMIT_MAX_REQUESTS` - max requests per IP per window (default: `60`)
+- `PUBLIC_API_CORS_ORIGIN` - `*` of CSV-lijst met toegestane origins
 
 ## Quiz vragen toevoegen (import)
 

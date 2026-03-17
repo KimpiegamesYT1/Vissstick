@@ -2,6 +2,7 @@
 const { Client, GatewayIntentBits, Partials, ActivityType, EmbedBuilder } = require("discord.js");
 const config = require('./config.json');
 const cron = require('node-cron');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { initDatabase } = require('./database');
@@ -12,6 +13,7 @@ const mathChallenge = require('./modules/mathChallenge.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
 const usecaseDiagram = require('./modules/usecaseDiagram');
+const { createHokPublicApiHandler } = require('./api/hokPublicApi');
 const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton, handleMinesButton } = require('./commands/casinoCommands.js');
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
 const { handleHangmanButton } = require('./commands/hangmanCommands.js');
@@ -23,6 +25,20 @@ const MATH_CHALLENGE_CHANNEL_ID = config.MATH_CHALLENGE_CHANNEL_ID || DEFAULT_MA
 const MATH_CHALLENGE_REWARD_POINTS = Number.isFinite(Number(config.MATH_CHALLENGE_REWARD_POINTS))
   ? Number(config.MATH_CHALLENGE_REWARD_POINTS)
   : mathChallenge.DEFAULT_REWARD_POINTS;
+const PUBLIC_API_ENABLED = config.PUBLIC_API_ENABLED !== false;
+const PUBLIC_API_PORT = Number.isFinite(Number(config.PUBLIC_API_PORT))
+  ? Number(config.PUBLIC_API_PORT)
+  : 3000;
+const PUBLIC_API_CACHE_SECONDS = Number.isFinite(Number(config.PUBLIC_API_CACHE_SECONDS))
+  ? Number(config.PUBLIC_API_CACHE_SECONDS)
+  : 30;
+const PUBLIC_API_RATE_LIMIT_WINDOW_MS = Number.isFinite(Number(config.PUBLIC_API_RATE_LIMIT_WINDOW_MS))
+  ? Number(config.PUBLIC_API_RATE_LIMIT_WINDOW_MS)
+  : 60 * 1000;
+const PUBLIC_API_RATE_LIMIT_MAX_REQUESTS = Number.isFinite(Number(config.PUBLIC_API_RATE_LIMIT_MAX_REQUESTS))
+  ? Number(config.PUBLIC_API_RATE_LIMIT_MAX_REQUESTS)
+  : 60;
+const PUBLIC_API_CORS_ORIGIN = config.PUBLIC_API_CORS_ORIGIN || '*';
 
 function logMath(message) {
   console.log(`[MATH] ${message}`);
@@ -148,9 +164,75 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
+process.on('SIGINT', closePublicApiServer);
+process.on('SIGTERM', closePublicApiServer);
+
 let activeQuizMessages = new Map(); // Store active quiz message references
 let hokState = null; // State voor hok monitoring
 const chatbotChannelQueues = new Map(); // Voorkom overlappende chatbot requests per kanaal
+let publicApiServer = null;
+
+function startPublicApiServer() {
+  if (!PUBLIC_API_ENABLED) {
+    console.log('[PUBLIC_API] Uitgeschakeld via config (PUBLIC_API_ENABLED=false)');
+    return;
+  }
+
+  const hokStatusHandler = createHokPublicApiHandler(hok, {
+    corsOrigin: PUBLIC_API_CORS_ORIGIN,
+    cacheSeconds: PUBLIC_API_CACHE_SECONDS,
+    rateLimitWindowMs: PUBLIC_API_RATE_LIMIT_WINDOW_MS,
+    rateLimitMaxRequests: PUBLIC_API_RATE_LIMIT_MAX_REQUESTS,
+  });
+
+  publicApiServer = http.createServer((req, res) => {
+    let requestUrl;
+    try {
+      requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    } catch (error) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'bad_request' }));
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/public/hok/status') {
+      hokStatusHandler(req, res);
+      return;
+    }
+
+    res.statusCode = 404;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ error: 'not_found' }));
+  });
+
+  // Keep request handling bounded to reduce abuse impact.
+  publicApiServer.requestTimeout = 5000;
+  publicApiServer.headersTimeout = 6000;
+  publicApiServer.keepAliveTimeout = 5000;
+
+  publicApiServer.listen(PUBLIC_API_PORT, () => {
+    console.log(`[PUBLIC_API] Endpoint actief op poort ${PUBLIC_API_PORT}: /api/public/hok/status`);
+  });
+
+  publicApiServer.on('error', (error) => {
+    console.error('[PUBLIC_API] Serverfout:', error);
+  });
+}
+
+function closePublicApiServer() {
+  if (!publicApiServer) return;
+
+  publicApiServer.close((error) => {
+    if (error) {
+      console.error('[PUBLIC_API] Fout bij afsluiten server:', error);
+      return;
+    }
+    console.log('[PUBLIC_API] Server netjes afgesloten');
+  });
+
+  publicApiServer = null;
+}
 
 function timeToMinutes(timeText) {
   const [hours, minutes] = String(timeText || '').split(':').map((value) => Number(value));
@@ -843,6 +925,9 @@ client.once("clientReady", async () => {
 
   // Start hok monitoring
   hokState = hok.startHokMonitoring(client, config);
+
+  // Start publieke read-only API voor hokstatus
+  startPublicApiServer();
 
   // Plan/restore dagelijkse rekensom voor vandaag.
   await ensureDailyMathChallengeScheduled();
