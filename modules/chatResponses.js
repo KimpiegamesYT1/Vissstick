@@ -44,6 +44,23 @@ const chatTriggers = [
   { trigger: 'stijn', response: 'Stijn Barendse, faalt steeds in de theorie!', exactMatch: true, audioFile: 'AI stijn.mp3' }
 ];
 
+function isTriggerInsideUrlOrMention(content, trigger) {
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  const mentionRegex = /<@[!&]?\d+>/g;
+
+  const urlMatches = content.match(urlRegex) || [];
+  for (const url of urlMatches) {
+    if (url.includes(trigger)) return true;
+  }
+
+  const mentionMatches = content.match(mentionRegex) || [];
+  for (const mention of mentionMatches) {
+    if (mention.includes(trigger)) return true;
+  }
+
+  return false;
+}
+
 /**
  * Check of een bericht een trigger bevat en stuur response
  * @param {Message} message - Discord message object
@@ -66,6 +83,10 @@ async function handleChatResponse(message) {
     } else {
       // Bevat match (trigger komt ergens in bericht voor)
       if (content.includes(trigger.trigger.toLowerCase())) {
+        const triggerText = trigger.trigger.toLowerCase();
+        if ((triggerText === '67' || triggerText === '6 7') && isTriggerInsideUrlOrMention(content, triggerText)) {
+          continue;
+        }
         shouldRespond = true;
       }
     }
