@@ -48,7 +48,7 @@ async function generatePlantUmlWithAI(messageText) {
     model: 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: prompt }],
     max_tokens: 2400,
-    temperature: 0.2
+    temperature: 0.5
   });
 
   const content = resp?.choices?.[0]?.message?.content;
