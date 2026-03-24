@@ -33,11 +33,12 @@ function getAmsterdamParts(date = new Date()) {
     }
   });
 
+  const hourRaw = Number(byType.hour);
   return {
     year: Number(byType.year),
     month: Number(byType.month),
     day: Number(byType.day),
-    hour: Number(byType.hour),
+    hour: hourRaw === 24 ? 0 : hourRaw,
     minute: Number(byType.minute),
     second: Number(byType.second)
   };
