@@ -42,12 +42,12 @@ async function generatePlantUmlWithAI(messageText) {
 
   const client = new OpenAI({ apiKey: apiKey, baseURL: 'https://api.groq.com/openai/v1' });
 
-  const prompt = `Produce only a PlantUML use-case diagram (between @startuml and @enduml) for the following user message. Keep it compact, 4-8 use cases, infer actors from roles or nouns. DO NOT output any explanation or metadata. Message: """${messageText.replace(/"""/g, '"')}"""`;
+  const prompt = `Genereer uitsluitend een PlantUML use-case diagram (tussen @startuml en @enduml) op basis van de onderstaande tekst.\n\nRichtlijnen:\n1. Gebruik 'left to right direction'.\n2. Identificeer 4 tot 8 kern-use cases.\n3. Leid actoren af uit rollen of zelfstandig naamwoorden en verbind ze met de relevante use cases.\n4. Output enkel de ruwe code zonder inleiding, uitleg of markdown-codeblokken.\n\nDe output van de diagram moet Nederlands zijn.\n\nTekst: """${messageText.replace(/"""/g, '"')}"""`;
 
   const resp = await client.chat.completions.create({
-    model: 'openai/gpt-oss-120b',
+    model: 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: prompt }],
-    max_tokens: 600,
+    max_tokens: 2400,
     temperature: 0.2
   });
 
@@ -76,8 +76,8 @@ async function handleMessage(message, client) {
     // Increment count for every user message
     state.count += 1;
 
-    // If reached exact multiple of 30, start waiting for qualifying message
-    if (state.count % 30 === 0) {
+    // If reached exact multiple of 50, start waiting for qualifying message
+    if (state.count % 50 === 0) {
       state.waitingForQualifyingMessage = true;
       console.log(`[USECASE] Reached ${state.count} messages in ${message.channel.id}, waiting for qualifying message (>=10 words)`);
       return;
