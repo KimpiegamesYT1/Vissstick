@@ -290,6 +290,21 @@ CREATE TABLE IF NOT EXISTS chatbot_messages (
 
 CREATE INDEX IF NOT EXISTS idx_chatbot_messages_conversation ON chatbot_messages(conversation_id, timestamp);
 
+-- Chatbot compact memory snapshots (per conversation/chat ID)
+CREATE TABLE IF NOT EXISTS chatbot_memory_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL,
+    start_message_id INTEGER NOT NULL,
+    end_message_id INTEGER NOT NULL,
+    summary TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (conversation_id) REFERENCES chatbot_conversations(id) ON DELETE CASCADE,
+    FOREIGN KEY (start_message_id) REFERENCES chatbot_messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (end_message_id) REFERENCES chatbot_messages(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chatbot_memory_snapshots_conversation ON chatbot_memory_snapshots(conversation_id, id);
+
 -- =====================================================
 -- INITIAL DATA
 -- =====================================================

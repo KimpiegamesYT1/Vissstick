@@ -1316,7 +1316,12 @@ async function handleCasinoCommands(interaction, client, config) {
         .setCustomId(`bj_200_${gameId}`)
         .setLabel('200 punten')
         .setStyle(ButtonStyle.Success)
-        .setDisabled(balance < 200)
+        .setDisabled(balance < 200),
+      new ButtonBuilder()
+        .setCustomId(`bj_allin_${gameId}`)
+        .setLabel('All-in')
+        .setStyle(ButtonStyle.Danger)
+        .setDisabled(balance < 25)
     );
 
     await interaction.reply({ embeds: [embed], components: [row1] });
@@ -2419,7 +2424,12 @@ async function handleBlackjackButton(interaction, client, config) {
         .setCustomId(`bj_200_${newGameId}`)
         .setLabel('200 punten')
         .setStyle(ButtonStyle.Success)
-        .setDisabled(balance < 200)
+        .setDisabled(balance < 200),
+      new ButtonBuilder()
+        .setCustomId(`bj_allin_${newGameId}`)
+        .setLabel('All-in')
+        .setStyle(ButtonStyle.Danger)
+        .setDisabled(balance < 25)
     );
 
     await interaction.editReply({ embeds: [embed], files: [], components: [row] });
@@ -2452,9 +2462,9 @@ async function handleBlackjackButton(interaction, client, config) {
   try {
 
   // ── Inzet kiezen ──
-  if (['25', '50', '100', '200'].includes(action) && game.phase === 'betting') {
+  if (['25', '50', '100', '200', 'allin'].includes(action) && game.phase === 'betting') {
     const balance = casino.getUserBalance(game.userId);
-    const betAmount = parseInt(action);
+    const betAmount = action === 'allin' ? balance : parseInt(action, 10);
 
     if (balance < betAmount) {
       await interaction.followUp({ content: '❌ Je hebt niet genoeg punten!', flags: 64 });
