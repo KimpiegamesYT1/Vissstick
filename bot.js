@@ -581,6 +581,8 @@ client.on('messageCreate', async (message) => {
         const startedNewConversationReason = typeof aiResult === 'string'
           ? null
           : aiResult.startedNewConversationReason;
+        const usedFallbackModel = typeof aiResult === 'string' ? false : Boolean(aiResult.usedFallbackModel);
+        const fallbackModelName = typeof aiResult === 'string' ? null : aiResult.fallbackModelName;
         const isInvalidAiReply = typeof reply === 'string' &&
           reply.trim() === 'Ik kreeg geen geldig antwoord van de AI, probeer het nog eens.';
 
@@ -598,12 +600,15 @@ client.on('messageCreate', async (message) => {
           );
         }
 
+        const footerText = `Chat ID: ${conversationId} • Gevraagd door ${message.author.username}` +
+          (usedFallbackModel && fallbackModelName ? ` • Alternatief model: ${fallbackModelName}` : '');
+
         // Send response as embed
         const embed = new EmbedBuilder()
           .setDescription(reply)
           .setColor(isInvalidAiReply ? '#FF0000' : '#0099ff')
           .setFooter({ 
-            text: `Chat ID: ${conversationId} • Gevraagd door ${message.author.username}`,
+            text: footerText,
             iconURL: message.author.displayAvatarURL() 
           })
           .setTimestamp();

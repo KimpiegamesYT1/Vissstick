@@ -655,6 +655,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
     const MAX_OUTPUT_LENGTH = 4000; // Safe limit voor Discord embeds (max 4096)
     const PRIMARY_MODEL = 'openai/gpt-oss-120b';
     const FALLBACK_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+    let usedFallbackModel = false;
 
     try {
         // Check message length
@@ -722,6 +723,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             }
 
             console.warn('[CHATBOT] Primary model gaf tool_use_failed, retry met fallback model');
+            usedFallbackModel = true;
             const fallbackResult = await client.chat.completions.create({
                 model: FALLBACK_MODEL,
                 messages: history,
@@ -747,6 +749,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             ];
 
             try {
+                usedFallbackModel = true;
                 const strictRetryResult = await client.chat.completions.create({
                     model: FALLBACK_MODEL,
                     messages: strictHistory,
@@ -790,7 +793,9 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             message: assistantMessage,
             conversationId,
             startedNewConversation,
-            startedNewConversationReason
+            startedNewConversationReason,
+            usedFallbackModel,
+            fallbackModelName: FALLBACK_MODEL
         };
     } catch (error) {
         console.error('[CHATBOT] Fout bij generateResponse:', error);
