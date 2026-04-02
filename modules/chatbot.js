@@ -653,7 +653,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
     // Constants
     const MAX_MESSAGE_LENGTH = 2000; // Discord message limit
     const MAX_OUTPUT_LENGTH = 4000; // Safe limit voor Discord embeds (max 4096)
-    const PRIMARY_MODEL = 'lmeta-llama/llama-4-scout-17b-16e-instruct';
+    const PRIMARY_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
     const FALLBACK_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
     let usedFallbackModel = false;
 
