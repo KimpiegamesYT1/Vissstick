@@ -52,7 +52,7 @@ function getDateKeyAmsterdam(date = new Date()) {
   return getDateKeyFromParts(getAmsterdamParts(date));
 }
 
-function getCurrentMonthKey() {
+function getCurrentMonthKey() { 
   const parts = getAmsterdamParts();
   return `${parts.year}-${pad2(parts.month)}`;
 }
@@ -70,8 +70,8 @@ function generateExpression() {
   const operator = VALID_OPERATORS[randomInt(0, VALID_OPERATORS.length - 1)];
 
   if (operator === '+') {
-    const a = randomInt(3, 90);
-    const b = randomInt(3, 90);
+    const a = randomInt(50, 150);
+    const b = randomInt(50, 150);
     return {
       questionText: `${a} + ${b}`,
       answer: String(a + b)
@@ -79,7 +79,7 @@ function generateExpression() {
   }
 
   if (operator === '-') {
-    const a = randomInt(20, 120);
+    const a = randomInt(50, 200);
     const b = randomInt(1, a - 1);
     return {
       questionText: `${a} - ${b}`,
@@ -88,8 +88,8 @@ function generateExpression() {
   }
 
   if (operator === '*') {
-    const a = randomInt(2, 15);
-    const b = randomInt(2, 15);
+    const a = randomInt(12, 25);
+    const b = randomInt(12, 25);
     return {
       questionText: `${a} * ${b}`,
       answer: String(a * b)
@@ -97,8 +97,8 @@ function generateExpression() {
   }
 
   // Division only generates integer outcomes.
-  const divisor = randomInt(2, 12);
-  const quotient = randomInt(2, 15);
+  const divisor = randomInt(8, 15);
+  const quotient = randomInt(10, 20);
   const dividend = divisor * quotient;
   return {
     questionText: `${dividend} / ${divisor}`,
