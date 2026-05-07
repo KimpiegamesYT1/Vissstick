@@ -123,6 +123,15 @@ CREATE TABLE IF NOT EXISTS daily_math_challenges (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tellen kanaal state
+CREATE TABLE IF NOT EXISTS counting_state (
+    channel_id TEXT PRIMARY KEY,
+    current_number INTEGER NOT NULL DEFAULT 0,
+    last_user_id TEXT,
+    last_message_id TEXT,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Bet entries (individuele inzetten)
 CREATE TABLE IF NOT EXISTS bet_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

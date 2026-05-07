@@ -10,6 +10,7 @@ const quiz = require('./modules/quiz.js');
 const hok = require('./modules/hok.js');
 const casino = require('./modules/casino.js');
 const mathChallenge = require('./modules/mathChallenge.js');
+const { handleCountingMessage } = require('./modules/tellen.js');
 const { allCommands, handleCommands } = require('./commands');
 const { handleChatResponse } = require('./modules/chatResponses.js');
 const { createHokPublicApiHandler } = require('./api/hokPublicApi');
@@ -18,9 +19,11 @@ const { handleConnectFourButton } = require('./commands/connectFourCommands.js')
 const { handleHangmanButton } = require('./commands/hangmanCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
-const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, STARBOARD_CHANNEL_ID, GROQ_API_KEY } = config;
+const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, STARBOARD_CHANNEL_ID, GROQ_API_KEY, COUNTING_CHANNEL_ID: RAW_COUNTING_CHANNEL_ID } = config;
 const DEFAULT_MATH_CHALLENGE_CHANNEL_ID = '1414596895191334928';
 const MATH_CHALLENGE_CHANNEL_ID = config.MATH_CHALLENGE_CHANNEL_ID || DEFAULT_MATH_CHALLENGE_CHANNEL_ID;
+const DEFAULT_COUNTING_CHANNEL_ID = '1501912049460969565';
+const COUNTING_CHANNEL_ID = RAW_COUNTING_CHANNEL_ID || DEFAULT_COUNTING_CHANNEL_ID;
 const MATH_CHALLENGE_REWARD_POINTS = Number.isFinite(Number(config.MATH_CHALLENGE_REWARD_POINTS))
   ? Number(config.MATH_CHALLENGE_REWARD_POINTS)
   : mathChallenge.DEFAULT_REWARD_POINTS;
@@ -640,6 +643,13 @@ client.on('messageCreate', async (message) => {
     });
 
     return; // Don't process chat responses if in chatbot channel
+  }
+
+  if (COUNTING_CHANNEL_ID) {
+    const handledCounting = await handleCountingMessage(message, COUNTING_CHANNEL_ID);
+    if (handledCounting) {
+      return;
+    }
   }
 
   if (MATH_CHALLENGE_CHANNEL_ID && message.channel.id === MATH_CHALLENGE_CHANNEL_ID && !message.author.bot) {
