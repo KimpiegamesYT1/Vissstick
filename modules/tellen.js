@@ -1,3 +1,4 @@
+const { EmbedBuilder } = require('discord.js');
 const { getDatabase } = require('../database');
 
 function parseCountInput(content) {
@@ -56,18 +57,44 @@ function updateState(db, channelId, number, userId, messageId) {
   `).run(number, userId, messageId, channelId);
 }
 
-function buildResetMessage(result) {
-  const expectedText = result.expected ? ` Verwacht: ${result.expected}.` : '';
+function buildResetEmbed(result, rawInput) {
+  const embed = new EmbedBuilder()
+    .setTitle('Tellen reset')
+    .setColor('#E74C3C')
+    .setFooter({ text: 'We starten opnieuw bij 1.' })
+    .setTimestamp();
+
+  let description = 'Er ging iets mis met het tellen.';
 
   if (result.status === 'same-user') {
-    return `Fout! Je mag niet twee keer achter elkaar tellen.${expectedText} We beginnen opnieuw bij 1.`;
+    description = 'Je mag niet twee keer achter elkaar tellen. Laat iemand anders de volgende beurt doen.';
+  } else if (result.status === 'invalid') {
+    description = 'Alleen positieve hele getallen tellen mee.';
+  } else if (result.status === 'wrong-number') {
+    description = 'Dit nummer klopt niet in de reeks.';
   }
 
-  if (result.status === 'invalid') {
-    return `Fout! Alleen positieve hele getallen.${expectedText} We beginnen opnieuw bij 1.`;
+  embed.setDescription(description);
+
+  const fields = [];
+  if (result.expected) {
+    fields.push({ name: 'Verwacht', value: String(result.expected), inline: true });
   }
 
-  return `Fout!${expectedText} We beginnen opnieuw bij 1.`;
+  if (result.status === 'wrong-number' && result.received != null) {
+    fields.push({ name: 'Jouw invoer', value: String(result.received), inline: true });
+  } else if (result.status === 'invalid' && rawInput) {
+    const trimmedInput = String(rawInput).trim();
+    if (trimmedInput) {
+      fields.push({ name: 'Jouw invoer', value: trimmedInput.slice(0, 200), inline: false });
+    }
+  }
+
+  if (fields.length > 0) {
+    embed.addFields(fields);
+  }
+
+  return embed;
 }
 
 function processCountingMessage({ channelId, userId, messageId, inputNumber }) {
@@ -115,9 +142,9 @@ async function handleCountingMessage(message, channelId) {
     return true;
   }
 
-  const resetMessage = buildResetMessage(result);
+  const resetEmbed = buildResetEmbed(result, message.content);
   await message.reply({
-    content: resetMessage,
+    embeds: [resetEmbed],
     allowedMentions: { repliedUser: false }
   }).catch((error) => {
     console.error('[TELLEN] Kon reset bericht niet sturen:', error);
