@@ -127,6 +127,8 @@ CREATE TABLE IF NOT EXISTS daily_math_challenges (
 CREATE TABLE IF NOT EXISTS counting_state (
     channel_id TEXT PRIMARY KEY,
     current_number INTEGER NOT NULL DEFAULT 0,
+    fail_count INTEGER NOT NULL DEFAULT 0,
+    highest_number INTEGER NOT NULL DEFAULT 0,
     last_user_id TEXT,
     last_message_id TEXT,
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
