@@ -151,7 +151,7 @@ function processCountingMessage({ channelId, userId, messageId, inputNumber }) {
   const transaction = db.transaction(() => {
     const state = ensureState(db, channelId);
     const expected = state.current_number + 1;
-    const reachedNumber = statCe.current_number;
+    const reachedNumber = state.current_number;
     const highestNumber = Number(state.highest_number || 0);
     const failCount = Number(state.fail_count || 0);
 
