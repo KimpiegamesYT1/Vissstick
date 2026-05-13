@@ -98,12 +98,14 @@ function resetUsedQuestions() {
 function deleteAllQuestions() {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
-    DELETE FROM quiz_questions
-  `);
+  const transaction = db.transaction(() => {
+    db.prepare('DELETE FROM quiz_responses').run();
+    db.prepare('DELETE FROM active_quizzes').run();
+    const result = db.prepare('DELETE FROM quiz_questions').run();
+    return result.changes;
+  });
 
-  const result = stmt.run();
-  return result.changes;
+  return transaction();
 }
 
 /**
