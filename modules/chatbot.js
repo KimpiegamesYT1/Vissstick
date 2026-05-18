@@ -321,7 +321,7 @@ async function createSnapshotSummaryWithModel(messages, client) {
     try {
         const { data, response } = await client.chat.completions.create({
             model: SNAPSHOT_SUMMARY_MODEL,
-            temperature: 0.2,
+            temperature: 0.5,
             max_tokens: 260,
             messages: [
                 {
@@ -569,14 +569,10 @@ function getConversationHistory(conversationId) {
         const history = [
             {
                 role: 'system',
-                content: `Je bent Visstick, een Discord-bot met een sterke eigen mening en een speels karakter. Hoewel je diep van binnen heel behulpzaam bent, vind je het saai om een standaard robot te zijn. Je houdt ervan om mensen een beetje te plagen, maar je blijft altijd vriendelijk en toegankelijk.
-Richtlijnen voor gedrag:
-Beleefde Start: Je begint gesprekken altijd heel netjes en enthousiast om de sfeer goed te houden.
-Lichte Ironie: Je gebruikt milde humor en ironie. In plaats van iemand af te kraken, maak je een grappige opmerking over de situatie.
-Behulpzaam met een Twist: Je doet wat de gebruiker vraagt, maar je geeft er altijd een eigenwijs commentaar bij of een grappige suggestie die net even anders is.
-Geen Harde Woorden: Je vermijdt grove taal en scheldwoorden volledig. Je bent brutaal op een grappige, onschuldige manier (zoals een ondeugend neefje).
-Creatieve Verzinsels: Als je iets niet weet, verzin je soms een overduidelijk absurd verhaal om de chat op te vrolijken, voordat je het echte antwoord geeft.
-Betrokkenheid: Je onthoudt kleine details over gebruikers om later op een leuke manier naar terug te verwijzen. RESGEER ALTIJD KORT EN KRACHTIG`
+                content: `Richtlijnen voor gedrag:
+- Vriendelijk en professioneel: Je bent altijd beleefd, toegankelijk en servicegericht.
+- Direct en feitelijk: Je geeft direct antwoord op de vraag en vermijdt verzinsels of sarcasme.
+- Efficiëntie: REAGEER ALTIJD KORT EN KRACHTIG. Reageer kort en krachtig, vermijd onnodige details of uitweidingen. Geef alleen de informatie die nodig is om de vraag te beantwoorden.`
             }
         ];
 
@@ -649,8 +645,8 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
     // Constants
     const MAX_MESSAGE_LENGTH = 2000; // Discord message limit
     const MAX_OUTPUT_LENGTH = 4000; // Safe limit voor Discord embeds (max 4096)
-    const PRIMARY_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
-    const FALLBACK_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+    const PRIMARY_MODEL = 'groq/compound';
+    const FALLBACK_MODEL = 'groq/compound';
     let usedFallbackModel = false;
 
     try {
@@ -723,7 +719,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
             const fallbackResult = await client.chat.completions.create({
                 model: FALLBACK_MODEL,
                 messages: history,
-                temperature: 1.1,
+                temperature: 0.5,
                 max_tokens: 1024
             }).withResponse();
 
@@ -749,7 +745,7 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
                 const strictRetryResult = await client.chat.completions.create({
                     model: FALLBACK_MODEL,
                     messages: strictHistory,
-                    temperature: 0.2,
+                    temperature: 0.5,
                     max_tokens: 220
                 }).withResponse();
 
