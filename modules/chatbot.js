@@ -104,6 +104,26 @@ class RateLimiter {
         if (Number.isFinite(remainingRequests)) this.serverRateLimit.remainingRequests = remainingRequests;
         if (Number.isFinite(remainingTokens)) this.serverRateLimit.remainingTokens = remainingTokens;
 
+        // Align local limiter budgets with server-provided limits when available
+        try {
+            if (Number.isFinite(limitRequests) && limitRequests > 0) {
+                // Assume header gives requests-per-minute; set local minute limit to match server
+                this.LIMITS.REQUESTS_PER_MINUTE = limitRequests;
+            }
+
+            if (Number.isFinite(limitTokens) && limitTokens > 0) {
+                // Assume header gives tokens-per-minute; set local token limit to match server
+                this.LIMITS.TOKENS_PER_MINUTE = limitTokens;
+            }
+
+            // Log when we adjust local limits
+            if (Number.isFinite(limitRequests) || Number.isFinite(limitTokens)) {
+                console.log(`[RATE-LIMITER] Synced local limits with server headers: REQUESTS_PER_MINUTE=${this.LIMITS.REQUESTS_PER_MINUTE}, TOKENS_PER_MINUTE=${this.LIMITS.TOKENS_PER_MINUTE}`);
+            }
+        } catch (syncErr) {
+            console.warn('[RATE-LIMITER] Failed to sync limits with server headers:', syncErr);
+        }
+
         const resetRequestsSeconds = this.parseDurationToSeconds(resetRequestsRaw);
         const resetTokensSeconds = this.parseDurationToSeconds(resetTokensRaw);
 
