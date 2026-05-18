@@ -261,6 +261,47 @@ function estimateTokens(text) {
     return Math.ceil(text.length / 4);
 }
 
+function trimHistoryToTokenBudget(history, tokenBudget, reserveForResponse = 1024) {
+    // history: array of {role, content, ...}
+    // Keep system messages and memory snapshots if possible; drop older user/assistant messages first.
+    const messages = history.slice();
+
+    // Compute tokens per message
+    const tokenInfo = messages.map(msg => ({
+        msg,
+        tokens: estimateTokens(String(msg.content || ''))
+    }));
+
+    const totalTokens = tokenInfo.reduce((s, t) => s + t.tokens, 0);
+    const allowed = Math.max(0, tokenBudget - reserveForResponse);
+
+    if (totalTokens <= allowed) return messages;
+
+    // We will preserve all system messages first
+    const systemMessages = tokenInfo.filter(t => t.msg.role === 'system');
+    const otherMessages = tokenInfo.filter(t => t.msg.role !== 'system');
+
+    // Start keeping the most recent non-system messages until within budget
+    const kept = [];
+    let keptTokens = systemMessages.reduce((s, t) => s + t.tokens, 0);
+
+    // iterate otherMessages from newest to oldest
+    for (let i = otherMessages.length - 1; i >= 0; i--) {
+        const entry = otherMessages[i];
+        if (keptTokens + entry.tokens <= allowed) {
+            kept.unshift(entry.msg);
+            keptTokens += entry.tokens;
+        } else {
+            // skip older message
+        }
+    }
+
+    const finalMessages = systemMessages.map(t => t.msg).concat(kept);
+
+    console.warn(`[CHATBOT] History trimmed: original tokens=${totalTokens}, kept tokens=${keptTokens + systemMessages.reduce((s,t)=>s+t.tokens,0)}, budget=${allowed}`);
+    return finalMessages;
+}
+
 function extractAssistantTextFromResponse(response) {
     const content = response?.choices?.[0]?.message?.content;
 
@@ -690,7 +731,14 @@ async function generateResponse(channelId, userMessage, userId, username, groqAp
         await maybeCreateConversationSnapshot(conversationId, client);
 
         // Get conversation history
-        const history = getConversationHistory(conversationId);
+        let history = getConversationHistory(conversationId);
+
+        // Trim history if estimated tokens too large to avoid 413 Request Entity Too Large
+        // Compound has a very large context window, but server or HTTP body limits can still reject huge payloads.
+        // Use a conservative token budget for the request body.
+        const MODEL_HISTORY_TOKEN_LIMIT = 18000; // conservative budget for total history tokens
+        const REQUEST_MAX_TOKENS = 1024; // tokens we request for the response
+        history = trimHistoryToTokenBudget(history, MODEL_HISTORY_TOKEN_LIMIT, REQUEST_MAX_TOKENS);
 
         console.log(`[CHATBOT] API call voor conversatie ${conversationId}, ${history.length} berichten in history`);
 
