@@ -542,6 +542,16 @@ client.on('messageReactionRemove', async (reaction, user) => {
 
 // Message handler voor chat responses and chatbot
 client.on('messageCreate', async (message) => {
+  // Hok status uit het bron-kanaal van de vereniging oppikken
+  if (hokState && hok.isTrustedSourceMessage(message, config)) {
+    try {
+      await hok.handleHokSourceMessage(message, client, config, hokState);
+    } catch (error) {
+      console.error('Fout bij verwerken hok bron-bericht:', error);
+    }
+    return;
+  }
+
   // Handle chatbot first if in chatbot channel
   if (CHATBOT_CHANNEL_ID && GROQ_API_KEY && message.channel.id === CHATBOT_CHANNEL_ID) {
     // Ignore bot messages

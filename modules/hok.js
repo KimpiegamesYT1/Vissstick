@@ -457,81 +457,203 @@ function getCheckInterval(isOpen) {
 }
 
 /**
- * Check API functie
+ * Verwerk een nieuwe hok status: bot activity, kanaalnaam, bericht en database.
+ * Wordt gebruikt door zowel de Discord-bron als de (legacy) API polling.
+ */
+async function applyHokStatus(isOpen, client, config, state, options = {}) {
+  const at = options.at instanceof Date ? options.at : new Date();
+
+  const channel = await client.channels.fetch(config.CHANNEL_ID).catch(() => null);
+  if (!channel) return console.error("Kanaal niet gevonden!");
+
+  // Update bot status
+  client.user.setActivity(
+    isOpen ? 'Hok is open 📗' : 'Hok is dicht 📕',
+    { type: ActivityType.Watching }
+  );
+
+  // Bij eerste keer alleen status opslaan (zonder last_updated te overschrijven)
+  if (!state.isInitialized) {
+    state.lastStatus = isOpen;
+    state.isInitialized = true;
+    updateHokState(isOpen, null, false);
+    console.log("Initiële status opgehaald:", isOpen ? "open" : "dicht");
+    if (state.mode === 'api') updateCheckInterval(isOpen, state);
+    return;
+  }
+
+  if (state.mode === 'api') {
+    // Check of interval moet worden aangepast (door tijd of status)
+    const currentInterval = getCheckInterval(isOpen);
+    const activeInterval = state.checkInterval ? currentInterval : null;
+
+    // Update interval als status veranderd is of als we van/naar nacht periode gaan
+    if (state.lastStatus !== isOpen || activeInterval !== currentInterval) {
+      updateCheckInterval(isOpen, state);
+    }
+  }
+
+  // Alleen iets doen als status is veranderd
+  if (state.lastStatus === isOpen) return;
+
+  state.lastStatus = isOpen;
+
+  const currentTime = at.toLocaleTimeString('nl-NL', {
+    timeZone: 'Europe/Amsterdam',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  // Log de status change in database
+  logHokStatus(getCurrentDateKey(), currentTime, isOpen);
+
+  // Verwijder vorig bericht als het bestaat
+  if (state.lastMessage) {
+    try {
+      await state.lastMessage.delete();
+    } catch (err) {
+      console.error("Kon vorig bericht niet verwijderen:", err);
+    }
+  }
+
+  // Naam aanpassen
+  await channel.setName(isOpen ? "📗-hok-is-open" : "📕-hok-is-dicht");
+
+  // Nieuw bericht sturen via gedeelde functie
+  const statusContent = buildStatusMessage(isOpen, config.ROLE_ID);
+  const message = await channel.send(statusContent);
+
+  // Reactie toevoegen
+  await message.react('🔔');
+  state.lastMessage = message;
+
+  // Update state in database
+  updateHokState(isOpen, message.id);
+
+  console.log("Status gewijzigd:", isOpen ? "open" : "dicht");
+}
+
+/**
+ * Alle tekst uit een bericht halen (content + embeds), zodat we zowel
+ * gewone berichten als embed-berichten kunnen lezen.
+ */
+function extractMessageText(message) {
+  const parts = [message.content || ''];
+
+  for (const embed of message.embeds || []) {
+    parts.push(embed.title || '', embed.description || '', embed.author?.name || '', embed.footer?.text || '');
+    for (const field of embed.fields || []) {
+      parts.push(field.name || '', field.value || '');
+    }
+  }
+
+  return parts.join('\n');
+}
+
+// Kanaal (in onze eigen server, via "kanaal volgen" gekoppeld aan het
+// mededelingen-kanaal van Syntaxis) waarin de hok status-updates verschijnen.
+// Hardcoded omdat dit ID vast is; overschrijfbaar via config.HOK_SOURCE_CHANNEL_ID.
+const DEFAULT_HOK_SOURCE_CHANNEL_ID = '1544249073455075359';
+
+function getSourceChannelId(config) {
+  return config.HOK_SOURCE_CHANNEL_ID || DEFAULT_HOK_SOURCE_CHANNEL_ID;
+}
+
+const HOK_CLOSED_PATTERNS = [/gesloten/i, /\bdicht\b/i, /\bclosed\b/i, /🔴/, /:red_circle:/i, /❌/, /📕/];
+const HOK_OPEN_PATTERNS = [/geopend/i, /\bopen\b/i, /🟢/, /:green_circle:/i, /✅/, /📗/];
+
+/**
+ * Bepaal de hok status uit een statusbericht.
+ * Geeft true (open), false (dicht) of null (geen bruikbaar statusbericht).
+ */
+function parseHokStatusFromMessage(message) {
+  const text = extractMessageText(message);
+  if (!text.trim()) return null;
+
+  const isClosed = HOK_CLOSED_PATTERNS.some((pattern) => pattern.test(text));
+  const isOpen = HOK_OPEN_PATTERNS.some((pattern) => pattern.test(text));
+
+  // Zowel open als dicht (of geen van beide) is niet te vertrouwen
+  if (isClosed === isOpen) return null;
+
+  return isOpen;
+}
+
+/**
+ * Check of een bericht uit het geconfigureerde bron-kanaal komt en van een
+ * vertrouwde afzender is (optioneel via HOK_SOURCE_AUTHOR_IDS).
+ */
+function isTrustedSourceMessage(message, config) {
+  if (message.channel?.id !== getSourceChannelId(config)) return false;
+
+  const allowedAuthors = config.HOK_SOURCE_AUTHOR_IDS;
+  if (Array.isArray(allowedAuthors) && allowedAuthors.length > 0) {
+    return allowedAuthors.includes(message.author?.id) || allowedAuthors.includes(message.webhookId);
+  }
+
+  return true;
+}
+
+/**
+ * Verwerk een live binnenkomend bericht uit het bron-kanaal
+ */
+async function handleHokSourceMessage(message, client, config, state) {
+  if (!state || state.mode !== 'discord') return;
+  if (!isTrustedSourceMessage(message, config)) return;
+
+  const isOpen = parseHokStatusFromMessage(message);
+  if (isOpen === null) return;
+
+  state.lastSourceMessageId = message.id;
+  await applyHokStatus(isOpen, client, config, state, { at: message.createdAt });
+}
+
+/**
+ * Lees het laatste statusbericht uit het bron-kanaal.
+ * Wordt gebruikt bij het opstarten en periodiek, zodat gemiste berichten
+ * (herstart, downtime, gateway hiccup) alsnog worden opgepikt.
+ */
+async function syncFromSourceChannel(client, config, state) {
+  try {
+    const sourceChannelId = getSourceChannelId(config);
+    const channel = await client.channels.fetch(sourceChannelId).catch(() => null);
+    if (!channel || typeof channel.messages?.fetch !== 'function') {
+      console.error('Hok bron-kanaal niet gevonden of niet leesbaar:', sourceChannelId);
+      return;
+    }
+
+    const messages = await channel.messages.fetch({ limit: 50 });
+    const latest = [...messages.values()]
+      .sort((a, b) => b.createdTimestamp - a.createdTimestamp)
+      .find((message) => isTrustedSourceMessage(message, config) && parseHokStatusFromMessage(message) !== null);
+
+    if (!latest) {
+      console.warn('Geen bruikbaar hok statusbericht gevonden in bron-kanaal');
+      return;
+    }
+
+    if (state.lastSourceMessageId === latest.id) return;
+
+    state.lastSourceMessageId = latest.id;
+    await applyHokStatus(parseHokStatusFromMessage(latest), client, config, state, { at: latest.createdAt });
+  } catch (err) {
+    console.error('Fout bij synchroniseren met hok bron-kanaal:', err);
+  }
+}
+
+/**
+ * Check API functie (legacy - alleen als er geen HOK_SOURCE_CHANNEL_ID is)
  */
 async function checkStatus(client, config, state) {
   const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-  
+
   try {
     const res = await fetch(config.API_URL);
     const data = await res.json();
 
     if (!data || !data.payload) return;
 
-    const isOpen = data.payload.open === 1;
-    const channel = await client.channels.fetch(config.CHANNEL_ID);
-    const currentTime = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-    const dateKey = getCurrentDateKey();
-
-    if (!channel) return console.error("Kanaal niet gevonden!");
-
-    // Update bot status
-    client.user.setActivity(
-      isOpen ? 'Hok is open 📗' : 'Hok is dicht 📕',
-      { type: ActivityType.Watching }
-    );
-
-    // Bij eerste keer alleen status opslaan (zonder last_updated te overschrijven)
-    if (!state.isInitialized) {
-      state.lastStatus = isOpen;
-      state.isInitialized = true;
-      updateHokState(isOpen, null, false);
-      console.log("Initiële status opgehaald:", isOpen ? "open" : "dicht");
-      updateCheckInterval(isOpen, state);
-      return;
-    }
-
-    // Check of interval moet worden aangepast (door tijd of status)
-    const currentInterval = getCheckInterval(isOpen);
-    const activeInterval = state.checkInterval ? currentInterval : null;
-    
-    // Update interval als status veranderd is of als we van/naar nacht periode gaan
-    if (state.lastStatus !== isOpen || activeInterval !== currentInterval) {
-      updateCheckInterval(isOpen, state);
-    }
-
-    // Alleen iets doen als status is veranderd
-    if (state.lastStatus !== isOpen) {
-      state.lastStatus = isOpen;
-      
-      // Log de status change in database
-      logHokStatus(dateKey, currentTime, isOpen);
-
-      // Verwijder vorig bericht als het bestaat
-      if (state.lastMessage) {
-        try {
-          await state.lastMessage.delete();
-        } catch (err) {
-          console.error("Kon vorig bericht niet verwijderen:", err);
-        }
-      }
-
-      // Naam aanpassen
-      await channel.setName(isOpen ? "📗-hok-is-open" : "📕-hok-is-dicht");
-
-      // Nieuw bericht sturen via gedeelde functie
-      const statusContent = buildStatusMessage(isOpen, config.ROLE_ID);
-      const message = await channel.send(statusContent);
-      
-      // Reactie toevoegen
-      await message.react('🔔');
-      state.lastMessage = message;
-      
-      // Update state in database
-      updateHokState(isOpen, message.id);
-
-      console.log("Status gewijzigd:", isOpen ? "open" : "dicht");
-    }
+    await applyHokStatus(data.payload.open === 1, client, config, state);
   } catch (err) {
     console.error("Fout bij ophalen API:", err);
   }
@@ -620,12 +742,31 @@ function startHokMonitoring(client, config) {
     lastStatus: null,
     lastMessage: null,
     isInitialized: false,
-    checkInterval: null
+    checkInterval: null,
+    mode: config.HOK_USE_API === true ? 'api' : 'discord',
+    lastSourceMessageId: null,
+    syncInterval: null
   };
-  
-  // Eerste check
-  checkStatus(client, config, state);
-  
+
+  if (state.mode === 'discord') {
+    const resyncMinutes = Number(config.HOK_SOURCE_RESYNC_MINUTES) > 0
+      ? Number(config.HOK_SOURCE_RESYNC_MINUTES)
+      : 1;
+
+    console.log(`Hok status wordt gelezen uit Discord kanaal ${getSourceChannelId(config)} (resync elke ${resyncMinutes} min)`);
+
+    // Eerste sync: huidige status uit de geschiedenis van het bron-kanaal
+    syncFromSourceChannel(client, config, state);
+
+    // Vangnet voor gemiste berichten tijdens downtime
+    state.syncInterval = setInterval(() => {
+      syncFromSourceChannel(client, config, state);
+    }, resyncMinutes * 60 * 1000);
+  } else {
+    console.log('Hok status wordt opgehaald via de API (HOK_USE_API = true)');
+    checkStatus(client, config, state);
+  }
+
   return state;
 }
 
@@ -663,6 +804,11 @@ module.exports = {
   getHokState,
   buildStatusMessage,
   checkStatus,
+  applyHokStatus,
+  parseHokStatusFromMessage,
+  isTrustedSourceMessage,
+  handleHokSourceMessage,
+  syncFromSourceChannel,
   startHokMonitoring,
   loadHokData,
   saveHokData,

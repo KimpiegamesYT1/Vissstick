@@ -42,6 +42,22 @@ npm start
 
 Zie `config.example.json` voor de benodigde instellingen.
 
+### Bron van de hokstatus
+
+De bot leest de hokstatus standaard uit een Discord-kanaal: het mededelingen-kanaal
+van Syntaxis wordt via "Kanaal volgen" gekoppeld aan een kanaal in onze eigen
+server. Dat kanaal-ID staat hardcoded als `DEFAULT_HOK_SOURCE_CHANNEL_ID` in
+`modules/hok.js`.
+
+- `HOK_USE_API` - zet op `true` om terug te vallen op de oude API (`API_URL`)
+- `HOK_SOURCE_CHANNEL_ID` - overschrijft het hardcoded bron-kanaal-ID
+- `HOK_SOURCE_AUTHOR_IDS` - optionele lijst met vertrouwde bot-/webhook-ID's;
+  leeg = elk statusbericht in dat kanaal wordt geaccepteerd
+- `HOK_SOURCE_RESYNC_MINUTES` - hoe vaak het kanaal opnieuw wordt uitgelezen als
+  vangnet voor gemiste berichten tijdens downtime (default: `1`)
+
+De `Message Content` intent moet aan staan (staat hij al).
+
 ### Publieke Hok API
 
 De bot kan een publieke read-only API starten in dezelfde process.
