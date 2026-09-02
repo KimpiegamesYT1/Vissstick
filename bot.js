@@ -948,15 +948,19 @@ client.once("clientReady", async () => {
   // Start hok monitoring
   hokState = hok.startHokMonitoring(client, config);
 
-  // Rooster monitoring: eerste check bij opstarten + elke 15 minuten
+  // Rooster monitoring: eerste check bij opstarten + periodiek daarna
   rooster.startRoosterMonitoring(client, config).catch((error) => {
     console.error('Fout bij starten rooster monitoring:', error);
   });
-  cron.schedule('*/15 * * * *', async () => {
-    await rooster.checkRoosterChanges(client, config);
-  }, {
-    timezone: 'Europe/Amsterdam'
-  });
+  const roosterCheckMinutes = Number.isFinite(Number(config.ROOSTER_CHECK_MINUTES)) && Number(config.ROOSTER_CHECK_MINUTES) > 0
+    ? Number(config.ROOSTER_CHECK_MINUTES)
+    : 5;
+  setInterval(() => {
+    rooster.checkRoosterChanges(client, config).catch((error) => {
+      console.error('Fout bij rooster check:', error);
+    });
+  }, roosterCheckMinutes * 60 * 1000);
+  console.log(`Rooster monitoring actief (check elke ${roosterCheckMinutes} min)`);
 
   // Start publieke read-only API voor hokstatus
   startPublicApiServer();

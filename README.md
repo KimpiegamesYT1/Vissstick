@@ -61,7 +61,7 @@ De `Message Content` intent moet aan staan (staat hij al).
 
 ### Rooster monitoring
 
-De bot haalt elke 15 minuten de Saxion iCal-feed op en vergelijkt de events
+De bot haalt standaard elke 5 minuten de Saxion iCal-feed op en vergelijkt de events
 binnen de komende 2 weken met een snapshot in de database. Bij een toegevoegd,
 vervallen of gewijzigd event (naam, tijd of locatie) stuurt de bot een embed
 naar het log-kanaal. Alleen wijzigingen in de toekomst tellen; de eerste run
@@ -72,6 +72,7 @@ geïdentificeerd via een afgeleide sleutel (vak + startdatum).
 
 - `ROOSTER_FEED_URL` - iCal/webcal feed-URL (default staat hardcoded in `modules/rooster.js`)
 - `ROOSTER_LOG_CHANNEL_ID` - doelkanaal voor meldingen (valt terug op `LOG_CHANNEL_ID`)
+- `ROOSTER_CHECK_MINUTES` - check-interval in minuten (default: `5`)
 
 ### Publieke Hok API
 
