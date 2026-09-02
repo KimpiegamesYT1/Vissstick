@@ -19,8 +19,8 @@ const { getDatabase } = require('../database');
 const DEFAULT_FEED_URL =
   'https://saxion.myx.nl/api/InternetCalendar/feed/e152f2a2-a050-43c2-ac3a-cc0b2ad4301d/c9995f3b-0852-4543-9432-f2ba75f55893';
 
-// Doel-kanaal voor roostermeldingen (zelfde als het log-kanaal).
-const DEFAULT_LOG_CHANNEL_ID = '1415603152400547862';
+// Doel-kanaal voor alle roostermeldingen (wijzigingen én pauze-herinneringen).
+const DEFAULT_LOG_CHANNEL_ID = '1544688988407726130';
 
 // Hoe ver vooruit we melden.
 const WINDOW_DAYS = 14;
@@ -55,7 +55,7 @@ function getFeedUrl(config) {
 }
 
 function getLogChannelId(config) {
-  return config.ROOSTER_LOG_CHANNEL_ID || config.LOG_CHANNEL_ID || DEFAULT_LOG_CHANNEL_ID;
+  return config.ROOSTER_LOG_CHANNEL_ID || DEFAULT_LOG_CHANNEL_ID;
 }
 
 /**

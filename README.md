@@ -6,7 +6,7 @@ Discord bot voor het weergeven van het HOK van Syntaxis.
 
 - **Hok Monitoring** - Realtime status of het hok open/dicht is met tijdsschatting
 - **Publieke Hok API** - Read-only endpoint voor apps/website (`/api/public/hok/status`)
-- **Rooster Monitoring** - Volgt de Saxion-agenda en meldt roosterwijzigingen (max 2 weken vooruit) in het log-kanaal
+- **Rooster Monitoring** - Volgt de Saxion-agenda en meldt roosterwijzigingen en pauzes in een apart rooster-kanaal
 - **Dagelijkse Quiz** - Elke dag om 7:00 een nieuwe vraag, antwoord om 17:00 (150 punten per goed antwoord)
 - **Dagelijkse Rekensom** - Elke dag 1x willekeurig tussen 07:00 en 16:00, eerste juiste chatantwoord wint 200 punten
 - **Casino Systeem** - Wedden op JA/NEE vragen, verdien punten
@@ -64,21 +64,21 @@ De `Message Content` intent moet aan staan (staat hij al).
 De bot haalt standaard elke 5 minuten de Saxion iCal-feed op en vergelijkt de events
 binnen de komende 2 weken met een snapshot in de database. Bij een toegevoegd,
 vervallen of gewijzigd event (naam, tijd of locatie) stuurt de bot een embed
-naar het log-kanaal. Alleen wijzigingen in de toekomst tellen; de eerste run
+naar het rooster-kanaal. Alleen wijzigingen in de toekomst tellen; de eerste run
 bouwt de snapshot stil op zonder melding.
 
 Omdat de feed bij elke request nieuwe UID's genereert, worden events
 geïdentificeerd via een afgeleide sleutel (vak + startdatum).
 
 - `ROOSTER_FEED_URL` - iCal/webcal feed-URL (default staat hardcoded in `modules/rooster.js`)
-- `ROOSTER_LOG_CHANNEL_ID` - doelkanaal voor meldingen (valt terug op `LOG_CHANNEL_ID`)
+- `ROOSTER_LOG_CHANNEL_ID` - doelkanaal voor alle roostermeldingen (wijzigingen + pauze-herinneringen); default staat hardcoded in `modules/rooster.js`
 - `ROOSTER_CHECK_MINUTES` - check-interval in minuten (default: `5`)
 - `ROOSTER_MAX_PAUSE_MINUTES` - een gat tussen twee lessen telt als pauze tot dit aantal minuten (default: `90`)
 - `ROOSTER_PAUSE_LEAD_MINUTES` - hoeveel minuten vóór de volgende les de pauze-melding komt (default: `5`)
 
 **Pauze-meldingen:** op lesdagen met twee lessen met een gat ertussen (minstens
 5 en hoogstens `ROOSTER_MAX_PAUSE_MINUTES` minuten, default 90) stuurt de bot `ROOSTER_PAUSE_LEAD_MINUTES`
-minuten voor de volgende les één herinnering naar het log-kanaal. Alleen echte
+minuten voor de volgende les één herinnering naar het rooster-kanaal. Alleen echte
 lessen tellen mee (event met locatie en starttijd); vakanties en hele-dag events
 worden genegeerd. De check draait elke minuut op basis van de opgeslagen snapshot.
 
