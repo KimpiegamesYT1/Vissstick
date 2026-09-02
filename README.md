@@ -74,7 +74,7 @@ geïdentificeerd via een afgeleide sleutel (vak + startdatum).
 - `ROOSTER_LOG_CHANNEL_ID` - doelkanaal voor alle roostermeldingen (wijzigingen + pauze-herinneringen); default staat hardcoded in `modules/rooster.js`
 - `ROOSTER_CHECK_MINUTES` - check-interval in minuten (default: `5`)
 - `ROOSTER_MAX_PAUSE_MINUTES` - een gat tussen twee lessen telt als pauze tot dit aantal minuten (default: `90`)
-- `ROOSTER_PAUSE_LEAD_MINUTES` - hoeveel minuten vóór de volgende les de pauze-melding komt (default: `5`)
+- `ROOSTER_PAUSE_LEAD_MINUTES` - hoeveel minuten vóór de volgende les de pauze-melding komt (default: `7`)
 
 **Pauze-meldingen:** op lesdagen met twee lessen met een gat ertussen (minstens
 5 en hoogstens `ROOSTER_MAX_PAUSE_MINUTES` minuten, default 90) stuurt de bot `ROOSTER_PAUSE_LEAD_MINUTES`
