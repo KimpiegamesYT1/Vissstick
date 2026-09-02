@@ -14,6 +14,7 @@ Discord bot voor het weergeven van het HOK van Syntaxis.
 - **Maandelijks Scoreboard** - Laatste dag om 18:00 resultaten + directe maandreset met top 3 startbonus (2000/1000/500 punten)
 - **Audio Player** - Speel MP3 bestanden af in voice channels
 - **Chat Responses** - Automatische grappige reacties
+- **/io** - Stuurt een random .io game in een embed
 
 ## Installatie (Server)
 
