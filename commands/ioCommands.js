@@ -10,7 +10,6 @@ const IO_GAMES = [
   'https://littlebigsnake.com',
   'https://snake.io',
   'https://mope.io',
-  'https://deeeep.io',
   'https://splix.io',
   'https://hole.io',
   // Dieren / slang-varianten
@@ -59,7 +58,6 @@ const IO_GAMES = [
   'https://massacre.io',
   'https://smashers.io',
   'https://smashkarts.io',
-  'https://knifewar.io',
   'https://growwars.io',
   'https://skyfight.io',
   'https://wilds.io',
