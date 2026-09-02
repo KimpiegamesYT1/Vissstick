@@ -109,7 +109,16 @@ const IO_GAMES = [
   'https://cursors.io',
   'https://gunbox.io',
   'https://catsvsdogs.io',
-  'https://yohoho.io'
+  'https://yohoho.io',
+  // Extra
+  'https://deadshot.io',
+  'https://openfront.io',
+  'https://colonist.io',
+  'https://slowroads.io',
+  'https://lolbeans.io',
+  'https://richup.io',
+  'https://arras.io',
+  'https://gulper.io'
 ];
 
 const ioCommands = [
