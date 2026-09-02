@@ -73,11 +73,11 @@ geïdentificeerd via een afgeleide sleutel (vak + startdatum).
 - `ROOSTER_FEED_URL` - iCal/webcal feed-URL (default staat hardcoded in `modules/rooster.js`)
 - `ROOSTER_LOG_CHANNEL_ID` - doelkanaal voor meldingen (valt terug op `LOG_CHANNEL_ID`)
 - `ROOSTER_CHECK_MINUTES` - check-interval in minuten (default: `5`)
-- `ROOSTER_MAX_PAUSE_MINUTES` - een gat tussen twee lessen telt als pauze tot dit aantal minuten (default: `60`)
+- `ROOSTER_MAX_PAUSE_MINUTES` - een gat tussen twee lessen telt als pauze tot dit aantal minuten (default: `90`)
 - `ROOSTER_PAUSE_LEAD_MINUTES` - hoeveel minuten vóór de volgende les de pauze-melding komt (default: `5`)
 
 **Pauze-meldingen:** op lesdagen met twee lessen met een gat ertussen (minstens
-5 en hoogstens `ROOSTER_MAX_PAUSE_MINUTES` minuten) stuurt de bot `ROOSTER_PAUSE_LEAD_MINUTES`
+5 en hoogstens `ROOSTER_MAX_PAUSE_MINUTES` minuten, default 90) stuurt de bot `ROOSTER_PAUSE_LEAD_MINUTES`
 minuten voor de volgende les één herinnering naar het log-kanaal. Alleen echte
 lessen tellen mee (event met locatie en starttijd); vakanties en hele-dag events
 worden genegeerd. De check draait elke minuut op basis van de opgeslagen snapshot.

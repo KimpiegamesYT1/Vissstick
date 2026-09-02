@@ -36,7 +36,7 @@ const MAX_FIELDS = 20;
 // wanneer het minstens PAUSE_MIN_MINUTES en hoogstens ROOSTER_MAX_PAUSE_MINUTES
 // (default hieronder) duurt. De melding gaat PAUSE_LEAD_MINUTES vooraf.
 const PAUSE_MIN_MINUTES = 5;
-const DEFAULT_PAUSE_MAX_MINUTES = 60;
+const DEFAULT_PAUSE_MAX_MINUTES = 90;
 const DEFAULT_PAUSE_LEAD_MINUTES = 5;
 
 function getPauseMaxMinutes(config) {
