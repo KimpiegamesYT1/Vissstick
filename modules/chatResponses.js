@@ -11,7 +11,13 @@ const sixtySevenGifs = [
   'https://media.tenor.com/6COMq6z3l5oAAAAM/bosnov-67.gif',
   'https://media.tenor.com/R_SeKejTinEAAAAM/shaquille-o%27neal-shaq.gif',
   'https://media3.giphy.com/media/v1.Y2lkPTZjMDliOTUyMDIzOG5iejVkaml4ZDl6Y201a2NrN3FjbHYzZm4yMm4ydmh6a212MyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/08uBcURaMq6vA93TGc/200.gif',
-  'https://media4.giphy.com/media/v1.Y2lkPTZjMDliOTUyMmt1dDJobWlrMDk3bmszank5dHF3bjJ2YWI5Zm44OXVnaGJkcWgxdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dYtbmkLlAxoLumhGqv/giphy.gif'
+  'https://media4.giphy.com/media/v1.Y2lkPTZjMDliOTUyMmt1dDJobWlrMDk3bmszank5dHF3bjJ2YWI5Zm44OXVnaGJkcWgxdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dYtbmkLlAxoLumhGqv/giphy.gif',
+  'https://external-preview.redd.it/j028oNQL0VNxaN1pGPYGEIe90EonCVYtg7fY2-CkBJ8.gif?auto=webp&s=56910f880b6844b0785b28a20dc7f93a220e9b3b',
+  'https://i.imgflip.com/a6tcid.gif',
+  'https://media3.giphy.com/media/v1.Y2lkPTZjMDliOTUyaGk5YjJ1b2EyMGN0dmx2NmR4NXd3cmR2cnVqYzhvMzd2dTN1eTE5dyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/6LkqKOn3RSfvBB5vSu/200.gif',
+  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSzbYf6WLTontNbeTZqxTtIezUQyzVbivuBJDSqDKPJgUQvqClxE8MuasU&s=10',
+  'https://media0.giphy.com/media/v1.Y2lkPTZjMDliOTUyYTNieTVmYThkMGo5Mng3NjFqNGwxNXd6MHhkZ2FxamtreXRscW92OSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/MKUOUJrFldIyi2hJyT/200.gif',
+  'https://api.memes.co.in/media/memesvideo/gif/Otomo_Six_Seven.gif'
 ];
 
 // Lijst met chat triggers en responses
