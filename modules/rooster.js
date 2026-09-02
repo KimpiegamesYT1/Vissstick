@@ -298,21 +298,29 @@ async function fetchCalendar(config) {
 }
 
 /**
- * Toekomstige events die we onthouden (tot SNAPSHOT_DAYS vooruit).
+ * Events die we onthouden: van begin vandaag tot SNAPSHOT_DAYS vooruit.
+ * Vandaag wordt volledig bewaard (ook al voorbije lessen), zodat de
+ * pauze-melding de voorafgaande les nog kan vinden.
  */
 function filterToSnapshotRange(events) {
-  const nowStamp = amsterdamNowStamp();
+  const today = amsterdamNowStamp().slice(0, 8);
   const endDate = amsterdamDateStampPlusDays(SNAPSHOT_DAYS);
-  return events.filter(
-    (event) => event.startStamp >= nowStamp && event.startStamp.slice(0, 8) <= endDate
-  );
+  return events.filter((event) => {
+    const date = event.startStamp.slice(0, 8);
+    return date >= today && date <= endDate;
+  });
 }
 
 /**
- * Valt de startdatum binnen het meld-venster (max WINDOW_DAYS vooruit)?
+ * Valt de start in het meld-venster: in de toekomst en max WINDOW_DAYS vooruit?
+ * (Voorbije lessen van vandaag zitten wel in de snapshot, maar leveren geen
+ * wijzigingsmelding op.)
  */
 function isInNotifyWindow(startStamp) {
-  return startStamp.slice(0, 8) <= amsterdamDateStampPlusDays(WINDOW_DAYS);
+  return (
+    startStamp >= amsterdamNowStamp() &&
+    startStamp.slice(0, 8) <= amsterdamDateStampPlusDays(WINDOW_DAYS)
+  );
 }
 
 function getSnapshot() {
