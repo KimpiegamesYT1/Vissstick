@@ -32,6 +32,23 @@ const SNAPSHOT_DAYS = 60;
 // Maximaal aantal wijzigingen dat we in één embed tonen.
 const MAX_FIELDS = 20;
 
+// Pauze-melding: een gat tussen twee lessen op dezelfde dag telt als pauze
+// wanneer het minstens PAUSE_MIN_MINUTES en hoogstens ROOSTER_MAX_PAUSE_MINUTES
+// (default hieronder) duurt. De melding gaat PAUSE_LEAD_MINUTES vooraf.
+const PAUSE_MIN_MINUTES = 5;
+const DEFAULT_PAUSE_MAX_MINUTES = 60;
+const DEFAULT_PAUSE_LEAD_MINUTES = 5;
+
+function getPauseMaxMinutes(config) {
+  const v = Number(config.ROOSTER_MAX_PAUSE_MINUTES);
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_PAUSE_MAX_MINUTES;
+}
+
+function getPauseLeadMinutes(config) {
+  const v = Number(config.ROOSTER_PAUSE_LEAD_MINUTES);
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_PAUSE_LEAD_MINUTES;
+}
+
 function getFeedUrl(config) {
   const raw = config.ROOSTER_FEED_URL || DEFAULT_FEED_URL;
   return raw.replace(/^webcal:\/\//i, 'https://');
@@ -127,6 +144,36 @@ function formatStamp(stamp) {
 }
 
 /**
+ * Toon alleen de tijd van een stamp ("HH:MM").
+ */
+function formatTime(stamp) {
+  if (!stamp || stamp.length < 13) return '?';
+  return `${stamp.slice(9, 11)}:${stamp.slice(11, 13)}`;
+}
+
+/**
+ * Zet een stamp (YYYYMMDDTHHMMSS, Amsterdam wall-clock) om naar een Date.
+ * Alleen bedoeld voor verschillen binnen dezelfde dag.
+ */
+function stampToDate(stamp) {
+  return new Date(Date.UTC(
+    Number(stamp.slice(0, 4)),
+    Number(stamp.slice(4, 6)) - 1,
+    Number(stamp.slice(6, 8)),
+    Number(stamp.slice(9, 11)),
+    Number(stamp.slice(11, 13)),
+    Number(stamp.slice(13, 15)) || 0
+  ));
+}
+
+/**
+ * Verschil in minuten tussen twee stamps (b - a).
+ */
+function stampDiffMinutes(a, b) {
+  return (stampToDate(b).getTime() - stampToDate(a).getTime()) / 60000;
+}
+
+/**
  * Toon een event-periode compact (zelfde dag => alleen eind-tijd).
  */
 function formatRange(startStamp, endStamp) {
@@ -150,6 +197,15 @@ function baseSummary(summary, location) {
     base = base.replace(suffix, '').trim();
   }
   return base;
+}
+
+/**
+ * Korte lestitel: basisnaam zonder code-prefix (alles vóór de eerste ": ").
+ */
+function lessonTitle(summary, location) {
+  const base = baseSummary(summary, location);
+  const idx = base.indexOf(': ');
+  return idx !== -1 ? base.slice(idx + 2).trim() || base : base;
 }
 
 /**
@@ -446,6 +502,8 @@ async function checkRoosterChanges(client, config) {
     return;
   }
 
+  cleanupOldPauseReminders();
+
   const firstRun = !isInitialized();
   const diff = diffEvents(getSnapshot(), snapshotEvents);
 
@@ -478,6 +536,122 @@ async function checkRoosterChanges(client, config) {
   );
 }
 
+// =====================================================
+// PAUZE-MELDINGEN
+// =====================================================
+
+/**
+ * Haal de lessen van een dag op uit de snapshot: events met een locatie en een
+ * echte starttijd (geen hele-dag events zoals vakanties).
+ */
+function getLessonsForDay(dateStamp) {
+  const db = getDatabase();
+  return db
+    .prepare(
+      `SELECT event_key, summary, location, start_stamp, end_stamp
+       FROM rooster_events
+       WHERE substr(start_stamp, 1, 8) = ?
+         AND location IS NOT NULL AND location != ''
+         AND substr(start_stamp, 10, 6) != '000000'
+         AND end_stamp IS NOT NULL AND end_stamp != ''
+       ORDER BY start_stamp ASC`
+    )
+    .all(dateStamp);
+}
+
+/**
+ * Zoek voor een les de les die er direct aan voorafgaat (hoogste eindtijd die
+ * niet later ligt dan de start van deze les).
+ */
+function findPrecedingLesson(lessons, target) {
+  let best = null;
+  for (const lesson of lessons) {
+    if (lesson.event_key === target.event_key) continue;
+    if (lesson.end_stamp <= target.start_stamp) {
+      if (!best || lesson.end_stamp > best.end_stamp) best = lesson;
+    }
+  }
+  return best;
+}
+
+/**
+ * Bouw de embed voor een pauze-melding.
+ */
+function buildPauseReminderEmbed(before, next, gapMinutes, minutesLeft) {
+  const title = lessonTitle(next.summary, next.location);
+  return new EmbedBuilder()
+    .setTitle('⏰ Pauze bijna voorbij')
+    .setColor(0x5865f2)
+    .setDescription(
+      `**${title}** begint om **${formatTime(next.start_stamp)}** ` +
+        `(over ${Math.max(1, Math.round(minutesLeft))} min) in **${next.location}**.`
+    )
+    .addFields(
+      { name: 'Pauze', value: `${Math.round(gapMinutes)} min — na ${lessonTitle(before.summary, before.location)} (tot ${formatTime(before.end_stamp)})` }
+    )
+    .setTimestamp();
+}
+
+function cleanupOldPauseReminders() {
+  try {
+    getDatabase()
+      .prepare("DELETE FROM rooster_pause_reminders WHERE notified_at < datetime('now', '-2 days')")
+      .run();
+  } catch (err) {
+    console.error('[rooster] Kon oude pauze-meldingen niet opruimen:', err);
+  }
+}
+
+/**
+ * Controleer of er nu een pauze bijna voorbij is en stuur eenmalig een melding
+ * PAUSE_LEAD_MINUTES voordat de volgende les begint. Draait elke minuut en
+ * gebruikt alleen de snapshot in de database (geen feed-request).
+ */
+async function checkPauseReminders(client, config) {
+  const db = getDatabase();
+  const nowStamp = amsterdamNowStamp();
+  const today = nowStamp.slice(0, 8);
+
+  const lessons = getLessonsForDay(today);
+  if (lessons.length < 2) return;
+
+  const maxPause = getPauseMaxMinutes(config);
+  const lead = getPauseLeadMinutes(config);
+
+  for (const next of lessons) {
+    const minutesLeft = stampDiffMinutes(nowStamp, next.start_stamp);
+    if (minutesLeft <= 0 || minutesLeft > lead) continue;
+
+    const before = findPrecedingLesson(lessons, next);
+    if (!before) continue;
+
+    const gap = stampDiffMinutes(before.end_stamp, next.start_stamp);
+    if (gap < PAUSE_MIN_MINUTES || gap > maxPause) continue;
+
+    const reminderKey = `${today}|${next.event_key}`;
+    if (db.prepare('SELECT 1 FROM rooster_pause_reminders WHERE reminder_key = ?').get(reminderKey)) {
+      continue;
+    }
+
+    try {
+      const channel = await client.channels.fetch(getLogChannelId(config));
+      if (!channel) {
+        console.error('[rooster] Log-kanaal niet gevonden voor pauze-melding');
+        continue;
+      }
+      await channel.send({ embeds: [buildPauseReminderEmbed(before, next, gap, minutesLeft)] });
+    } catch (err) {
+      console.error('[rooster] Kon pauze-melding niet sturen:', err);
+      continue; // niet markeren -> volgende minuut opnieuw proberen
+    }
+
+    db.prepare(
+      "INSERT OR IGNORE INTO rooster_pause_reminders (reminder_key, notified_at) VALUES (?, datetime('now'))"
+    ).run(reminderKey);
+    console.log(`[rooster] Pauze-melding: ${lessonTitle(next.summary, next.location)} begint om ${formatTime(next.start_stamp)} (pauze ${Math.round(gap)} min)`);
+  }
+}
+
 /**
  * Start de rooster monitoring: doe direct een eerste check (seed of diff).
  */
@@ -498,5 +672,9 @@ module.exports = {
   diffEvents,
   buildChangeEmbed,
   checkRoosterChanges,
+  getLessonsForDay,
+  findPrecedingLesson,
+  buildPauseReminderEmbed,
+  checkPauseReminders,
   startRoosterMonitoring
 };

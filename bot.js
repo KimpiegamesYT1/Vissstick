@@ -962,6 +962,13 @@ client.once("clientReady", async () => {
   }, roosterCheckMinutes * 60 * 1000);
   console.log(`Rooster monitoring actief (check elke ${roosterCheckMinutes} min)`);
 
+  // Pauze-meldingen: elke minuut checken of een pauze op een lesdag bijna voorbij is
+  setInterval(() => {
+    rooster.checkPauseReminders(client, config).catch((error) => {
+      console.error('Fout bij rooster pauze-check:', error);
+    });
+  }, 60 * 1000);
+
   // Start publieke read-only API voor hokstatus
   startPublicApiServer();
 

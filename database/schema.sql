@@ -104,6 +104,13 @@ CREATE TABLE IF NOT EXISTS rooster_meta (
 
 INSERT OR IGNORE INTO rooster_meta (id, initialized) VALUES (1, 0);
 
+-- Al verstuurde pauze-meldingen (1 per les-start per dag), zodat we niet
+-- elke minuut dezelfde melding herhalen. Wordt na 2 dagen opgeruimd.
+CREATE TABLE IF NOT EXISTS rooster_pause_reminders (
+    reminder_key TEXT PRIMARY KEY, -- Format: YYYYMMDD|<event_key>
+    notified_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =====================================================
 -- ECONOMIE & CASINO SYSTEEM
 -- =====================================================
