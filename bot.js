@@ -8,6 +8,7 @@ const path = require('path');
 const { initDatabase } = require('./database');
 const quiz = require('./modules/quiz.js');
 const hok = require('./modules/hok.js');
+const rooster = require('./modules/rooster.js');
 const casino = require('./modules/casino.js');
 const mathChallenge = require('./modules/mathChallenge.js');
 const { handleCountingMessage } = require('./modules/tellen.js');
@@ -946,6 +947,16 @@ client.once("clientReady", async () => {
 
   // Start hok monitoring
   hokState = hok.startHokMonitoring(client, config);
+
+  // Rooster monitoring: eerste check bij opstarten + elke 15 minuten
+  rooster.startRoosterMonitoring(client, config).catch((error) => {
+    console.error('Fout bij starten rooster monitoring:', error);
+  });
+  cron.schedule('*/15 * * * *', async () => {
+    await rooster.checkRoosterChanges(client, config);
+  }, {
+    timezone: 'Europe/Amsterdam'
+  });
 
   // Start publieke read-only API voor hokstatus
   startPublicApiServer();

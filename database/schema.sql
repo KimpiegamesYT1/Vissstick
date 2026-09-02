@@ -77,6 +77,34 @@ CREATE TABLE IF NOT EXISTS hok_notifications (
 );
 
 -- =====================================================
+-- ROOSTER MONITORING
+-- =====================================================
+
+-- Snapshot van de rooster-events die momenteel binnen het volgvenster
+-- (max 2 weken vooruit) vallen. Wordt bij elke check vergeleken en herschreven.
+-- De feed regenereert UID's per request, dus events worden geïdentificeerd via
+-- een afgeleide sleutel (vak + datum), opgeslagen als event_key.
+CREATE TABLE IF NOT EXISTS rooster_events (
+    event_key TEXT PRIMARY KEY,
+    summary TEXT NOT NULL,
+    location TEXT,
+    start_stamp TEXT NOT NULL, -- Genormaliseerd: YYYYMMDDTHHMMSS (Europe/Amsterdam)
+    end_stamp TEXT,
+    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_rooster_events_start ON rooster_events(start_stamp);
+
+-- Meta-status voor de rooster monitor (of de eerste seed al gedaan is)
+CREATE TABLE IF NOT EXISTS rooster_meta (
+    id INTEGER PRIMARY KEY CHECK(id = 1),
+    initialized INTEGER NOT NULL DEFAULT 0,
+    last_checked DATETIME
+);
+
+INSERT OR IGNORE INTO rooster_meta (id, initialized) VALUES (1, 0);
+
+-- =====================================================
 -- ECONOMIE & CASINO SYSTEEM
 -- =====================================================
 
