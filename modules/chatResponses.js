@@ -37,7 +37,7 @@ const chatTriggers = [
   { trigger: 'goedemorgen', response: 'Goedemorgen! ☀️', exactMatch: true },
   { trigger: 'goedenacht', response: 'Slaap lekker! 🌙', exactMatch: true },
   { trigger: 'doei', response: '👋', exactMatch: true },
-  { trigger: 'AI', response: 'AI AI THE POWER OF AI', exactMatch: true },
+  { trigger: 'AI', response: 'AI AI THE POWER OF AI', exactMatch: false },
   { trigger: 'SQL', response: '/̵͇̿̿/’̿’̿ ̿ ̿̿ ̿̿ ̿̿', exactMatch: true },
   { trigger: 'uitval', response: 'https://preview.redd.it/memes-about-turning-40-or-getting-old-v0-yeejlvcgh3yb1.png?width=480&format=png&auto=webp&s=5189e5668d3fc3ab5202beea691cbb304bdd593e', exactMatch: true },
   { trigger: 'trein', response: 'https://images-ext-1.discordapp.net/external/mJhIRgTYXq2slTclvT6ZBliWpdJPl6XgN-qiHFFe65s/https/media.tenor.com/seghh0Qr0NIAAAPo/funny-iliketrains.mp4', exactMatch: true },
