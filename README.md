@@ -73,6 +73,7 @@ geïdentificeerd via een afgeleide sleutel (vak + startdatum).
 
 - `ROOSTER_FEED_URL` - iCal/webcal feed-URL (default staat hardcoded in `modules/rooster.js`)
 - `ROOSTER_LOG_CHANNEL_ID` - doelkanaal voor alle roostermeldingen (wijzigingen + pauze-herinneringen); default staat hardcoded in `modules/rooster.js`
+- `ROOSTER_ROLE_ID` - rol die via de 🔔-reactie onder een roostermelding wordt getoggled; default staat hardcoded in `modules/rooster.js`
 - `ROOSTER_CHECK_MINUTES` - check-interval in minuten (default: `5`)
 - `ROOSTER_MAX_PAUSE_MINUTES` - een gat tussen twee lessen telt als pauze tot dit aantal minuten (default: `90`)
 - `ROOSTER_PAUSE_LEAD_MINUTES` - hoeveel minuten vóór de volgende les de pauze-melding komt (default: `7`)
@@ -82,6 +83,10 @@ geïdentificeerd via een afgeleide sleutel (vak + startdatum).
 minuten voor de volgende les één herinnering naar het rooster-kanaal. Alleen echte
 lessen tellen mee (event met locatie en starttijd); vakanties en hele-dag events
 worden genegeerd. De check draait elke minuut op basis van de opgeslagen snapshot.
+
+Onder elke roostermelding zet de bot een 🔔-reactie. Wie daarop klikt krijgt de
+rol `ROOSTER_ROLE_ID` toegewezen (of verwijderd), met een korte bevestiging in
+het kanaal die na 5 seconden verdwijnt — net als bij de hok-meldingen.
 
 ### Publieke Hok API
 

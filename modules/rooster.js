@@ -49,6 +49,13 @@ function getPauseLeadMinutes(config) {
   return Number.isFinite(v) && v > 0 ? v : DEFAULT_PAUSE_LEAD_MINUTES;
 }
 
+// Rol die via de 🔔-reactie onder een roostermelding wordt getoggled.
+const DEFAULT_ROOSTER_ROLE_ID = '1545369238951170058';
+
+function getRoosterRoleId(config) {
+  return config.ROOSTER_ROLE_ID || DEFAULT_ROOSTER_ROLE_ID;
+}
+
 function getFeedUrl(config) {
   const raw = config.ROOSTER_FEED_URL || DEFAULT_FEED_URL;
   return raw.replace(/^webcal:\/\//i, 'https://');
@@ -171,6 +178,32 @@ function stampToDate(stamp) {
  */
 function stampDiffMinutes(a, b) {
   return (stampToDate(b).getTime() - stampToDate(a).getTime()) / 60000;
+}
+
+/**
+ * Offset (minuten t.o.v. UTC) van Europe/Amsterdam op een bepaald moment.
+ */
+function amsterdamOffsetMinutes(date) {
+  const label = date.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam', timeZoneName: 'longOffset' });
+  const m = label.match(/GMT([+-])(\d{2}):(\d{2})/);
+  if (!m) return 0;
+  return (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3]));
+}
+
+/**
+ * Zet een Amsterdam wall-clock stamp om naar een Unix timestamp (seconden),
+ * voor gebruik in Discord <t:...> tijdstempels.
+ */
+function stampToUnix(stamp) {
+  const asUtc = Date.UTC(
+    Number(stamp.slice(0, 4)),
+    Number(stamp.slice(4, 6)) - 1,
+    Number(stamp.slice(6, 8)),
+    Number(stamp.slice(9, 11)),
+    Number(stamp.slice(11, 13)),
+    Number(stamp.slice(13, 15)) || 0
+  );
+  return Math.floor((asUtc - amsterdamOffsetMinutes(new Date(asUtc)) * 60000) / 1000);
 }
 
 /**
@@ -532,7 +565,8 @@ async function checkRoosterChanges(client, config) {
       console.error('[rooster] Log-kanaal niet gevonden:', getLogChannelId(config));
       return;
     }
-    await channel.send({ embeds: [buildChangeEmbed(diff)] });
+    const sent = await channel.send({ embeds: [buildChangeEmbed(diff)] });
+    sent.react('🔔').catch(() => {});
   } catch (err) {
     console.error('[rooster] Kon roostermelding niet sturen:', err);
     return; // snapshot niet opslaan zodat we het de volgende keer opnieuw proberen
@@ -583,20 +617,16 @@ function findPrecedingLesson(lessons, target) {
 }
 
 /**
- * Bouw de embed voor een pauze-melding.
+ * Bouw de embed voor een pauze-melding. Gebruikt een Discord-tijdstempel zodat
+ * de "begint over ..." realtime meeloopt.
  */
-function buildPauseReminderEmbed(before, next, gapMinutes, minutesLeft) {
+function buildPauseReminderEmbed(next) {
   const title = lessonTitle(next.summary, next.location);
+  const unix = stampToUnix(next.start_stamp);
   return new EmbedBuilder()
     .setTitle('⏰ Pauze bijna voorbij')
     .setColor(0x5865f2)
-    .setDescription(
-      `**${title}** begint om **${formatTime(next.start_stamp)}** ` +
-        `(over ${Math.max(1, Math.round(minutesLeft))} min) in **${next.location}**.`
-    )
-    .addFields(
-      { name: 'Pauze', value: `${Math.round(gapMinutes)} min — na ${lessonTitle(before.summary, before.location)} (tot ${formatTime(before.end_stamp)})` }
-    )
+    .setDescription(`**${title}** begint <t:${unix}:R> (<t:${unix}:t>) in **${next.location}**.`)
     .setTimestamp();
 }
 
@@ -647,7 +677,8 @@ async function checkPauseReminders(client, config) {
         console.error('[rooster] Log-kanaal niet gevonden voor pauze-melding');
         continue;
       }
-      await channel.send({ embeds: [buildPauseReminderEmbed(before, next, gap, minutesLeft)] });
+      const sent = await channel.send({ embeds: [buildPauseReminderEmbed(next)] });
+      sent.react('🔔').catch(() => {});
     } catch (err) {
       console.error('[rooster] Kon pauze-melding niet sturen:', err);
       continue; // niet markeren -> volgende minuut opnieuw proberen
@@ -671,6 +702,8 @@ module.exports = {
   WINDOW_DAYS,
   getFeedUrl,
   getLogChannelId,
+  getRoosterRoleId,
+  stampToUnix,
   parseIcs,
   normalizeStamp,
   baseSummary,

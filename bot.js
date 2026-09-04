@@ -515,6 +515,44 @@ client.on('messageReactionAdd', async (reaction, user) => {
     }
   }
 
+  // Rooster notificaties (🔔) - toggle de rooster-rol
+  if (reaction.emoji.name === '🔔') {
+    try {
+      let message = reaction.message;
+      if (message.partial) message = await message.fetch();
+
+      const roosterChannelId = rooster.getLogChannelId(config);
+      const isRoosterMelding =
+        message.channelId === roosterChannelId &&
+        message.author?.id === client.user.id &&
+        message.embeds.length > 0;
+
+      if (isRoosterMelding) {
+        const guild = message.guild;
+        const member = await guild.members.fetch(user.id);
+        const roleId = rooster.getRoosterRoleId(config);
+        const role = await guild.roles.fetch(roleId);
+
+        if (role) {
+          if (member.roles.cache.has(roleId)) {
+            await member.roles.remove(role);
+            await message.channel.send(`<@${user.id}> ontvangt niet langer roostermeldingen!`).then(msg => {
+              setTimeout(() => msg.delete().catch(() => {}), 5000);
+            });
+          } else {
+            await member.roles.add(role);
+            await message.channel.send(`<@${user.id}> ontvangt nu roostermeldingen!`).then(msg => {
+              setTimeout(() => msg.delete().catch(() => {}), 5000);
+            });
+          }
+          await reaction.users.remove(user.id);
+        }
+      }
+    } catch (err) {
+      console.error('Fout bij rooster rol toggle:', err);
+    }
+  }
+
   // Starboard functionaliteit (⭐)
   if (reaction.emoji.name === '⭐' && STARBOARD_CHANNEL_ID) {
     try {
