@@ -650,11 +650,15 @@ async function checkPauseReminders(client, config) {
   const nowStamp = amsterdamNowStamp();
   const today = nowStamp.slice(0, 8);
 
+  // Verwijder pauze-meldingen waarvan de les inmiddels begonnen is
+  await deleteStartedPauseReminders(client, db, nowStamp);
+
   const lessons = getLessonsForDay(today);
   if (lessons.length < 2) return;
 
   const maxPause = getPauseMaxMinutes(config);
   const lead = getPauseLeadMinutes(config);
+  const roleId = getRoosterRoleId(config);
 
   for (const next of lessons) {
     const minutesLeft = stampDiffMinutes(nowStamp, next.start_stamp);
@@ -671,13 +675,19 @@ async function checkPauseReminders(client, config) {
       continue;
     }
 
+    const mins = Math.max(1, Math.round(minutesLeft));
+    let sent;
     try {
       const channel = await client.channels.fetch(getLogChannelId(config));
       if (!channel) {
         console.error('[rooster] Log-kanaal niet gevonden voor pauze-melding');
         continue;
       }
-      const sent = await channel.send({ embeds: [buildPauseReminderEmbed(next)] });
+      sent = await channel.send({
+        content: `<@&${roleId}> De les begint over ${mins} ${mins === 1 ? 'minuut' : 'minuten'}`,
+        embeds: [buildPauseReminderEmbed(next)],
+        allowedMentions: { roles: [roleId] }
+      });
       sent.react('🔔').catch(() => {});
     } catch (err) {
       console.error('[rooster] Kon pauze-melding niet sturen:', err);
@@ -685,9 +695,35 @@ async function checkPauseReminders(client, config) {
     }
 
     db.prepare(
-      "INSERT OR IGNORE INTO rooster_pause_reminders (reminder_key, notified_at) VALUES (?, datetime('now'))"
-    ).run(reminderKey);
+      `INSERT OR IGNORE INTO rooster_pause_reminders
+         (reminder_key, message_id, channel_id, starts_at, notified_at)
+       VALUES (?, ?, ?, ?, datetime('now'))`
+    ).run(reminderKey, sent.id, sent.channelId, next.start_stamp);
     console.log(`[rooster] Pauze-melding: ${lessonTitle(next.summary, next.location)} begint om ${formatTime(next.start_stamp)} (pauze ${Math.round(gap)} min)`);
+  }
+}
+
+/**
+ * Verwijder de Discord-berichten van pauze-meldingen zodra de les begonnen is.
+ */
+async function deleteStartedPauseReminders(client, db, nowStamp) {
+  const rows = db
+    .prepare(
+      `SELECT reminder_key, message_id, channel_id
+       FROM rooster_pause_reminders
+       WHERE message_id IS NOT NULL AND starts_at IS NOT NULL AND starts_at <= ?`
+    )
+    .all(nowStamp);
+
+  for (const row of rows) {
+    try {
+      const channel = await client.channels.fetch(row.channel_id);
+      const message = await channel.messages.fetch(row.message_id);
+      await message.delete();
+    } catch (err) {
+      // bericht al weg of geen toegang - niet erg
+    }
+    db.prepare('UPDATE rooster_pause_reminders SET message_id = NULL WHERE reminder_key = ?').run(row.reminder_key);
   }
 }
 

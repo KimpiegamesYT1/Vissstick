@@ -84,6 +84,10 @@ minuten voor de volgende les één herinnering naar het rooster-kanaal. Alleen e
 lessen tellen mee (event met locatie en starttijd); vakanties en hele-dag events
 worden genegeerd. De check draait elke minuut op basis van de opgeslagen snapshot.
 
+De melding pingt `ROOSTER_ROLE_ID` in de berichttekst (buiten de embed, zodat
+mobiele notificaties tekst tonen) en wordt automatisch verwijderd zodra de les
+begonnen is.
+
 Onder elke roostermelding zet de bot een 🔔-reactie. Wie daarop klikt krijgt de
 rol `ROOSTER_ROLE_ID` toegewezen (of verwijderd), met een korte bevestiging in
 het kanaal die na 5 seconden verdwijnt — net als bij de hok-meldingen.

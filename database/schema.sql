@@ -106,8 +106,13 @@ INSERT OR IGNORE INTO rooster_meta (id, initialized) VALUES (1, 0);
 
 -- Al verstuurde pauze-meldingen (1 per les-start per dag), zodat we niet
 -- elke minuut dezelfde melding herhalen. Wordt na 2 dagen opgeruimd.
+-- message_id/channel_id: zodat we de melding kunnen verwijderen zodra de les
+-- begonnen is. starts_at: YYYYMMDDTHHMMSS van de lesstart.
 CREATE TABLE IF NOT EXISTS rooster_pause_reminders (
     reminder_key TEXT PRIMARY KEY, -- Format: YYYYMMDD|<event_key>
+    message_id TEXT,
+    channel_id TEXT,
+    starts_at TEXT,
     notified_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

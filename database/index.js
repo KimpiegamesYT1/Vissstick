@@ -33,7 +33,10 @@ function initDatabase() {
     // in een bestaande database, zonder data-verlies.
     const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
     db.exec(schema);
-    
+
+    // Lichtgewicht migraties voor kolommen die later zijn toegevoegd
+    runMigrations(db);
+
     if (tables.length === 0) {
       console.log('📊 Database was leeg, schema succesvol geïnitialiseerd!');
     } else {
@@ -45,6 +48,26 @@ function initDatabase() {
     console.error('❌ Fout bij initialiseren database:', error);
     throw error;
   }
+}
+
+/**
+ * Voeg een kolom toe als die nog niet bestaat (voor bestaande databases).
+ */
+function ensureColumn(db, table, column, definition) {
+  const exists = db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column);
+  if (!exists) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    console.log(`🔧 Migratie: kolom ${table}.${column} toegevoegd`);
+  }
+}
+
+/**
+ * Kleine schema-migraties die CREATE TABLE IF NOT EXISTS niet dekt.
+ */
+function runMigrations(db) {
+  ensureColumn(db, 'rooster_pause_reminders', 'message_id', 'TEXT');
+  ensureColumn(db, 'rooster_pause_reminders', 'channel_id', 'TEXT');
+  ensureColumn(db, 'rooster_pause_reminders', 'starts_at', 'TEXT');
 }
 
 /**
