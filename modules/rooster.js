@@ -476,7 +476,7 @@ function truncate(value, max) {
  */
 function buildChangeEmbed(diff) {
   const embed = new EmbedBuilder()
-    .setTitle(`📅 Roosterwijziging${totalCount(diff) === 1 ? '' : 'en'}`)
+    .setTitle(`Roosterwijziging${totalCount(diff) === 1 ? '' : 'en'}`)
     .setColor(0xffa500)
     .setTimestamp();
 
@@ -624,7 +624,7 @@ function buildPauseReminderEmbed(next) {
   const title = lessonTitle(next.summary, next.location);
   const unix = stampToUnix(next.start_stamp);
   return new EmbedBuilder()
-    .setTitle('⏰ Pauze bijna voorbij')
+    .setTitle('Pauze bijna voorbij')
     .setColor(0x5865f2)
     .setDescription(`**${title}** begint <t:${unix}:R> (<t:${unix}:t>) in **${next.location}**.`)
     .setTimestamp();
@@ -758,7 +758,7 @@ async function ensureSubscribeMessage(client, config) {
 
   try {
     const embed = new EmbedBuilder()
-      .setTitle('🔔 Roostermeldingen')
+      .setTitle('Roostermeldingen')
       .setColor(0x5865f2)
       .setDescription(
         'Klik op de 🔔 hieronder om roosterwijzigingen en pauze-herinneringen ' +
