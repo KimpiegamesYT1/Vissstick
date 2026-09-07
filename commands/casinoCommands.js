@@ -337,6 +337,10 @@ function resetMinesTimeout(gameId, interaction) {
 // Casino slash commands
 const casinoCommands = [
   {
+    name: 'casino',
+    description: 'Overzicht van alle casino spellen en commando\'s'
+  },
+  {
     name: 'balance',
     description: 'Bekijk saldo van jezelf of een andere user',
     options: [
@@ -655,6 +659,38 @@ async function handleCasinoCommands(interaction, client, config) {
   const casinoChannelId = config.CASINO_CHANNEL_ID;
   const logChannelId = config.LOG_CHANNEL_ID;
   const winnersChannelId = '1414596895191334925';
+
+  // /casino
+  if (commandName === 'casino') {
+    const embed = new EmbedBuilder()
+      .setTitle('🎰 Casino')
+      .setColor('#FFD700')
+      .setDescription('Alle casino spellen en commando\'s op een rij.')
+      .addFields(
+        {
+          name: '🎮 Spellen',
+          value: [
+            '🃏 **/blackjack** — Speel Blackjack tegen de dealer',
+            '💣 **/mines** — Kies inzet en difficulty, ontwijk de bommen',
+            '🎲 **/double** — Double or Nothing: verdubbel je inzet of verlies alles',
+            '🎯 **/bet status** — Bekijk de actieve JA/NEE weddenschappen'
+          ].join('\n')
+        },
+        {
+          name: '💰 Punten & info',
+          value: [
+            '**/balance** `[user]` — Bekijk een saldo',
+            '**/leaderboard** — Top 10 spelers',
+            '**/shop bekijk** — Bekijk de shop, **/shop buy** — koop een item',
+            '**/blackjackstats** `[user]` · **/minesstats** `[user]` — Statistieken'
+          ].join('\n')
+        }
+      )
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed], flags: 64 });
+    return true;
+  }
 
   // /balance
   if (commandName === 'balance') {
