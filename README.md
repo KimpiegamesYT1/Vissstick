@@ -90,9 +90,10 @@ begonnen is.
 
 Bij het opstarten plaatst de bot één vast (gepind) abonneer-bericht met een
 🔔-reactie in het rooster-kanaal. Wie daarop klikt krijgt de rol `ROOSTER_ROLE_ID`
-toegewezen (of verwijderd), met een korte bevestiging die na 5 seconden verdwijnt
-— net als bij de hok-meldingen. Elke roosterwijzig-melding krijgt ook een 🔔, maar
-omdat pauze-meldingen verdwijnen is het vaste bericht het blijvende abonneerpunt.
+toegewezen (of verwijderd) en krijgt een bevestiging via DM, zodat het kanaal geen
+ping krijgt — net als bij de hok-meldingen. Elke roosterwijzig-melding krijgt ook
+een 🔔, maar omdat pauze-meldingen verdwijnen is het vaste bericht het blijvende
+abonneerpunt.
 De bot herplaatst het bericht als het verwijderd is (bij de eerstvolgende start).
 
 ### Publieke Hok API
