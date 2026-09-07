@@ -663,21 +663,23 @@ async function handleCasinoCommands(interaction, client, config) {
   // /casino
   if (commandName === 'casino') {
     const embed = new EmbedBuilder()
-      .setTitle('🎰 Casino')
+      .setTitle('Casino')
       .setColor('#FFD700')
-      .setDescription('Alle casino spellen en commando\'s op een rij.')
+      .setDescription('Alle spellen en commando\'s op een rij.')
       .addFields(
         {
-          name: '🎮 Spellen',
+          name: 'Spellen',
           value: [
-            '🃏 **/blackjack** — Speel Blackjack tegen de dealer',
-            '💣 **/mines** — Kies inzet en difficulty, ontwijk de bommen',
-            '🎲 **/double** — Double or Nothing: verdubbel je inzet of verlies alles',
-            '🎯 **/bet status** — Bekijk de actieve JA/NEE weddenschappen'
+            '**/blackjack** — Speel Blackjack tegen de dealer',
+            '**/mines** — Kies inzet en difficulty, ontwijk de bommen',
+            '**/double** — Double or Nothing: verdubbel je inzet of verlies alles',
+            '**/galgje** — Raad het Nederlandse woord met een inzet',
+            '**/4opeenrij** `<tegenstander>` — Daag iemand uit met een inzet',
+            '**/bet status** — Bekijk de actieve JA/NEE weddenschappen'
           ].join('\n')
         },
         {
-          name: '💰 Punten & info',
+          name: 'Punten & info',
           value: [
             '**/balance** `[user]` — Bekijk een saldo',
             '**/leaderboard** — Top 10 spelers',
