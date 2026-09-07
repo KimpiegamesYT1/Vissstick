@@ -20,6 +20,20 @@ const sixtySevenGifs = [
   'https://api.memes.co.in/media/memesvideo/gif/Otomo_Six_Seven.gif'
 ];
 
+const appelImages = [
+  'https://www.jumbo.com/dam/recepten/fruit/appel/soorten/Appel-soorten-header-mobile-750x400px-v2.jpg',
+  'https://www.kidsproef.bio/wp-content/uploads/sites/5/2022/01/Weetjes-over-appels-header-818x460-1.jpg',
+  'https://i.etsystatic.com/38371646/r/il/6169d0/5181976194/il_340x270.5181976194_m3ih.jpg',
+  'https://pics.craiyon.com/2023-07-20/9c6ed85694ad40fe8272d8b5095aa2d2.webp',
+  'https://media.tenor.com/79TmsosTSLoAAAAM/apple-special-needs.gif',
+  'https://images.meme-arsenal.com/188b90bdf7124396d28414d28ad984b1.jpg',
+  'https://www.shutterstock.com/image-photo/humorous-portrait-young-man-making-260nw-2559760239.jpg',
+  'https://static.wikia.nocookie.net/surrealmemes/images/2/20/1575980089492.png/revision/latest?cb=20191220213409',
+  'https://i.pinimg.com/originals/a1/83/63/a183636ef2e619eb4719d751df10edd7.gif',
+  'https://media.tenor.com/cRxrfdox-_cAAAAM/bubatz-baer.gif',
+  'https://gifdb.com/images/thumbnail/cursed-asian-woman-eating-apple-bgbpwunxnq3zevkp.gif'
+];
+
 // Lijst met chat triggers en responses
 const chatTriggers = [
   // Bestaande klassiekers
@@ -32,6 +46,7 @@ const chatTriggers = [
   { trigger: '69', response: 'nice', exactMatch: true },
   { trigger: '67', responses: sixtySevenGifs, exactMatch: false },
   { trigger: '6 7', responses: sixtySevenGifs, exactMatch: false },
+  { trigger: 'appel', responses: appelImages, exactMatch: false },
   { trigger: 'is het hok open', response: 'Kijk naar mijn status! 👀', exactMatch: false },
   { trigger: 'hok', response: '🐔', exactMatch: true },
   { trigger: 'goedemorgen', response: 'Goedemorgen! ☀️', exactMatch: true },
