@@ -495,13 +495,17 @@ client.on('messageReactionAdd', async (reaction, user) => {
       const role = await guild.roles.fetch(ROLE_ID);
       
       if (role) {
-        // Toggle role - bevestiging via DM zodat het kanaal geen ping krijgt
+        // Toggle role
         if (member.roles.cache.has(ROLE_ID)) {
           await member.roles.remove(role);
-          await user.send('Je ontvangt niet langer hok-notificaties!').catch(() => {});
+          await reaction.message.channel.send(`<@${user.id}> ontvangt niet langer notificaties!`).then(msg => {
+            setTimeout(() => msg.delete(), 5000);
+          });
         } else {
           await member.roles.add(role);
-          await user.send('Je ontvangt nu hok-notificaties!').catch(() => {});
+          await reaction.message.channel.send(`<@${user.id}> ontvangt nu notificaties!`).then(msg => {
+            setTimeout(() => msg.delete(), 5000);
+          });
         }
         // Remove user's reaction
         await reaction.users.remove(user.id);
@@ -530,13 +534,16 @@ client.on('messageReactionAdd', async (reaction, user) => {
         const role = await guild.roles.fetch(roleId);
 
         if (role) {
-          // Bevestiging via DM zodat het rooster-kanaal geen ping krijgt
           if (member.roles.cache.has(roleId)) {
             await member.roles.remove(role);
-            await user.send('Je ontvangt niet langer roostermeldingen!').catch(() => {});
+            await message.channel.send(`<@${user.id}> ontvangt niet langer roostermeldingen!`).then(msg => {
+              setTimeout(() => msg.delete().catch(() => {}), 5000);
+            });
           } else {
             await member.roles.add(role);
-            await user.send('Je ontvangt nu roostermeldingen!').catch(() => {});
+            await message.channel.send(`<@${user.id}> ontvangt nu roostermeldingen!`).then(msg => {
+              setTimeout(() => msg.delete().catch(() => {}), 5000);
+            });
           }
           await reaction.users.remove(user.id);
         }
