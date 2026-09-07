@@ -68,6 +68,7 @@ function runMigrations(db) {
   ensureColumn(db, 'rooster_pause_reminders', 'message_id', 'TEXT');
   ensureColumn(db, 'rooster_pause_reminders', 'channel_id', 'TEXT');
   ensureColumn(db, 'rooster_pause_reminders', 'starts_at', 'TEXT');
+  ensureColumn(db, 'rooster_meta', 'subscribe_message_id', 'TEXT');
 }
 
 /**

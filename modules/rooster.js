@@ -728,10 +728,58 @@ async function deleteStartedPauseReminders(client, db, nowStamp) {
 }
 
 /**
+ * Zorg dat er één vast abonneer-bericht met een 🔔-reactie in het rooster-kanaal
+ * staat. Omdat pauze-meldingen verdwijnen, is dit het blijvende punt om je op
+ * roostermeldingen te abonneren.
+ */
+async function ensureSubscribeMessage(client, config) {
+  const db = getDatabase();
+
+  let channel;
+  try {
+    channel = await client.channels.fetch(getLogChannelId(config));
+  } catch (err) {
+    console.error('[rooster] Kon rooster-kanaal niet ophalen voor abonneer-bericht:', err.message);
+    return;
+  }
+  if (!channel) return;
+
+  const existingId = db.prepare('SELECT subscribe_message_id FROM rooster_meta WHERE id = 1').get()?.subscribe_message_id;
+
+  if (existingId) {
+    try {
+      const msg = await channel.messages.fetch(existingId);
+      if (!msg.reactions.cache.has('🔔')) await msg.react('🔔').catch(() => {});
+      return; // bestaat nog, klaar
+    } catch (err) {
+      // bericht is weg -> hieronder opnieuw plaatsen
+    }
+  }
+
+  try {
+    const embed = new EmbedBuilder()
+      .setTitle('🔔 Roostermeldingen')
+      .setColor(0x5865f2)
+      .setDescription(
+        'Klik op de 🔔 hieronder om roosterwijzigingen en pauze-herinneringen ' +
+        'aan of uit te zetten. Klik nog een keer om je weer af te melden.'
+      );
+    const msg = await channel.send({ embeds: [embed] });
+    await msg.react('🔔').catch(() => {});
+    await msg.pin().catch(() => {});
+    db.prepare('UPDATE rooster_meta SET subscribe_message_id = ? WHERE id = 1').run(msg.id);
+    console.log('[rooster] Abonneer-bericht geplaatst in het rooster-kanaal');
+  } catch (err) {
+    console.error('[rooster] Kon abonneer-bericht niet plaatsen:', err);
+  }
+}
+
+/**
  * Start de rooster monitoring: doe direct een eerste check (seed of diff).
  */
 async function startRoosterMonitoring(client, config) {
   await checkRoosterChanges(client, config);
+  await ensureSubscribeMessage(client, config);
 }
 
 module.exports = {
@@ -749,6 +797,7 @@ module.exports = {
   diffEvents,
   buildChangeEmbed,
   checkRoosterChanges,
+  ensureSubscribeMessage,
   getLessonsForDay,
   findPrecedingLesson,
   buildPauseReminderEmbed,

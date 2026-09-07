@@ -99,7 +99,8 @@ CREATE INDEX IF NOT EXISTS idx_rooster_events_start ON rooster_events(start_stam
 CREATE TABLE IF NOT EXISTS rooster_meta (
     id INTEGER PRIMARY KEY CHECK(id = 1),
     initialized INTEGER NOT NULL DEFAULT 0,
-    last_checked DATETIME
+    last_checked DATETIME,
+    subscribe_message_id TEXT -- vast abonneer-bericht met de 🔔-reactie
 );
 
 INSERT OR IGNORE INTO rooster_meta (id, initialized) VALUES (1, 0);

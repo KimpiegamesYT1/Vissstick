@@ -88,9 +88,12 @@ De melding pingt `ROOSTER_ROLE_ID` in de berichttekst (buiten de embed, zodat
 mobiele notificaties tekst tonen) en wordt automatisch verwijderd zodra de les
 begonnen is.
 
-Onder elke roostermelding zet de bot een 🔔-reactie. Wie daarop klikt krijgt de
-rol `ROOSTER_ROLE_ID` toegewezen (of verwijderd), met een korte bevestiging in
-het kanaal die na 5 seconden verdwijnt — net als bij de hok-meldingen.
+Bij het opstarten plaatst de bot één vast (gepind) abonneer-bericht met een
+🔔-reactie in het rooster-kanaal. Wie daarop klikt krijgt de rol `ROOSTER_ROLE_ID`
+toegewezen (of verwijderd), met een korte bevestiging die na 5 seconden verdwijnt
+— net als bij de hok-meldingen. Elke roosterwijzig-melding krijgt ook een 🔔, maar
+omdat pauze-meldingen verdwijnen is het vaste bericht het blijvende abonneerpunt.
+De bot herplaatst het bericht als het verwijderd is (bij de eerstvolgende start).
 
 ### Publieke Hok API
 
