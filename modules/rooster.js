@@ -650,9 +650,6 @@ async function checkPauseReminders(client, config) {
   const nowStamp = amsterdamNowStamp();
   const today = nowStamp.slice(0, 8);
 
-  // Verwijder pauze-meldingen waarvan de les inmiddels begonnen is
-  await deleteStartedPauseReminders(client, db, nowStamp);
-
   const lessons = getLessonsForDay(today);
   if (lessons.length < 2) return;
 
@@ -704,33 +701,8 @@ async function checkPauseReminders(client, config) {
 }
 
 /**
- * Verwijder de Discord-berichten van pauze-meldingen zodra de les begonnen is.
- */
-async function deleteStartedPauseReminders(client, db, nowStamp) {
-  const rows = db
-    .prepare(
-      `SELECT reminder_key, message_id, channel_id
-       FROM rooster_pause_reminders
-       WHERE message_id IS NOT NULL AND starts_at IS NOT NULL AND starts_at <= ?`
-    )
-    .all(nowStamp);
-
-  for (const row of rows) {
-    try {
-      const channel = await client.channels.fetch(row.channel_id);
-      const message = await channel.messages.fetch(row.message_id);
-      await message.delete();
-    } catch (err) {
-      // bericht al weg of geen toegang - niet erg
-    }
-    db.prepare('UPDATE rooster_pause_reminders SET message_id = NULL WHERE reminder_key = ?').run(row.reminder_key);
-  }
-}
-
-/**
  * Zorg dat er één vast abonneer-bericht met een 🔔-reactie in het rooster-kanaal
- * staat. Omdat pauze-meldingen verdwijnen, is dit het blijvende punt om je op
- * roostermeldingen te abonneren.
+ * staat, als vast punt om je op roostermeldingen te abonneren.
  */
 async function ensureSubscribeMessage(client, config) {
   const db = getDatabase();
