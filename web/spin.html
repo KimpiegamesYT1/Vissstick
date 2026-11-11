@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vissstick Daily Spin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%23f2c14e'/%3E%3Cg transform='rotate(45 20 20)'%3E%3Cpath d='M17.2 28.6h5.6L20 35.5z' fill='%23e2552f'/%3E%3Cpath d='M20 5.5c4.2 3.6 5.8 8.8 5.8 14v8H14.2v-8c0-5.2 1.6-10.4 5.8-14z' fill='%2316181b'/%3E%3Cpath d='M14.2 20.5l-4.2 5.6v3.4l4.2-2.4zM25.8 20.5l4.2 5.6v3.4l-4.2-2.4z' fill='%2316181b'/%3E%3Ccircle cx='20' cy='16.5' r='2.7' fill='%23f2c14e'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --panel: #16181b;
+    --side: #1b1d21;
+    --field: #111315;
+    --raise: #262a2f;
+    --line: rgba(255, 255, 255, 0.07);
+    --text: #eceae6;
+    --muted: #8d9299;
+    --gold: #f2c14e;
+    --green: #4cd47b;
+    --red: #ef5b4c;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; min-height: 100vh; overflow-x: hidden; }
+  button { font: inherit; color: inherit; }
+  .app { max-width: 1180px; margin: 0 auto; padding: 14px 16px 24px; }
+
+  /* Kopregel (zelfde als Rocket) */
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand svg { width: 36px; height: 36px; flex: none; }
+  .brand .word { display: flex; flex-direction: column; line-height: 1; }
+  .brand .word small { font-size: 10px; font-weight: 800; letter-spacing: 3px; color: var(--muted); }
+  .brand .word b { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin-top: 3px; }
+  .nav { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; margin-right: auto; margin-left: 18px; }
+  .nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
+  .nav a:hover { color: var(--text); }
+  .nav a.active { background: var(--raise); color: var(--text); }
+  .user { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; }
+  .user[hidden] { display: none; }
+  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--raise); }
+  .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
+  .user .balance { color: var(--gold); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
+  .user button:hover { background: var(--raise); color: var(--text); }
+
+  /* Indeling */
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .stage { position: relative; padding: 18px 18px 22px; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+  .stage::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(circle at 50% 42%, rgba(242,193,78,.07), transparent 60%);
+  }
+  .wheel-wrap { position: relative; width: min(100%, 580px); aspect-ratio: 1; }
+  .wheel-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .mute {
+    position: absolute; top: 14px; right: 14px; z-index: 2; background: var(--raise); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer;
+  }
+  .mute:hover { color: var(--text); }
+
+  .spin-btn {
+    position: relative; margin-top: 14px; width: min(100%, 360px); border: 0; border-radius: 14px; padding: 18px;
+    font-size: 22px; font-weight: 900; letter-spacing: 3px; cursor: pointer; color: #241a02;
+    background: linear-gradient(180deg, #ffd770, #f2c14e 55%, #d9a531); box-shadow: 0 6px 0 #9c7419, 0 10px 24px rgba(0,0,0,.4);
+    transition: transform .08s ease, box-shadow .08s ease, filter .15s ease;
+  }
+  .spin-btn:hover:not(:disabled) { filter: brightness(1.05); }
+  .spin-btn:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 1px 0 #9c7419, 0 4px 12px rgba(0,0,0,.4); }
+  .spin-btn:disabled { cursor: not-allowed; background: var(--raise); color: var(--muted); box-shadow: 0 6px 0 #17191c; letter-spacing: 1px; font-size: 16px; }
+  .spin-btn .badge {
+    position: absolute; top: -10px; right: -10px; background: var(--red); color: #fff; font-size: 13px; letter-spacing: 0;
+    min-width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; padding: 0 8px; box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  }
+  .hint { margin-top: 12px; color: var(--muted); font-size: 13px; text-align: center; min-height: 18px; }
+  .hint code { background: var(--raise); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  .panel { padding: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 800; }
+  .big { font-size: 34px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; font-weight: 700; }
+  .toggle small { display: block; color: var(--muted); font-weight: 500; font-size: 12px; margin-top: 2px; }
+  .switch { position: relative; width: 46px; height: 26px; flex: none; border: 0; border-radius: 999px; background: var(--raise); cursor: pointer; transition: background .2s; }
+  .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #c9ccd1; transition: transform .2s; }
+  .switch.on { background: var(--green); }
+  .switch.on::after { transform: translateX(20px); background: #fff; }
+  .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .list li { display: flex; justify-content: space-between; font-size: 14px; padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,.03); font-variant-numeric: tabular-nums; }
+  .list li b { color: var(--green); }
+  .list .empty { color: var(--muted); justify-content: center; }
+  .odds { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .odds td { padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  .odds td:last-child { text-align: right; color: var(--muted); }
+  .odds .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+  .odds tr.rare td:first-child { font-weight: 800; }
+
+  /* Effecten */
+  #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+  .flash { position: fixed; inset: 0; pointer-events: none; z-index: 19; background: radial-gradient(circle, rgba(255,226,140,.55), rgba(242,193,78,0) 70%); opacity: 0; }
+  .flash.go { animation: flash 900ms ease-out; }
+  @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .shake { animation: shake 650ms cubic-bezier(.36,.07,.19,.97); }
+  @keyframes shake {
+    10%, 90% { transform: translate(-2px, 1px); } 20%, 80% { transform: translate(4px, -2px); }
+    30%, 50%, 70% { transform: translate(-7px, 3px); } 40%, 60% { transform: translate(7px, -3px); }
+  }
+
+  /* Popups */
+  .modal { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: rgba(5,6,8,.65); backdrop-filter: blur(3px); }
+  .modal[hidden] { display: none; }
+  .modal .box {
+    width: min(100%, 400px); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 26px 22px 20px; text-align: center;
+    animation: pop .45s cubic-bezier(.2, 1.5, .4, 1);
+  }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal .kicker { font-size: 12px; letter-spacing: 3px; font-weight: 800; color: var(--muted); }
+  .modal .amount { font-size: 56px; font-weight: 900; margin: 6px 0 4px; font-variant-numeric: tabular-nums; color: var(--gold); }
+  .modal.jackpot .amount, .modal.mega .amount { background: linear-gradient(180deg, #fff1b8, #f2c14e 60%, #c98f1d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .modal.spins .amount { color: var(--green); }
+  .modal h3 { margin: 0 0 6px; font-size: 22px; }
+  .modal p { margin: 0 0 18px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .modal .actions { display: flex; gap: 10px; }
+  .modal .actions button { flex: 1; border: 0; border-radius: 12px; padding: 13px; font-weight: 800; font-size: 15px; cursor: pointer; }
+  .btn-main { background: var(--gold); color: #241a02; }
+  .btn-sec { background: var(--raise); color: var(--text); }
+
+  .toast {
+    position: fixed; left: 50%; top: 18px; transform: translateX(-50%) translateY(-12px); opacity: 0; z-index: 40;
+    display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px;
+    font-size: 15px; font-weight: 700; transition: all .2s ease; pointer-events: none; max-width: calc(100% - 32px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  .toast::before { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok { background: #16301f; border: 1px solid var(--green); color: #cdeed8; }
+  .toast.ok::before { content: '✓'; background: var(--green); color: #062612; }
+  .toast.err { background: #3a1a17; border: 1px solid var(--red); color: #fbd8d3; }
+  .toast.err::before { content: '✕'; background: var(--red); color: #fff; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 520px) {
+    .app { padding: 10px; }
+    header { flex-wrap: wrap; }
+    .brand .word { display: none; }
+    .user { margin-left: auto; }
+    .nav { order: 3; width: 100%; margin: 0; }
+    .nav a { flex: 1; text-align: center; }
+    .stage { padding: 12px 8px 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <a class="brand" href="/spin" aria-label="Vissstick Daily spin">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="#f2c14e"/>
+        <g transform="rotate(45 20 20)">
+          <path d="M17.2 28.6h5.6L20 35.5z" fill="#e2552f"/>
+          <path d="M20 5.5c4.2 3.6 5.8 8.8 5.8 14v8H14.2v-8c0-5.2 1.6-10.4 5.8-14z" fill="#16181b"/>
+          <path d="M14.2 20.5l-4.2 5.6v3.4l4.2-2.4zM25.8 20.5l4.2 5.6v3.4l-4.2-2.4z" fill="#16181b"/>
+          <circle cx="20" cy="16.5" r="2.7" fill="#f2c14e"/>
+        </g>
+      </svg>
+      <span class="word"><small>VISSSTICK</small><b>Daily spin</b></span>
+    </a>
+    <nav class="nav"><a href="/rocket">Rocket</a><a href="/spin" class="active">Daily spin</a></nav>
+    <div class="user" id="user" hidden></div>
+  </header>
+
+  <div class="layout">
+    <section class="card stage" id="stage">
+      <button class="mute" id="mute" type="button">Geluid aan</button>
+      <div class="wheel-wrap" id="wheelWrap"><canvas id="wheel"></canvas></div>
+      <button class="spin-btn" id="spinBtn" type="button" disabled>SPIN</button>
+      <div class="hint" id="hint"></div>
+    </section>
+
+    <aside class="side">
+      <div class="card panel" id="statusPanel">
+        <h2>SPINS VANDAAG</h2>
+        <div class="big" id="spinsLeft">–</div>
+        <div class="sub" id="resetInfo"></div>
+        <div class="toggle" id="reminderRow" hidden>
+          <div>Ochtendmelding<small>Elke ochtend een DM als je spin klaarstaat</small></div>
+          <button class="switch" id="reminderSwitch" type="button" aria-label="Ochtendmelding aan of uit"></button>
+        </div>
+      </div>
+      <div class="card panel">
+        <h2>VANDAAG GEWONNEN <span id="todayTotal" style="float:right;color:var(--gold);letter-spacing:0"></span></h2>
+        <ul class="list" id="todayList"></ul>
+      </div>
+      <div class="card panel">
+        <h2>KANSEN</h2>
+        <table class="odds" id="odds"></table>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="modal" id="resultModal" hidden><div class="box">
+  <div class="kicker" id="resultKicker">GEWONNEN</div>
+  <div class="amount" id="resultAmount">0</div>
+  <h3 id="resultTitle"></h3>
+  <p id="resultText"></p>
+  <div class="actions" id="resultActions"></div>
+</div></div>
+
+<div class="modal" id="reminderModal" hidden><div class="box">
+  <div class="kicker">OCHTENDMELDING</div>
+  <h3 style="margin-top:10px">Elke ochtend een seintje?</h3>
+  <p>Dan stuurt de bot je elke ochtend om 08:00 een privébericht met een knop die je direct naar het rad brengt. Uitzetten kan altijd, in het bericht zelf of hier op de pagina.</p>
+  <div class="actions">
+    <button class="btn-sec" id="reminderNo" type="button">Nee, bedankt</button>
+    <button class="btn-main" id="reminderYes" type="button">Ja, stuur me een DM</button>
+  </div>
+</div></div>
+
+<div class="flash" id="flash"></div>
+<canvas id="fx"></canvas>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const fmtPoints = n => n.toLocaleString('nl-NL');
+
+  // =====================================================
+  // STATE
+  // =====================================================
+  let status = null;        // antwoord van /api/spin/status
+  let clockOffset = 0;      // serverTijd - lokale tijd
+  let spinning = false;
+  let pendingResult = null; // uitslag die getoond wordt zodra het rad stilstaat
+  let askedReminder = false;
+
+  const TIERS = {
+    normal: null,
+    spins: { fill: ['#1d6b45', '#2c9a62'], text: '#eafff2' },
+    mega: { fill: ['#b35c17', '#e88a2c'], text: '#fff4e2' },
+    jackpot: { fill: ['#b8862a', '#ffd770'], text: '#2a1d05' }
+  };
+
+  // =====================================================
+  // SERVER
+  // =====================================================
+  async function loadStatus() {
+    try {
+      const res = await fetch('/api/spin/status', { credentials: 'same-origin' });
+      status = await res.json();
+      clockOffset = status.serverNow - Date.now();
+    } catch (error) {
+      toast('Geen verbinding met de server.', false);
+      return;
+    }
+    renderAll();
+  }
+
+  async function post(path, body = {}) {
+    try {
+      const res = await fetch(path, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      return await res.json();
+    } catch (error) {
+      return { ok: false, message: 'Geen verbinding met de server.' };
+    }
+  }
+
+  // =====================================================
+  // UI
+  // =====================================================
+  let toastTimer = null;
+  function toast(message, ok) {
+    if (!message) return;
+    const box = $('toast');
+    box.textContent = message;
+    box.className = `toast show ${ok ? 'ok' : 'err'}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { box.className = 'toast'; }, ok ? 2800 : 4500);
+  }
+
+  function el(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    Object.entries(props).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === false) return;
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = value;
+      else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? '' : value);
+    });
+    children.forEach(child => node.append(child));
+    return node;
+  }
+
+  function renderUser() {
+    const box = $('user');
+    box.replaceChildren();
+    if (!status || !status.linked) { box.hidden = true; return; }
+    box.hidden = false;
+    const img = el('img', { alt: '' });
+    if (status.user.avatar) img.src = status.user.avatar;
+    box.append(img,
+      el('div', {}, [el('div', { class: 'name', text: status.user.username }), el('div', { class: 'balance', text: `${fmtPoints(status.balance)} punten` })]),
+      el('button', { text: 'Uitloggen', onclick: async () => { await post('/api/logout'); loadStatus(); } }));
+  }
+
+  function renderSide() {
+    const linked = status && status.linked;
+    $('spinsLeft').textContent = linked ? status.spinsLeft : '–';
+    $('reminderRow').hidden = !linked;
+    $('reminderSwitch').classList.toggle('on', linked && status.reminder === true);
+
+    const list = $('todayList');
+    if (!linked || status.today.length === 0) {
+      list.replaceChildren(el('li', { class: 'empty', text: linked ? 'Nog niet gespind vandaag.' : 'Log in om te spinnen.' }));
+      $('todayTotal').textContent = '';
+    } else {
+      list.replaceChildren(...status.today.map((t, i) => el('li', {}, [
+        el('span', { text: `Spin ${i + 1}` }),
+        el('b', { text: t.amount > 0 ? `+${fmtPoints(t.amount)}` : t.label })
+      ])));
+      $('todayTotal').textContent = `+${fmtPoints(status.totalWonToday)}`;
+    }
+
+    const odds = status ? status.wheel.odds : [];
+    $('odds').replaceChildren(...odds.map(o => {
+      const tier = o.key === 'jackpot' ? 'jackpot' : o.key === 'mega' ? 'mega' : o.spins ? 'spins' : 'normal';
+      const color = TIERS[tier] ? TIERS[tier].fill[1] : '#b3261e';
+      const pct = o.chance * 100;
+      const chance = pct < 5 ? `1 op ${Math.round(1 / o.chance)}` : `${pct.toFixed(1).replace('.', ',')}%`;
+      return el('tr', { class: pct < 5 ? 'rare' : '' }, [
+        el('td', {}, [el('span', { class: 'dot', style: `background:${color}` }), o.spins ? `+${o.spins} extra spins` : `${o.label} punten`]),
+        el('td', { text: chance })
+      ]);
+    }));
+  }
+
+  function renderButton() {
+    const button = $('spinBtn');
+    const hint = $('hint');
+    button.replaceChildren();
+    if (!status) { button.disabled = true; button.textContent = 'Laden…'; return; }
+    if (!status.linked) {
+      button.disabled = true;
+      button.textContent = 'Log in om te spinnen';
+      hint.replaceChildren('Typ ', el('code', { text: '/spin' }), ' in Discord en klik op de link. Dit hoef je maar één keer te doen.');
+      return;
+    }
+    if (spinning) {
+      button.disabled = true;
+      button.textContent = 'Draaien…';
+      hint.textContent = '';
+      return;
+    }
+    if (status.spinsLeft > 0) {
+      button.disabled = false;
+      button.textContent = 'SPIN';
+      if (status.spinsLeft > 1) button.append(el('span', { class: 'badge', text: status.spinsLeft }));
+      hint.textContent = status.spinsLeft > 1 ? `Je hebt nog ${status.spinsLeft} spins vandaag.` : 'Je gratis spin van vandaag staat klaar.';
+    } else {
+      button.disabled = true;
+      button.textContent = `Volgende spin over ${countdown()}`;
+      hint.textContent = 'Morgen staat er weer een gratis spin klaar.';
+    }
+  }
+
+  function countdown() {
+    const ms = Math.max(0, status.nextResetAt - (Date.now() + clockOffset));
+    const s = Math.floor(ms / 1000);
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+  }
+
+  function renderAll() {
+    renderUser();
+    renderSide();
+    renderButton();
+    $('resetInfo').textContent = status && status.linked ? `Nieuwe gratis spin om 00:00 (over ${countdown()})` : '';
+  }
+
+  setInterval(() => {
+    if (!status || !status.linked || spinning) return;
+    if (status.nextResetAt - (Date.now() + clockOffset) <= 0) { loadStatus(); return; }
+    $('resetInfo').textContent = `Nieuwe gratis spin om 00:00 (over ${countdown()})`;
+    if (status.spinsLeft === 0) renderButton();
+  }, 1000);
+
+  // =====================================================
+  // GELUID
+  // =====================================================
+  let muted = false;
+  try { muted = localStorage.getItem('spin_muted') === '1'; } catch (error) { /* geen opslag */ }
+  let audioCtx = null;
+
+  function audio() {
+    if (muted) return null;
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      audioCtx = new Ctx();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function tone(freq, start, length, volume, type = 'triangle') {
+    const a = audio();
+    if (!a) return;
+    const osc = a.createOscillator();
+    const gain = a.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, a.currentTime + start);
+    gain.gain.exponentialRampToValueAtTime(volume, a.currentTime + start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + start + length);
+    osc.connect(gain).connect(a.destination);
+    osc.start(a.currentTime + start);
+    osc.stop(a.currentTime + start + length + 0.05);
+  }
+
+  function playTick(speed) {
+    tone(1500 + Math.random() * 500, 0, 0.035, Math.min(0.12, 0.04 + speed * 0.01), 'square');
+  }
+
+  function playWin(tier) {
+    const notes = tier === 'jackpot' ? [523, 659, 784, 1047, 1319, 1568, 2093]
+      : tier === 'mega' ? [523, 659, 784, 1047, 1319]
+      : [659, 784, 1047];
+    notes.forEach((f, i) => tone(f, i * 0.09, 0.35, 0.12));
+    if (tier === 'jackpot' || tier === 'mega') {
+      [523, 659, 784].forEach(f => tone(f, notes.length * 0.09, 1.4, 0.07, 'sawtooth'));
+    }
+  }
+
+  function renderMute() { $('mute').textContent = muted ? 'Geluid uit' : 'Geluid aan'; }
+  $('mute').addEventListener('click', () => {
+    muted = !muted;
+    try { localStorage.setItem('spin_muted', muted ? '1' : '0'); } catch (error) { /* geen opslag */ }
+    renderMute();
+  });
+  renderMute();
+
+  // =====================================================
+  // RAD
+  // =====================================================
+  const canvas = $('wheel');
+  const ctx = canvas.getContext('2d');
+  let size = 0, dpr = 1;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    size = canvas.clientWidth;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+  }
+  new ResizeObserver(resize).observe(canvas);
+
+  const TAU = Math.PI * 2;
+  const POINTER = -Math.PI / 2;      // wijzer bovenaan
+  let rot = 0;                       // draaiing van het rad
+  let prevRot = 0;
+  let anim = null;
+  let lastIndex = null;
+  let flapper = 0, flapperVel = 0;   // uitslag van de wijzer (radialen)
+  let chase = 0;
+  let celebrate = null;              // { tier, index, until }
+  let idle = true;
+
+  const segments = () => (status ? status.wheel.segments : []);
+  const segAngle = () => TAU / Math.max(1, segments().length);
+  const mod = (a, n) => ((a % n) + n) % n;
+
+  /**
+   * Plek onder de wijzer: index van het vak en positie binnen het vak (0 = rand waar het rad naartoe draait)
+   */
+  function underPointer(r) {
+    const A = segAngle();
+    const theta = mod(POINTER - r, TAU);
+    const index = Math.floor(theta / A);
+    return { index, frac: theta / A - index };
+  }
+
+  function isBig(index) {
+    const seg = segments()[mod(index, segments().length)];
+    return seg && seg.tier !== 'normal';
+  }
+
+  /**
+   * Bereken waar het rad stopt: soms keurig in het midden, vaak gemeen net naast een grote prijs
+   */
+  function planSpin(index) {
+    const A = segAngle();
+    const n = segments().length;
+    let frac = 0.2 + Math.random() * 0.6;
+    let overshoot = 0;
+    const r = Math.random();
+    if (isBig(index - 1) || (r < 0.45 && !isBig(index + 1))) {
+      // Net niet over het pinnetje naar het volgende vak
+      frac = 0.025 + Math.random() * 0.05;
+      if (Math.random() < 0.55) overshoot = (frac + 0.01) * A; // kruipt op het pinnetje en valt terug
+    } else if (isBig(index + 1) || r < 0.7) {
+      // Net voorbij het vorige vak gerold
+      frac = 0.93 + Math.random() * 0.05;
+    }
+    const base = POINTER - (index + frac) * A;
+    const turns = 6 + Math.floor(Math.random() * 3);
+    const delta = mod(base - rot, TAU);
+    return {
+      start: performance.now(),
+      from: rot,
+      to: rot + delta + turns * TAU,
+      windup: 0.12 + Math.random() * 0.08,
+      windupMs: 420,
+      duration: 9000 + Math.random() * 2500 + (n ? 0 : 0),
+      overshoot,
+      settleMs: 900
+    };
+  }
+
+  function rotationAt(a, now) {
+    const t = now - a.start;
+    if (t < a.windupMs) {
+      const k = t / a.windupMs;
+      return a.from - a.windup * Math.sin(k * Math.PI / 2);
+    }
+    const start = a.from - a.windup;
+    const peak = a.to + a.overshoot;
+    const t2 = t - a.windupMs;
+    if (t2 < a.duration) {
+      const p = 1 - Math.pow(1 - t2 / a.duration, 3.2);
+      return start + (peak - start) * p;
+    }
+    const t3 = t2 - a.duration;
+    if (a.overshoot && t3 < a.settleMs) {
+      const k = t3 / a.settleMs;
+      return peak - a.overshoot * (0.5 - 0.5 * Math.cos(k * Math.PI));
+    }
+    return null; // klaar
+  }
+
+  // ----- Tekenen -----
+  function drawWheel(now) {
+    const segs = segments();
+    const n = segs.length;
+    const cx = size / 2, cy = size / 2 + size * 0.02;
+    const R = size * 0.44;          // buitenkant rand
+    const Rs = R * 0.88;            // vakken
+    const A = segAngle();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+
+    // Lichtkrans achter het rad bij grote prijzen
+    if (celebrate && (celebrate.tier === 'jackpot' || celebrate.tier === 'mega') && now < celebrate.until) {
+      const fade = Math.min(1, (celebrate.until - now) / 1500);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(now / 2200);
+      for (let i = 0; i < 18; i++) {
+        ctx.rotate(TAU / 18);
+        const g = ctx.createLinearGradient(0, 0, R * 1.25, 0);
+        g.addColorStop(0, `rgba(255,215,112,${0.35 * fade})`);
+        g.addColorStop(1, 'rgba(255,215,112,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(R * 1.25, -R * 0.09); ctx.lineTo(R * 1.25, R * 0.09); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Schaduw onder het rad
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = size * 0.05;
+    ctx.shadowOffsetY = size * 0.015;
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
+    ctx.restore();
+
+    // Buitenrand (metaal)
+    const rim = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+    rim.addColorStop(0, '#5a5d63');
+    rim.addColorStop(0.35, '#2a2c30');
+    rim.addColorStop(0.6, '#45484e');
+    rim.addColorStop(1, '#1a1b1e');
+    ctx.fillStyle = rim;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#c9a24a';
+    ctx.lineWidth = Math.max(1.5, R * 0.012);
+    ctx.beginPath(); ctx.arc(cx, cy, Rs + R * 0.012, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, R - 1, 0, TAU); ctx.stroke();
+
+    // Lampjes in de rand
+    const bulbs = 24;
+    const flashing = celebrate && now < celebrate.until;
+    for (let b = 0; b < bulbs; b++) {
+      const a = (b / bulbs) * TAU + A / 2;
+      const bx = cx + Math.cos(a) * (R * 0.94), by = cy + Math.sin(a) * (R * 0.94);
+      let lit;
+      if (flashing) lit = Math.floor(now / 110) % 2 === b % 2;
+      else if (!idle) lit = mod(b + Math.floor(chase), 4) === 0;
+      else lit = Math.floor(now / 650) % 2 === b % 2;
+      ctx.save();
+      if (lit) { ctx.shadowColor = 'rgba(255,214,120,0.95)'; ctx.shadowBlur = R * 0.06; }
+      ctx.fillStyle = lit ? '#fff0c2' : '#5b5240';
+      ctx.beginPath(); ctx.arc(bx, by, R * 0.022, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+
+    // Vakken
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    for (let i = 0; i < n; i++) {
+      const seg = segs[i];
+      const a0 = i * A, a1 = a0 + A;
+      const tier = TIERS[seg.tier];
+      const colors = tier ? tier.fill : (i % 2 === 0 ? ['#7d1a14', '#c22f25'] : ['#141517', '#2f3136']);
+      const g = ctx.createRadialGradient(0, 0, Rs * 0.15, 0, 0, Rs);
+      g.addColorStop(0, colors[0]);
+      g.addColorStop(1, colors[1]);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, Rs, a0, a1); ctx.closePath(); ctx.fill();
+
+      // Fonkeling in het jackpot vak
+      if (seg.tier === 'jackpot') {
+        for (let s = 0; s < 4; s++) {
+          const tw = 0.5 + 0.5 * Math.sin(now / 180 + s * 1.7);
+          const sa = a0 + A * (0.25 + 0.17 * s), sr = Rs * (0.45 + 0.12 * ((s * 7) % 4));
+          drawSparkle(Math.cos(sa) * sr, Math.sin(sa) * sr, R * 0.025 * tw, `rgba(255,255,255,${0.9 * tw})`);
+        }
+      }
+
+      // Tekst langs de straal, leesbaar van midden naar rand
+      ctx.save();
+      ctx.rotate(a0 + A / 2);
+      const textColor = tier ? tier.text : '#f4ead5';
+      ctx.fillStyle = textColor;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      const isSpecial = seg.tier !== 'normal';
+      const main = seg.tier === 'spins' ? '+3' : seg.label;
+      ctx.font = `900 ${R * (main.length > 4 ? 0.085 : 0.1)}px system-ui, sans-serif`;
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(main, Rs * 0.9, isSpecial ? -R * 0.025 : 0);
+      if (isSpecial) {
+        ctx.font = `800 ${R * 0.042}px system-ui, sans-serif`;
+        ctx.fillText(seg.tier === 'spins' ? 'SPINS' : seg.tier === 'jackpot' ? 'JACKPOT' : 'MEGA', Rs * 0.9, R * 0.05);
+      }
+      ctx.restore();
+    }
+
+    // Scheidingslijnen + pinnetjes
+    for (let i = 0; i < n; i++) {
+      const a = i * A;
+      ctx.strokeStyle = 'rgba(201,162,74,0.85)';
+      ctx.lineWidth = Math.max(1, R * 0.008);
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * R * 0.17, Math.sin(a) * R * 0.17); ctx.lineTo(Math.cos(a) * Rs, Math.sin(a) * Rs); ctx.stroke();
+      const px = Math.cos(a) * Rs * 0.965, py = Math.sin(a) * Rs * 0.965;
+      const pg = ctx.createRadialGradient(px - R * 0.006, py - R * 0.006, 0, px, py, R * 0.022);
+      pg.addColorStop(0, '#ffffff'); pg.addColorStop(0.4, '#d8d9dd'); pg.addColorStop(1, '#6d7076');
+      ctx.fillStyle = pg;
+      ctx.beginPath(); ctx.arc(px, py, R * 0.02, 0, TAU); ctx.fill();
+    }
+
+    // Winnend vak laten oplichten
+    if (celebrate && !spinning) {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 160);
+      const a0 = celebrate.index * A;
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,240,190,0.9)';
+      ctx.shadowBlur = R * 0.08;
+      ctx.strokeStyle = `rgba(255,244,210,${0.55 + 0.45 * pulse})`;
+      ctx.lineWidth = R * 0.02;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, Rs - R * 0.012, a0, a0 + A); ctx.closePath(); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // Naaf in het midden
+    const hub = ctx.createRadialGradient(cx - R * 0.05, cy - R * 0.06, R * 0.01, cx, cy, R * 0.17);
+    hub.addColorStop(0, '#fff3c4'); hub.addColorStop(0.45, '#e2b14a'); hub.addColorStop(1, '#7a5715');
+    ctx.fillStyle = hub;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.16, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#16181b';
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.115, 0, TAU); ctx.fill();
+    drawStar(cx, cy, R * 0.075, R * 0.032, '#f2c14e');
+
+    // Glanslaag over het rad (draait niet mee)
+    const sheen = ctx.createLinearGradient(cx - R, cy - R, cx + R * 0.3, cy + R * 0.3);
+    sheen.addColorStop(0, 'rgba(255,255,255,0.13)');
+    sheen.addColorStop(0.45, 'rgba(255,255,255,0.03)');
+    sheen.addColorStop(0.5, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen;
+    ctx.beginPath(); ctx.arc(cx, cy, Rs, 0, TAU); ctx.fill();
+
+    drawPointer(cx, cy - R * 0.985, R);
+  }
+
+  function drawStar(x, y, outer, inner, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? outer : inner;
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      if (i === 0) ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+      else ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSparkle(x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r * 2); ctx.quadraticCurveTo(x, y, x + r * 2, y);
+    ctx.quadraticCurveTo(x, y, x, y + r * 2); ctx.quadraticCurveTo(x, y, x - r * 2, y);
+    ctx.quadraticCurveTo(x, y, x, y - r * 2);
+    ctx.fill();
+  }
+
+  function drawPointer(x, y, R) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-flapper);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = R * 0.04;
+    ctx.shadowOffsetY = R * 0.012;
+    const g = ctx.createLinearGradient(-R * 0.07, 0, R * 0.07, 0);
+    g.addColorStop(0, '#8f1d16'); g.addColorStop(0.5, '#e0453a'); g.addColorStop(1, '#8f1d16');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.075, -R * 0.02);
+    ctx.quadraticCurveTo(0, -R * 0.11, R * 0.075, -R * 0.02);
+    ctx.lineTo(0, R * 0.16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#f2c14e';
+    ctx.lineWidth = Math.max(1.2, R * 0.01);
+    ctx.stroke();
+    const pin = ctx.createRadialGradient(-R * 0.01, -R * 0.01, 0, 0, 0, R * 0.035);
+    pin.addColorStop(0, '#fff6d6'); pin.addColorStop(1, '#a57c22');
+    ctx.fillStyle = pin;
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.032, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+
+  // ----- Animatielus -----
+  let lastFrame = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - lastFrame) / 1000);
+    lastFrame = now;
+
+    if (anim) {
+      const r = rotationAt(anim, now);
+      if (r === null) {
+        rot = anim.to;
+        anim = null;
+        finishSpin();
+      } else {
+        rot = r;
+      }
+    } else if (idle && !celebrate) {
+      rot += dt * 0.07;
+    }
+
+    const speed = Math.abs(rot - prevRot) / Math.max(dt, 0.001);
+    chase += speed * dt * 2.5;
+    prevRot = rot;
+
+    if (segments().length) {
+      // Wijzer tegen de pinnetjes
+      const { index, frac } = underPointer(rot);
+      const zone = 0.2;
+      const push = frac < zone ? (1 - frac / zone) : 0;
+      const target = push * 0.55;
+      if (target > flapper) {
+        flapper = target;
+        flapperVel = 0;
+      } else {
+        flapperVel += (-flapper * 260 - flapperVel * 13) * dt;
+        flapper += flapperVel * dt;
+        if (target > 0 && flapper < target) flapper = target;
+      }
+      if (lastIndex !== null && index !== lastIndex && !idle) playTick(speed);
+      lastIndex = index;
+      if (size) drawWheel(now);
+    }
+
+    drawFx(dt);
+    requestAnimationFrame(frame);
+  }
+
+  // =====================================================
+  // SPINNEN
+  // =====================================================
+  async function spin() {
+    if (spinning || !status || !status.linked || status.spinsLeft <= 0) return;
+    audio(); // geluid mag pas na een klik starten
+    spinning = true;
+    celebrate = null;
+    renderButton();
+
+    const result = await post('/api/spin/spin');
+    if (!result.ok) {
+      spinning = false;
+      toast(result.message, false);
+      await loadStatus();
+      return;
+    }
+    pendingResult = result;
+    idle = false;
+    anim = planSpin(result.segmentIndex);
+  }
+  $('spinBtn').addEventListener('click', spin);
+
+  function finishSpin() {
+    const result = pendingResult;
+    pendingResult = null;
+    spinning = false;
+    if (!result) return;
+
+    const tier = result.prize.tier;
+    celebrate = { tier, index: result.segmentIndex, until: performance.now() + (tier === 'jackpot' ? 9000 : tier === 'mega' ? 6000 : 3000) };
+    playWin(tier);
+    confetti(tier === 'jackpot' ? 320 : tier === 'mega' ? 220 : 110);
+    if (tier === 'jackpot' || tier === 'mega' || result.prize.amount >= 1000) {
+      coins(tier === 'jackpot' ? 140 : 70);
+      $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
+      $('stage').classList.remove('shake'); void $('stage').offsetWidth; $('stage').classList.add('shake');
+    }
+
+    // Nieuwe status pas tonen als het rad stilstaat (anders verraadt het saldo de uitslag)
+    Object.assign(status, {
+      balance: result.balance, spinsLeft: result.spinsLeft, today: result.today,
+      totalWonToday: result.totalWonToday, nextResetAt: result.nextResetAt, reminder: result.reminder
+    });
+    setTimeout(() => showResult(result), 650);
+    renderAll();
+  }
+
+  function showResult(result) {
+    const { prize } = result;
+    const modal = $('resultModal');
+    modal.className = `modal ${prize.tier}`;
+    modal.hidden = false;
+
+    const kicker = { jackpot: 'J A C K P O T', mega: 'MEGA WINST', spins: 'BONUS', normal: 'GEWONNEN' }[prize.tier];
+    $('resultKicker').textContent = kicker;
+    if (prize.spins) {
+      $('resultAmount').textContent = `+${prize.spins} spins`;
+      $('resultTitle').textContent = 'Extra spins!';
+      $('resultText').textContent = `Je mag vandaag nog ${result.spinsLeft} keer draaien.`;
+    } else {
+      countUp($('resultAmount'), prize.amount, prize.amount >= 1000 ? 1800 : 900);
+      $('resultTitle').textContent = prize.tier === 'jackpot' ? 'Dit gebeurt bijna nooit!' : prize.tier === 'mega' ? 'Wat een draai!' : 'punten';
+      $('resultText').textContent = `Nieuw saldo: ${fmtPoints(result.balance)} punten.`;
+    }
+
+    const actions = $('resultActions');
+    const close = () => {
+      modal.hidden = true;
+      celebrate = null;
+      idle = true;
+      maybeAskReminder();
+    };
+    actions.replaceChildren();
+    if (result.spinsLeft > 0) {
+      actions.append(
+        el('button', { class: 'btn-sec', type: 'button', text: 'Sluiten', onclick: close }),
+        el('button', { class: 'btn-main', type: 'button', text: 'Nog een keer!', onclick: () => { close(); spin(); } })
+      );
+    } else {
+      actions.append(el('button', { class: 'btn-main', type: 'button', text: 'Top!', onclick: close }));
+    }
+  }
+
+  function countUp(node, target, duration) {
+    const start = performance.now();
+    const step = now => {
+      const k = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - k, 3);
+      node.textContent = `+${fmtPoints(Math.round(target * eased))}`;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function maybeAskReminder() {
+    if (askedReminder || !status || status.reminder !== null) return;
+    askedReminder = true;
+    setTimeout(() => { $('reminderModal').hidden = false; }, 350);
+  }
+
+  async function setReminder(enabled) {
+    const result = await post('/api/spin/reminder', { enabled });
+    toast(result.message, result.ok);
+    if (result.ok) {
+      status.reminder = enabled;
+      renderSide();
+    }
+  }
+  $('reminderYes').addEventListener('click', () => { $('reminderModal').hidden = true; setReminder(true); });
+  $('reminderNo').addEventListener('click', () => { $('reminderModal').hidden = true; setReminder(false); });
+  $('reminderSwitch').addEventListener('click', () => setReminder(!(status && status.reminder === true)));
+
+  // =====================================================
+  // EFFECTEN (confetti + munten)
+  // =====================================================
+  const fx = $('fx');
+  const fxCtx = fx.getContext('2d');
+  const pieces = [];
+
+  function resizeFx() {
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    fx.width = Math.round(innerWidth * ratio);
+    fx.height = Math.round(innerHeight * ratio);
+    fxCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+  addEventListener('resize', resizeFx);
+  resizeFx();
+
+  function wheelOrigin() {
+    const box = $('wheelWrap').getBoundingClientRect();
+    return { x: box.left + box.width / 2, y: box.top + box.height * 0.08 };
+  }
+
+  function confetti(count) {
+    const { x, y } = wheelOrigin();
+    const colors = ['#f2c14e', '#ef5b4c', '#4cd47b', '#f4ead5', '#e88a2c'];
+    for (let i = 0; i < count; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+      const v = 380 + Math.random() * 520;
+      pieces.push({
+        kind: 'confetti', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+        rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 14, w: 6 + Math.random() * 6, h: 3 + Math.random() * 4,
+        color: colors[i % colors.length], life: 3.5 + Math.random() * 1.5, age: 0
+      });
+    }
+  }
+
+  function coins(count) {
+    for (let i = 0; i < count; i++) {
+      pieces.push({
+        kind: 'coin', x: Math.random() * innerWidth, y: -30 - Math.random() * innerHeight * 0.8,
+        vx: (Math.random() - 0.5) * 60, vy: 120 + Math.random() * 160, rot: Math.random() * TAU, vr: 4 + Math.random() * 6,
+        r: 9 + Math.random() * 6, life: 6, age: 0
+      });
+    }
+  }
+
+  function drawFx(dt) {
+    fxCtx.clearRect(0, 0, innerWidth, innerHeight);
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      const p = pieces[i];
+      p.age += dt;
+      if (p.age > p.life || p.y > innerHeight + 40) { pieces.splice(i, 1); continue; }
+      if (p.kind === 'confetti') {
+        p.vx *= 1 - dt * 1.6;
+        p.vy = p.vy * (1 - dt * 1.6) + 700 * dt;
+      } else {
+        p.vy += 260 * dt;
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rot += p.vr * dt;
+      const alpha = Math.min(1, (p.life - p.age) / 0.6);
+      fxCtx.globalAlpha = alpha;
+      fxCtx.save();
+      fxCtx.translate(p.x, p.y);
+      if (p.kind === 'confetti') {
+        fxCtx.rotate(p.rot);
+        fxCtx.scale(1, Math.cos(p.rot * 1.7));
+        fxCtx.fillStyle = p.color;
+        fxCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      } else {
+        // Munt die omdraait
+        fxCtx.scale(Math.max(0.15, Math.abs(Math.cos(p.rot))), 1);
+        const g = fxCtx.createRadialGradient(-p.r * 0.3, -p.r * 0.3, 1, 0, 0, p.r);
+        g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, '#f2c14e'); g.addColorStop(1, '#a8771b');
+        fxCtx.fillStyle = g;
+        fxCtx.beginPath(); fxCtx.arc(0, 0, p.r, 0, TAU); fxCtx.fill();
+        fxCtx.strokeStyle = 'rgba(122,87,21,0.9)';
+        fxCtx.lineWidth = 1.5;
+        fxCtx.beginPath(); fxCtx.arc(0, 0, p.r * 0.7, 0, TAU); fxCtx.stroke();
+      }
+      fxCtx.restore();
+    }
+    fxCtx.globalAlpha = 1;
+  }
+
+  // =====================================================
+  // START
+  // =====================================================
+  const params = new URLSearchParams(location.search);
+  if (params.get('login') === 'invalid') {
+    setTimeout(() => toast('Die link is ongeldig of verlopen. Typ /spin in Discord voor een nieuwe.', false), 300);
+    history.replaceState(null, '', location.pathname);
+  }
+
+  resize();
+  loadStatus();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

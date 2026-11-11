@@ -1,52 +1,55 @@
 /**
- * Rocket Discord Command
- * Rocket wordt op de website gespeeld. /rocket geeft een persoonlijke, eenmalige inloglink
- * waarmee je je Discord account aan de website koppelt.
+ * Website commando's
+ * Rocket en de dagelijkse spin worden op de website gespeeld. Deze commando's geven een persoonlijke,
+ * eenmalige inloglink waarmee je je Discord account aan de website koppelt.
  */
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const rocketAuth = require('../modules/rocketAuth');
 
-async function handleRocketCommands(interaction, client, config) {
-  if (interaction.commandName !== 'rocket') return false;
+const PAGES = {
+  rocket: { path: '/rocket', label: 'Open Rocket', intro: '🚀 **Rocket** speel je op de website.' },
+  spin: { path: '/spin', label: 'Draai aan het rad', intro: '🎡 Je **dagelijkse spin** staat op de website.' },
+  daily: { path: '/spin', label: 'Draai aan het rad', intro: '🎡 Je **dagelijkse spin** staat op de website.' }
+};
+
+async function handleWebCommands(interaction, client, config) {
+  const page = PAGES[interaction.commandName];
+  if (!page) return false;
 
   const webUrl = (config.ROCKET_WEB_URL || '').replace(/\/+$/, '');
   if (!webUrl) {
-    await interaction.reply({ content: 'De Rocket website is nog niet ingesteld (`ROCKET_WEB_URL` in config.json).', flags: 64 });
+    await interaction.reply({ content: 'De website is nog niet ingesteld (`ROCKET_WEB_URL` in config.json).', flags: 64 });
     return true;
   }
 
-  const code = rocketAuth.createLoginCode({
+  const link = rocketAuth.createLoginLink(webUrl, {
     id: interaction.user.id,
     username: interaction.user.username,
     avatar: interaction.user.displayAvatarURL({ extension: 'png', size: 64 })
-  });
+  }, page.path);
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel('Open Rocket')
-      .setStyle(ButtonStyle.Link)
-      .setURL(`${webUrl}/rocket/login?code=${code}`)
+    new ButtonBuilder().setLabel(page.label).setStyle(ButtonStyle.Link).setURL(link)
   );
 
   await interaction.reply({
-    content: `🚀 **Rocket** speel je op de website. Deze knop logt je in als **${interaction.user.username}**.\n` +
+    content: `${page.intro} Deze knop logt je in als **${interaction.user.username}**.\n` +
       'Deel hem niet: hij werkt één keer en is 10 minuten geldig. Daarna blijf je op dat apparaat ingelogd ' +
-      `en kun je gewoon naar ${webUrl}/rocket gaan.`,
+      `en kun je gewoon naar ${webUrl}${page.path} gaan.`,
     components: [row],
     flags: 64
   });
   return true;
 }
 
-const rocketCommands = [
-  {
-    name: 'rocket',
-    description: 'Krijg je persoonlijke link naar de Rocket website'
-  }
+const webCommands = [
+  { name: 'rocket', description: 'Krijg je persoonlijke link naar Rocket op de website' },
+  { name: 'spin', description: 'Draai aan het dagelijkse rad voor gratis punten' },
+  { name: 'daily', description: 'Draai aan het dagelijkse rad voor gratis punten' }
 ];
 
 module.exports = {
-  rocketCommands,
-  handleRocketCommands
+  webCommands,
+  handleWebCommands
 };

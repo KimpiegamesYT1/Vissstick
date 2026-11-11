@@ -19,7 +19,8 @@ const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
 const { handleHangmanButton } = require('./commands/hangmanCommands.js');
 const rocketGame = require('./modules/rocketGame.js');
-const { createRocketWebHandler } = require('./api/rocketWeb');
+const dailySpin = require('./modules/dailySpin.js');
+const { createCasinoWebHandler } = require('./api/casinoWeb');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, STARBOARD_CHANNEL_ID, GROQ_API_KEY, COUNTING_CHANNEL_ID: RAW_COUNTING_CHANNEL_ID } = config;
@@ -190,7 +191,7 @@ function startPublicApiServer() {
     rateLimitMaxRequests: PUBLIC_API_RATE_LIMIT_MAX_REQUESTS,
   });
 
-  const rocketWebHandler = createRocketWebHandler();
+  const casinoWebHandler = createCasinoWebHandler();
 
   publicApiServer = http.createServer((req, res) => {
     let requestUrl;
@@ -208,7 +209,7 @@ function startPublicApiServer() {
       return;
     }
 
-    if (rocketWebHandler(req, res, requestUrl)) {
+    if (casinoWebHandler(req, res, requestUrl)) {
       return;
     }
 
@@ -784,6 +785,11 @@ client.on('interactionCreate', async (interaction) => {
       await handleHangmanButton(interaction, client, config);
       return;
     }
+    // "Meldingen uitzetten" onder de ochtend-DM van de dagelijkse spin
+    if (interaction.customId === 'spinreminder_off') {
+      await dailySpin.handleReminderButton(interaction);
+      return;
+    }
     // Then quiz buttons
     quiz.handleQuizButton(interaction);
     return;
@@ -854,6 +860,15 @@ client.once("clientReady", async () => {
     quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID);
   }, {
     timezone: "Europe/Amsterdam"
+  });
+
+  // Ochtend-DM voor de dagelijkse spin
+  cron.schedule('0 8 * * *', () => {
+    dailySpin.sendMorningReminders(client, config).catch(error => {
+      console.error('Fout bij versturen spin-meldingen:', error);
+    });
+  }, {
+    timezone: 'Europe/Amsterdam'
   });
 
   // Schedule quiz results at 17:00

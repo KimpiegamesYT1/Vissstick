@@ -3,173 +3,202 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rocket</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2312142b'/%3E%3Cpath d='M9 23l3-7 9-9c2-1 4-1 4-1s0 2-1 4l-9 9-7 3z' fill='%23eceef8'/%3E%3Ccircle cx='19' cy='13' r='2' fill='%234fc3f7'/%3E%3Cpath d='M9 23l2-5 3 3z' fill='%23ff7b29'/%3E%3C/svg%3E">
+<title>Vissstick Rocket</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%23f2c14e'/%3E%3Cg transform='rotate(45 20 20)'%3E%3Cpath d='M17.2 28.6h5.6L20 35.5z' fill='%23e2552f'/%3E%3Cpath d='M20 5.5c4.2 3.6 5.8 8.8 5.8 14v8H14.2v-8c0-5.2 1.6-10.4 5.8-14z' fill='%2316181b'/%3E%3Cpath d='M14.2 20.5l-4.2 5.6v3.4l4.2-2.4zM25.8 20.5l4.2 5.6v3.4l-4.2-2.4z' fill='%2316181b'/%3E%3Ccircle cx='20' cy='16.5' r='2.7' fill='%23f2c14e'/%3E%3C/g%3E%3C/svg%3E">
 <style>
   :root {
-    --bg: #0b0d1f;
-    --panel: #12142b;
-    --panel-2: #1a1d3a;
-    --line: rgba(255, 255, 255, 0.08);
-    --text: #eceef8;
-    --muted: #8b90b8;
-    --orange: #ff9f1c;
-    --orange-2: #ff5e3a;
-    --green: #57f287;
-    --red: #ed4245;
-    --blue: #4fc3f7;
+    --bg: #0e0f11;
+    --panel: #16181b;
+    --side: #1b1d21;
+    --field: #111315;
+    --raise: #262a2f;
+    --line: rgba(255, 255, 255, 0.07);
+    --text: #eceae6;
+    --muted: #8d9299;
+    --orange: #f2c14e;
+    --green: #4cd47b;
+    --green-dark: #2fb862;
+    --red: #ef5b4c;
     --radius: 14px;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
-  body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
-    min-height: 100vh;
-  }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; min-height: 100vh; }
   button, input { font: inherit; color: inherit; }
-  .app { max-width: 1240px; margin: 0 auto; padding: 16px; }
+  .app { max-width: 1320px; margin: 0 auto; padding: 14px 16px 16px; }
 
-  /* Header */
-  header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 3px; font-size: 18px; }
-  .brand svg { width: 30px; height: 30px; }
-  .history { flex: 1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
-  .history::-webkit-scrollbar { display: none; }
-  .chip {
-    flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
-    font-variant-numeric: tabular-nums;
-  }
-  .chip.low { color: var(--red); background: rgba(237, 66, 69, 0.14); }
-  .chip.high { color: var(--green); background: rgba(87, 242, 135, 0.14); }
-  .user { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; flex: none; }
+  /* Kopregel */
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand svg { width: 36px; height: 36px; flex: none; }
+  .brand .word { display: flex; flex-direction: column; line-height: 1; }
+  .brand .word small { font-size: 10px; font-weight: 800; letter-spacing: 3px; color: var(--muted); }
+  .brand .word b { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin-top: 3px; }
+  .nav { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; margin-right: auto; margin-left: 18px; }
+  .nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
+  .nav a:hover { color: var(--text); }
+  .nav a.active { background: var(--raise); color: var(--text); }
+  .user { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; }
   .user[hidden] { display: none; }
-  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--panel-2); }
+  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--raise); }
   .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
   .user .balance { color: var(--orange); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
-  .user button:hover { background: var(--panel-2); color: var(--text); }
+  .user button:hover { background: var(--raise); color: var(--text); }
 
-  /* Layout */
-  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-  .stage { position: relative; aspect-ratio: 16 / 9; overflow: hidden; }
-  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  .conn {
-    position: absolute; top: 12px; right: 12px; font-size: 12px; color: var(--muted);
-    display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,.35); padding: 4px 10px; border-radius: 999px;
+  /* Spelvlak: zijbalk + grafiek */
+  .game {
+    display: grid; grid-template-columns: 310px minmax(0, 1fr);
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden; height: clamp(520px, calc(100vh - 90px), 760px);
   }
-  .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; }
-  .conn.off i { background: var(--red); }
+  .sidebar { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .betbox { padding: 16px; border-bottom: 1px solid var(--line); }
+  .main { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
-  .side { display: flex; flex-direction: column; gap: 16px; }
-  .panel { padding: 16px; }
-  .panel h2 { margin: 0 0 12px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 700; }
-  label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
-  .field { margin-bottom: 12px; }
-  input[type="text"], input[type="number"] {
-    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 12px; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; outline: none;
+  /* Tabbladen */
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--field); border-radius: 999px; padding: 4px; margin-bottom: 16px; }
+  .tabs button { border: 0; background: none; border-radius: 999px; padding: 8px 0; font-size: 14px; font-weight: 700; color: var(--muted); cursor: pointer; }
+  .tabs button.active { background: var(--raise); color: var(--text); }
+  .tabs button:disabled { cursor: not-allowed; }
+
+  /* Velden */
+  .field { margin-bottom: 14px; }
+  .field label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+  .field label span { font-weight: 600; }
+  .inputrow { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .inputrow:focus-within { border-color: var(--orange); }
+  .inputrow input {
+    flex: 1; min-width: 0; background: none; border: 0; outline: none; padding: 10px 12px;
+    font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
   }
-  input:focus { border-color: var(--orange); }
-  .quick { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
-  .quick button {
-    flex: 1; min-width: 44px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
-    padding: 6px 0; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted);
+  .inputrow input[readonly] { color: var(--muted); }
+  .inputrow button {
+    border: 0; border-left: 1px solid var(--line); background: var(--raise); color: var(--text);
+    padding: 0 12px; font-size: 13px; font-weight: 700; cursor: pointer; min-width: 42px;
   }
-  .quick button:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
-  .btn {
-    width: 100%; border: 0; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 800;
-    cursor: pointer; letter-spacing: .5px; transition: transform .06s ease, filter .15s ease;
+  .inputrow button:hover:not(:disabled) { filter: brightness(1.2); }
+  .inputrow button:disabled, .inputrow input:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Grote knop */
+  .play {
+    width: 100%; border: 0; border-radius: 10px; padding: 15px; font-size: 16px; font-weight: 800;
+    cursor: pointer; background: var(--green); color: #062612; transition: transform .06s ease, filter .15s ease;
+    font-variant-numeric: tabular-nums;
   }
-  .btn:active { transform: scale(.98); }
-  .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .btn.primary { background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #1b0e00; }
-  .btn.cashout { background: var(--green); color: #052a12; font-size: 20px; padding: 18px; font-variant-numeric: tabular-nums; }
-  .btn.ghost { background: var(--panel-2); color: var(--muted); margin-top: 8px; font-size: 14px; padding: 10px; }
-  .btn:hover:not(:disabled) { filter: brightness(1.08); }
-  .note { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
-  .note code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; color: var(--text); }
-  .result { text-align: center; padding: 6px 0 2px; }
-  .result .big { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .result .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .play:hover:not(:disabled) { filter: brightness(1.06); }
+  .play:active:not(:disabled) { transform: scale(.98); }
+  .play:disabled { background: var(--raise); color: var(--muted); cursor: not-allowed; }
+  .play.cashout { background: var(--orange); color: #241a02; font-size: 18px; }
+  .link { display: block; margin: 10px auto 0; background: none; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; text-decoration: underline; }
+  .last { margin-top: 12px; font-size: 13px; color: var(--muted); text-align: center; }
+  .last b { font-variant-numeric: tabular-nums; }
   .win { color: var(--green); }
   .loss { color: var(--red); }
 
-  /* Spelers */
-  .players { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
-  .players li {
-    display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 10px;
-    background: rgba(255,255,255,.035); border-radius: 10px; padding: 7px 10px; border-left: 3px solid transparent;
-  }
-  .players li.won { border-left-color: var(--green); }
-  .players li.lost { border-left-color: var(--red); }
-  .players li.me { background: rgba(255, 159, 28, .08); }
-  .players img { width: 28px; height: 28px; border-radius: 50%; background: var(--panel-2); }
-  .players .pname { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .players .pbet { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .players .pstat { font-weight: 800; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .players .pstat small { display: block; color: var(--muted); font-weight: 600; font-size: 11px; }
-  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 12px 0; }
-  .count { float: right; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+  .login { text-align: center; padding: 10px 4px; }
+  .login h3 { margin: 0 0 8px; font-size: 16px; }
+  .login p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .login code { background: var(--raise); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 700; }
 
-  /* Uitleg */
-  .how { padding: 16px; margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .how div { font-size: 13px; color: var(--muted); line-height: 1.5; }
-  .how b { display: block; color: var(--text); margin-bottom: 4px; font-size: 14px; }
+  /* Spelerslijst */
+  .plist-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .plist-head .total { color: var(--orange); font-variant-numeric: tabular-nums; }
+  .players { list-style: none; margin: 0; padding: 0 8px 12px; overflow-y: auto; flex: 1; min-height: 0; }
+  .players li {
+    display: grid; grid-template-columns: 22px minmax(0, 1fr) 52px 64px; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 8px; font-size: 13px; font-variant-numeric: tabular-nums;
+  }
+  .players li:nth-child(odd) { background: rgba(255,255,255,.025); }
+  .players li.me { background: rgba(242, 193, 78, .09); }
+  .players img { width: 22px; height: 22px; border-radius: 50%; background: var(--raise); }
+  .players .pname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+  .players .pbal { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .players .pmult { text-align: right; font-weight: 700; color: var(--muted); }
+  .players .pamt { text-align: right; font-weight: 800; color: var(--muted); }
+  .players .empty { display: block; text-align: center; color: var(--muted); padding: 14px 0; background: none !important; }
+
+  /* Grafiek + topbalk */
+  .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 14px 0; position: relative; z-index: 1; }
+  .conn { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex: none; }
+  .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .conn.off i { background: var(--red); }
+  .history { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-left: auto; min-width: 0; flex-direction: row-reverse; }
+  .history::-webkit-scrollbar { display: none; }
+  .chip { flex: none; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .chip.low { color: #fff; background: var(--raise); }
+  .chip.high { color: #062612; background: var(--green); }
+  .canvas-wrap { position: relative; flex: 1; min-height: 0; }
+  .canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
   .toast {
-    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); opacity: 0;
-    background: var(--panel-2); border: 1px solid var(--line); padding: 10px 16px; border-radius: 12px;
-    font-size: 14px; font-weight: 600; transition: all .2s ease; pointer-events: none; max-width: calc(100% - 32px);
+    position: fixed; left: 50%; top: 18px; transform: translateX(-50%) translateY(-12px); opacity: 0; z-index: 10;
+    display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px;
+    font-size: 15px; font-weight: 700; transition: all .2s ease; pointer-events: none; max-width: calc(100% - 32px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
   }
+  .toast::before { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .toast.ok { border-color: rgba(87,242,135,.4); }
-  .toast.err { border-color: rgba(237,66,69,.5); }
+  .toast.ok { background: #16301f; border: 1px solid var(--green); color: #cdeed8; }
+  .toast.ok::before { content: '✓'; background: var(--green); color: #062612; }
+  .toast.err { background: #3a1a17; border: 1px solid var(--red); color: #fbd8d3; }
+  .toast.err::before { content: '✕'; background: var(--red); color: #fff; }
 
-  @media (max-width: 900px) {
-    .grid { grid-template-columns: minmax(0, 1fr); }
-    .how { grid-template-columns: 1fr; }
+  /* Melding in de zijbalk, blijft staan tot de volgende actie */
+  .notice {
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; line-height: 1.45;
+    background: rgba(239,91,76,.12); border: 1px solid rgba(239,91,76,.55); color: #fbd8d3;
+  }
+  .notice.ok { background: rgba(76,212,123,.10); border-color: rgba(76,212,123,.5); color: #cdeed8; }
+
+  @media (max-width: 860px) {
+    .game { grid-template-columns: minmax(0, 1fr); height: auto; }
+    .main { order: -1; height: min(62vh, 460px); border-bottom: 1px solid var(--line); }
+    .sidebar { border-right: 0; }
+    .players { max-height: 340px; }
   }
   @media (max-width: 520px) {
-    .app { padding: 12px; }
+    .app { padding: 10px; }
     header { flex-wrap: wrap; }
-    .history { order: 3; flex-basis: 100%; }
+    .brand .word { display: none; }
     .user { margin-left: auto; }
-    .stage { aspect-ratio: 4 / 3; }
+    .nav { order: 3; width: 100%; margin: 0; }
+    .nav a { flex: 1; text-align: center; }
   }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <div class="brand">
-      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 23l3-7 9-9c2-1 4-1 4-1s0 2-1 4l-9 9-7 3z" fill="#eceef8"/><circle cx="19" cy="13" r="2" fill="#4fc3f7"/><path d="M9 23l2-5 3 3z" fill="#ff7b29"/><path d="M12 16l-4 1 2-4 4-1zM16 20l-1 4 4-2 1-4z" fill="#ed4245"/></svg>
-      ROCKET
-    </div>
-    <div class="history" id="history"></div>
+    <a class="brand" href="/rocket" aria-label="Vissstick Rocket">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="#f2c14e"/>
+        <g transform="rotate(45 20 20)">
+          <path d="M17.2 28.6h5.6L20 35.5z" fill="#e2552f"/>
+          <path d="M20 5.5c4.2 3.6 5.8 8.8 5.8 14v8H14.2v-8c0-5.2 1.6-10.4 5.8-14z" fill="#16181b"/>
+          <path d="M14.2 20.5l-4.2 5.6v3.4l4.2-2.4zM25.8 20.5l4.2 5.6v3.4l-4.2-2.4z" fill="#16181b"/>
+          <circle cx="20" cy="16.5" r="2.7" fill="#f2c14e"/>
+        </g>
+      </svg>
+      <span class="word"><small>VISSSTICK</small><b>Rocket</b></span>
+    </a>
+    <nav class="nav"><a href="/rocket" class="active">Rocket</a><a href="/spin">Daily spin</a></nav>
     <div class="user" id="user" hidden></div>
   </header>
 
-  <div class="grid">
-    <div>
-      <div class="card stage">
-        <canvas id="canvas"></canvas>
+  <div class="game">
+    <aside class="sidebar">
+      <div class="betbox" id="action"></div>
+      <div class="plist-head"><span id="playerCount">Spelers</span><span class="total" id="playerTotal"></span></div>
+      <ul class="players" id="players"></ul>
+    </aside>
+    <section class="main">
+      <div class="topbar">
         <div class="conn" id="conn"><i></i><span>Live</span></div>
+        <div class="history" id="history"></div>
       </div>
-    </div>
-
-    <div class="side">
-      <div class="card panel" id="action"></div>
-      <div class="card panel">
-        <h2>SPELERS <span class="count" id="playerCount"></span></h2>
-        <ul class="players" id="players"></ul>
-      </div>
-    </div>
-  </div>
-  <div class="card how">
-    <div><b>1. Stap in</b>Zet tijdens de lobby (30s) een inzet. Een auto-cashout is optioneel.</div>
-    <div><b>2. Cash out</b>De multiplier stijgt vanaf 1.00x. Cash uit voordat de raket crasht en je wint inzet × multiplier.</div>
-    <div><b>3. Crash</b>Crasht de raket eerder, dan ben je je inzet kwijt. De uitslag komt daarna in Discord.</div>
+      <div class="canvas-wrap"><canvas id="canvas"></canvas></div>
+    </section>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -214,7 +243,7 @@
   // =====================================================
   // SERVER
   // =====================================================
-  async function api(action, body = {}) {
+  async function api(action, body = {}, quiet = false) {
     try {
       const res = await fetch(`/api/rocket/${action}`, {
         method: 'POST',
@@ -224,7 +253,10 @@
       });
       const data = await res.json();
       if (me && me.linked && typeof data.balance === 'number') me.balance = data.balance;
-      toast(data.message, data.ok);
+      if (!quiet || !data.ok) {
+        toast(data.message, data.ok);
+        setNotice(data.message, data.ok);
+      }
       renderUser();
       return data;
     } catch (error) {
@@ -272,21 +304,17 @@
     const game = next.game;
 
     const phaseChanged = !prevGame || !game || prevGame.id !== game.id || prevGame.phase !== game.phase;
-    if (phaseChanged) {
-      renderAction(true);
-      if (game && game.phase === 'crashed') resetExplosion();
-    }
+    if (phaseChanged && game && game.phase === 'crashed') resetExplosion();
 
     // Saldo bijwerken als mijn eigen inzet/cashout veranderde (ook auto-cashout)
     if (me && me.linked) {
       const mine = g => g && g.players.find(p => p.userId === me.user.id);
-      const a = mine(prevGame), b = mine(game);
-      if (JSON.stringify(a) !== JSON.stringify(b) || phaseChanged) refreshMeSoon();
+      if (JSON.stringify(mine(prevGame)) !== JSON.stringify(mine(game)) || phaseChanged) refreshMeSoon();
     }
 
     renderHistory();
     renderPlayers();
-    if (!phaseChanged) renderAction(false);
+    renderAction(phaseChanged);
   }
 
   // =====================================================
@@ -295,20 +323,34 @@
   let toastTimer = null;
   function toast(message, ok) {
     if (!message) return;
-    const el = $('toast');
-    el.textContent = message;
-    el.className = `toast show ${ok ? 'ok' : 'err'}`;
+    const box = $('toast');
+    box.textContent = message;
+    box.className = `toast show ${ok ? 'ok' : 'err'}`;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.className = 'toast'; }, 2800);
+    toastTimer = setTimeout(() => { box.className = 'toast'; }, ok ? 2800 : 4500);
+  }
+
+  // Laatste melding van een actie, getoond in de zijbalk onder de knop
+  let notice = null;
+  function setNotice(message, ok) {
+    notice = message ? { message, ok } : null;
+    const box = $('notice');
+    if (!box) return;
+    box.hidden = !notice;
+    if (notice) {
+      box.textContent = notice.message;
+      box.className = `notice ${notice.ok ? 'ok' : ''}`;
+    }
   }
 
   function el(tag, props = {}, children = []) {
     const node = document.createElement(tag);
     Object.entries(props).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === false) return;
       if (key === 'class') node.className = value;
       else if (key === 'text') node.textContent = value;
       else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
-      else node.setAttribute(key, value);
+      else node.setAttribute(key, value === true ? '' : value);
     });
     children.forEach(child => node.append(child));
     return node;
@@ -336,8 +378,7 @@
   }
 
   function renderHistory() {
-    const box = $('history');
-    box.replaceChildren(...(state ? state.history : []).map(m =>
+    $('history').replaceChildren(...(state ? state.history : []).map(m =>
       el('span', { class: `chip ${m >= 2 ? 'high' : 'low'}`, text: fmt(m) })));
   }
 
@@ -345,130 +386,179 @@
     const list = $('players');
     const game = state && state.game;
     const players = game ? [...game.players] : [];
-    $('playerCount').textContent = game ? `${players.length}/${state.config.maxPlayers}` : '';
+    const total = players.reduce((sum, p) => sum + p.bet, 0);
+    $('playerCount').textContent = `Spelers ${players.length}`;
+    $('playerTotal').textContent = players.length ? `${total} punten` : '';
 
     if (players.length === 0) {
-      list.replaceChildren(el('li', { class: 'empty', text: game && game.phase === 'lobby' ? 'Nog niemand ingestapt.' : 'Geen spelers.' }));
-      list.firstChild.style.display = 'block';
+      list.replaceChildren(el('li', { class: 'empty', text: game && game.phase === 'lobby' ? 'Nog niemand ingestapt.' : 'Geen spelers deze ronde.' }));
       return;
     }
 
     const crashed = game.phase === 'crashed';
-    players.sort((a, b) => (b.cashedAt ? b.payout - b.bet : -1e9) - (a.cashedAt ? a.payout - a.bet : -1e9) || b.bet - a.bet);
+    players.sort((a, b) => (b.cashedAt ? 1 : 0) - (a.cashedAt ? 1 : 0) || (b.cashedAt || 0) - (a.cashedAt || 0) || b.bet - a.bet);
     list.replaceChildren(...players.map(p => {
-      const won = Boolean(p.cashedAt);
-      const lost = crashed && !won;
       const img = el('img', { alt: '' });
       if (p.avatar) img.src = p.avatar;
-
-      let stat;
-      if (won) stat = el('div', { class: 'pstat win' }, [`+${p.payout - p.bet}`, el('small', { text: `@ ${fmt(p.cashedAt)}` })]);
-      else if (lost) stat = el('div', { class: 'pstat loss' }, [`-${p.bet}`, el('small', { text: 'crash' })]);
-      else stat = el('div', { class: 'pstat' }, [p.autoCashout ? fmt(p.autoCashout) : '—', el('small', { text: p.autoCashout ? 'auto' : 'handmatig' })]);
-
+      let mult = p.autoCashout ? fmt(p.autoCashout) : '—';
+      let amount = el('span', { class: 'pamt', text: p.bet });
+      if (p.cashedAt) {
+        mult = fmt(p.cashedAt);
+        amount = el('span', { class: 'pamt win', text: `+${p.payout - p.bet}` });
+      } else if (crashed) {
+        amount = el('span', { class: 'pamt loss', text: `-${p.bet}` });
+      }
       const isMe = me && me.linked && p.userId === me.user.id;
-      return el('li', { class: `${won ? 'won' : ''} ${lost ? 'lost' : ''} ${isMe ? 'me' : ''}` }, [
+      return el('li', { class: isMe ? 'me' : '' }, [
         img,
-        el('div', {}, [el('div', { class: 'pname', text: p.username }), el('div', { class: 'pbet', text: `${p.bet} punten` })]),
-        stat
+        el('div', { style: 'min-width:0' }, [
+          el('span', { class: 'pname', text: p.username }),
+          el('span', { class: 'pbal', text: `Saldo ${p.balance.toLocaleString('nl-NL')}` })
+        ]),
+        el('span', { class: `pmult ${p.cashedAt ? 'win' : ''}`, text: mult }),
+        amount
       ]);
     }));
   }
 
-  // Houd ingevulde waarden vast tussen renders
-  const form = { bet: '100', auto: '' };
+  // Ingevulde waarden blijven bewaard tussen renders
+  const form = { mode: 'manual', bet: '100', auto: '2.00' };
 
   function renderAction(force) {
     const box = $('action');
     const game = state && state.game;
     const phase = game ? game.phase : 'idle';
     const mine = myPlayer();
-    const key = [phase, game && game.id, me && me.linked, mine && mine.bet, mine && mine.autoCashout, mine && mine.cashedAt].join('|');
+    const key = [phase, game && game.id, me && me.linked, mine && mine.bet, mine && mine.autoCashout, mine && mine.cashedAt, form.mode].join('|');
     if (!force && box.dataset.key === key) return;
+    if (box.dataset.key && box.dataset.key.split('|')[0] !== phase) notice = null;
     box.dataset.key = key;
     box.replaceChildren();
 
     if (!me) return;
 
     if (!me.linked) {
-      box.append(
-        el('h2', { text: 'KOPPEL JE DISCORD' }),
-        el('p', { class: 'note' }, [
-          'Typ ', el('code', { text: '/rocket' }), ' in Discord en klik op ', el('b', { text: 'Open Rocket' }),
-          '. Dit hoef je maar één keer per apparaat te doen. Meekijken kan altijd.'
-        ])
-      );
+      box.append(el('div', { class: 'login' }, [
+        el('h3', { text: 'Niet ingelogd' }),
+        el('p', {}, ['Wil je meedoen? Typ ', el('code', { text: '/rocket' }), ' in Discord en klik op de link. Meekijken kan altijd.'])
+      ]));
       return;
     }
 
+    const cfg = state ? state.config : { minBet: 10, maxBet: 250 };
+    const editable = phase !== 'flying';
+    if (mine && phase === 'lobby') {
+      form.bet = String(mine.bet);
+      if (mine.autoCashout) { form.mode = 'auto'; form.auto = mine.autoCashout.toFixed(2); }
+    }
+
+    // Tabbladen
+    const tab = (mode, label) => el('button', {
+      type: 'button', text: label, class: form.mode === mode ? 'active' : '', disabled: !editable,
+      onclick: () => { form.mode = mode; renderAction(true); }
+    });
+    box.append(el('div', { class: 'tabs' }, [tab('manual', 'Handmatig'), tab('auto', 'Auto')]));
+
+    // Inzet
+    const betInput = el('input', { type: 'number', inputmode: 'numeric', min: cfg.minBet, max: cfg.maxBet, value: form.bet, disabled: !editable });
+    const maxBet = Math.max(cfg.minBet, Math.min(cfg.maxBet, me.balance + (mine ? mine.bet : 0)));
+    const setBet = v => {
+      const clamped = Math.max(cfg.minBet, Math.min(maxBet, Math.floor(v) || cfg.minBet));
+      betInput.value = clamped; form.bet = String(clamped); updateNet();
+    };
+    betInput.addEventListener('input', () => { form.bet = betInput.value; updateNet(); });
+    box.append(el('div', { class: 'field' }, [
+      el('label', {}, ['Inzet', el('span', { text: `${cfg.minBet}–${cfg.maxBet}` })]),
+      el('div', { class: 'inputrow' }, [
+        betInput,
+        el('button', { type: 'button', text: '½', disabled: !editable, onclick: () => setBet(Number(betInput.value) / 2) }),
+        el('button', { type: 'button', text: '2×', disabled: !editable, onclick: () => setBet(Number(betInput.value) * 2) }),
+        el('button', { type: 'button', text: 'Max', disabled: !editable, onclick: () => setBet(maxBet) })
+      ])
+    ]));
+
+    // Auto-cashout
+    let netInput = null;
+    let autoInput = null;
+    function updateNet() {
+      if (!netInput) return;
+      const bet = Number(form.bet) || 0;
+      const auto = parseFloat(String(form.auto).replace(',', '.')) || 0;
+      netInput.value = auto >= 1 ? `+${Math.floor(bet * auto) - bet}` : '—';
+    }
+    if (form.mode === 'auto') {
+      autoInput = el('input', { type: 'text', inputmode: 'decimal', value: form.auto, disabled: !editable });
+      autoInput.addEventListener('input', () => { form.auto = autoInput.value; updateNet(); });
+      const step = delta => {
+        const current = parseFloat(String(form.auto).replace(',', '.')) || 2;
+        const next = Math.max(cfg.minCashout, Math.min(cfg.maxCashout, Math.round((current + delta) * 100) / 100));
+        autoInput.value = next.toFixed(2); form.auto = autoInput.value; updateNet();
+      };
+      netInput = el('input', { type: 'text', readonly: true, tabindex: '-1' });
+      box.append(
+        el('div', { class: 'field' }, [
+          el('label', {}, ['Cashout op', el('span', { text: `${cfg.minCashout}–${cfg.maxCashout}x` })]),
+          el('div', { class: 'inputrow' }, [
+            autoInput,
+            el('button', { type: 'button', text: '−', disabled: !editable, onclick: () => step(-0.25) }),
+            el('button', { type: 'button', text: '+', disabled: !editable, onclick: () => step(0.25) })
+          ])
+        ]),
+        el('div', { class: 'field' }, [el('label', { text: 'Netto winst als het lukt' }), el('div', { class: 'inputrow' }, [netInput])])
+      );
+      updateNet();
+    }
+
+    function checkBet() {
+      const bet = Number(betInput.value);
+      const available = me.balance + (mine ? mine.bet : 0);
+      if (!Number.isInteger(bet) || bet < cfg.minBet || bet > cfg.maxBet) return `Ongeldige inzet: kies een bedrag tussen ${cfg.minBet} en ${cfg.maxBet} punten.`;
+      if (bet > available) return `Niet genoeg punten: je wilt ${bet} inzetten, maar je hebt er maar ${available}.`;
+      return null;
+    }
+    const guarded = action => async () => {
+      const problem = checkBet();
+      if (problem) { toast(problem, false); setNotice(problem, false); return; }
+      await action();
+    };
+
+    const joinBody = () => ({ bet: betInput.value, autoCashout: form.mode === 'auto' ? autoInput.value.trim() || null : null });
+
+    // Hoofdknop per fase
     if (phase === 'lobby') {
-      const betInput = el('input', { type: 'number', inputmode: 'numeric', min: state.config.minBet, max: state.config.maxBet, value: mine ? mine.bet : form.bet });
-      betInput.addEventListener('input', () => { form.bet = betInput.value; });
-      const autoInput = el('input', { type: 'text', inputmode: 'decimal', placeholder: 'Leeg = zelf uitcashen', value: mine ? (mine.autoCashout ? mine.autoCashout.toFixed(2) : '') : form.auto });
-      autoInput.addEventListener('input', () => { form.auto = autoInput.value; });
-
-      const setBet = v => { betInput.value = v; form.bet = String(v); };
-      const setAuto = v => { autoInput.value = v; form.auto = v; };
-      const maxBet = Math.max(state.config.minBet, Math.min(state.config.maxBet, me.balance + (mine ? mine.bet : 0)));
-
-      box.append(
-        el('h2', { text: mine ? 'JE ZIT IN DE RAKET' : 'INSTAPPEN' }),
-        el('div', { class: 'field' }, [
-          el('label', { text: `Inzet (${state.config.minBet}–${state.config.maxBet})` }),
-          betInput,
-          el('div', { class: 'quick' }, [10, 50, 100, 250].map(v => el('button', { type: 'button', text: v, onclick: () => setBet(v) }))
-            .concat(el('button', { type: 'button', text: 'MAX', onclick: () => setBet(maxBet) })))
-        ]),
-        el('div', { class: 'field' }, [
-          el('label', { text: 'Auto-cashout (optioneel)' }),
-          autoInput,
-          el('div', { class: 'quick' }, ['1.5', '2', '3', '5', '10'].map(v => el('button', { type: 'button', text: `${v}x`, onclick: () => setAuto(v) }))
-            .concat(el('button', { type: 'button', text: 'Uit', onclick: () => setAuto('') })))
-        ]),
-        el('button', {
-          class: 'btn primary',
-          text: mine ? 'Inzet aanpassen' : 'Instappen',
-          onclick: () => api('join', { bet: betInput.value, autoCashout: autoInput.value.trim() || null })
+      box.append(el('button', { class: 'play', text: mine ? 'Inzet aanpassen' : 'Instappen', onclick: guarded(() => api('join', joinBody())) }));
+      if (mine) box.append(el('button', { class: 'link', text: 'Uitstappen', onclick: () => api('leave') }));
+    } else if (phase === 'flying') {
+      if (mine && !mine.cashedAt) {
+        box.append(el('button', { class: 'play cashout', id: 'cashoutBtn', onclick: cashOut }));
+        updateCashoutButton();
+      } else if (mine) {
+        box.append(el('button', { class: 'play', disabled: true, text: `Uitgecasht · +${mine.payout - mine.bet}` }));
+      } else {
+        box.append(el('button', { class: 'play', disabled: true, text: 'Ronde bezig…' }));
+      }
+    } else {
+      // Geen ronde: starten en meteen instappen
+      box.append(el('button', {
+        class: 'play', text: 'Start ronde & stap in',
+        onclick: guarded(async () => {
+          const started = await api('start', {}, true);
+          if (started.ok) await api('join', joinBody());
         })
-      );
-      if (mine) box.append(el('button', { class: 'btn ghost', text: 'Uitstappen', onclick: () => api('leave') }));
-      return;
+      }));
     }
 
-    if (phase === 'flying') {
-      if (!mine) {
-        box.append(el('h2', { text: 'IN DE LUCHT' }), el('p', { class: 'note', text: 'Je speelt deze ronde niet mee. Na de crash kun je een nieuwe ronde starten.' }));
-        return;
-      }
-      if (mine.cashedAt) {
-        box.append(el('h2', { text: 'UITGECASHT' }), el('div', { class: 'result' }, [
-          el('div', { class: 'big win', text: `+${mine.payout - mine.bet}` }),
-          el('div', { class: 'sub', text: `${mine.payout} punten @ ${fmt(mine.cashedAt)}` })
-        ]));
-        return;
-      }
-      const button = el('button', { class: 'btn cashout', id: 'cashoutBtn', onclick: cashOut });
-      box.append(
-        el('h2', { text: mine.autoCashout ? `AUTO-CASHOUT OP ${fmt(mine.autoCashout)}` : 'CASH OUT (SPATIE)' }),
-        button,
-        el('p', { class: 'note', style: 'margin-top:10px', text: `Inzet ${mine.bet} punten` })
-      );
-      updateCashoutButton();
-      return;
-    }
+    box.append(el('div', { id: 'notice', class: 'notice', hidden: true }));
+    setNotice(notice && notice.message, notice && notice.ok);
 
-    // Geen ronde, geannuleerd of gecrasht
     if (phase === 'crashed' && mine) {
       const won = Boolean(mine.cashedAt);
-      box.append(el('h2', { text: 'JOUW RESULTAAT' }), el('div', { class: 'result' }, [
-        el('div', { class: `big ${won ? 'win' : 'loss'}`, text: won ? `+${mine.payout - mine.bet}` : `-${mine.bet}` }),
-        el('div', { class: 'sub', text: won ? `Uitgecasht op ${fmt(mine.cashedAt)}` : `Gecrasht op ${fmt(game.crashPoint)}` })
+      box.append(el('div', { class: 'last' }, [
+        'Vorige ronde: ',
+        el('b', { class: won ? 'win' : 'loss', text: won ? `+${mine.payout - mine.bet}` : `-${mine.bet}` }),
+        won ? ` @ ${fmt(mine.cashedAt)}` : ` (crash ${fmt(game.crashPoint)})`
       ]));
-      box.lastChild.style.marginBottom = '14px';
-    } else {
-      box.append(el('h2', { text: 'NIEUWE RONDE' }), el('p', { class: 'note', style: 'margin-bottom:14px', text: 'Start een ronde: iedereen heeft dan 30 seconden om in te stappen.' }));
     }
-    box.append(el('button', { class: 'btn primary', text: 'Start nieuwe ronde', onclick: () => api('start') }));
   }
 
   function updateCashoutButton() {
@@ -477,7 +567,7 @@
     const mine = myPlayer();
     if (!button || !game || game.phase !== 'flying' || !mine) return;
     const m = floorMult(multiplierAt(Math.max(0, flightTime(game))));
-    button.textContent = `CASH OUT  ${Math.floor(mine.bet * m)}`;
+    button.textContent = `Cash out · ${Math.floor(mine.bet * m)}`;
   }
 
   let cashingOut = false;
@@ -509,17 +599,17 @@
   }
   new ResizeObserver(resize).observe(canvas);
 
-  const stars = Array.from({ length: 90 }, () => ({
+  const stars = Array.from({ length: 110 }, () => ({
     x: Math.random(), y: Math.random(), r: Math.random() * 1.3 + 0.3, depth: Math.random() * 0.8 + 0.2, tw: Math.random() * Math.PI * 2
   }));
   let starShift = 0;
 
-  const smoke = [];
+  const particles = [];
   let explosion = null;
   function resetExplosion() {
     explosion = {
-      sparks: Array.from({ length: 36 }, () => ({ a: Math.random() * Math.PI * 2, v: 60 + Math.random() * 180, s: 1.5 + Math.random() * 2.5 })),
-      debris: Array.from({ length: 10 }, () => ({ a: Math.random() * Math.PI * 2, v: 30 + Math.random() * 90, spin: (Math.random() - .5) * 10 }))
+      sparks: Array.from({ length: 40 }, () => ({ a: Math.random() * Math.PI * 2, v: 60 + Math.random() * 200, s: 1.5 + Math.random() * 2.5 })),
+      debris: Array.from({ length: 12 }, () => ({ a: Math.random() * Math.PI * 2, v: 30 + Math.random() * 100, spin: (Math.random() - .5) * 10, w: 3 + Math.random() * 6 }))
     };
   }
 
@@ -527,27 +617,25 @@
     return [0.1, 0.2, 0.5, 1, 2, 5, 10, 20].find(s => range / s <= maxLines) || 20;
   }
 
+  const isSmall = () => W < 560;
+
   function plotArea() {
-    const small = W < 520;
-    return { left: small ? 40 : 56, right: W - (small ? 14 : 24), top: small ? 18 : 28, bottom: H - (small ? 28 : 36) };
+    return isSmall()
+      ? { left: 44, right: W - 16, top: 16, bottom: H - 30 }
+      : { left: 64, right: W - 28, top: 24, bottom: H - 40 };
   }
 
   function drawBackground(dt, speed) {
-    ctx.fillStyle = '#12142b';
-    ctx.fillRect(0, 0, W, H);
-    const glow = ctx.createRadialGradient(W * 0.8, H * 0.1, 0, W * 0.8, H * 0.1, W * 0.7);
-    glow.addColorStop(0, 'rgba(255, 94, 58, 0.10)');
-    glow.addColorStop(1, 'rgba(255, 94, 58, 0)');
-    ctx.fillStyle = glow;
+    ctx.fillStyle = '#16181b';
     ctx.fillRect(0, 0, W, H);
 
     starShift += dt * speed;
     const now = performance.now() / 1000;
+    ctx.fillStyle = '#ffffff';
     for (const s of stars) {
-      const x = (((s.x - starShift * s.depth) % 1) + 1) % 1 * W;
-      const y = (((s.y + starShift * s.depth * 0.35) % 1) + 1) % 1 * H;
-      ctx.globalAlpha = 0.35 + 0.35 * Math.sin(now * 2 + s.tw) * s.depth + 0.2;
-      ctx.fillStyle = '#ffffff';
+      const x = ((((s.x - starShift * s.depth) % 1) + 1) % 1) * W;
+      const y = ((((s.y + starShift * s.depth * 0.35) % 1) + 1) % 1) * H;
+      ctx.globalAlpha = 0.25 + 0.3 * s.depth + 0.15 * Math.sin(now * 2 + s.tw);
       ctx.beginPath();
       ctx.arc(x, y, s.r, 0, Math.PI * 2);
       ctx.fill();
@@ -567,33 +655,38 @@
   }
 
   function drawGrid(sc) {
-    ctx.font = '600 11px system-ui, sans-serif';
-    ctx.fillStyle = '#8b90b8';
+    ctx.font = '600 12px system-ui, sans-serif';
     ctx.lineWidth = 1;
 
+    // Y-as labels als pilletjes, zoals een echte crash grafiek
     const yStep = niceStep(sc.yMax - 1, 5);
-    ctx.textAlign = 'right';
-    for (let v = Math.floor(1 / yStep + 1) * yStep; v < sc.yMax; v += yStep) {
-      const y = sc.py(v);
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-      ctx.beginPath(); ctx.moveTo(sc.left, y); ctx.lineTo(sc.right, y); ctx.stroke();
-      ctx.fillText(`${+v.toFixed(1)}x`, sc.left - 8, y + 4);
-    }
-    const xStep = niceStep(sc.xMax, 6);
+    const ticks = [1];
+    for (let v = Math.floor(1 / yStep + 1) * yStep; v < sc.yMax; v += yStep) ticks.push(v);
     ctx.textAlign = 'center';
-    for (let v = xStep; v < sc.xMax; v += xStep) {
-      const x = sc.px(v);
-      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-      ctx.beginPath(); ctx.moveTo(x, sc.top); ctx.lineTo(x, sc.bottom); ctx.stroke();
-      ctx.fillText(`${+v.toFixed(1)}s`, x, sc.bottom + 18);
+    for (const v of ticks) {
+      const y = sc.py(v);
+      if (v > 1) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.beginPath(); ctx.moveTo(sc.left, y); ctx.lineTo(sc.right, y); ctx.stroke();
+      }
+      const label = `${+v.toFixed(1)}x`;
+      const w = ctx.measureText(label).width + 12;
+      ctx.fillStyle = '#262a2f';
+      ctx.beginPath(); ctx.roundRect(sc.left - w - 8, y - 9, w, 18, 6); ctx.fill();
+      ctx.fillStyle = '#b9bdc3';
+      ctx.fillText(label, sc.left - w / 2 - 8, y + 4);
     }
-    ctx.strokeStyle = 'rgba(139,144,184,0.5)';
-    ctx.beginPath();
-    ctx.moveTo(sc.left, sc.top); ctx.lineTo(sc.left, sc.bottom); ctx.lineTo(sc.right, sc.bottom);
-    ctx.stroke();
+
+    const xStep = niceStep(sc.xMax, 6);
+    ctx.fillStyle = '#8d9299';
+    for (let v = xStep; v < sc.xMax; v += xStep) {
+      ctx.fillText(`${+v.toFixed(1)}s`, sc.px(v), sc.bottom + 22);
+    }
+    ctx.strokeStyle = 'rgba(141,146,153,0.35)';
+    ctx.beginPath(); ctx.moveTo(sc.left, sc.bottom); ctx.lineTo(sc.right, sc.bottom); ctx.stroke();
   }
 
-  function drawCurve(sc, t, crashed) {
+  function tracePath(sc, t) {
     const samples = 90;
     ctx.beginPath();
     for (let i = 0; i <= samples; i++) {
@@ -601,97 +694,186 @@
       const x = sc.px(time), y = sc.py(multiplierAt(time));
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
-    const tipX = sc.px(t);
+  }
 
-    // Vlak onder de curve
-    ctx.save();
+  function drawCurve(sc, t, crashed) {
+    const tipX = sc.px(t);
+    const tipY = sc.py(multiplierAt(t));
+
+    tracePath(sc, t);
     ctx.lineTo(tipX, sc.bottom);
     ctx.lineTo(sc.left, sc.bottom);
     ctx.closePath();
-    const fill = ctx.createLinearGradient(0, sc.top, 0, sc.bottom);
-    fill.addColorStop(0, crashed ? 'rgba(237,66,69,0.30)' : 'rgba(255,159,28,0.30)');
-    fill.addColorStop(1, 'rgba(255,159,28,0)');
+    const fill = ctx.createLinearGradient(0, tipY, 0, sc.bottom);
+    fill.addColorStop(0, crashed ? 'rgba(239,91,76,0.85)' : 'rgba(242,193,78,0.95)');
+    fill.addColorStop(1, crashed ? 'rgba(239,91,76,0.2)' : 'rgba(226,128,47,0.3)');
     ctx.fillStyle = fill;
     ctx.fill();
-    ctx.restore();
 
-    // Lijn zelf (opnieuw tekenen zonder sluiting)
-    ctx.beginPath();
-    for (let i = 0; i <= samples; i++) {
-      const time = (t * i) / samples;
-      const x = sc.px(time), y = sc.py(multiplierAt(time));
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    const stroke = ctx.createLinearGradient(sc.left, sc.bottom, tipX, sc.py(multiplierAt(t)));
-    stroke.addColorStop(0, crashed ? '#a3292b' : '#ffb347');
-    stroke.addColorStop(1, crashed ? '#ed4245' : '#ff5e3a');
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 4.5;
+    tracePath(sc, t);
+    ctx.strokeStyle = crashed ? '#ff9a8f' : '#ffffff';
+    ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.shadowColor = crashed ? 'rgba(237,66,69,0.6)' : 'rgba(255,120,40,0.7)';
-    ctx.shadowBlur = 14;
     ctx.stroke();
-    ctx.shadowBlur = 0;
   }
 
-  function drawRocket(x, y, angle, scale = 1) {
+  // ----- Raket -----
+  function drawFlame(thrust, now) {
+    if (thrust <= 0) return;
+    const flicker = 0.85 + 0.15 * Math.sin(now / 23) + Math.random() * 0.12;
+    const len = (26 + 34 * thrust) * flicker;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    const glow = ctx.createRadialGradient(-34, 0, 0, -34, 0, 30 + 20 * thrust);
+    glow.addColorStop(0, `rgba(255,170,60,${0.45 * thrust})`);
+    glow.addColorStop(1, 'rgba(255,90,30,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(-34, 0, 30 + 20 * thrust, 0, Math.PI * 2); ctx.fill();
+
+    const layer = (length, width, c0, c1) => {
+      const g = ctx.createLinearGradient(-30, 0, -30 - length, 0);
+      g.addColorStop(0, c0);
+      g.addColorStop(1, c1);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(-30, -width);
+      ctx.bezierCurveTo(-30 - length * 0.35, -width * 1.3, -30 - length * 0.8, -width * 0.35, -30 - length, (Math.random() - .5) * 2);
+      ctx.bezierCurveTo(-30 - length * 0.8, width * 0.35, -30 - length * 0.35, width * 1.3, -30, width);
+      ctx.closePath();
+      ctx.fill();
+    };
+    layer(len, 6.5, 'rgba(255,120,40,0.95)', 'rgba(255,60,20,0)');
+    layer(len * 0.65, 4.5, 'rgba(255,215,90,0.95)', 'rgba(255,150,40,0)');
+    layer(len * 0.32, 2.6, 'rgba(255,255,240,1)', 'rgba(180,220,255,0)');
+    ctx.restore();
+  }
+
+  function drawRocket(x, y, angle, scale, thrust) {
     const now = performance.now();
-    const flame = 12 + Math.sin(now / 35) * 4 + Math.random() * 3;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
     ctx.scale(scale, scale);
 
-    const flameGrad = ctx.createLinearGradient(-16 - flame, 0, -14, 0);
-    flameGrad.addColorStop(0, 'rgba(255,94,58,0)');
-    flameGrad.addColorStop(0.5, '#ff7b29');
-    flameGrad.addColorStop(1, '#ffe066');
-    ctx.fillStyle = flameGrad;
-    ctx.beginPath(); ctx.moveTo(-15, -5); ctx.quadraticCurveTo(-16 - flame, 0, -15, 5); ctx.closePath(); ctx.fill();
+    drawFlame(thrust, now);
 
-    ctx.fillStyle = '#ed4245';
-    ctx.beginPath(); ctx.moveTo(-16, -6); ctx.lineTo(-8, -6); ctx.lineTo(-21, -14); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-16, 6); ctx.lineTo(-8, 6); ctx.lineTo(-21, 14); ctx.closePath(); ctx.fill();
+    // Straalpijp
+    const nozzle = ctx.createLinearGradient(0, -6, 0, 6);
+    nozzle.addColorStop(0, '#5a5f73'); nozzle.addColorStop(0.5, '#9ca1b4'); nozzle.addColorStop(1, '#3a3e4f');
+    ctx.fillStyle = nozzle;
+    ctx.beginPath(); ctx.moveTo(-24, -5); ctx.lineTo(-31, -7); ctx.lineTo(-31, 7); ctx.lineTo(-24, 5); ctx.closePath(); ctx.fill();
 
-    const body = ctx.createLinearGradient(0, -7, 0, 7);
-    body.addColorStop(0, '#ffffff');
-    body.addColorStop(1, '#c9cce0');
+    // Vinnen (achter de romp)
+    const fin = ctx.createLinearGradient(-30, -18, -12, -6);
+    fin.addColorStop(0, '#8e1418'); fin.addColorStop(1, '#e0393d');
+    ctx.fillStyle = fin;
+    ctx.beginPath(); ctx.moveTo(-10, -7); ctx.quadraticCurveTo(-18, -9, -27, -19); ctx.lineTo(-29, -19); ctx.lineTo(-25, -7); ctx.closePath(); ctx.fill();
+    const fin2 = ctx.createLinearGradient(-30, 18, -12, 6);
+    fin2.addColorStop(0, '#6d0f12'); fin2.addColorStop(1, '#c22f33');
+    ctx.fillStyle = fin2;
+    ctx.beginPath(); ctx.moveTo(-10, 7); ctx.quadraticCurveTo(-18, 9, -27, 19); ctx.lineTo(-29, 19); ctx.lineTo(-25, 7); ctx.closePath(); ctx.fill();
+
+    // Romp: cilinder met metalen glans
+    const body = ctx.createLinearGradient(0, -8, 0, 8);
+    body.addColorStop(0, '#8d93a8');
+    body.addColorStop(0.25, '#ffffff');
+    body.addColorStop(0.55, '#d3d6e3');
+    body.addColorStop(1, '#5e6378');
     ctx.fillStyle = body;
     ctx.beginPath();
-    ctx.roundRect(-17, -6.5, 27, 13, 5);
+    ctx.moveTo(-25, -7);
+    ctx.lineTo(14, -8);
+    ctx.lineTo(14, 8);
+    ctx.lineTo(-25, 7);
+    ctx.quadraticCurveTo(-27, 0, -25, -7);
+    ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#ed4245';
-    ctx.beginPath(); ctx.moveTo(9, -6.5); ctx.quadraticCurveTo(24, 0, 9, 6.5); ctx.closePath(); ctx.fill();
+    // Panelen en rode band
+    ctx.strokeStyle = 'rgba(40,44,60,0.35)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-6, -7.6); ctx.lineTo(-6, 7.6); ctx.stroke();
+    const band = ctx.createLinearGradient(0, -8, 0, 8);
+    band.addColorStop(0, '#9e1a1e'); band.addColorStop(0.3, '#ff5a5e'); band.addColorStop(1, '#7a1216');
+    ctx.fillStyle = band;
+    ctx.fillRect(-21, -7.2, 4, 14.4);
 
-    ctx.fillStyle = '#4fc3f7';
-    ctx.strokeStyle = '#2b2d31';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.arc(0, 0, 3.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // Neuskegel
+    const nose = ctx.createLinearGradient(0, -8, 0, 8);
+    nose.addColorStop(0, '#a3161b'); nose.addColorStop(0.3, '#ff5a5e'); nose.addColorStop(1, '#6d0f12');
+    ctx.fillStyle = nose;
+    ctx.beginPath();
+    ctx.moveTo(14, -8);
+    ctx.bezierCurveTo(24, -7.5, 31, -3, 35, 0);
+    ctx.bezierCurveTo(31, 3, 24, 7.5, 14, 8);
+    ctx.closePath();
+    ctx.fill();
+
+    // Raampje
+    ctx.fillStyle = '#2b2f45';
+    ctx.beginPath(); ctx.arc(3, -0.5, 4.6, 0, Math.PI * 2); ctx.fill();
+    const glass = ctx.createRadialGradient(1.8, -2, 0.5, 3, -0.5, 4);
+    glass.addColorStop(0, '#d8f6ff'); glass.addColorStop(0.5, '#4fb8e8'); glass.addColorStop(1, '#1b5e8a');
+    ctx.fillStyle = glass;
+    ctx.beginPath(); ctx.arc(3, -0.5, 3.4, 0, Math.PI * 2); ctx.fill();
+
+    // Middelste vin (van voren gezien)
+    ctx.fillStyle = '#7a1216';
+    ctx.beginPath(); ctx.moveTo(-12, -1); ctx.lineTo(-28, -1.5); ctx.lineTo(-28, 1.5); ctx.lineTo(-12, 1); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
-  function updateSmoke(dt, x, y, angle, emitting) {
-    if (emitting) {
-      for (let i = 0; i < 2; i++) {
-        smoke.push({
-          x: x - Math.cos(angle) * 22, y: y - Math.sin(angle) * 22,
-          vx: -Math.cos(angle) * 30 + (Math.random() - .5) * 20, vy: -Math.sin(angle) * 30 + (Math.random() - .5) * 20 + 10,
-          life: 1, r: 3 + Math.random() * 3
-        });
-      }
+  // Uitlaat: heet vuur dat afkoelt tot rook
+  function emitExhaust(x, y, angle, scale, thrust, dt) {
+    const back = Math.PI + angle;
+    const nx = x + Math.cos(back) * 32 * scale;
+    const ny = y + Math.sin(back) * 32 * scale;
+    const count = Math.round((40 + 160 * thrust) * dt);
+    for (let i = 0; i < count; i++) {
+      const spread = (Math.random() - 0.5) * 0.5;
+      const speed = (60 + Math.random() * 90) * (0.5 + thrust);
+      particles.push({
+        x: nx, y: ny,
+        vx: Math.cos(back + spread) * speed - 20,
+        vy: Math.sin(back + spread) * speed + 8,
+        age: 0, life: 0.9 + Math.random() * 1.3, size: (2 + Math.random() * 2) * scale
+      });
     }
-    for (let i = smoke.length - 1; i >= 0; i--) {
-      const p = smoke[i];
-      p.life -= dt * 1.4;
-      if (p.life <= 0) { smoke.splice(i, 1); continue; }
-      p.x += p.vx * dt; p.y += p.vy * dt; p.r += dt * 10;
-      ctx.globalAlpha = p.life * 0.25;
-      ctx.fillStyle = '#c9cce0';
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.age += dt;
+      if (p.age >= p.life) { particles.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= 1 - dt * 2.2; p.vy *= 1 - dt * 2.2;
+      p.vy -= 6 * dt;
     }
+    // Rook (normaal mengen)
+    for (const p of particles) {
+      const k = p.age / p.life;
+      if (k < 0.15) continue;
+      ctx.globalAlpha = (1 - k) * 0.22;
+      ctx.fillStyle = k < 0.3 ? '#b8a99a' : '#9a9db0';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size + k * 16, 0, Math.PI * 2); ctx.fill();
+    }
+    // Vuur (optellend licht)
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of particles) {
+      const k = p.age / p.life;
+      if (k > 0.2) continue;
+      const heat = 1 - k / 0.2;
+      ctx.globalAlpha = heat * 0.8;
+      ctx.fillStyle = heat > 0.6 ? '#ffe7a0' : '#ff8a3a';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.6 + heat), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
     ctx.globalAlpha = 1;
+    if (particles.length > 1500) particles.splice(0, particles.length - 1500);
   }
 
   function drawExplosion(x, y, elapsed) {
@@ -703,70 +885,90 @@
       ctx.fillStyle = `rgba(255,246,213,${0.35 * (1 - elapsed / 0.15)})`;
       ctx.fillRect(0, 0, W, H);
     }
-    const ring = 10 + p * 110;
     ctx.strokeStyle = `rgba(255,179,71,${0.7 * fade})`;
     ctx.lineWidth = 3 * fade + 0.5;
-    ctx.beginPath(); ctx.arc(x, y, ring, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 10 + p * 120, 0, Math.PI * 2); ctx.stroke();
 
-    const core = ctx.createRadialGradient(x, y, 0, x, y, 20 + p * 45);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const core = ctx.createRadialGradient(x, y, 0, x, y, 24 + p * 50);
     core.addColorStop(0, `rgba(255,246,213,${fade})`);
     core.addColorStop(0.4, `rgba(255,123,41,${0.8 * fade})`);
     core.addColorStop(1, 'rgba(237,66,69,0)');
     ctx.fillStyle = core;
-    ctx.beginPath(); ctx.arc(x, y, 20 + p * 45, 0, Math.PI * 2); ctx.fill();
-
+    ctx.beginPath(); ctx.arc(x, y, 24 + p * 50, 0, Math.PI * 2); ctx.fill();
     for (const s of explosion.sparks) {
       const d = s.v * Math.min(elapsed, 1.4) * (1 - p * 0.4);
       ctx.fillStyle = `rgba(255,209,102,${fade})`;
       ctx.beginPath(); ctx.arc(x + Math.cos(s.a) * d, y + Math.sin(s.a) * d + 30 * elapsed * elapsed, s.s * fade + 0.3, 0, Math.PI * 2); ctx.fill();
     }
+    ctx.restore();
+
     for (const b of explosion.debris) {
       const d = b.v * elapsed;
       ctx.save();
-      ctx.translate(x + Math.cos(b.a) * d, y + Math.sin(b.a) * d + 60 * elapsed * elapsed);
+      ctx.translate(x + Math.cos(b.a) * d, y + Math.sin(b.a) * d + 70 * elapsed * elapsed);
       ctx.rotate(b.spin * elapsed);
-      ctx.fillStyle = `rgba(201,204,224,${Math.max(0, 1 - elapsed / 2.5)})`;
-      ctx.fillRect(-3, -2, 6, 4);
+      ctx.fillStyle = `rgba(190,194,212,${Math.max(0, 1 - elapsed / 2.5)})`;
+      ctx.fillRect(-b.w / 2, -2, b.w, 4);
       ctx.restore();
     }
   }
 
-  function drawCashouts(sc, game, t, crashed) {
-    ctx.font = '700 12px system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    for (const p of game.players) {
-      if (!p.cashedAt) continue;
-      const tp = timeFor(p.cashedAt);
-      if (tp > t + 0.01) continue;
-      const x = sc.px(tp), y = sc.py(p.cashedAt);
-      ctx.fillStyle = '#57f287';
-      ctx.strokeStyle = '#12142b';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // Uitcash-labels aan de rechterkant op de hoogte van hun multiplier
+  function drawCashoutPills(sc, game, t) {
+    const cashed = game.players
+      .filter(p => p.cashedAt && timeFor(p.cashedAt) <= t + 0.01)
+      .sort((a, b) => b.cashedAt - a.cashedAt)
+      .slice(0, 10);
+    if (cashed.length === 0) return;
 
-      const since = t - tp;
-      if (!crashed && since < 1.6) {
-        ctx.globalAlpha = Math.max(0, 1 - since / 1.6);
-        ctx.fillText(`${p.username} +${p.payout - p.bet}`, x - 10, y - 8 - since * 26);
-        ctx.globalAlpha = 1;
-      }
+    ctx.font = '700 12px system-ui, sans-serif';
+    const pills = cashed.map(p => {
+      const text = `${p.username}  +${p.payout - p.bet}`;
+      return { p, text, w: Math.min(ctx.measureText(text).width + 22, 200), y: sc.py(p.cashedAt) };
+    });
+    // Labels niet over elkaar heen
+    pills.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < pills.length; i++) {
+      if (pills[i].y < pills[i - 1].y + 24) pills[i].y = pills[i - 1].y + 24;
+    }
+    const overflow = pills.length ? pills[pills.length - 1].y - (sc.bottom - 14) : 0;
+    if (overflow > 0) pills.forEach(pl => { pl.y -= overflow; });
+
+    for (const pill of pills) {
+      const x = sc.right - pill.w;
+      // Stip op de curve
+      ctx.fillStyle = '#4cd47b';
+      ctx.beginPath(); ctx.arc(sc.px(timeFor(pill.p.cashedAt)), sc.py(pill.p.cashedAt), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(14,15,17,0.85)';
+      ctx.beginPath(); ctx.roundRect(x, pill.y - 10, pill.w, 20, 10); ctx.fill();
+      ctx.strokeStyle = 'rgba(76,212,123,0.6)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = '#4cd47b';
+      ctx.textAlign = 'left';
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x + 8, pill.y - 10, pill.w - 16, 20); ctx.clip();
+      ctx.fillText(pill.text, x + 11, pill.y + 4);
+      ctx.restore();
     }
   }
 
   function drawCenter(lines) {
-    const cx = W / 2;
-    const cy = H * 0.46;
-    lines.forEach(({ text, size, color, weight = 800, dy = 0, spacing = 0 }) => {
+    const cx = (plotArea().left + plotArea().right) / 2;
+    const cy = H * 0.44;
+    for (const { text, size, color, weight = 800, dy = 0, spacing = 0 } of lines) {
       ctx.font = `${weight} ${size}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillStyle = color;
       if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacing}px`;
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 12;
+      ctx.shadowColor = 'rgba(0,0,0,0.55)';
+      ctx.shadowBlur = 14;
       ctx.fillText(text, cx, cy + dy);
       ctx.shadowBlur = 0;
       if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-    });
+    }
   }
 
   let lastFrame = performance.now();
@@ -778,8 +980,9 @@
 
     const game = state && state.game;
     const phase = game ? game.phase : 'idle';
-    const big = Math.max(40, Math.min(96, W * 0.11));
+    const big = Math.max(40, Math.min(92, W * 0.1));
     const small = Math.max(12, Math.round(big * 0.2));
+    const rocketScale = isSmall() ? 0.9 : 1.25;
 
     if (phase === 'flying' || phase === 'crashed') {
       const rawT = flightTime(game);
@@ -791,7 +994,6 @@
       const sc = buildScale(t, m);
       drawGrid(sc);
       drawCurve(sc, t, crashed);
-      drawCashouts(sc, game, t, crashed);
 
       const x = sc.px(t), y = sc.py(m);
       const dxdt = (sc.right - sc.left) / sc.xMax;
@@ -799,22 +1001,27 @@
       const angle = rawT < 0 ? -Math.PI / 4 : Math.atan2(-dydt, dxdt);
 
       if (crashed) {
-        updateSmoke(dt, x, y, angle, false);
+        drawParticles(dt);
         const crashServerTime = game.flightStart + timeFor(game.crashPoint) * 1000;
         drawExplosion(x, y, Math.max(0, (serverNow() - crashServerTime) / 1000));
+        drawCashoutPills(sc, game, t);
         drawCenter([
-          { text: fmt(game.crashPoint), size: big, color: '#ed4245' },
-          { text: 'CRASHED', size: small, color: '#ed4245', dy: big * 0.3 + small + 4, spacing: 5 }
+          { text: fmt(game.crashPoint), size: big, color: '#ef5b4c' },
+          { text: 'CRASHED', size: small, color: '#ef5b4c', dy: big * 0.3 + small + 4, spacing: 5 }
         ]);
       } else {
-        updateSmoke(dt, x, y, angle, rawT >= 0);
+        // Liftoff: motor komt op gang, raket trilt
+        const thrust = rawT < 0 ? Math.max(0.25, 1 + rawT / 2) * 0.8 : Math.min(1, 0.7 + (m - 1) * 0.1);
         const shake = rawT < 0 ? (Math.random() - 0.5) * 2.5 : 0;
-        drawRocket(x + shake, y + shake, angle, W < 520 ? 1.1 : 1.35);
+        emitExhaust(x, y, angle, rocketScale, thrust, dt);
+        drawParticles(dt);
+        drawCashoutPills(sc, game, t);
+        drawRocket(x + shake, y + shake, angle, rocketScale, thrust);
+
         const mine = myPlayer();
-        const color = mine && mine.cashedAt ? '#57f287' : '#ffffff';
-        const lines = [{ text: fmt(floorMult(m)), size: big, color }];
-        if (rawT < 0) lines.push({ text: `LIFTOFF ${Math.ceil(-rawT)}`, size: small, color: '#ffb347', dy: big * 0.3 + small + 4, spacing: 5 });
-        else if (mine && !mine.cashedAt) lines.push({ text: `${Math.floor(mine.bet * floorMult(m))} punten`, size: Math.max(13, Math.round(big * 0.22)), color: '#57f287', dy: big * 0.3 + small + 4, weight: 700 });
+        const lines = [{ text: fmt(floorMult(m)), size: big, color: mine && mine.cashedAt ? '#4cd47b' : '#ffffff' }];
+        if (rawT < 0) lines.push({ text: `LIFTOFF ${Math.ceil(-rawT)}`, size: small, color: '#f2c14e', dy: big * 0.3 + small + 4, spacing: 5 });
+        else if (mine && !mine.cashedAt) lines.push({ text: `${Math.floor(mine.bet * floorMult(m))} punten`, size: Math.max(13, Math.round(big * 0.22)), color: '#4cd47b', dy: big * 0.3 + small + 4, weight: 700 });
         drawCenter(lines);
       }
       updateCashoutButton();
@@ -822,26 +1029,25 @@
       drawBackground(dt, 0.006);
       const sc = buildScale(0, 1);
       drawGrid(sc);
-      drawRocket(sc.left + 4, sc.bottom - 4, -Math.PI / 4, W < 520 ? 1.1 : 1.35);
+      drawParticles(dt);
+      drawRocket(sc.left + 26 * rocketScale, sc.bottom - 26 * rocketScale, -Math.PI / 4, rocketScale, 0);
 
       if (phase === 'lobby') {
         const left = Math.max(0, (game.launchAt - serverNow()) / 1000);
         drawCenter([
-          { text: 'VERTREK OVER', size: small, color: '#8b90b8', dy: -big * 0.8 - 6, spacing: 5, weight: 700 },
+          { text: 'VERTREK OVER', size: small, color: '#8d9299', dy: -big * 0.8 - 6, spacing: 5, weight: 700 },
           { text: `${left.toFixed(1)}s`, size: big, color: '#ffffff' },
-          { text: `${game.players.length} ${game.players.length === 1 ? 'speler' : 'spelers'} aan boord`, size: small, color: '#ffb347', dy: big * 0.3 + small + 4, weight: 700 }
+          { text: `${game.players.length} ${game.players.length === 1 ? 'speler' : 'spelers'} aan boord`, size: small, color: '#f2c14e', dy: big * 0.3 + small + 4, weight: 700 }
         ]);
-        // Voortgangsbalk
-        const sc2 = plotArea();
-        const progress = 1 - left / 30;
+        const area = plotArea();
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        ctx.fillRect(sc2.left, H - 6, sc2.right - sc2.left, 3);
-        ctx.fillStyle = '#ff9f1c';
-        ctx.fillRect(sc2.left, H - 6, (sc2.right - sc2.left) * Math.min(1, progress), 3);
+        ctx.fillRect(area.left, H - 6, area.right - area.left, 3);
+        ctx.fillStyle = '#f2c14e';
+        ctx.fillRect(area.left, H - 6, (area.right - area.left) * Math.min(1, 1 - left / 30), 3);
       } else {
         drawCenter([
-          { text: 'Wachten op een nieuwe ronde', size: Math.max(16, Math.round(big * 0.32)), color: '#dcdfee', weight: 700 },
-          { text: 'Start er een met de knop rechts', size: Math.max(12, Math.round(big * 0.18)), color: '#8b90b8', dy: big * 0.3 + small + 4, weight: 600 }
+          { text: 'Wachten op een nieuwe ronde', size: Math.max(16, Math.round(big * 0.32)), color: '#e4e2de', weight: 700 },
+          { text: me && me.linked ? 'Druk op "Start ronde" om er een te starten' : 'Typ /rocket in Discord om mee te doen', size: Math.max(12, Math.round(big * 0.18)), color: '#8d9299', dy: big * 0.3 + small + 4, weight: 600 }
         ]);
       }
     }

@@ -1,6 +1,6 @@
 /**
  * Rocket spelstatus
- * Het spel wordt volledig op de website gespeeld (api/rocketWeb.js). Een ronde heeft een lobby van 30s,
+ * Het spel wordt volledig op de website gespeeld (api/casinoWeb.js). Een ronde heeft een lobby van 30s,
  * daarna stijgt de multiplier tot het crashpunt. Na een ronde met spelers wordt de uitslag in Discord gepost.
  */
 
@@ -87,6 +87,7 @@ function getPublicState() {
         username: p.username,
         avatar: p.avatar,
         bet: p.bet,
+        balance: casino.getUserBalance(p.userId),
         autoCashout: p.autoCashout,
         cashedAt: p.cashedAt,
         payout: p.payout
@@ -105,7 +106,7 @@ function getPublicState() {
  */
 function startGame(user) {
   if (activeGame) {
-    return { ok: false, message: 'Er is al een ronde bezig.' };
+    return { ok: false, message: 'Er is al een ronde bezig. Wacht tot die klaar is.' };
   }
 
   const game = {
@@ -140,7 +141,7 @@ function startGame(user) {
 function join(user, betInput, cashoutInput) {
   const game = activeGame;
   if (!game || game.phase !== 'lobby') {
-    return { ok: false, message: 'Er is geen lobby open. Start een nieuwe ronde.' };
+    return { ok: false, message: 'Je kunt nu niet instappen: er is geen ronde in de lobby. Start een nieuwe ronde of wacht tot de huidige klaar is.' };
   }
 
   const bet = parseInt(String(betInput).trim(), 10);
@@ -148,21 +149,21 @@ function join(user, betInput, cashoutInput) {
   const autoCashout = hasAuto ? rocket.parseCashout(cashoutInput) : null;
 
   if (!Number.isInteger(bet) || bet < MIN_BET || bet > MAX_BET) {
-    return { ok: false, message: `Inzet moet tussen ${MIN_BET} en ${MAX_BET} punten liggen.` };
+    return { ok: false, message: `Ongeldige inzet: kies een bedrag tussen ${MIN_BET} en ${MAX_BET} punten.` };
   }
   if (hasAuto && (autoCashout === null || autoCashout < rocket.MIN_CASHOUT || autoCashout > rocket.MAX_CASHOUT)) {
-    return { ok: false, message: `Auto-cashout moet tussen ${formatMult(rocket.MIN_CASHOUT)} en ${formatMult(rocket.MAX_CASHOUT)} liggen (of leeg laten).` };
+    return { ok: false, message: `Ongeldige auto-cashout: kies een multiplier tussen ${formatMult(rocket.MIN_CASHOUT)} en ${formatMult(rocket.MAX_CASHOUT)}, of zet Auto uit.` };
   }
 
   const existing = game.players.get(user.id);
   if (!existing && game.players.size >= MAX_PLAYERS) {
-    return { ok: false, message: 'De raket zit vol!' };
+    return { ok: false, message: `De raket zit vol: er doen al ${MAX_PLAYERS} spelers mee.` };
   }
 
   casino.getOrCreateUser(user.id, user.username);
   const available = casino.getUserBalance(user.id) + (existing ? existing.bet : 0);
   if (available < bet) {
-    return { ok: false, message: `Niet genoeg punten. Saldo: ${available} punten.` };
+    return { ok: false, message: `Niet genoeg punten: je wilt ${bet} inzetten, maar je hebt er maar ${available}.` };
   }
 
   if (existing) {
@@ -172,7 +173,8 @@ function join(user, betInput, cashoutInput) {
   game.players.set(user.id, { userId: user.id, username: user.username, avatar: user.avatar, bet, autoCashout, cashedAt: null, payout: 0 });
   emitUpdate();
 
-  return { ok: true, message: existing ? 'Inzet aangepast.' : 'Je bent ingestapt!' };
+  const strategy = autoCashout ? `auto-cashout op ${formatMult(autoCashout)}` : 'zelf uitcashen';
+  return { ok: true, message: `${existing ? 'Inzet aangepast' : 'Ingestapt'}: ${bet} punten, ${strategy}.` };
 }
 
 function leave(user) {
@@ -206,14 +208,14 @@ function settleCashout(game, player, multiplier) {
 function cashOut(user) {
   const game = activeGame;
   if (game && game.phase === 'lobby') {
-    return { ok: false, message: 'De raket is nog niet vertrokken.' };
+    return { ok: false, message: 'De raket is nog niet vertrokken, uitcashen kan pas tijdens de vlucht.' };
   }
   if (!game || game.phase !== 'flying') {
     return { ok: false, message: 'Te laat, de raket is al gecrasht!' };
   }
   const player = game.players.get(user.id);
   if (!player) {
-    return { ok: false, message: 'Je zit niet in deze raket.' };
+    return { ok: false, message: 'Je doet niet mee aan deze ronde.' };
   }
   if (player.cashedAt) {
     return { ok: false, message: `Je hebt al uitgecasht op ${formatMult(player.cashedAt)}.` };
@@ -263,7 +265,7 @@ async function launch(game) {
 }
 
 /**
- * Post de uitslag van een ronde in Discord + log kanaal
+ * Post de uitslag van een ronde in Discord
  */
 async function postResults(game, players) {
   if (!discordClient) return;
@@ -281,10 +283,6 @@ async function postResults(game, players) {
       .setTimestamp();
 
     await channel.send({ embeds: [embed], files: [new AttachmentBuilder(image, { name: 'uitslag.png' })] });
-
-    const { sendLog } = require('../commands/casinoCommands');
-    const summary = players.map(p => `${p.username}: ${p.bet} → ${p.cashedAt ? `cashout @ ${formatMult(p.cashedAt)} +${p.payout}` : `-${p.bet}`}`).join('\n');
-    await sendLog(discordClient, botConfig.LOG_CHANNEL_ID, `🚀 Rocket gecrasht op ${formatMult(game.crashPoint)}\n${summary}`);
   } catch (error) {
     console.error('Fout bij posten Rocket uitslag:', error);
   }

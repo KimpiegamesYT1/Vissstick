@@ -91,20 +91,20 @@ async function renderResults({ crashPoint, players, history }) {
   const col = { name: PAD + 16, bet: 270, cashout: 360, result: W - PAD - 6 };
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${height}">`;
-  svg += `<rect width="${W}" height="${height}" rx="14" fill="#12142b"/>`;
+  svg += `<rect width="${W}" height="${height}" rx="14" fill="#16181b"/>`;
 
   // Kop: crashpunt links, totalen rechts
-  svg += `<text x="${PAD}" y="30" font-family="${FONT}" font-size="12" fill="#8b90b8" letter-spacing="3">ROCKET · CRASHED</text>`;
-  svg += `<text x="${PAD}" y="74" font-family="${FONT}" font-size="44" font-weight="bold" fill="#ed4245">${formatMult(crashPoint)}</text>`;
+  svg += `<text x="${PAD}" y="30" font-family="${FONT}" font-size="12" fill="#8d9299" letter-spacing="3">ROCKET · CRASHED</text>`;
+  svg += `<text x="${PAD}" y="74" font-family="${FONT}" font-size="44" font-weight="bold" fill="#ef5b4c">${formatMult(crashPoint)}</text>`;
 
   const stats = [
-    ['SPELERS', `${players.length}`, '#dcdfee'],
-    ['INGEZET', `${totalBet}`, '#dcdfee'],
-    ['UITBETAALD', `${totalPaid}`, totalPaid >= totalBet ? '#57f287' : '#ffb347']
+    ['SPELERS', `${players.length}`, '#e4e2de'],
+    ['INGEZET', `${totalBet}`, '#e4e2de'],
+    ['UITBETAALD', `${totalPaid}`, totalPaid >= totalBet ? '#4cd47b' : '#f2c14e']
   ];
   stats.forEach(([label, value, color], i) => {
     const x = W - PAD - (2 - i) * 92;
-    svg += `<text x="${x}" y="46" font-family="${FONT}" font-size="10" fill="#8b90b8" text-anchor="end" letter-spacing="1">${label}</text>`;
+    svg += `<text x="${x}" y="46" font-family="${FONT}" font-size="10" fill="#8d9299" text-anchor="end" letter-spacing="1">${label}</text>`;
     svg += `<text x="${x}" y="70" font-family="${FONT}" font-size="20" font-weight="bold" fill="${color}" text-anchor="end">${value}</text>`;
   });
 
@@ -113,7 +113,7 @@ async function renderResults({ crashPoint, players, history }) {
   svg += `<line x1="${PAD}" y1="${HEADER_H - 4}" x2="${W - PAD}" y2="${HEADER_H - 4}" stroke="#ffffff" stroke-opacity="0.08"/>`;
   [['SPELER', col.name, 'start'], ['INZET', col.bet, 'end'], ['CASHOUT', col.cashout, 'middle'], ['RESULTAAT', col.result, 'end']]
     .forEach(([label, x, anchor]) => {
-      svg += `<text x="${x}" y="${colsY}" font-family="${FONT}" font-size="10" fill="#8b90b8" text-anchor="${anchor}" letter-spacing="1">${label}</text>`;
+      svg += `<text x="${x}" y="${colsY}" font-family="${FONT}" font-size="10" fill="#8d9299" text-anchor="${anchor}" letter-spacing="1">${label}</text>`;
     });
 
   // Rijen
@@ -121,13 +121,13 @@ async function renderResults({ crashPoint, players, history }) {
     const top = HEADER_H + COLS_H + i * ROW_H;
     const mid = top + ROW_H / 2;
     const won = Boolean(p.cashedAt);
-    const accent = won ? '#57f287' : '#ed4245';
+    const accent = won ? '#4cd47b' : '#ef5b4c';
     const profit = won ? p.payout - p.bet : -p.bet;
 
     svg += `<rect x="${PAD}" y="${top + 2}" width="${W - PAD * 2}" height="${ROW_H - 4}" rx="6" fill="#ffffff" fill-opacity="${i % 2 === 0 ? 0.05 : 0.025}"/>`;
     svg += `<rect x="${PAD}" y="${top + 2}" width="4" height="${ROW_H - 4}" rx="2" fill="${accent}"/>`;
-    svg += `<text x="${col.name}" y="${mid + 5}" font-family="${FONT}" font-size="14" font-weight="bold" fill="#eceef8">${escapeXml(truncate(p.username, 18))}</text>`;
-    svg += `<text x="${col.bet}" y="${mid + 5}" font-family="${FONT}" font-size="13" fill="#b5b9d6" text-anchor="end">${p.bet}</text>`;
+    svg += `<text x="${col.name}" y="${mid + 5}" font-family="${FONT}" font-size="14" font-weight="bold" fill="#eceae6">${escapeXml(truncate(p.username, 18))}</text>`;
+    svg += `<text x="${col.bet}" y="${mid + 5}" font-family="${FONT}" font-size="13" fill="#b9bdc3" text-anchor="end">${p.bet}</text>`;
 
     const pill = won ? formatMult(p.cashedAt) : 'crash';
     svg += `<rect x="${col.cashout - 32}" y="${mid - 10}" width="64" height="20" rx="10" fill="${accent}" fill-opacity="0.18"/>`;
@@ -139,10 +139,10 @@ async function renderResults({ crashPoint, players, history }) {
   // Laatste crashes als gekleurde chips
   if (history.length > 0) {
     const y = height - PAD - 20;
-    svg += `<text x="${PAD}" y="${y + 14}" font-family="${FONT}" font-size="10" fill="#8b90b8" letter-spacing="1">LAATSTE</text>`;
+    svg += `<text x="${PAD}" y="${y + 14}" font-family="${FONT}" font-size="10" fill="#8d9299" letter-spacing="1">LAATSTE</text>`;
     history.slice(0, 8).forEach((m, i) => {
       const x = PAD + 66 + i * 54;
-      const color = m >= 2 ? '#57f287' : '#ed4245';
+      const color = m >= 2 ? '#4cd47b' : '#ef5b4c';
       svg += `<rect x="${x}" y="${y}" width="48" height="20" rx="10" fill="${color}" fill-opacity="0.15"/>`;
       svg += `<text x="${x + 24}" y="${y + 14}" font-family="${FONT}" font-size="11" font-weight="bold" fill="${color}" text-anchor="middle">${m >= 10 ? m.toFixed(1) : m.toFixed(2)}x</text>`;
     });

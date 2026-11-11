@@ -294,6 +294,43 @@ CREATE TABLE IF NOT EXISTS blackjack_stats (
 );
 CREATE INDEX IF NOT EXISTS idx_blackjack_stats_games ON blackjack_stats(games_played DESC);
 
+-- Dagelijkse spin: aantal spins per dag (1 gratis + gewonnen extra spins)
+CREATE TABLE IF NOT EXISTS daily_spin_days (
+    user_id TEXT NOT NULL,
+    day TEXT NOT NULL,
+    spins_used INTEGER DEFAULT 0,
+    bonus_spins INTEGER DEFAULT 0,
+    total_won INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, day)
+);
+
+CREATE TABLE IF NOT EXISTS daily_spin_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    day TEXT NOT NULL,
+    prize_key TEXT NOT NULL,
+    amount INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_daily_spin_log_user ON daily_spin_log(user_id, day);
+
+-- Ochtendmelding (DM) voor de dagelijkse spin. enabled = 0 betekent: bewust uitgezet
+CREATE TABLE IF NOT EXISTS daily_spin_reminders (
+    user_id TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Eenmalige inlogcodes voor de website (alleen de hash wordt opgeslagen)
+CREATE TABLE IF NOT EXISTS web_login_codes (
+    code_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    avatar_url TEXT,
+    expires_at INTEGER NOT NULL
+);
+
 -- Rocket website sessies (gekoppeld via een eenmalige link uit Discord)
 CREATE TABLE IF NOT EXISTS rocket_web_sessions (
     token_hash TEXT PRIMARY KEY,
