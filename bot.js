@@ -18,6 +18,7 @@ const { createHokPublicApiHandler } = require('./api/hokPublicApi');
 const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton, handleMinesButton } = require('./commands/casinoCommands.js');
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
 const { handleHangmanButton } = require('./commands/hangmanCommands.js');
+const { handleRocketInteraction } = require('./commands/rocketCommands.js');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, STARBOARD_CHANNEL_ID, GROQ_API_KEY, COUNTING_CHANNEL_ID: RAW_COUNTING_CHANNEL_ID } = config;
@@ -776,8 +777,21 @@ client.on('interactionCreate', async (interaction) => {
       await handleHangmanButton(interaction, client, config);
       return;
     }
+    // Try Rocket buttons
+    if (interaction.customId.startsWith('rk_')) {
+      await handleRocketInteraction(interaction);
+      return;
+    }
     // Then quiz buttons
     quiz.handleQuizButton(interaction);
+    return;
+  }
+
+  // Handle modal submits (Rocket inzet)
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId.startsWith('rk_')) {
+      await handleRocketInteraction(interaction);
+    }
     return;
   }
 

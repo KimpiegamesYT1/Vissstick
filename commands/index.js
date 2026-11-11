@@ -6,6 +6,7 @@ const { connectFourCommands, handleConnectFourCommands } = require('./connectFou
 const { chatbotCommands, handleChatbotCommands } = require('./chatbotCommands');
 const { hangmanCommands, handleHangmanCommands } = require('./hangmanCommands');
 const { ioCommands, handleIoCommands } = require('./ioCommands');
+const { rocketCommands, handleRocketCommands } = require('./rocketCommands');
 
 // Combineer alle commands
 const allCommands = [
@@ -16,7 +17,8 @@ const allCommands = [
   ...connectFourCommands,
   ...chatbotCommands,
   ...hangmanCommands,
-  ...ioCommands
+  ...ioCommands,
+  ...rocketCommands
 ];
 
 // Handle alle commands
@@ -61,6 +63,11 @@ async function handleCommands(interaction, client, config, hokState) {
 
   // Try hangman commands
   if (await handleHangmanCommands(interaction, client, config)) {
+    return;
+  }
+
+  // Try rocket command
+  if (await handleRocketCommands(interaction, client, config)) {
     return;
   }
 
