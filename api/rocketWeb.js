@@ -1,6 +1,7 @@
 /**
  * Rocket website
  * Serveert de pagina (web/rocket.html), de koppel-flow en de live API:
+ *   GET  /                       doorsturen naar /rocket
  *   GET  /rocket                 pagina
  *   GET  /rocket/login?code=...  eenmalige code uit /rocket inwisselen voor een sessie-cookie
  *   GET  /api/rocket/state       spelstatus
@@ -170,6 +171,11 @@ function createRocketWebHandler() {
    */
   return function handleRocketWeb(req, res, url) {
     const { pathname } = url;
+
+    if (req.method === 'GET' && pathname === '/') {
+      redirect(res, '/rocket');
+      return true;
+    }
 
     if (req.method === 'GET' && (pathname === '/rocket' || pathname === '/rocket/')) {
       setBaseHeaders(res);
