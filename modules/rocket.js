@@ -11,7 +11,7 @@ const HOUSE_EDGE = 0.97;       // 3% huisvoordeel, net als Mines
 const MAX_CRASH = 50;          // Raket crasht uiterlijk op 50x
 const MIN_CASHOUT = 1.01;
 const MAX_CASHOUT = 25;
-const GROWTH = 0.25;           // m(t) = e^(GROWTH * t) → 2x na ~2.8s, 10x na ~9.2s
+const GROWTH = 0.18;           // m(t) = e^(GROWTH * t) → 2x na ~3.9s, 10x na ~12.8s
 
 // Render instellingen
 const W = 520;

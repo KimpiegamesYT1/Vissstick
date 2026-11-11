@@ -47,7 +47,7 @@ function buildLobbyEmbed(game) {
     .setColor('#FF9F1C')
     .setDescription(
       `De raket vertrekt <t:${Math.floor(game.launchAt / 1000)}:R>.\n\n` +
-      `Zet in en kies je **auto-cashout**. Haalt de raket jouw multiplier voordat hij crasht, ` +
+      `Druk op **Meedoen**, zet in en kies je **auto-cashout**. Haalt de raket jouw multiplier voordat hij crasht, ` +
       `dan win je **inzet × cashout**. Crasht hij eerder, dan ben je je inzet kwijt.\n\n` +
       `Inzet: ${MIN_BET}–${MAX_BET} punten · Cashout: ${formatMult(rocket.MIN_CASHOUT)}–${formatMult(rocket.MAX_CASHOUT)}`
     )
@@ -288,20 +288,8 @@ async function handleRocketCommands(interaction, client, config) {
   };
   activeRocketGame = game;
 
-  // Optioneel: de starter kan direct instappen via de command opties
-  const optBet = interaction.options.getInteger('inzet');
-  const optCashout = interaction.options.getNumber('cashout');
-  let joinResult = null;
-  if (optBet !== null && optCashout !== null) {
-    joinResult = placeRocketBet(game, interaction.user, optBet, optCashout);
-  }
-
   await interaction.reply({ embeds: [buildLobbyEmbed(game)], components: buildLobbyButtons(gameId) });
   game.lobbyMessage = await interaction.fetchReply();
-
-  if (joinResult) {
-    await interaction.followUp({ content: joinResult.message, flags: 64 });
-  }
 
   game.timeout = setTimeout(() => {
     launchRocket(game, client, config).catch(err => {
@@ -364,25 +352,7 @@ async function handleRocketInteraction(interaction) {
 const rocketCommands = [
   {
     name: 'rocket',
-    description: 'Start een Rocket ronde — stap in en cash uit voordat de raket crasht',
-    options: [
-      {
-        name: 'inzet',
-        description: `Direct instappen met deze inzet (${MIN_BET}-${MAX_BET})`,
-        type: 4, // INTEGER
-        required: false,
-        min_value: MIN_BET,
-        max_value: MAX_BET
-      },
-      {
-        name: 'cashout',
-        description: `Auto-cashout multiplier (${rocket.MIN_CASHOUT}-${rocket.MAX_CASHOUT})`,
-        type: 10, // NUMBER
-        required: false,
-        min_value: rocket.MIN_CASHOUT,
-        max_value: rocket.MAX_CASHOUT
-      }
-    ]
+    description: 'Start een Rocket ronde — stap in en cash uit voordat de raket crasht'
   }
 ];
 
