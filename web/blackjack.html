@@ -232,7 +232,7 @@ import * as THREE from '/vendor/three/three.module.js';
 const TABLE_Y = 0.76;
 const R = 1.25;                       // straal van het vilt
 const CENTER = new THREE.Vector3(0, TABLE_Y, -0.45);
-const CARD_W = 0.09, CARD_H = 0.126;  // iets groter dan echt, voor leesbaarheid
+const CARD_W = 0.1, CARD_H = 0.14;    // groter dan echt, voor leesbaarheid
 const CHIP_R = 0.024, CHIP_H = 0.0055;
 const SEATS = 7;
 const SEAT_ANGLES = Array.from({ length: SEATS }, (_, i) => THREE.MathUtils.degToRad(20 + i * (140 / 6)));
@@ -272,8 +272,8 @@ renderer.toneMappingExposure = 1.0;
 $('scene').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#241915');
-scene.fog = new THREE.Fog('#241915', 6, 14);
+scene.background = new THREE.Color('#1e1512');
+scene.fog = new THREE.Fog('#1e1512', 4.5, 13);
 
 const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 40);
 const camBase = new THREE.Vector3(0, 2.2, 2.5);
@@ -305,8 +305,8 @@ resize();
 scene.add(new THREE.HemisphereLight('#ffe2c0', '#2a1a12', 0.42));
 // Warm zaallicht van achteren, zodat de ruimte niet in het donker verdwijnt
 // Zaallicht alleen op de muur, niet op de tafel
-const roomLight = new THREE.PointLight('#ffc98a', 30, 4.2, 1.6);
-roomLight.position.set(0, 3.2, -2.5);
+const roomLight = new THREE.PointLight('#ffc98a', 30, 5, 1.6);
+roomLight.position.set(0, 3.2, -6.4);
 scene.add(roomLight);
 // Lamp boven de tafel: lichtcirkel op het vilt die naar de randen afloopt
 const spot = new THREE.SpotLight('#fff0d6', 36, 7, 0.62, 0.75, 1.4);
@@ -535,17 +535,154 @@ const wall = new THREE.Mesh(new THREE.PlaneGeometry(30, 8), new THREE.MeshStanda
 }));
 wall.material.map.wrapS = THREE.RepeatWrapping;
 wall.material.map.repeat.set(4, 1);
-wall.position.set(0, 4, -3.2);
+wall.position.set(0, 4, -7.5);
 scene.add(wall);
 // Sfeerlampen aan de muur
 for (const x of [-3.2, -1.1, 1.1, 3.2]) {
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), new THREE.MeshStandardMaterial({ color: '#ffd9a0', emissive: '#ffb860', emissiveIntensity: 2.2 }));
-  lamp.position.set(x, 2.6, -3.15);
+  lamp.position.set(x * 1.6, 2.6, -7.45);
   scene.add(lamp);
   const glow = new THREE.PointLight('#ffb860', 5, 2.6, 1.8);
-  glow.position.set(x, 2.5, -2.9);
+  glow.position.set(x * 1.6, 2.5, -7.2);
   scene.add(glow);
 }
+
+// =====================================================
+// CASINO-OMGEVING (diepte: andere tafels, gokkasten, pilaren, plafond)
+// =====================================================
+const env = new THREE.Group();
+scene.add(env);
+
+// Plafond met spotjes
+{
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: '#1a1210', roughness: 1 }));
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.y = 3.6;
+  env.add(ceiling);
+  const downMat = new THREE.MeshStandardMaterial({ color: '#fff3dc', emissive: '#ffe2b0', emissiveIntensity: 3 });
+  for (let x = -6; x <= 6; x += 2) {
+    for (let z = -6; z <= 2; z += 2) {
+      const dl = new THREE.Mesh(new THREE.CircleGeometry(0.07, 16), downMat);
+      dl.rotation.x = Math.PI / 2;
+      dl.position.set(x + (z % 4 ? 1 : 0), 3.59, z);
+      env.add(dl);
+    }
+  }
+}
+
+// Zachte lichtvlekken op de vloer (nep-licht, kost geen lampen)
+const poolTexture = canvasTexture(256, 256, (ctx, w, h) => {
+  const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+  g.addColorStop(0, 'rgba(255,214,150,0.55)');
+  g.addColorStop(1, 'rgba(255,214,150,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+});
+function lightPool(x, z, size, opacity = 1) {
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: poolTexture, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending }));
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.set(x, 0.005, z);
+  env.add(pool);
+}
+
+// Andere speeltafels in de zaal, elk met een eigen hanglamp
+function sideTable(x, z, rotation, kind) {
+  const t = new THREE.Group();
+  const feltMat = new THREE.MeshStandardMaterial({ color: kind === 'roulette' ? '#0e5a35' : '#105c38', roughness: 0.95 });
+  const woodMat = new THREE.MeshStandardMaterial({ color: '#2a170e', roughness: 0.55 });
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.06, 40, 1, false, 0, Math.PI), feltMat);
+  top.position.y = 0.76;
+  const edge = new THREE.Mesh(new THREE.TorusGeometry(1.03, 0.05, 10, 40, Math.PI), woodMat);
+  edge.rotation.x = Math.PI / 2;
+  edge.rotation.z = Math.PI;
+  edge.position.y = 0.79;
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 0.7, 20), woodMat);
+  leg.position.set(0, 0.35, 0.3);
+  t.add(top, edge, leg);
+  if (kind === 'roulette') {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.12, 32), woodMat);
+    wheel.position.set(0, 0.85, 0.35);
+    t.add(wheel);
+  }
+  // Krukken
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI * (0.2 + i * 0.2);
+    const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 16), new THREE.MeshStandardMaterial({ color: '#5a1a1e', roughness: 0.6 }));
+    stool.position.set(Math.cos(a) * 1.35, 0.62, Math.sin(a) * 1.35);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8), new THREE.MeshStandardMaterial({ color: '#8a7350', metalness: 0.7, roughness: 0.3 }));
+    pole.position.set(stool.position.x, 0.3, stool.position.z);
+    t.add(stool, pole);
+  }
+  // Hanglamp met kap
+  const shade = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.22, 24, 1, true), new THREE.MeshStandardMaterial({ color: '#1d3a2a', roughness: 0.5, side: THREE.DoubleSide }));
+  shade.position.set(0, 2.15, 0.35);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#ffd9a0', emissiveIntensity: 4 }));
+  bulb.position.set(0, 2.06, 0.35);
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 1.4, 6), new THREE.MeshStandardMaterial({ color: '#111' }));
+  cord.position.set(0, 2.95, 0.35);
+  t.add(shade, bulb, cord);
+  const lamp = new THREE.PointLight('#ffd9a0', 9, 3.2, 1.6);
+  lamp.position.set(0, 1.9, 0.35);
+  t.add(lamp);
+  t.position.set(x, 0, z);
+  t.rotation.y = rotation;
+  env.add(t);
+  lightPool(x, z + 0.2, 3.4, 0.7);
+}
+sideTable(-4.1, -1.2, 0.5, 'blackjack');
+sideTable(4.3, -1.6, -0.45, 'roulette');
+sideTable(-2.4, -4.3, 0.1, 'roulette');
+sideTable(2.6, -4.6, -0.2, 'blackjack');
+
+// Gokkasten langs de achterwand met gloeiende schermen
+const slotScreens = [];
+function slotScreen(hue) {
+  return canvasTexture(128, 160, (ctx, w, h) => {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, `hsl(${hue},80%,45%)`);
+    g.addColorStop(1, `hsl(${(hue + 40) % 360},80%,25%)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fff8e0';
+    ctx.fillRect(12, 60, w - 24, 50);
+    ctx.fillStyle = '#c0392b';
+    ctx.font = '900 30px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('7 7 7', w / 2, 96);
+    ctx.fillStyle = '#ffe9a8';
+    ctx.font = '900 18px system-ui';
+    ctx.fillText('JACKPOT', w / 2, 36);
+  });
+}
+for (let i = 0; i < 12; i++) {
+  const x = -6.6 + i * 1.2;
+  const slot = new THREE.Group();
+  const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.6, 0.6), new THREE.MeshStandardMaterial({ color: '#1b1c22', roughness: 0.4, metalness: 0.4 }));
+  cabinet.position.y = 0.8;
+  const screenMat = new THREE.MeshStandardMaterial({ color: '#000', emissive: '#ffffff', emissiveMap: slotScreen((i * 47) % 360), emissiveIntensity: 1.3 });
+  slotScreens.push(screenMat);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.68), screenMat);
+  screen.position.set(0, 1.12, 0.305);
+  const topper = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.22, 0.45), new THREE.MeshStandardMaterial({ color: '#000', emissive: `hsl(${(i * 47 + 20) % 360},90%,55%)`, emissiveIntensity: 1.6 }));
+  topper.position.y = 1.72;
+  slot.add(cabinet, screen, topper);
+  slot.position.set(x, 0, -7.1);
+  env.add(slot);
+}
+
+// Pilaren met gouden ringen
+for (const x of [-2.4, 2.4, -6.5, 6.5]) {
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 3.6, 24), new THREE.MeshStandardMaterial({ color: '#3a2219', roughness: 0.7 }));
+  pillar.position.set(x, 1.8, Math.abs(x) > 3 ? -5.8 : -2.9);
+  env.add(pillar);
+  for (const y of [0.15, 3.45]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.03, 8, 24), new THREE.MeshStandardMaterial({ color: '#c9a24a', metalness: 0.8, roughness: 0.3 }));
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(pillar.position.x, y, pillar.position.z);
+    env.add(ring);
+  }
+}
+lightPool(0, -0.2, 4.2, 0.55);
 
 // Vilt (halve cirkel aan de spelerskant)
 const feltShape = new THREE.Shape();
@@ -1016,12 +1153,16 @@ renderMute();
 // KAARTEN IN DE SCÈNE
 // =====================================================
 const cardGeo = new THREE.PlaneGeometry(CARD_W, CARD_H).rotateX(-Math.PI / 2);
-const backMat = new THREE.MeshStandardMaterial({ map: cardBackTexture, alphaMap: cardAlpha, alphaTest: 0.5, roughness: 0.55 });
+const backMat = new THREE.MeshStandardMaterial({ map: cardBackTexture, alphaMap: cardAlpha, alphaTest: 0.5, roughness: 0.9 });
 const cards = new Map(); // id -> { group, front, faceUp, pose, rank }
 
 function createCard(id) {
   const group = new THREE.Group();
-  const frontMat = new THREE.MeshStandardMaterial({ color: '#ffffff', alphaMap: cardAlpha, alphaTest: 0.5, roughness: 0.5 });
+  // Kaartvlak: mat, gedeeltelijk zelf-oplichtend en zonder tonemapping, zodat wit en rood helder leesbaar blijven
+  const frontMat = new THREE.MeshStandardMaterial({
+    color: '#9a9a9a', emissive: '#ffffff', emissiveIntensity: 0.62, alphaMap: cardAlpha, alphaTest: 0.5,
+    roughness: 1, metalness: 0, toneMapped: false
+  });
   const front = new THREE.Mesh(cardGeo, frontMat);
   front.position.y = 0.0004;
   front.castShadow = true;
@@ -1033,7 +1174,7 @@ function createCard(id) {
   group.add(front, back);
   group.visible = false;
   scene.add(group);
-  const entry = { id, group, front, faceUp: false, pose: null, revealed: false };
+  const entry = { id, group, front, faceUp: false, pose: null, revealed: false, landed: false };
   cards.set(id, entry);
   return entry;
 }
@@ -1041,6 +1182,7 @@ function createCard(id) {
 function setFace(entry, card) {
   if (!card.hidden && !entry.revealed) {
     entry.front.material.map = cardTexture(card);
+    entry.front.material.emissiveMap = entry.front.material.map;
     entry.front.material.needsUpdate = true;
     entry.revealed = true;
   }
@@ -1075,6 +1217,8 @@ async function dealCardTask(entry, card) {
   });
   placeCard(entry, pose, faceUp);
   entry.faceUp = faceUp;
+  entry.landed = true;
+  renderOverlay();
 }
 
 async function revealTask(entry, card) {
@@ -1092,6 +1236,7 @@ async function revealTask(entry, card) {
   });
   placeCard(entry, pose, true);
   entry.faceUp = true;
+  renderOverlay();
   restHand(arm, 350);
 }
 
@@ -1198,6 +1343,7 @@ function syncCards(st, prev) {
         entry.group.visible = true;
         placeCard(entry, pose, !card.hidden);
         entry.faceUp = !card.hidden;
+        entry.landed = true;
       } else {
         enqueue(() => dealCardTask(entry, card));
       }
@@ -1426,10 +1572,13 @@ function applyState(next) {
     if (mine && mine.balance !== me.balance) { me.balance = mine.balance; renderUser(); }
   }
   if (next.message && next.message.at !== lastMessageAt) lastMessageAt = next.message.at;
-  if (next.phase === 'settle' && prev && prev.phase !== 'settle') setTimeout(() => showBigResult(next), 400);
-  renderControls();
-  renderOverlay();
-  renderSideInfo();
+  if (next.phase === 'settle' && prev && prev.phase !== 'settle') {
+    const wait = () => (queueBusy ? setTimeout(wait, 150) : setTimeout(() => showBigResult(next), 350));
+    wait();
+  }
+  for (const render of [renderControls, renderOverlay, renderSideInfo]) {
+    try { render(); } catch (error) { console.error(error); lastControlsKey = ''; }
+  }
 }
 
 async function shuffleTask() {
@@ -1527,10 +1676,29 @@ function setTag(seen, key, sig, world, create) {
   overlayNodes.set(key, { node, sig, world });
 }
 
+// Alleen kaarten die al open op tafel liggen tellen mee (de server is de animatie vaak voor)
+function onTable(card) {
+  const entry = cards.get(card.id);
+  return entry && entry.landed && entry.faceUp && !card.hidden;
+}
+function visibleTotal(cardList) {
+  let total = 0, aces = 0;
+  for (const c of cardList) {
+    if (!onTable(c)) continue;
+    total += c.rank === 'A' ? 11 : ['K', 'Q', 'J', '10'].includes(c.rank) ? 10 : Number(c.rank);
+    if (c.rank === 'A') aces++;
+  }
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  return { total, soft: aces > 0, count: cardList.filter(onTable).length };
+}
+const allOnTable = cardList => cardList.every(c => onTable(c));
+
 function handLabel(h) {
-  if (h.status === 'blackjack' || (h.cards.length === 2 && h.total === 21 && !h.fromSplit)) return { text: 'BJ', cls: 'bj' };
-  if (h.total > 21) return { text: `${h.total}`, cls: 'bust' };
-  const soft = h.soft && h.total < 21 ? `${h.total - 10}/${h.total}` : `${h.total}`;
+  const v = visibleTotal(h.cards);
+  if (v.count === 0) return null;
+  if (v.count === 2 && v.total === 21 && h.cards.length === 2 && !h.fromSplit) return { text: 'BJ', cls: 'bj' };
+  if (v.total > 21) return { text: `${v.total}`, cls: 'bust' };
+  const soft = v.soft && v.total < 21 ? `${v.total - 10}/${v.total}` : `${v.total}`;
   return { text: soft, cls: '' };
 }
 
@@ -1570,7 +1738,8 @@ function renderOverlay() {
       const offset = (k - (hands.length - 1) / 2) * CARD_W * 1.45;
       const isActive = h.id === state.activeHandId && state.phase === 'playing';
       const label = handLabel(h);
-      const showResult = h.result && ['settle', 'collect'].includes(state.phase);
+      if (!label) return;
+      const showResult = h.result && ['settle', 'collect'].includes(state.phase) && allOnTable(h.cards) && allOnTable(state.dealer.cards);
       const timer = isActive && state.awaitingDecision ? state.phaseEndsAt : 0;
       const sig = showResult ? `r|${h.result}|${h.payout}` : `t|${label.text}|${label.cls}|${h.doubled}|${isActive}|${timer}`;
       setTag(seen, `hand-${h.id}`, sig, seatPoint(+seat, 0.56, offset).setY(TABLE_Y + 0.02), () => {
@@ -1593,10 +1762,12 @@ function renderOverlay() {
   });
 
   // Dealer
-  if (state.dealer.cards.length) {
+  const dv = visibleTotal(state.dealer.cards);
+  if (dv.count > 0) {
     const d = state.dealer;
-    const text = d.blackjack ? 'BJ' : String(d.total);
-    const cls = d.total > 21 ? 'bust' : d.blackjack ? 'bj' : '';
+    const blackjack = d.blackjack && allOnTable(d.cards);
+    const text = blackjack ? 'BJ' : String(dv.total);
+    const cls = dv.total > 21 ? 'bust' : blackjack ? 'bj' : '';
     setTag(seen, 'dealer', `${text}|${cls}`, CENTER.clone().add(new THREE.Vector3(0, 0.02, 0.36)), () => el('span', { class: `total ${cls}`, text }));
   }
   if (state.message && state.message.text && serverNow() - state.message.at < 6000) {
@@ -1786,7 +1957,7 @@ function renderControls(force) {
       class: `act ${cls}`, disabled: !enabled, onclick: () => api('act', { action }, true)
     }, [label, el('small', { text: keyHint })]);
     box.append(
-      el('div', { class: 'info' }, ['Jij bent aan de beurt', myHands.length > 1 ? ` (hand ${myHands.findIndex(h => h.id === active.id) + 1} van ${myHands.length})` : '', ': ', el('b', { text: handLabel(active).text })]),
+      el('div', { class: 'info' }, ['Jij bent aan de beurt', myHands.length > 1 ? ` (hand ${myHands.findIndex(h => h.id === active.id) + 1} van ${myHands.length})` : '', ': ', el('b', { text: (handLabel(active) || { text: active.total }).text })]),
       el('div', { class: 'row' }, [
         actBtn('hit', 'Kaart', 'H', 'hit', allowed.hit),
         actBtn('stand', 'Pas', 'S', 'stand', allowed.stand),
@@ -1918,6 +2089,7 @@ function frame(now) {
   // Berichten van de dealer verlopen vanzelf
   if (now - overlayTick > 1000) { overlayTick = now; if (state && state.message) renderOverlay(); }
   drawFx(dt);
+  slotScreens.forEach((m, i) => { m.emissiveIntensity = 1.1 + 0.35 * Math.sin(now / 400 + i * 1.7); });
   requestAnimationFrame(frame);
 }
 
