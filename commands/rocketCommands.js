@@ -145,29 +145,11 @@ function buildStatusEmbed(game) {
 }
 
 function buildResultEmbed(game, crashPoint) {
-  const players = [...game.players.values()];
-  const winners = players.filter(p => p.cashedAt).sort((a, b) => b.payout - a.payout);
-  const losers = players.filter(p => !p.cashedAt).sort((a, b) => b.bet - a.bet);
-
-  const winnerText = winners.length > 0
-    ? winners.map(w => `**${w.username}** — uitgecasht @ ${formatMult(w.cashedAt)} → **${w.payout}** punten (winst +${w.payout - w.bet})`).join('\n')
-    : 'Niemand heeft op tijd uitgecasht.';
-  const loserText = losers.length > 0
-    ? losers.map(l => `**${l.username}** — **-${l.bet}** punten`).join('\n')
-    : 'Niemand!';
-
-  const totalBet = players.reduce((sum, p) => sum + p.bet, 0);
-  const totalPaid = players.reduce((sum, p) => sum + (p.payout || 0), 0);
-
+  const anyWinners = [...game.players.values()].some(p => p.cashedAt);
   return new EmbedBuilder()
     .setTitle(`💥 Rocket gecrasht op ${formatMult(crashPoint)}`)
-    .setColor(winners.length > 0 ? '#57F287' : '#ED4245')
-    .addFields(
-      { name: `Winnaars (${winners.length})`, value: winnerText.slice(0, 1024) },
-      { name: `Verloren (${losers.length})`, value: loserText.slice(0, 1024) },
-      { name: 'Totaal ingezet', value: `${totalBet} punten`, inline: true },
-      { name: 'Totaal uitbetaald', value: `${totalPaid} punten`, inline: true }
-    )
+    .setColor(anyWinners ? '#57F287' : '#ED4245')
+    .setImage('attachment://uitslag.png')
     .setFooter({ text: 'Start een nieuwe ronde met /rocket' })
     .setTimestamp();
 }
@@ -315,15 +297,20 @@ async function launchRocket(game, client, config) {
       attachments: []
     }).catch(() => {});
 
-    await game.statusMessage.edit({ embeds: [buildResultEmbed(game, game.crashPoint)], components: [] }).catch(() => {});
+    crashHistory.unshift(game.crashPoint);
+    if (crashHistory.length > 10) crashHistory.pop();
+
+    const resultImage = await rocket.renderResults({ crashPoint: game.crashPoint, players, history: crashHistory });
+    await game.statusMessage.edit({
+      embeds: [buildResultEmbed(game, game.crashPoint)],
+      files: [new AttachmentBuilder(resultImage, { name: 'uitslag.png' })],
+      components: []
+    }).catch(() => {});
 
     await game.lobbyMessage?.edit({
       embeds: [buildLobbyEmbed(game).setTitle('🚀 Rocket — Vertrokken').setDescription(`Gecrasht op **${formatMult(game.crashPoint)}**.`)],
       components: []
     }).catch(() => {});
-
-    crashHistory.unshift(game.crashPoint);
-    if (crashHistory.length > 10) crashHistory.pop();
 
     const { sendLog } = require('./casinoCommands');
     const summary = players.map(p => `${p.username}: ${p.bet} → ${p.cashedAt ? `cashout @ ${formatMult(p.cashedAt)} +${p.payout}` : `-${p.bet}`}`).join('\n');
