@@ -258,7 +258,11 @@ async function launchRocket(game, client, config) {
   game.crashPoint = rocket.generateCrashPoint();
 
   try {
-    const [flightGif, crash] = await Promise.all([rocket.getFlightGif(), rocket.renderCrash(game.crashPoint)]);
+    const autoPlayers = players.filter(p => p.autoCashout);
+    const [flightGif, crash] = await Promise.all([
+      rocket.getFlightGif(autoPlayers),
+      rocket.renderCrash(game.crashPoint, autoPlayers)
+    ]);
 
     const flightEmbed = new EmbedBuilder()
       .setTitle('🚀 Rocket — Gelanceerd!')
