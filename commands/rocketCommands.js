@@ -1,7 +1,7 @@
 /**
  * Rocket Discord Commands
- * Multiplayer crash spel: /rocket opent een lobby van 30s, spelers zetten in met een auto-cashout,
- * daarna vliegt de raket (geanimeerde GIF) en worden de winnaars uitbetaald.
+ * Multiplayer crash spel: /rocket opent een lobby van 30s waarin spelers inzetten (auto-cashout optioneel).
+ * Daarna vliegt de raket (geanimeerde GIF) en kan iedereen live uitcashen met een knop tot hij crasht.
  */
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
@@ -20,6 +20,8 @@ const LOBBY_DURATION = 30000; // 30 seconden om mee te doen
 const MIN_BET = 10;
 const MAX_BET = 250;
 const MAX_PLAYERS = 20;
+const GIF_LOAD_DELAY_MS = 500; // Discord clients laden de GIF iets na het versturen; server klok loopt hierop gelijk
+const STATUS_UPDATE_MS = 1000; // Statusbericht max 1x per seconde bewerken (rate limits)
 
 function generateGameId() {
   return Math.random().toString(36).substring(2, 9);
@@ -29,15 +31,23 @@ function formatMult(m) {
   return `${m.toFixed(2)}x`;
 }
 
+function floorMult(m) {
+  return Math.floor(m * 100) / 100;
+}
+
 // =====================================================
 // EMBEDS & BUTTONS
 // =====================================================
 
+function describeStrategy(p) {
+  return p.autoCashout ? `auto ${formatMult(p.autoCashout)}` : 'zelf uitcashen';
+}
+
 function buildPlayerList(game) {
   const players = [...game.players.values()];
-  if (players.length === 0) return 'Nog niemand. Wees de eerste!';
+  if (players.length === 0) return 'Nog niemand. Druk op **Meedoen**!';
   return players
-    .map(p => `**${p.username}** — ${p.bet} punten @ ${formatMult(p.cashout)}`)
+    .map(p => `**${p.username}** — ${p.bet} punten (${describeStrategy(p)})`)
     .join('\n');
 }
 
@@ -47,9 +57,11 @@ function buildLobbyEmbed(game) {
     .setColor('#FF9F1C')
     .setDescription(
       `De raket vertrekt <t:${Math.floor(game.launchAt / 1000)}:R>.\n\n` +
-      `Druk op **Meedoen**, zet in en kies je **auto-cashout**. Haalt de raket jouw multiplier voordat hij crasht, ` +
-      `dan win je **inzet × cashout**. Crasht hij eerder, dan ben je je inzet kwijt.\n\n` +
-      `Inzet: ${MIN_BET}–${MAX_BET} punten · Cashout: ${formatMult(rocket.MIN_CASHOUT)}–${formatMult(rocket.MAX_CASHOUT)}`
+      `Druk op **Meedoen** en zet in. Tijdens de vlucht stijgt de multiplier vanaf 1.00x: ` +
+      `druk op **Cash out** voordat de raket crasht en je wint **inzet × multiplier**. ` +
+      `Crasht hij eerder, dan ben je je inzet kwijt.\n\n` +
+      `Optioneel kun je een **auto-cashout** instellen, dan cash je automatisch uit op die multiplier.\n` +
+      `Inzet: ${MIN_BET}–${MAX_BET} punten`
     )
     .addFields({ name: `Passagiers (${game.players.size}/${MAX_PLAYERS})`, value: buildPlayerList(game) })
     .setFooter({ text: `Gestart door ${game.hostName}` })
@@ -78,6 +90,17 @@ function buildLobbyButtons(gameId, disabled = false) {
   ];
 }
 
+function buildCashoutButton(gameId) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`rk_cashout_${gameId}`)
+        .setLabel('Cash out')
+        .setStyle(ButtonStyle.Success)
+    )
+  ];
+}
+
 function buildJoinModal(gameId, existing) {
   const betInput = new TextInputBuilder()
     .setCustomId('bet')
@@ -89,15 +112,15 @@ function buildJoinModal(gameId, existing) {
 
   const cashoutInput = new TextInputBuilder()
     .setCustomId('cashout')
-    .setLabel(`Auto-cashout (${rocket.MIN_CASHOUT}-${rocket.MAX_CASHOUT}x)`)
+    .setLabel(`Auto-cashout (optioneel, ${rocket.MIN_CASHOUT}-${rocket.MAX_CASHOUT}x)`)
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('2.00')
-    .setRequired(true)
+    .setPlaceholder('Leeg laten = zelf uitcashen')
+    .setRequired(false)
     .setMaxLength(6);
 
   if (existing) {
     betInput.setValue(String(existing.bet));
-    cashoutInput.setValue(existing.cashout.toFixed(2));
+    if (existing.autoCashout) cashoutInput.setValue(existing.autoCashout.toFixed(2));
   }
 
   return new ModalBuilder()
@@ -109,19 +132,32 @@ function buildJoinModal(gameId, existing) {
     );
 }
 
-function buildResultEmbed(game, results, crashPoint) {
-  const winners = results.filter(r => r.won).sort((a, b) => b.payout - a.payout);
-  const losers = results.filter(r => !r.won).sort((a, b) => b.bet - a.bet);
+function buildStatusEmbed(game) {
+  const players = [...game.players.values()].sort((a, b) => (b.cashedAt || 0) - (a.cashedAt || 0));
+  const lines = players.map(p => p.cashedAt
+    ? `✅ **${p.username}** — uitgecasht @ ${formatMult(p.cashedAt)} → **${p.payout}** punten (+${p.payout - p.bet})`
+    : `🚀 **${p.username}** — ${p.bet} punten (${describeStrategy(p)})`);
+
+  return new EmbedBuilder()
+    .setTitle('🚀 Rocket — In de lucht!')
+    .setColor('#FF9F1C')
+    .setDescription(`Druk op **Cash out** voordat de raket crasht!\n\n${lines.join('\n')}`.slice(0, 4096));
+}
+
+function buildResultEmbed(game, crashPoint) {
+  const players = [...game.players.values()];
+  const winners = players.filter(p => p.cashedAt).sort((a, b) => b.payout - a.payout);
+  const losers = players.filter(p => !p.cashedAt).sort((a, b) => b.bet - a.bet);
 
   const winnerText = winners.length > 0
-    ? winners.map(w => `**${w.username}** — cashout @ ${formatMult(w.cashout)} → **${w.payout}** punten (winst +${w.payout - w.bet})`).join('\n')
+    ? winners.map(w => `**${w.username}** — uitgecasht @ ${formatMult(w.cashedAt)} → **${w.payout}** punten (winst +${w.payout - w.bet})`).join('\n')
     : 'Niemand heeft op tijd uitgecasht.';
   const loserText = losers.length > 0
-    ? losers.map(l => `**${l.username}** — wachtte op ${formatMult(l.cashout)} → **-${l.bet}** punten`).join('\n')
+    ? losers.map(l => `**${l.username}** — **-${l.bet}** punten`).join('\n')
     : 'Niemand!';
 
-  const totalBet = results.reduce((sum, r) => sum + r.bet, 0);
-  const totalPaid = results.reduce((sum, r) => sum + r.payout, 0);
+  const totalBet = players.reduce((sum, p) => sum + p.bet, 0);
+  const totalPaid = players.reduce((sum, p) => sum + (p.payout || 0), 0);
 
   return new EmbedBuilder()
     .setTitle(`💥 Rocket gecrasht op ${formatMult(crashPoint)}`)
@@ -132,7 +168,6 @@ function buildResultEmbed(game, results, crashPoint) {
       { name: 'Totaal ingezet', value: `${totalBet} punten`, inline: true },
       { name: 'Totaal uitbetaald', value: `${totalPaid} punten`, inline: true }
     )
-    .setImage('attachment://rocket.png')
     .setFooter({ text: 'Start een nieuwe ronde met /rocket' })
     .setTimestamp();
 }
@@ -147,13 +182,14 @@ function buildResultEmbed(game, results, crashPoint) {
  */
 function placeRocketBet(game, user, betInput, cashoutInput) {
   const bet = parseInt(String(betInput).trim(), 10);
-  const cashout = rocket.parseCashout(cashoutInput);
+  const hasAuto = String(cashoutInput || '').trim() !== '';
+  const autoCashout = hasAuto ? rocket.parseCashout(cashoutInput) : null;
 
   if (!Number.isInteger(bet) || bet < MIN_BET || bet > MAX_BET) {
     return { ok: false, message: `❌ Inzet moet tussen ${MIN_BET} en ${MAX_BET} punten liggen.` };
   }
-  if (cashout === null || cashout < rocket.MIN_CASHOUT || cashout > rocket.MAX_CASHOUT) {
-    return { ok: false, message: `❌ Cashout moet tussen ${formatMult(rocket.MIN_CASHOUT)} en ${formatMult(rocket.MAX_CASHOUT)} liggen.` };
+  if (hasAuto && (autoCashout === null || autoCashout < rocket.MIN_CASHOUT || autoCashout > rocket.MAX_CASHOUT)) {
+    return { ok: false, message: `❌ Auto-cashout moet tussen ${formatMult(rocket.MIN_CASHOUT)} en ${formatMult(rocket.MAX_CASHOUT)} liggen (of leeg laten).` };
   }
 
   const existing = game.players.get(user.id);
@@ -171,18 +207,47 @@ function placeRocketBet(game, user, betInput, cashoutInput) {
     casino.addBalance(user.id, user.username, existing.bet, 'Rocket inzet aangepast');
   }
   const newBalance = casino.subtractBalance(user.id, bet);
-  game.players.set(user.id, { userId: user.id, username: user.username, bet, cashout });
+  game.players.set(user.id, { userId: user.id, username: user.username, bet, autoCashout, cashedAt: null, payout: 0 });
 
-  const potential = rocket.calculatePayout(bet, cashout);
+  const strategy = autoCashout
+    ? `auto-cashout op **${formatMult(autoCashout)}** (${rocket.calculatePayout(bet, autoCashout)} punten)`
+    : 'druk tijdens de vlucht op **Cash out**';
   return {
     ok: true,
-    message: `🚀 ${existing ? 'Inzet aangepast' : 'Je bent ingestapt'}: **${bet} punten** @ **${formatMult(cashout)}** (uitbetaling bij succes: ${potential} punten)\n💰 Saldo: ${newBalance} punten`
+    message: `🚀 ${existing ? 'Inzet aangepast' : 'Je bent ingestapt'}: **${bet} punten**, ${strategy}\n💰 Saldo: ${newBalance} punten`
   };
 }
 
 async function refreshLobby(game) {
   if (!game.lobbyMessage) return;
   await game.lobbyMessage.edit({ embeds: [buildLobbyEmbed(game)], components: buildLobbyButtons(game.gameId) }).catch(() => {});
+}
+
+/**
+ * Huidige multiplier volgens de server klok (gelijk aan wat de GIF laat zien)
+ */
+function currentMultiplier(game) {
+  const elapsed = (Date.now() - game.flightStart - rocket.PREROLL_MS) / 1000;
+  return floorMult(rocket.multiplierAt(Math.max(0, elapsed)));
+}
+
+function cashOut(game, player, multiplier) {
+  if (game.phase !== 'flying' || player.cashedAt) return false;
+  if (multiplier >= game.crashPoint) return false;
+  player.cashedAt = multiplier;
+  player.payout = rocket.calculatePayout(player.bet, multiplier);
+  casino.addBalance(player.userId, player.username, player.payout, `Rocket cashout @ ${formatMult(multiplier)}`);
+  scheduleStatusUpdate(game);
+  return true;
+}
+
+function scheduleStatusUpdate(game) {
+  if (game.statusTimer || !game.statusMessage) return;
+  game.statusTimer = setTimeout(() => {
+    game.statusTimer = null;
+    if (game.phase !== 'flying') return;
+    game.statusMessage.edit({ embeds: [buildStatusEmbed(game)], components: buildCashoutButton(game.gameId) }).catch(() => {});
+  }, STATUS_UPDATE_MS);
 }
 
 // =====================================================
@@ -208,54 +273,79 @@ async function launchRocket(game, client, config) {
     .setDescription('De raket wordt getankt... ⛽');
   await game.lobbyMessage?.edit({ embeds: [closedEmbed], components: buildLobbyButtons(game.gameId, true) }).catch(() => {});
 
-  const crashPoint = rocket.generateCrashPoint();
-  const results = rocket.resolvePlayers(players, crashPoint);
+  game.crashPoint = rocket.generateCrashPoint();
 
   try {
-    const { gif, finalImage, durationMs } = await rocket.renderFlight(players, crashPoint);
+    const [flightGif, crash] = await Promise.all([rocket.getFlightGif(), rocket.renderCrash(game.crashPoint)]);
 
     const flightEmbed = new EmbedBuilder()
       .setTitle('🚀 Rocket — Gelanceerd!')
       .setColor('#FF9F1C')
-      .setDescription(players.map(p => `**${p.username}** — ${p.bet} punten @ ${formatMult(p.cashout)}`).join('\n'))
       .setImage('attachment://rocket.gif');
 
     const flightMessage = await game.channel.send({
       embeds: [flightEmbed],
-      files: [new AttachmentBuilder(gif, { name: 'rocket.gif' })]
+      files: [new AttachmentBuilder(flightGif, { name: 'rocket.gif' })]
+    });
+    game.flightStart = Date.now() + GIF_LOAD_DELAY_MS;
+    game.phase = 'flying';
+
+    game.statusMessage = await game.channel.send({
+      embeds: [buildStatusEmbed(game)],
+      components: buildCashoutButton(game.gameId)
     });
 
-    // Wacht tot de animatie (ongeveer) klaar is voordat de uitslag zichtbaar wordt
-    await new Promise(resolve => setTimeout(resolve, durationMs + 1500));
-
-    for (const r of results) {
-      if (r.won) casino.addBalance(r.userId, r.username, r.payout, `Rocket cashout @ ${formatMult(r.cashout)}`);
+    // Auto-cashouts op het juiste moment uitvoeren (alleen als de raket die multiplier haalt)
+    const flightOffset = game.flightStart + rocket.PREROLL_MS;
+    for (const p of players) {
+      if (!p.autoCashout || p.autoCashout >= game.crashPoint) continue;
+      const at = flightOffset + rocket.timeForMultiplier(p.autoCashout) * 1000;
+      setTimeout(() => cashOut(game, p, p.autoCashout), Math.max(0, at - Date.now()));
     }
 
+    // Wacht tot het crashmoment
+    const crashAt = flightOffset + rocket.timeForMultiplier(game.crashPoint) * 1000;
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, crashAt - Date.now())));
+    game.phase = 'crashed';
+    clearTimeout(game.statusTimer);
+
     await flightMessage.edit({
-      embeds: [buildResultEmbed(game, results, crashPoint)],
-      files: [new AttachmentBuilder(finalImage, { name: 'rocket.png' })],
+      embeds: [new EmbedBuilder().setTitle(`💥 Gecrasht op ${formatMult(game.crashPoint)}`).setColor('#ED4245').setImage('attachment://crash.gif')],
+      files: [new AttachmentBuilder(crash.gif, { name: 'crash.gif' })],
       attachments: []
     }).catch(() => {});
 
+    await game.statusMessage.edit({ embeds: [buildResultEmbed(game, game.crashPoint)], components: [] }).catch(() => {});
+
     await game.lobbyMessage?.edit({
-      embeds: [buildLobbyEmbed(game).setTitle('🚀 Rocket — Vertrokken').setDescription(`Gecrasht op **${formatMult(crashPoint)}**.`)],
+      embeds: [buildLobbyEmbed(game).setTitle('🚀 Rocket — Vertrokken').setDescription(`Gecrasht op **${formatMult(game.crashPoint)}**.`)],
       components: []
     }).catch(() => {});
 
-    crashHistory.unshift(crashPoint);
+    crashHistory.unshift(game.crashPoint);
     if (crashHistory.length > 10) crashHistory.pop();
 
     const { sendLog } = require('./casinoCommands');
-    const summary = results.map(r => `${r.username}: ${r.bet} @ ${formatMult(r.cashout)} → ${r.won ? `+${r.payout}` : `-${r.bet}`}`).join('\n');
-    await sendLog(client, config.LOG_CHANNEL_ID, `🚀 Rocket gecrasht op ${formatMult(crashPoint)}\n${summary}`);
+    const summary = players.map(p => `${p.username}: ${p.bet} → ${p.cashedAt ? `cashout @ ${formatMult(p.cashedAt)} +${p.payout}` : `-${p.bet}`}`).join('\n');
+    await sendLog(client, config.LOG_CHANNEL_ID, `🚀 Rocket gecrasht op ${formatMult(game.crashPoint)}\n${summary}`);
+
+    // Na de explosie de GIF vervangen door een stilstaand eindbeeld (sommige clients herhalen GIFs)
+    await new Promise(resolve => setTimeout(resolve, crash.durationMs + 500));
+    await flightMessage.edit({
+      embeds: [new EmbedBuilder().setTitle(`💥 Gecrasht op ${formatMult(game.crashPoint)}`).setColor('#ED4245').setImage('attachment://rocket.png')],
+      files: [new AttachmentBuilder(crash.finalImage, { name: 'rocket.png' })],
+      attachments: []
+    }).catch(() => {});
   } catch (error) {
     console.error('Fout bij Rocket vlucht:', error);
-    // Iets ging mis: iedereen krijgt zijn inzet terug
-    for (const p of players) {
-      casino.addBalance(p.userId, p.username, p.bet, 'Rocket refund (fout)');
+    if (game.phase !== 'crashed') {
+      game.phase = 'crashed';
+      // Iets ging mis: wie nog niet uitgecasht had krijgt zijn inzet terug
+      for (const p of players) {
+        if (!p.cashedAt) casino.addBalance(p.userId, p.username, p.bet, 'Rocket refund (fout)');
+      }
+      await game.channel.send('❌ Er ging iets mis met de raket. Inzetten die nog niet uitgecasht waren zijn teruggestort.').catch(() => {});
     }
-    await game.channel.send('❌ Er ging iets mis met de raket. Alle inzetten zijn teruggestort.').catch(() => {});
   } finally {
     activeRocketGame = null;
   }
@@ -284,9 +374,16 @@ async function handleRocketCommands(interaction, client, config) {
     phase: 'lobby',
     launchAt: Date.now() + LOBBY_DURATION,
     lobbyMessage: null,
+    statusMessage: null,
+    statusTimer: null,
+    crashPoint: null,
+    flightStart: null,
     timeout: null
   };
   activeRocketGame = game;
+
+  // Vlucht-GIF alvast renderen tijdens de lobby (eenmalig, daarna uit cache)
+  rocket.getFlightGif().catch(err => console.error('Fout bij renderen Rocket GIF:', err));
 
   await interaction.reply({ embeds: [buildLobbyEmbed(game)], components: buildLobbyButtons(gameId) });
   game.lobbyMessage = await interaction.fetchReply();
@@ -309,9 +406,36 @@ async function handleRocketInteraction(interaction) {
   if (!interaction.customId.startsWith('rk_')) return false;
 
   const [, action, gameId] = interaction.customId.split('_');
-  const game = activeRocketGame;
+  const game = activeRocketGame && activeRocketGame.gameId === gameId ? activeRocketGame : null;
 
-  if (!game || game.gameId !== gameId || game.phase !== 'lobby') {
+  if (action === 'cashout') {
+    if (game && (game.phase === 'lobby' || game.phase === 'launching')) {
+      await interaction.reply({ content: '🚀 De raket is nog niet vertrokken.', flags: 64 });
+      return true;
+    }
+    if (!game || game.phase !== 'flying') {
+      await interaction.reply({ content: '💥 Te laat, de raket is al gecrasht!', flags: 64 });
+      return true;
+    }
+    const player = game.players.get(interaction.user.id);
+    if (!player) {
+      await interaction.reply({ content: 'Je zit niet in deze raket.', flags: 64 });
+      return true;
+    }
+    if (player.cashedAt) {
+      await interaction.reply({ content: `Je hebt al uitgecasht op ${formatMult(player.cashedAt)}.`, flags: 64 });
+      return true;
+    }
+    const multiplier = currentMultiplier(game);
+    if (!cashOut(game, player, multiplier)) {
+      await interaction.reply({ content: '💥 Te laat, de raket is al gecrasht!', flags: 64 });
+      return true;
+    }
+    await interaction.reply({ content: `💰 Uitgecasht op **${formatMult(multiplier)}** → **${player.payout}** punten (+${player.payout - player.bet})`, flags: 64 });
+    return true;
+  }
+
+  if (!game || game.phase !== 'lobby') {
     await interaction.reply({ content: '🚀 Deze raket is al vertrokken. Start een nieuwe ronde met `/rocket`.', flags: 64 });
     return true;
   }

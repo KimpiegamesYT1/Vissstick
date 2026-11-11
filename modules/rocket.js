@@ -1,7 +1,7 @@
 /**
  * Rocket (Crash) - Spellogica en GIF renderer
  * De multiplier groeit exponentieel vanaf 1.00x tot het vooraf bepaalde crashpunt.
- * Spelers kiezen vooraf een auto-cashout; wie onder het crashpunt zit wint inzet × cashout.
+ * De vlucht-GIF bevat géén crash (die blijft geheim op de server), zodat live uitcashen eerlijk is.
  */
 
 const crypto = require('crypto');
@@ -65,32 +65,9 @@ function calculatePayout(bet, cashout) {
   return Math.floor(bet * cashout);
 }
 
-/**
- * Bereken de uitslag per speler
- */
-function resolvePlayers(players, crashPoint) {
-  return players.map(p => {
-    const won = p.cashout <= crashPoint;
-    return { ...p, won, payout: won ? calculatePayout(p.bet, p.cashout) : 0 };
-  });
-}
-
 // =====================================================
 // RENDERER
 // =====================================================
-
-function escapeXml(text) {
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function shortName(name) {
-  return name.length > 12 ? `${name.slice(0, 11)}…` : name;
-}
 
 function niceStep(range, maxLines) {
   const steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20];
@@ -200,47 +177,8 @@ function renderExplosion(x, y, step) {
   return out;
 }
 
-/**
- * Lijst met spelers linksboven + groene stippen op de curve bij uitcashen
- */
-function renderPlayers(scale, players, m, t, crashed) {
-  const { px, py } = scale;
-  let out = '';
-
-  const sorted = [...players].sort((a, b) => a.cashout - b.cashout);
-  sorted.forEach(p => {
-    if (p.cashout > m) return;
-    const tp = timeForMultiplier(p.cashout);
-    const x = px(tp);
-    const y = py(p.cashout);
-    out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="#57f287" stroke="#12142b" stroke-width="1.5"/>`;
-    const since = t - tp;
-    if (since < 1.2 && !crashed) {
-      const lift = since * 22;
-      const opacity = Math.max(0, 1 - since / 1.2).toFixed(2);
-      out += `<text x="${x.toFixed(1)}" y="${(y - 10 - lift).toFixed(1)}" font-family="${FONT}" font-size="12" font-weight="bold" fill="#57f287" text-anchor="middle" opacity="${opacity}">${escapeXml(shortName(p.username))} +${calculatePayout(p.bet, p.cashout) - p.bet}</text>`;
-    }
-  });
-
-  const rows = sorted.slice(0, 8);
-  const panelH = 10 + rows.length * 16 + (sorted.length > 8 ? 14 : 0);
-  out += `<rect x="${PLOT.left + 8}" y="${PLOT.top + 4}" width="170" height="${panelH}" rx="6" fill="#000000" fill-opacity="0.35"/>`;
-  rows.forEach((p, i) => {
-    const y = PLOT.top + 20 + i * 16;
-    const cashed = p.cashout <= m;
-    const color = cashed ? '#57f287' : crashed ? '#ed4245' : '#dcdfee';
-    const right = cashed ? `+${calculatePayout(p.bet, p.cashout) - p.bet}` : crashed ? `-${p.bet}` : formatMult(p.cashout);
-    out += `<text x="${PLOT.left + 16}" y="${y}" font-family="${FONT}" font-size="12" fill="${color}">${escapeXml(shortName(p.username))}</text>`;
-    out += `<text x="${PLOT.left + 170}" y="${y}" font-family="${FONT}" font-size="12" font-weight="bold" fill="${color}" text-anchor="end">${right}</text>`;
-  });
-  if (sorted.length > 8) {
-    out += `<text x="${PLOT.left + 16}" y="${PLOT.top + 20 + 8 * 16}" font-family="${FONT}" font-size="11" fill="#8b90b8">+${sorted.length - 8} meer</text>`;
-  }
-  return out;
-}
-
 function renderCenterText(m, phase) {
-  const cx = (PLOT.left + PLOT.right) / 2 + 40;
+  const cx = (PLOT.left + PLOT.right) / 2;
   const cy = (PLOT.top + PLOT.bottom) / 2 + 10;
   if (phase === 'preroll') {
     return `<text x="${cx}" y="${cy}" font-family="${FONT}" font-size="50" font-weight="bold" fill="#ffffff" text-anchor="middle">1.00x</text>
@@ -256,7 +194,7 @@ function renderCenterText(m, phase) {
 /**
  * Render één frame als SVG string
  */
-function renderFrameSvg({ t, m, phase, players, frame, explosionStep = 0 }) {
+function renderFrameSvg({ t, m, phase, frame, explosionStep = 0 }) {
   const crashed = phase === 'crashed';
   const scale = buildScale(t, m);
   const x = scale.px(t);
@@ -272,7 +210,6 @@ function renderFrameSvg({ t, m, phase, players, frame, explosionStep = 0 }) {
   svg += renderGrid(scale);
   svg += renderCurve(scale, t, crashed);
   svg += renderCenterText(m, phase);
-  svg += renderPlayers(scale, players, m, t, crashed);
   if (crashed) {
     if (explosionStep < EXPLOSION_FRAMES) svg += renderExplosion(x, y, explosionStep);
   } else {
@@ -286,39 +223,57 @@ async function svgToPng(svg) {
   return sharp(Buffer.from(svg)).png({ compressionLevel: 0 }).toBuffer();
 }
 
-/**
- * Render de hele vlucht als geanimeerde GIF + een statisch eindbeeld
- * @returns {Promise<{gif: Buffer, finalImage: Buffer, durationMs: number}>}
- */
-async function renderFlight(players, crashPoint) {
-  const specs = [];
-  const crashTime = timeForMultiplier(crashPoint);
-
-  for (let i = 0; i < PREROLL_FRAMES; i++) {
-    specs.push({ t: 0, m: 1, phase: 'preroll', frame: i });
-  }
-
-  const flightFrames = Math.ceil((crashTime * 1000) / FRAME_MS);
-  for (let i = 0; i < flightFrames; i++) {
-    const t = (i * FRAME_MS) / 1000;
-    specs.push({ t, m: multiplierAt(t), phase: 'flying', frame: i });
-  }
-
-  for (let i = 0; i < EXPLOSION_FRAMES + HOLD_FRAMES; i++) {
-    specs.push({ t: crashTime, m: crashPoint, phase: 'crashed', frame: i, explosionStep: i });
-  }
-
+async function framesToGif(specs) {
   const frames = [];
   for (const spec of specs) {
-    frames.push(await svgToPng(renderFrameSvg({ ...spec, players })));
+    frames.push(await svgToPng(renderFrameSvg(spec)));
   }
-
   const gif = await sharp(frames, { join: { animated: true } })
     .gif({ delay: FRAME_MS, loop: 1, colours: 96, effort: 7, dither: 0 })
     .toBuffer();
+  return { gif, frames };
+}
 
+let flightGifPromise = null;
+
+/**
+ * De vlucht-GIF stijgt altijd door tot MAX_CRASH en is dus elke ronde hetzelfde.
+ * Hij wordt één keer gerenderd en daarna uit het geheugen gebruikt.
+ * @returns {Promise<Buffer>}
+ */
+function getFlightGif() {
+  if (!flightGifPromise) {
+    const specs = [];
+    for (let i = 0; i < PREROLL_FRAMES; i++) {
+      specs.push({ t: 0, m: 1, phase: 'preroll', frame: i });
+    }
+    const flightFrames = Math.ceil((timeForMultiplier(MAX_CRASH) * 1000) / FRAME_MS) + 1;
+    for (let i = 0; i < flightFrames; i++) {
+      const t = (i * FRAME_MS) / 1000;
+      specs.push({ t, m: multiplierAt(t), phase: 'flying', frame: i });
+    }
+    flightGifPromise = framesToGif(specs)
+      .then(r => r.gif)
+      .catch(err => {
+        flightGifPromise = null;
+        throw err;
+      });
+  }
+  return flightGifPromise;
+}
+
+/**
+ * Render de explosie op het crashpunt als GIF + een statisch eindbeeld
+ * @returns {Promise<{gif: Buffer, finalImage: Buffer, durationMs: number}>}
+ */
+async function renderCrash(crashPoint) {
+  const crashTime = timeForMultiplier(crashPoint);
+  const specs = [];
+  for (let i = 0; i < EXPLOSION_FRAMES + HOLD_FRAMES; i++) {
+    specs.push({ t: crashTime, m: crashPoint, phase: 'crashed', frame: i, explosionStep: i });
+  }
+  const { gif, frames } = await framesToGif(specs);
   const finalImage = await sharp(frames[frames.length - 1]).png().toBuffer();
-
   return { gif, finalImage, durationMs: specs.length * FRAME_MS };
 }
 
@@ -329,7 +284,10 @@ module.exports = {
   HOUSE_EDGE,
   generateCrashPoint,
   parseCashout,
+  PREROLL_MS: PREROLL_FRAMES * FRAME_MS,
   calculatePayout,
-  resolvePlayers,
-  renderFlight
+  multiplierAt,
+  timeForMultiplier,
+  getFlightGif,
+  renderCrash
 };
