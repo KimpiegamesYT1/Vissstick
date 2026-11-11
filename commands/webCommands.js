@@ -1,6 +1,6 @@
 /**
  * Website commando's
- * Rocket en de dagelijkse spin worden op de website gespeeld. Deze commando's geven een persoonlijke,
+ * Rocket, de dagelijkse spin en de blackjack tafel worden op de website gespeeld. Deze commando's geven een persoonlijke,
  * eenmalige inloglink waarmee je je Discord account aan de website koppelt.
  */
 
@@ -10,7 +10,8 @@ const rocketAuth = require('../modules/rocketAuth');
 const PAGES = {
   rocket: { path: '/rocket', label: 'Open Rocket', intro: '🚀 **Rocket** speel je op de website.' },
   spin: { path: '/spin', label: 'Draai aan het rad', intro: '🎡 Je **dagelijkse spin** staat op de website.' },
-  daily: { path: '/spin', label: 'Draai aan het rad', intro: '🎡 Je **dagelijkse spin** staat op de website.' }
+  daily: { path: '/spin', label: 'Draai aan het rad', intro: '🎡 Je **dagelijkse spin** staat op de website.' },
+  tafel: { path: '/blackjack', label: 'Naar de tafel', intro: '🃏 De **blackjack tafel** staat op de website: speel met maximaal 7 spelers tegen de dealer.' }
 };
 
 async function handleWebCommands(interaction, client, config) {
@@ -46,7 +47,8 @@ async function handleWebCommands(interaction, client, config) {
 const webCommands = [
   { name: 'rocket', description: 'Krijg je persoonlijke link naar Rocket op de website' },
   { name: 'spin', description: 'Draai aan het dagelijkse rad voor gratis punten' },
-  { name: 'daily', description: 'Draai aan het dagelijkse rad voor gratis punten' }
+  { name: 'daily', description: 'Draai aan het dagelijkse rad voor gratis punten' },
+  { name: 'tafel', description: 'Krijg je link naar de online blackjack tafel' }
 ];
 
 module.exports = {

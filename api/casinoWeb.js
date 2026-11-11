@@ -1,8 +1,11 @@
 /**
- * Casino website (Rocket + Dagelijkse spin)
+ * Casino website (Rocket + Dagelijkse spin + Blackjack tafel)
  *   GET  /                          doorsturen naar /rocket
  *   GET  /rocket                    Rocket pagina
  *   GET  /spin, /daily              Dagelijkse spin pagina
+ *   GET  /blackjack                 Blackjack tafel (3D)
+ *   GET  /vendor/three/*.js         three.js (uit node_modules)
+ *   GET  /cards/<naam>.png          kaartafbeeldingen
  *   GET  /login?code=...&next=...   eenmalige code uit Discord inwisselen voor een sessie-cookie
  *   GET  /rocket/login?code=...     (oude links uit /rocket)
  *   GET  /api/me                    ingelogde speler + saldo
@@ -12,6 +15,8 @@
  *   GET  /api/spin/status           rad + spins van vandaag
  *   POST /api/spin/spin             draai aan het rad
  *   POST /api/spin/reminder         ochtendmelding aan/uit
+ *   GET  /api/blackjack/stream      Server-Sent Events met de tafelstatus
+ *   POST /api/blackjack/{sit,leave,bet,act,insurance}
  *   POST /api/logout
  */
 
@@ -19,6 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const rocketGame = require('../modules/rocketGame');
 const dailySpin = require('../modules/dailySpin');
+const blackjackTable = require('../modules/blackjackTable');
 const rocketAuth = require('../modules/rocketAuth');
 const casino = require('../modules/casino');
 const { createRateLimiter, getClientIp } = require('./security');
@@ -29,7 +35,12 @@ const COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 const MAX_STREAM_CLIENTS = 300;
 const HEARTBEAT_MS = 15000;
 const MAX_BODY_BYTES = 1024;
-const LOGIN_TARGETS = ['/rocket', '/spin'];
+const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack'];
+const VENDOR_FILES = {
+  'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
+  'three.core.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.core.js')
+};
+const CARDS_DIR = path.join(__dirname, '..', 'audio', 'Cards');
 const CSP = "default-src 'self'; img-src 'self' data: https://cdn.discordapp.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'";
 
 function parseCookies(req) {
@@ -62,6 +73,14 @@ function sendJson(res, status, payload) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.end(JSON.stringify(payload));
+}
+
+function sendStatic(res, body, contentType) {
+  setBaseHeaders(res);
+  res.statusCode = 200;
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.end(body);
 }
 
 function sendPage(res, page) {
@@ -109,23 +128,38 @@ function readJsonBody(req) {
 function createCasinoWebHandler() {
   const pages = {
     rocket: fs.readFileSync(path.join(WEB_DIR, 'rocket.html')),
-    spin: fs.readFileSync(path.join(WEB_DIR, 'spin.html'))
+    spin: fs.readFileSync(path.join(WEB_DIR, 'spin.html')),
+    blackjack: fs.readFileSync(path.join(WEB_DIR, 'blackjack.html'))
   };
-  const actionLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 30 });
-  const streamClients = new Set();
+  const staticCache = new Map();
+  const actionLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 40 });
 
-  function broadcast(payload) {
-    const message = `data: ${JSON.stringify(payload)}\n\n`;
-    for (const res of streamClients) res.write(message);
+  // Live streams per spel
+  const streams = {
+    rocket: { clients: new Set(), getState: rocketGame.getPublicState },
+    blackjack: { clients: new Set(), getState: blackjackTable.getPublicState }
+  };
+
+  function broadcast(stream) {
+    const message = `data: ${JSON.stringify(stream.getState())}\n\n`;
+    for (const res of stream.clients) res.write(message);
   }
 
-  rocketGame.events.on('update', () => broadcast(rocketGame.getPublicState()));
+  rocketGame.events.on('update', () => broadcast(streams.rocket));
+  blackjackTable.events.on('update', () => broadcast(streams.blackjack));
 
   // Houdt verbindingen (en de Cloudflare tunnel) open en geeft de browser een verse server tijd
   setInterval(() => {
     const message = `event: time\ndata: ${JSON.stringify({ serverNow: Date.now() })}\n\n`;
-    for (const res of streamClients) res.write(message);
+    for (const stream of Object.values(streams)) {
+      for (const res of stream.clients) res.write(message);
+    }
   }, HEARTBEAT_MS).unref();
+
+  function readStatic(file) {
+    if (!staticCache.has(file)) staticCache.set(file, fs.readFileSync(file));
+    return staticCache.get(file);
+  }
 
   function getUser(req) {
     return rocketAuth.getSessionUser(parseCookies(req)[COOKIE_NAME]);
@@ -143,8 +177,9 @@ function createCasinoWebHandler() {
     redirect(res, next, sessionCookie(req, token, COOKIE_MAX_AGE));
   }
 
-  function handleStream(req, res) {
-    if (streamClients.size >= MAX_STREAM_CLIENTS) {
+  function handleStream(req, res, stream) {
+    const total = Object.values(streams).reduce((sum, s) => sum + s.clients.size, 0);
+    if (total >= MAX_STREAM_CLIENTS) {
       sendJson(res, 503, { error: 'too_many_clients' });
       return;
     }
@@ -156,9 +191,9 @@ function createCasinoWebHandler() {
       'X-Accel-Buffering': 'no'
     });
     res.write('retry: 2000\n');
-    res.write(`data: ${JSON.stringify(rocketGame.getPublicState())}\n\n`);
-    streamClients.add(res);
-    req.on('close', () => streamClients.delete(res));
+    res.write(`data: ${JSON.stringify(stream.getState())}\n\n`);
+    stream.clients.add(res);
+    req.on('close', () => stream.clients.delete(res));
   }
 
   async function handleAction(req, res, action) {
@@ -168,7 +203,7 @@ function createCasinoWebHandler() {
     }
     const user = getUser(req);
     if (!user) {
-      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket of /spin in Discord voor je persoonlijke link.' });
+      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin of /tafel in Discord voor je persoonlijke link.' });
       return;
     }
     if (!actionLimiter.check(user.id).allowed) {
@@ -191,6 +226,11 @@ function createCasinoWebHandler() {
       case 'rocket/leave': result = rocketGame.leave(user); break;
       case 'rocket/cashout': result = rocketGame.cashOut(user); break;
       case 'spin/spin': result = dailySpin.spin(user); break;
+      case 'blackjack/sit': result = blackjackTable.sit(user, Number.isInteger(body.seat) ? body.seat : null); break;
+      case 'blackjack/leave': result = blackjackTable.standUp(user); break;
+      case 'blackjack/bet': result = blackjackTable.placeBet(user, body.amount); break;
+      case 'blackjack/act': result = blackjackTable.act(user, String(body.action || '')); break;
+      case 'blackjack/insurance': result = blackjackTable.insurance(user, Boolean(body.take)); break;
       case 'spin/reminder':
         dailySpin.setReminder(user.id, Boolean(body.enabled));
         result = { ok: true, message: body.enabled ? 'Je krijgt elke ochtend een DM als je spin klaarstaat.' : 'Ochtendmeldingen staan uit.' };
@@ -223,6 +263,13 @@ function createCasinoWebHandler() {
         case '/rocket/':
           sendPage(res, pages.rocket);
           return true;
+        case '/blackjack':
+        case '/blackjack/':
+          sendPage(res, pages.blackjack);
+          return true;
+        case '/api/blackjack/stream':
+          handleStream(req, res, streams.blackjack);
+          return true;
         case '/spin':
         case '/spin/':
         case '/daily':
@@ -251,7 +298,7 @@ function createCasinoWebHandler() {
           sendJson(res, 200, rocketGame.getPublicState());
           return true;
         case '/api/rocket/stream':
-          handleStream(req, res);
+          handleStream(req, res, streams.rocket);
           return true;
         case '/api/spin/status': {
           const user = getUser(req);
@@ -266,9 +313,22 @@ function createCasinoWebHandler() {
         default:
           break;
       }
+
+      const vendorMatch = pathname.match(/^\/vendor\/three\/(three\.(?:module|core)\.js)$/);
+      if (vendorMatch) {
+        sendStatic(res, readStatic(VENDOR_FILES[vendorMatch[1]]), 'text/javascript; charset=utf-8');
+        return true;
+      }
+      const cardMatch = pathname.match(/^\/cards\/([a-z0-9_]+\.png)$/);
+      if (cardMatch) {
+        const file = path.join(CARDS_DIR, cardMatch[1]);
+        if (!fs.existsSync(file)) return false;
+        sendStatic(res, readStatic(file), 'image/png');
+        return true;
+      }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

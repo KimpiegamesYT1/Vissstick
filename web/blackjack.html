@@ -1,0 +1,1699 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vissstick Blackjack</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%23f2c14e'/%3E%3Cg transform='rotate(45 20 20)'%3E%3Cpath d='M17.2 28.6h5.6L20 35.5z' fill='%23e2552f'/%3E%3Cpath d='M20 5.5c4.2 3.6 5.8 8.8 5.8 14v8H14.2v-8c0-5.2 1.6-10.4 5.8-14z' fill='%2316181b'/%3E%3Cpath d='M14.2 20.5l-4.2 5.6v3.4l4.2-2.4zM25.8 20.5l4.2 5.6v3.4l-4.2-2.4z' fill='%2316181b'/%3E%3Ccircle cx='20' cy='16.5' r='2.7' fill='%23f2c14e'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --panel: #16181b;
+    --raise: #262a2f;
+    --line: rgba(255, 255, 255, 0.08);
+    --text: #eceae6;
+    --muted: #8d9299;
+    --gold: #f2c14e;
+    --green: #4cd47b;
+    --red: #ef5b4c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); height: 100%; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; overflow: hidden; }
+  button { font: inherit; color: inherit; }
+
+  /* Kopregel (zelfde als de andere pagina's) */
+  header { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px 16px; pointer-events: none; }
+  header > * { pointer-events: auto; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand svg { width: 36px; height: 36px; flex: none; }
+  .brand .word { display: flex; flex-direction: column; line-height: 1; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+  .brand .word small { font-size: 10px; font-weight: 800; letter-spacing: 3px; color: var(--muted); }
+  .brand .word b { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin-top: 3px; }
+  .nav { display: flex; gap: 4px; background: rgba(22,24,27,.85); border: 1px solid var(--line); border-radius: 999px; padding: 4px; margin-right: auto; margin-left: 18px; backdrop-filter: blur(6px); }
+  .nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
+  .nav a:hover { color: var(--text); }
+  .nav a.active { background: var(--raise); color: var(--text); }
+  .user { display: flex; align-items: center; gap: 10px; background: rgba(22,24,27,.85); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; backdrop-filter: blur(6px); }
+  .user[hidden] { display: none; }
+  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--raise); }
+  .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
+  .user .balance { color: var(--gold); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
+  .user button:hover { background: var(--raise); color: var(--text); }
+  .icon-btn { background: rgba(22,24,27,.85); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; backdrop-filter: blur(6px); }
+  .icon-btn:hover { color: var(--text); }
+
+  /* Scène */
+  #scene { position: fixed; inset: 0; }
+  #scene canvas { display: block; width: 100%; height: 100%; }
+  #overlay { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+  .tag { position: absolute; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap; }
+
+  /* Naamplaatjes bij de stoelen */
+  .plate {
+    display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px;
+    background: rgba(14,15,17,.82); border: 1px solid var(--line); font-size: 13px; backdrop-filter: blur(4px);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .plate img { width: 26px; height: 26px; border-radius: 50%; background: var(--raise); }
+  .plate .n { font-weight: 800; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+  .plate .b { font-size: 11px; color: var(--gold); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .plate.me { border-color: rgba(242,193,78,.7); }
+  .plate.turn { border-color: var(--green); box-shadow: 0 0 0 3px rgba(76,212,123,.25), 0 0 18px rgba(76,212,123,.35); }
+  .plate.leaving { opacity: .6; }
+  .seat-btn {
+    pointer-events: auto; cursor: pointer; border: 1px dashed rgba(242,193,78,.6); background: rgba(14,15,17,.7);
+    color: var(--gold); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 800;
+  }
+  .seat-btn:hover { background: rgba(242,193,78,.15); }
+  .seat-free { font-size: 12px; color: rgba(236,234,230,.45); font-weight: 700; letter-spacing: 1px; }
+
+  /* Totalen en uitslagen */
+  .total {
+    font-size: 13px; font-weight: 900; padding: 3px 9px; border-radius: 999px; background: rgba(14,15,17,.88);
+    border: 1px solid var(--line); font-variant-numeric: tabular-nums;
+  }
+  .total.active { border-color: var(--green); color: var(--green); }
+  .total.bust { background: var(--red); border-color: var(--red); color: #fff; }
+  .total.bj { background: var(--gold); border-color: var(--gold); color: #241a02; }
+  .result {
+    font-size: 15px; font-weight: 900; padding: 5px 12px; border-radius: 10px; letter-spacing: .5px;
+    animation: pop .4s cubic-bezier(.2,1.6,.4,1); box-shadow: 0 6px 18px rgba(0,0,0,.4);
+  }
+  .result.win { background: var(--green); color: #062612; }
+  .result.blackjack { background: var(--gold); color: #241a02; }
+  .result.push { background: #c9ccd1; color: #1a1b1e; }
+  .result.lose { background: var(--red); color: #fff; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .timer { width: 64px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.15); overflow: hidden; margin: 4px auto 0; }
+  .timer i { display: block; height: 100%; background: var(--green); transform-origin: left; }
+  .bubble {
+    background: rgba(250,248,242,.96); color: #1a1b1e; font-weight: 800; font-size: 14px; padding: 8px 14px; border-radius: 14px;
+    box-shadow: 0 8px 22px rgba(0,0,0,.45); animation: pop .35s cubic-bezier(.2,1.6,.4,1);
+  }
+
+  /* Bediening onderaan */
+  .controls {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 6; width: min(760px, calc(100% - 24px));
+    background: rgba(18,19,22,.9); border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; backdrop-filter: blur(8px);
+    display: flex; flex-direction: column; gap: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  }
+  .controls .row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .controls .info { text-align: center; font-size: 14px; color: var(--muted); font-weight: 600; }
+  .controls .info b { color: var(--text); }
+  .controls .info code { background: var(--raise); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+  .act {
+    border: 0; border-radius: 12px; padding: 12px 18px; font-weight: 900; font-size: 15px; cursor: pointer; min-width: 110px;
+    transition: transform .06s ease, filter .15s ease; box-shadow: 0 3px 0 rgba(0,0,0,.35);
+  }
+  .act small { display: block; font-size: 10px; font-weight: 700; opacity: .7; letter-spacing: 1px; }
+  .act:active:not(:disabled) { transform: translateY(2px); }
+  .act:hover:not(:disabled) { filter: brightness(1.08); }
+  .act:disabled { opacity: .35; cursor: not-allowed; }
+  .act.hit { background: var(--green); color: #062612; }
+  .act.stand { background: var(--red); color: #fff; }
+  .act.double { background: var(--gold); color: #241a02; }
+  .act.split { background: #6aa9ff; color: #071a33; }
+  .act.ghost { background: var(--raise); color: var(--text); min-width: 0; }
+  .chipbtn {
+    width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer; font-weight: 900; font-size: 13px; color: #fff;
+    box-shadow: inset 0 0 0 5px rgba(255,255,255,.85), inset 0 0 0 8px rgba(0,0,0,.15), 0 4px 10px rgba(0,0,0,.4);
+    transition: transform .08s ease; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+  .chipbtn:hover:not(:disabled) { transform: translateY(-3px); }
+  .chipbtn:disabled { opacity: .35; cursor: not-allowed; }
+  .betinfo { min-width: 120px; text-align: center; }
+  .betinfo b { display: block; font-size: 22px; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .betinfo small { color: var(--muted); font-size: 12px; font-weight: 700; }
+  .phasebar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .phasebar i { display: block; height: 100%; background: var(--gold); transform-origin: left; }
+
+  .side-info {
+    position: fixed; top: 64px; right: 16px; z-index: 4; display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  }
+  .pill { background: rgba(18,19,22,.85); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; color: var(--muted); backdrop-filter: blur(6px); }
+  .pill b { color: var(--text); }
+
+  .toast {
+    position: fixed; left: 50%; top: 18px; transform: translateX(-50%) translateY(-12px); opacity: 0; z-index: 40;
+    display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px;
+    font-size: 15px; font-weight: 700; transition: all .2s ease; pointer-events: none; max-width: calc(100% - 32px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  .toast::before { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok { background: #16301f; border: 1px solid var(--green); color: #cdeed8; }
+  .toast.ok::before { content: '✓'; background: var(--green); color: #062612; }
+  .toast.err { background: #3a1a17; border: 1px solid var(--red); color: #fbd8d3; }
+  .toast.err::before { content: '✕'; background: var(--red); color: #fff; }
+
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; z-index: 50; background: var(--bg); color: var(--muted); font-weight: 700; letter-spacing: 2px; transition: opacity .6s; }
+  .loading.done { opacity: 0; pointer-events: none; }
+
+  @media (max-width: 640px) {
+    header { flex-wrap: wrap; }
+    .brand .word { display: none; }
+    .user { margin-left: auto; }
+    .nav { order: 3; width: 100%; margin: 0; }
+    .nav a { flex: 1; text-align: center; }
+    .side-info { top: 112px; }
+    .act { min-width: 0; flex: 1; padding: 12px 8px; }
+    .chipbtn { width: 46px; height: 46px; font-size: 12px; }
+    .plate .n { max-width: 60px; }
+    .plate { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<div id="scene"></div>
+<div id="overlay"></div>
+
+<header>
+  <a class="brand" href="/blackjack" aria-label="Vissstick Blackjack">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <rect width="40" height="40" rx="11" fill="#f2c14e"/>
+      <g transform="rotate(45 20 20)">
+        <path d="M17.2 28.6h5.6L20 35.5z" fill="#e2552f"/>
+        <path d="M20 5.5c4.2 3.6 5.8 8.8 5.8 14v8H14.2v-8c0-5.2 1.6-10.4 5.8-14z" fill="#16181b"/>
+        <path d="M14.2 20.5l-4.2 5.6v3.4l4.2-2.4zM25.8 20.5l4.2 5.6v3.4l-4.2-2.4z" fill="#16181b"/>
+        <circle cx="20" cy="16.5" r="2.7" fill="#f2c14e"/>
+      </g>
+    </svg>
+    <span class="word"><small>VISSSTICK</small><b>Blackjack</b></span>
+  </a>
+  <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack" class="active">Blackjack</a><a href="/spin">Daily spin</a></nav>
+  <button class="icon-btn" id="mute" type="button">Geluid aan</button>
+  <div class="user" id="user" hidden></div>
+</header>
+
+<div class="side-info" id="sideInfo"></div>
+<div class="controls" id="controls"><div class="info">Verbinden met de tafel…</div></div>
+<div class="toast" id="toast"></div>
+<div class="loading" id="loading">TAFEL KLAARZETTEN…</div>
+
+<script type="module">
+import * as THREE from '/vendor/three/three.module.js';
+
+// =====================================================
+// MATEN (meters)
+// =====================================================
+const TABLE_Y = 0.76;
+const R = 1.25;                       // straal van het vilt
+const CENTER = new THREE.Vector3(0, TABLE_Y, -0.45);
+const CARD_W = 0.09, CARD_H = 0.126;  // iets groter dan echt, voor leesbaarheid
+const CHIP_R = 0.024, CHIP_H = 0.0055;
+const SEATS = 7;
+const SEAT_ANGLES = Array.from({ length: SEATS }, (_, i) => THREE.MathUtils.degToRad(20 + i * (140 / 6)));
+const SHOE_MOUTH = new THREE.Vector3(0.5, TABLE_Y + 0.035, CENTER.z + 0.16);
+const DISCARD = new THREE.Vector3(-0.58, TABLE_Y + 0.02, CENTER.z + 0.1);
+const RACK = new THREE.Vector3(0, TABLE_Y + 0.015, CENTER.z + 0.07);
+const DENOMS = [
+  { v: 500, color: '#6b3fa0', edge: '#f2c14e' },
+  { v: 100, color: '#1b1c1f', edge: '#e8e2d0' },
+  { v: 25, color: '#1f7a4d', edge: '#f4ead5' },
+  { v: 10, color: '#2a5fb8', edge: '#f4ead5' },
+  { v: 5, color: '#b3261e', edge: '#f4ead5' },
+  { v: 1, color: '#e9e5da', edge: '#2a5fb8' }
+];
+
+const $ = id => document.getElementById(id);
+const fmt = n => Number(n).toLocaleString('nl-NL');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+function hash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
+// =====================================================
+// RENDERER, CAMERA, LICHT
+// =====================================================
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+$('scene').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0a0a0c');
+scene.fog = new THREE.Fog('#0a0a0c', 4, 11);
+
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 40);
+const camBase = new THREE.Vector3(0, 2.2, 2.5);
+const camLook = new THREE.Vector3(0, 0.82, -0.2);
+let mouseX = 0, mouseY = 0;
+addEventListener('pointermove', e => { mouseX = e.clientX / innerWidth - 0.5; mouseY = e.clientY / innerHeight - 0.5; });
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  // Smalle schermen: verder weg en breder zodat alle stoelen in beeld blijven
+  const aspect = w / h;
+  camera.fov = aspect < 1 ? 64 : aspect < 1.4 ? 50 : 42;
+  // Staand scherm: verder weg en hoger zodat alle 7 stoelen passen
+  if (aspect < 1) {
+    const back = THREE.MathUtils.clamp(2.0 / aspect, 3.0, 4.6);
+    camBase.set(0, 0.95 + back * 0.55, back * 0.72);
+    camLook.set(0, 0.78, -0.1);
+  } else {
+    camBase.set(0, 2.2, 2.5);
+    camLook.set(0, 0.82, -0.2);
+  }
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+
+scene.add(new THREE.HemisphereLight('#fff1d6', '#1a1410', 0.55));
+const spot = new THREE.SpotLight('#fff3dc', 34, 7, 0.75, 0.55, 1.6);
+spot.position.set(0, 3.1, 0.35);
+spot.target.position.copy(CENTER).add(new THREE.Vector3(0, 0, 0.35));
+spot.castShadow = true;
+spot.shadow.mapSize.set(2048, 2048);
+spot.shadow.bias = -0.00015;
+spot.shadow.radius = 4;
+scene.add(spot, spot.target);
+const dealerLight = new THREE.SpotLight('#ffe2b8', 10, 5, 0.5, 0.8, 1.5);
+dealerLight.position.set(0.6, 2.6, 0.8);
+dealerLight.target.position.set(0, 1.45, -0.7);
+scene.add(dealerLight, dealerLight.target);
+const rim = new THREE.DirectionalLight('#9fb7ff', 0.5);
+rim.position.set(-2, 2.5, -3);
+scene.add(rim);
+
+// =====================================================
+// TEXTUREN (canvas)
+// =====================================================
+function canvasTexture(w, h, draw, srgb = true) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+function noise(ctx, w, h, alpha) {
+  const img = ctx.getImageData(0, 0, w, h);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = (Math.random() - 0.5) * alpha;
+    img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function arcText(ctx, text, cx, cy, radius, centerAngle, font, color, spacing = 0) {
+  ctx.save();
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const widths = [...text].map(ch => ctx.measureText(ch).width + spacing);
+  const total = widths.reduce((a, b) => a + b, 0);
+  let angle = centerAngle + total / radius / 2;
+  for (let i = 0; i < text.length; i++) {
+    const a = angle - widths[i] / radius / 2;
+    ctx.save();
+    ctx.translate(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius);
+    ctx.rotate(a - Math.PI / 2);
+    ctx.fillText(text[i], 0, 0);
+    ctx.restore();
+    angle -= widths[i] / radius;
+  }
+  ctx.restore();
+}
+
+// Vilt met bedrukking. Canvas: midden van de cirkel bovenaan, straal = hoogte
+const FELT_W = 2048, FELT_H = 1024;
+const toFelt = (x, z) => [FELT_W / 2 + (x / R) * (FELT_W / 2), (z / R) * FELT_H];
+const feltTexture = canvasTexture(FELT_W, FELT_H, (ctx, w, h) => {
+  const g = ctx.createRadialGradient(w / 2, h * 0.35, 50, w / 2, h * 0.3, h * 1.05);
+  g.addColorStop(0, '#16704a');
+  g.addColorStop(1, '#0b4129');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  noise(ctx, w, h, 14);
+
+  const cx = w / 2, cy = 0;
+  const gold = 'rgba(232,201,120,0.88)';
+  // Verzekeringsboog
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = 4;
+  for (const r of [0.47, 0.57]) { ctx.beginPath(); ctx.arc(cx, cy, h * r, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke(); }
+  arcText(ctx, 'VERZEKERING BETAALT 2 OP 1', cx, cy, h * 0.52, Math.PI / 2, '700 34px Georgia, serif', gold, 6);
+  arcText(ctx, 'BLACKJACK BETAALT 3 OP 2', cx, cy, h * 0.38, Math.PI / 2, '700 50px Georgia, serif', 'rgba(242,214,140,0.95)', 7);
+  arcText(ctx, 'DEALER STAAT OP ALLE 17 EN MOET KOPEN TOT 16', cx, cy, h * 0.305, Math.PI / 2, '600 24px Georgia, serif', 'rgba(232,201,120,0.75)', 4);
+
+  // Inzetcirkels
+  SEAT_ANGLES.forEach((phi, i) => {
+    const [x, y] = toFelt(Math.cos(phi) * 0.93, Math.sin(phi) * 0.93);
+    const r = 70;
+    ctx.strokeStyle = gold;
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, r - 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(232,201,120,0.55)';
+    ctx.font = '700 26px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const [nx, ny] = toFelt(Math.cos(phi) * 1.1, Math.sin(phi) * 1.1);
+    ctx.fillText(String(i + 1), nx, ny);
+  });
+  // Dealerlijn
+  ctx.strokeStyle = 'rgba(232,201,120,0.4)';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, h * 0.16, 0, Math.PI); ctx.stroke();
+});
+
+const cardBackTexture = canvasTexture(256, 358, (ctx, w, h) => {
+  ctx.fillStyle = '#fbfaf6';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#8f1d16';
+  ctx.fillRect(14, 14, w - 28, h - 28);
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 2;
+  for (let i = -h; i < w + h; i += 14) {
+    ctx.beginPath(); ctx.moveTo(i, 14); ctx.lineTo(i + h, h - 14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i + h, 14); ctx.lineTo(i, h - 14); ctx.stroke();
+  }
+  ctx.fillStyle = '#8f1d16';
+  ctx.fillRect(w / 2 - 50, h / 2 - 50, 100, 100);
+  ctx.strokeStyle = '#f2c14e';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(22, 22, w - 44, h - 44);
+  ctx.fillStyle = '#f2c14e';
+  ctx.font = '900 64px Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('V', w / 2, h / 2 + 4);
+});
+
+const cardAlpha = canvasTexture(256, 358, (ctx, w, h) => {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.roundRect(2, 2, w - 4, h - 4, 18); ctx.fill();
+}, false);
+
+const cardTextures = new Map();
+const textureLoader = new THREE.TextureLoader();
+function cardFile(card) {
+  const names = { A: 'ace', K: 'king', Q: 'queen', J: 'jack' };
+  const rank = names[card.rank] || card.rank;
+  const art = ['K', 'Q', 'J'].includes(card.rank) ? '2' : '';
+  return `/cards/${rank}_of_${card.suit}${art}.png`;
+}
+function cardTexture(card) {
+  const file = cardFile(card);
+  if (!cardTextures.has(file)) {
+    const t = textureLoader.load(file);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    cardTextures.set(file, t);
+  }
+  return cardTextures.get(file);
+}
+
+const chipMaterials = new Map();
+function chipMaterial(denom) {
+  if (chipMaterials.has(denom.v)) return chipMaterials.get(denom.v);
+  const side = canvasTexture(256, 32, (ctx, w, h) => {
+    ctx.fillStyle = denom.color; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = denom.edge;
+    for (let i = 0; i < 8; i++) ctx.fillRect(i * 32 + 8, 0, 14, h);
+  });
+  const top = canvasTexture(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = denom.color;
+    ctx.beginPath(); ctx.arc(128, 128, 128, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = denom.edge;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      ctx.save(); ctx.translate(128, 128); ctx.rotate(a);
+      ctx.fillRect(-12, -128, 24, 34);
+      ctx.restore();
+    }
+    ctx.strokeStyle = denom.edge; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(128, 128, 78, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = denom.v === 1 ? '#1b1c1f' : '#fff';
+    ctx.font = '900 70px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(denom.v), 128, 134);
+  });
+  const mats = [
+    new THREE.MeshStandardMaterial({ map: side, roughness: 0.45 }),
+    new THREE.MeshStandardMaterial({ map: top, roughness: 0.4 }),
+    new THREE.MeshStandardMaterial({ map: top, roughness: 0.4 })
+  ];
+  chipMaterials.set(denom.v, mats);
+  return mats;
+}
+const chipGeometry = new THREE.CylinderGeometry(CHIP_R, CHIP_R, CHIP_H, 40);
+
+// =====================================================
+// ZAAL + TAFEL
+// =====================================================
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({
+  map: canvasTexture(512, 512, (ctx, w, h) => {
+    ctx.fillStyle = '#3a0f12'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(214,170,80,0.25)'; ctx.lineWidth = 3;
+    for (let x = 0; x <= w; x += 64) for (let y = 0; y <= h; y += 64) {
+      ctx.beginPath(); ctx.moveTo(x, y + 32); ctx.lineTo(x + 32, y); ctx.lineTo(x + 64, y + 32); ctx.lineTo(x + 32, y + 64); ctx.closePath(); ctx.stroke();
+    }
+    noise(ctx, w, h, 18);
+  }),
+  roughness: 0.95
+}));
+floor.material.map.wrapS = floor.material.map.wrapT = THREE.RepeatWrapping;
+floor.material.map.repeat.set(14, 14);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(30, 8), new THREE.MeshStandardMaterial({ color: '#151214', roughness: 1 }));
+wall.position.set(0, 4, -3.2);
+scene.add(wall);
+
+// Vilt (halve cirkel aan de spelerskant)
+const feltShape = new THREE.Shape();
+feltShape.moveTo(-R, 0);
+feltShape.absarc(0, 0, R, Math.PI, Math.PI * 2, false);
+feltShape.lineTo(-R, 0);
+const feltGeo = new THREE.ShapeGeometry(feltShape, 96);
+{
+  const pos = feltGeo.attributes.position, uv = feltGeo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + R) / (2 * R), (pos.getY(i) + R) / R);
+}
+feltGeo.rotateX(-Math.PI / 2);
+const felt = new THREE.Mesh(feltGeo, new THREE.MeshStandardMaterial({ map: feltTexture, roughness: 0.92 }));
+felt.position.copy(CENTER);
+felt.receiveShadow = true;
+scene.add(felt);
+
+// Dealerkant: houten blad
+const dealerTop = new THREE.Mesh(new THREE.BoxGeometry(2 * R + 0.2, 0.04, 0.22), new THREE.MeshStandardMaterial({ color: '#3b2416', roughness: 0.5 }));
+dealerTop.position.set(0, TABLE_Y - 0.015, CENTER.z - 0.1);
+dealerTop.receiveShadow = true;
+dealerTop.castShadow = true;
+scene.add(dealerTop);
+
+// Leren rand langs de boog
+const leather = new THREE.MeshStandardMaterial({ color: '#2a160e', roughness: 0.55, metalness: 0.05 });
+class ArcCurve extends THREE.Curve {
+  getPoint(t) {
+    const a = Math.PI * t;
+    return new THREE.Vector3(Math.cos(a) * (R + 0.045), 0, Math.sin(a) * (R + 0.045));
+  }
+}
+const railGeo = new THREE.TubeGeometry(new ArcCurve(), 120, 0.055, 20, false);
+const rail = new THREE.Mesh(railGeo, leather);
+rail.position.set(CENTER.x, TABLE_Y + 0.02, CENTER.z);
+rail.scale.y = 0.75;
+rail.castShadow = true;
+rail.receiveShadow = true;
+scene.add(rail);
+for (const side of [-1, 1]) {
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.055, 20, 12), leather);
+  cap.position.set(CENTER.x + side * (R + 0.045), TABLE_Y + 0.02, CENTER.z);
+  cap.scale.y = 0.75;
+  scene.add(cap);
+}
+// Houten zijkant + poot
+const apron = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.06, R + 0.02, 0.1, 96, 1, true, 0, Math.PI), new THREE.MeshStandardMaterial({ color: '#24150d', roughness: 0.6, side: THREE.DoubleSide }));
+apron.rotation.y = Math.PI / 2;
+apron.position.set(CENTER.x, TABLE_Y - 0.06, CENTER.z);
+scene.add(apron);
+const base = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, TABLE_Y - 0.1, 32), new THREE.MeshStandardMaterial({ color: '#141010', roughness: 0.7 }));
+base.position.set(0, (TABLE_Y - 0.1) / 2, CENTER.z + 0.4);
+scene.add(base);
+
+// Fiche-rek
+{
+  const rack = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.035, 0.13), new THREE.MeshStandardMaterial({ color: '#111214', roughness: 0.35, metalness: 0.3 }));
+  rack.position.copy(RACK).add(new THREE.Vector3(0, 0.0, 0));
+  rack.castShadow = rack.receiveShadow = true;
+  scene.add(rack);
+  const order = [500, 100, 100, 25, 25, 25, 10, 10, 5, 5, 1];
+  order.forEach((v, i) => {
+    // Elke rij fiches ligt op zijn kant in de lengterichting van het rek
+    const tube = new THREE.InstancedMesh(chipGeometry, chipMaterial(DENOMS.find(d => d.v === v)), 18);
+    const m = new THREE.Matrix4();
+    for (let k = 0; k < 18; k++) {
+      m.makeRotationX(Math.PI / 2);
+      m.setPosition(RACK.x - 0.29 + i * 0.054, RACK.y + 0.028, RACK.z - 0.05 + k * CHIP_H * 1.02);
+      tube.setMatrixAt(k, m);
+    }
+    tube.castShadow = true;
+    scene.add(tube);
+  });
+}
+
+// Schoen
+const shoe = new THREE.Group();
+{
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.09, 0.26), new THREE.MeshStandardMaterial({ color: '#1a1b1f', roughness: 0.25, metalness: 0.2 }));
+  body.position.y = 0.045;
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.06, 0.2), new THREE.MeshStandardMaterial({ color: '#8f1d16', roughness: 0.6 }));
+  glass.position.set(0, 0.06, -0.02);
+  const lip = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.01, 0.06), new THREE.MeshStandardMaterial({ color: '#2b2d33', roughness: 0.3, metalness: 0.4 }));
+  lip.position.set(0, 0.012, 0.15);
+  [body, glass, lip].forEach(m => { m.castShadow = true; m.receiveShadow = true; shoe.add(m); });
+}
+shoe.position.set(0.58, TABLE_Y, CENTER.z + 0.04);
+shoe.rotation.y = -0.45;
+scene.add(shoe);
+
+// Afleglade met stapel gebruikte kaarten
+const tray = new THREE.Group();
+{
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.18), new THREE.MeshStandardMaterial({ color: '#1a1b1f', roughness: 0.3, metalness: 0.2 }));
+  box.position.y = 0.015;
+  box.castShadow = box.receiveShadow = true;
+  tray.add(box);
+}
+const discardStack = new THREE.Mesh(new THREE.BoxGeometry(CARD_W * 0.95, 1, CARD_H * 0.95), new THREE.MeshStandardMaterial({ color: '#f4f1e8', roughness: 0.8 }));
+discardStack.position.y = 0.03;
+discardStack.scale.y = 0.0001;
+tray.add(discardStack);
+tray.position.set(DISCARD.x, TABLE_Y, DISCARD.z);
+tray.rotation.y = 0.45;
+scene.add(tray);
+
+// Limietbordje
+{
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.09), new THREE.MeshStandardMaterial({
+    map: canvasTexture(320, 180, (ctx, w, h) => {
+      ctx.fillStyle = '#16181b'; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 6; ctx.strokeRect(6, 6, w - 12, h - 12);
+      ctx.fillStyle = '#f2c14e'; ctx.textAlign = 'center';
+      ctx.font = '700 26px Georgia, serif'; ctx.fillText('BLACKJACK', w / 2, 50);
+      ctx.fillStyle = '#eceae6'; ctx.font = '700 30px system-ui'; ctx.fillText('MIN 10', w / 2, 100);
+      ctx.fillText('MAX 500', w / 2, 140);
+    }),
+    roughness: 0.5
+  }));
+  sign.position.set(-0.36, TABLE_Y + 0.05, CENTER.z + 0.02);
+  sign.rotation.set(-0.35, 0.25, 0);
+  sign.castShadow = true;
+  scene.add(sign);
+}
+
+// =====================================================
+// DEALER (3D figuur met animaties)
+// =====================================================
+const skin = new THREE.MeshStandardMaterial({ color: '#d9a07a', roughness: 0.62 });
+const shirt = new THREE.MeshStandardMaterial({ color: '#f3f1ec', roughness: 0.8 });
+const vestMat = new THREE.MeshStandardMaterial({ color: '#1c1a20', roughness: 0.45, metalness: 0.1 });
+const hairMat = new THREE.MeshStandardMaterial({ color: '#2a1d16', roughness: 0.85 });
+const dark = new THREE.MeshStandardMaterial({ color: '#141416', roughness: 0.4 });
+const bowMat = new THREE.MeshStandardMaterial({ color: '#7d1a14', roughness: 0.35 });
+
+const dealer = new THREE.Group();
+dealer.position.set(0, 0, -0.74);
+scene.add(dealer);
+
+const hips = new THREE.Group();          // draaipunt voor voorover leunen
+hips.position.y = 0.82;
+dealer.add(hips);
+
+function lathe(profile, material, phiStart = 0, phiLength = Math.PI * 2) {
+  const geo = new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), 48, phiStart, phiLength);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.castShadow = true;
+  return mesh;
+}
+const torsoProfile = [[0.0, -0.05], [0.15, -0.05], [0.155, 0.1], [0.165, 0.28], [0.19, 0.44], [0.2, 0.55], [0.17, 0.61], [0.07, 0.65], [0.0, 0.66]];
+const torso = lathe(torsoProfile, shirt);
+torso.scale.z = 0.62;
+hips.add(torso);
+const vest = lathe(torsoProfile.slice(0, 7).map(([r, y]) => [r * 1.04 + 0.002, y]), vestMat, 0.42, Math.PI * 2 - 0.84);
+vest.scale.z = 0.66;
+hips.add(vest);
+// Knoopjes op het overhemd
+for (let i = 0; i < 4; i++) {
+  const b = new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 6), dark);
+  b.position.set(0, 0.16 + i * 0.1, 0.105);
+  hips.add(b);
+}
+// Strikje
+const bow = new THREE.Group();
+for (const side of [-1, 1]) {
+  const wing = new THREE.Mesh(new THREE.ConeGeometry(0.017, 0.036, 4), bowMat);
+  wing.rotation.z = side * Math.PI / 2;
+  wing.rotation.x = Math.PI / 4;
+  wing.position.x = side * 0.017;
+  wing.scale.z = 0.5;
+  bow.add(wing);
+}
+const knot = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.014, 0.01), bowMat);
+bow.add(knot);
+bow.position.set(0, 0.628, 0.075);
+hips.add(bow);
+// Kraag
+const collar = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.012, 8, 24, Math.PI * 1.6), shirt);
+collar.rotation.set(Math.PI / 2, 0, Math.PI * 0.7);
+collar.position.set(0, 0.645, 0.005);
+hips.add(collar);
+
+// Nek + hoofd
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.043, 0.048, 0.08, 16), skin);
+neck.position.y = 0.68;
+hips.add(neck);
+const head = new THREE.Group();
+head.position.y = 0.775;
+hips.add(head);
+{
+  // Hoofd als één vorm: kin, kaken, wangen en schedel
+  const headProfile = [[0, -0.118], [0.03, -0.113], [0.052, -0.098], [0.066, -0.075], [0.077, -0.045], [0.085, -0.01], [0.089, 0.025], [0.088, 0.06], [0.08, 0.09], [0.062, 0.114], [0.035, 0.128], [0, 0.133]];
+  const skull = lathe(headProfile, skin);
+  skull.scale.set(1, 1, 1.12);
+  head.add(skull);
+  // Kort haar: bovenop en achter, voorhoofd vrij
+  const hairProfile = headProfile.slice(5).map(([r, y]) => [r + 0.007, y + 0.004]);
+  const hair = lathe(hairProfile, hairMat, Math.PI * 0.32, Math.PI * 1.36);
+  hair.scale.set(1, 1, 1.13);
+  head.add(hair);
+  // Bovenkant volledig, haarlijn boven het voorhoofd
+  const top = lathe(headProfile.slice(7).map(([r, y]) => [r + 0.008, y + 0.006]), hairMat);
+  top.scale.set(1, 1, 1.13);
+  top.position.y = 0.004;
+  head.add(top);
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 10), skin);
+    ear.scale.set(0.45, 1.15, 0.7);
+    ear.position.set(side * 0.088, 0.008, 0.004);
+    head.add(ear);
+    const sideburn = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.04, 0.02), hairMat);
+    sideburn.position.set(side * 0.085, 0.03, 0.03);
+    head.add(sideburn);
+    const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.004, 0.022, 4, 8), hairMat);
+    brow.rotation.z = Math.PI / 2 + side * 0.1;
+    brow.position.set(side * 0.032, 0.045, 0.09);
+    head.add(brow);
+  }
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12), skin);
+  nose.scale.set(0.85, 1.6, 1.0);
+  nose.position.set(0, 0.0, 0.1);
+  head.add(nose);
+  const lips = new THREE.Mesh(new THREE.CapsuleGeometry(0.0055, 0.026, 4, 10), new THREE.MeshStandardMaterial({ color: '#b06a5c', roughness: 0.5 }));
+  lips.rotation.z = Math.PI / 2;
+  lips.position.set(0, -0.045, 0.093);
+  head.add(lips);
+  const chin = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12), skin);
+  chin.scale.set(0.95, 0.65, 0.6);
+  chin.position.set(0, -0.092, 0.058);
+  head.add(chin);
+}
+const eyes = [];
+for (const side of [-1, 1]) {
+  const eye = new THREE.Group();
+  const white = new THREE.Mesh(new THREE.SphereGeometry(0.012, 14, 10), new THREE.MeshStandardMaterial({ color: '#f6f4ef', roughness: 0.3 }));
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 12, 8), new THREE.MeshStandardMaterial({ color: '#2b1f17', roughness: 0.2 }));
+  pupil.position.z = 0.008;
+  eye.add(white, pupil);
+  eye.position.set(side * 0.032, 0.022, 0.087);
+  head.add(eye);
+  eyes.push(eye);
+}
+
+// Schouders als ankers (in de romp), armen worden in wereldruimte opgebouwd
+const shoulders = [-1, 1].map(side => {
+  const anchor = new THREE.Object3D();
+  anchor.position.set(side * 0.185, 0.555, 0.0);
+  hips.add(anchor);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 12), shirt);
+  anchor.add(ball);
+  return anchor;
+});
+
+const UPPER = 0.29, LOWER = 0.27;
+function makeArm(side) {
+  const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, UPPER - 0.06, 6, 14), shirt);
+  const garter = new THREE.Mesh(new THREE.TorusGeometry(0.047, 0.007, 8, 20), dark);
+  garter.rotation.x = Math.PI / 2;
+  upper.add(garter);
+  const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.038, LOWER - 0.06, 6, 14), shirt);
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16), shirt);
+  cuff.position.y = -(LOWER / 2) + 0.01;
+  lower.add(cuff);
+  const hand = new THREE.Group();
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.025, 0.09), skin);
+  palm.position.z = 0.045;
+  const fingers = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.05, 4, 8), skin);
+  fingers.rotation.x = Math.PI / 2;
+  fingers.scale.set(3, 1, 0.8);
+  fingers.position.set(0, -0.004, 0.1);
+  const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.035, 4, 8), skin);
+  thumb.rotation.set(Math.PI / 2, 0, side * 0.7);
+  thumb.position.set(-side * 0.045, -0.002, 0.05);
+  hand.add(palm, fingers, thumb);
+  [upper, lower, palm, fingers, thumb].forEach(m => { m.castShadow = true; });
+  scene.add(upper, lower, hand);
+  const rest = new THREE.Vector3(side * 0.14, TABLE_Y + 0.03, CENTER.z - 0.03);
+  return { side, upper, lower, hand, target: rest.clone(), rest, desired: rest.clone() };
+}
+const arms = { left: makeArm(-1), right: makeArm(1) }; // right = kant van de schoen (+x)
+
+const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+
+/**
+ * Twee-botten IK: plaats boven- en onderarm zodat de pols op het doel komt
+ */
+function solveArm(arm, shoulderAnchor) {
+  const S = shoulderAnchor.getWorldPosition(new THREE.Vector3());
+  const T = arm.target.clone();
+  let d = T.distanceTo(S);
+  const maxReach = UPPER + LOWER - 0.01;
+  if (d > maxReach) { T.sub(S).setLength(maxReach).add(S); d = maxReach; }
+  d = Math.max(d, Math.abs(UPPER - LOWER) + 0.02);
+  const dir = T.clone().sub(S).normalize();
+  const a = (UPPER * UPPER - LOWER * LOWER + d * d) / (2 * d);
+  const h = Math.sqrt(Math.max(0, UPPER * UPPER - a * a));
+  const pole = new THREE.Vector3(arm.side * 0.9, -1, -0.35).normalize();
+  const perp = pole.sub(dir.clone().multiplyScalar(pole.dot(dir))).normalize();
+  const E = S.clone().add(dir.clone().multiplyScalar(a)).add(perp.multiplyScalar(h));
+
+  const place = (mesh, from, to) => {
+    mesh.position.copy(from).add(to).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(up, tmp.copy(to).sub(from).normalize());
+  };
+  place(arm.upper, S, E);
+  place(arm.lower, E, T);
+  arm.hand.position.copy(T);
+  // Hand ligt plat, wijst in de richting van de onderarm
+  const fwd = tmp2.copy(T).sub(E);
+  fwd.y = 0;
+  arm.hand.rotation.set(0, Math.atan2(fwd.x, fwd.z), 0);
+  return T;
+}
+
+// Dealer-bewegingen
+let lookTarget = new THREE.Vector3(0, 1.0, 1.2);
+const lookCurrent = new THREE.Vector3(0, 1.0, 1.2);
+let leanTarget = 0.12, twistTarget = 0;
+let nextBlink = performance.now() + 2500;
+
+function moveHand(arm, to, ms) {
+  const from = arm.desired.clone();
+  return animate(ms, t => arm.desired.lerpVectors(from, to, easeInOut(t)));
+}
+function restHand(arm, ms = 450) {
+  return moveHand(arm, arm.rest, ms);
+}
+function reachPoint(arm, point) {
+  // Hoe ver de hand mag reiken; de kaart schuift daarna zelf verder
+  const shoulder = (arm.side > 0 ? shoulders[1] : shoulders[0]).getWorldPosition(new THREE.Vector3());
+  const p = point.clone();
+  const max = UPPER + LOWER - 0.03;
+  if (p.distanceTo(shoulder) > max) p.sub(shoulder).setLength(max).add(shoulder);
+  p.y = Math.max(p.y, TABLE_Y + 0.025);
+  return p;
+}
+
+function updateDealer(now, dt) {
+  // Ademhaling
+  const breath = Math.sin(now / 1300) * 0.006;
+  torso.scale.x = 1 + breath;
+  vest.scale.x = 1 + breath;
+  // Leunen naar waar de handen werken
+  const work = arms.right.desired.clone().add(arms.left.desired).multiplyScalar(0.5);
+  leanTarget = THREE.MathUtils.clamp(0.08 + (work.z - CENTER.z) * 0.55, 0.06, 0.38);
+  twistTarget = THREE.MathUtils.clamp(work.x * -0.35, -0.3, 0.3) * -1;
+  hips.rotation.x += (leanTarget - hips.rotation.x) * Math.min(1, dt * 5);
+  hips.rotation.y += (twistTarget - hips.rotation.y) * Math.min(1, dt * 4);
+  // Hoofd kijkt naar het doel
+  lookCurrent.lerp(lookTarget, Math.min(1, dt * 3));
+  const headWorld = head.getWorldPosition(new THREE.Vector3());
+  const toLook = lookCurrent.clone().sub(headWorld);
+  head.rotation.y = THREE.MathUtils.clamp(Math.atan2(toLook.x, toLook.z) - hips.rotation.y, -0.7, 0.7);
+  head.rotation.x = THREE.MathUtils.clamp(-Math.atan2(toLook.y, Math.hypot(toLook.x, toLook.z)) - hips.rotation.x, -0.15, 0.3);
+  // Knipperen
+  const blinkT = now - nextBlink;
+  const lid = blinkT > 0 && blinkT < 140 ? 0.15 : 1;
+  eyes.forEach(e => { e.scale.y = lid; });
+  if (blinkT > 140) nextBlink = now + 2200 + Math.random() * 3500;
+  // Armen soepel naar hun doel
+  for (const [arm, anchor] of [[arms.left, shoulders[0]], [arms.right, shoulders[1]]]) {
+    arm.target.lerp(arm.desired, Math.min(1, dt * 14));
+    solveArm(arm, anchor);
+  }
+}
+
+// =====================================================
+// ANIMATIE-HULP
+// =====================================================
+const tweens = new Set();
+let speed = 1;
+function animate(ms, fn) {
+  return new Promise(resolve => {
+    tweens.add({ start: performance.now(), ms: Math.max(1, ms / speed), fn, resolve });
+  });
+}
+function runTweens(now) {
+  for (const tw of tweens) {
+    const t = Math.min(1, (now - tw.start) / tw.ms);
+    tw.fn(t);
+    if (t >= 1) { tweens.delete(tw); tw.resolve(); }
+  }
+}
+
+// Opdrachten voor de dealer worden achter elkaar uitgevoerd
+const queue = [];
+let queueBusy = false;
+function enqueue(task) {
+  queue.push(task);
+  if (!queueBusy) runQueue();
+}
+async function runQueue() {
+  queueBusy = true;
+  while (queue.length) {
+    speed = queue.length > 4 ? 4 : queue.length > 2 ? 1.6 : 1;
+    const task = queue.shift();
+    try { await task(); } catch (error) { console.error(error); }
+  }
+  speed = 1;
+  queueBusy = false;
+  restHand(arms.right);
+  restHand(arms.left);
+}
+
+// =====================================================
+// GELUID
+// =====================================================
+let muted = false;
+try { muted = localStorage.getItem('bj_muted') === '1'; } catch (error) { /* geen opslag */ }
+let audioCtx = null;
+function audio() {
+  if (muted) return null;
+  if (!audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    audioCtx = new Ctx();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+addEventListener('pointerdown', () => audio(), { once: true });
+function noiseBurst(duration, freq, volume) {
+  const a = audio();
+  if (!a) return;
+  const buffer = a.createBuffer(1, Math.floor(a.sampleRate * duration), a.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  const src = a.createBufferSource();
+  src.buffer = buffer;
+  const filter = a.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = freq;
+  const gain = a.createGain();
+  gain.gain.value = volume;
+  src.connect(filter).connect(gain).connect(a.destination);
+  src.start();
+}
+const sound = {
+  card: () => noiseBurst(0.12, 2600, 0.5),
+  flip: () => noiseBurst(0.07, 3800, 0.45),
+  chip: () => { noiseBurst(0.035, 5200, 0.6); setTimeout(() => noiseBurst(0.03, 6100, 0.4), 45); }
+};
+function renderMute() { $('mute').textContent = muted ? 'Geluid uit' : 'Geluid aan'; }
+$('mute').addEventListener('click', () => {
+  muted = !muted;
+  try { localStorage.setItem('bj_muted', muted ? '1' : '0'); } catch (error) { /* geen opslag */ }
+  renderMute();
+});
+renderMute();
+
+// =====================================================
+// KAARTEN IN DE SCÈNE
+// =====================================================
+const cardGeo = new THREE.PlaneGeometry(CARD_W, CARD_H).rotateX(-Math.PI / 2);
+const backMat = new THREE.MeshStandardMaterial({ map: cardBackTexture, alphaMap: cardAlpha, alphaTest: 0.5, roughness: 0.55 });
+const cards = new Map(); // id -> { group, front, faceUp, pose, rank }
+
+function createCard(id) {
+  const group = new THREE.Group();
+  const frontMat = new THREE.MeshStandardMaterial({ color: '#ffffff', alphaMap: cardAlpha, alphaTest: 0.5, roughness: 0.5 });
+  const front = new THREE.Mesh(cardGeo, frontMat);
+  front.position.y = 0.0004;
+  front.castShadow = true;
+  front.receiveShadow = true;
+  const back = new THREE.Mesh(cardGeo, backMat);
+  back.rotation.z = Math.PI;
+  back.position.y = -0.0004;
+  back.castShadow = true;
+  group.add(front, back);
+  group.visible = false;
+  scene.add(group);
+  const entry = { id, group, front, faceUp: false, pose: null, revealed: false };
+  cards.set(id, entry);
+  return entry;
+}
+
+function setFace(entry, card) {
+  if (!card.hidden && !entry.revealed) {
+    entry.front.material.map = cardTexture(card);
+    entry.front.material.needsUpdate = true;
+    entry.revealed = true;
+  }
+}
+
+function placeCard(entry, pose, faceUp) {
+  entry.group.position.copy(pose.pos);
+  entry.group.rotation.set(0, pose.rotY, faceUp ? 0 : Math.PI);
+}
+
+async function dealCardTask(entry, card) {
+  const pose = entry.pose;
+  const faceUp = !card.hidden;
+  if (faceUp) setFace(entry, card);
+  const arm = arms.right;
+  lookTarget = pose.pos.clone().setY(TABLE_Y + 0.1);
+  await moveHand(arm, SHOE_MOUTH.clone().add(new THREE.Vector3(-0.02, 0.01, 0.03)), 170);
+  entry.group.visible = true;
+  entry.group.position.copy(SHOE_MOUTH);
+  entry.group.rotation.set(0, shoe.rotation.y, Math.PI);
+  const start = SHOE_MOUTH.clone();
+  const startRot = shoe.rotation.y;
+  sound.card();
+  await animate(420, t => {
+    const e = easeOut(t);
+    const p = start.clone().lerp(pose.pos, e);
+    p.y += Math.sin(Math.PI * t) * 0.035;
+    entry.group.position.copy(p);
+    entry.group.rotation.y = THREE.MathUtils.lerp(startRot, pose.rotY, e);
+    if (faceUp) entry.group.rotation.z = Math.PI * (1 - THREE.MathUtils.smoothstep(t, 0.25, 0.85));
+    arm.desired.copy(reachPoint(arm, p));
+  });
+  placeCard(entry, pose, faceUp);
+  entry.faceUp = faceUp;
+}
+
+async function revealTask(entry, card) {
+  setFace(entry, card);
+  const arm = arms.left;
+  const pose = entry.pose;
+  lookTarget = pose.pos.clone().setY(TABLE_Y + 0.1);
+  await moveHand(arm, reachPoint(arm, pose.pos.clone().add(new THREE.Vector3(-0.04, 0.02, -0.02))), 220);
+  sound.flip();
+  await animate(480, t => {
+    const e = easeInOut(t);
+    entry.group.position.copy(pose.pos).add(new THREE.Vector3(0, Math.sin(Math.PI * t) * 0.05, 0));
+    entry.group.rotation.z = Math.PI * (1 - e);
+    arm.desired.copy(reachPoint(arm, entry.group.position.clone().add(new THREE.Vector3(-0.05, 0.02, 0))));
+  });
+  placeCard(entry, pose, true);
+  entry.faceUp = true;
+  restHand(arm, 350);
+}
+
+function moveCard(entry, pose) {
+  const from = entry.group.position.clone();
+  const fromRot = entry.group.rotation.y;
+  return animate(280, t => {
+    const e = easeInOut(t);
+    entry.group.position.lerpVectors(from, pose.pos, e);
+    entry.group.rotation.y = THREE.MathUtils.lerp(fromRot, pose.rotY, e);
+  });
+}
+
+let discardCount = 0;
+async function collectTask(ids) {
+  const arm = arms.left;
+  lookTarget = new THREE.Vector3(0, TABLE_Y, CENTER.z + 0.5);
+  const list = ids.map(id => cards.get(id)).filter(Boolean);
+  await moveHand(arm, reachPoint(arm, CENTER.clone().add(new THREE.Vector3(0.3, 0.03, 0.45))), 300);
+  const moves = list.map((entry, i) => sleep(i * 35).then(() => {
+    const from = entry.group.position.clone();
+    const target = DISCARD.clone().add(new THREE.Vector3(0, 0.03 + i * 0.0005, 0));
+    return animate(520, t => {
+      const e = easeInOut(t);
+      entry.group.position.lerpVectors(from, target, e);
+      entry.group.position.y += Math.sin(Math.PI * t) * 0.03;
+      entry.group.rotation.z = THREE.MathUtils.lerp(entry.group.rotation.z, Math.PI, e);
+      entry.group.rotation.y = THREE.MathUtils.lerp(entry.group.rotation.y, tray.rotation.y, e);
+      if (t > 0.3 && t < 0.9) arm.desired.copy(reachPoint(arm, entry.group.position));
+    });
+  }));
+  sound.card();
+  await Promise.all(moves);
+  for (const entry of list) {
+    scene.remove(entry.group);
+    entry.front.material.dispose();
+    cards.delete(entry.id);
+  }
+  discardCount += list.length;
+  updateDiscardStack();
+}
+
+function updateDiscardStack() {
+  const used = state ? state.shoe.total - state.shoe.remaining : discardCount;
+  discardStack.scale.y = Math.max(0.0001, Math.min(0.06, used * 0.00028));
+  discardStack.position.y = 0.03 + discardStack.scale.y / 2;
+}
+
+// Posities van alle kaarten op tafel volgens de status
+function layoutCards(st) {
+  const poses = new Map();
+  const n = st.dealer.cards.length;
+  st.dealer.cards.forEach((c, i) => {
+    const pos = new THREE.Vector3(CENTER.x + (i - (n - 1) / 2) * (CARD_W * 0.78), TABLE_Y + 0.002 + i * 0.0006, CENTER.z + 0.24);
+    poses.set(c.id, { pos, rotY: 0 });
+  });
+  for (let seat = 0; seat < SEATS; seat++) {
+    const hands = st.hands.filter(h => h.seat === seat);
+    const phi = SEAT_ANGLES[seat];
+    const radial = new THREE.Vector3(Math.cos(phi), 0, Math.sin(phi));
+    const tangent = new THREE.Vector3(-Math.sin(phi), 0, Math.cos(phi));
+    hands.forEach((hand, k) => {
+      const offset = (k - (hands.length - 1) / 2) * CARD_W * 1.45;
+      const origin = CENTER.clone().add(radial.clone().multiplyScalar(0.7)).add(tangent.clone().multiplyScalar(offset));
+      hand.cards.forEach((c, j) => {
+        const jitter = (hash(c.id) - 0.5) * 0.08;
+        const pos = origin.clone()
+          .add(tangent.clone().multiplyScalar(0.019 * j))
+          .add(radial.clone().multiplyScalar(-0.028 * j));
+        pos.y = TABLE_Y + 0.002 + j * 0.0007;
+        // Verdubbelde laatste kaart ligt dwars
+        const sideways = hand.doubled && j === 2 ? Math.PI / 2 : 0;
+        poses.set(c.id, { pos, rotY: Math.PI / 2 - phi + jitter + sideways });
+      });
+    });
+  }
+  return poses;
+}
+
+function syncCards(st, prev) {
+  const poses = layoutCards(st);
+  const all = [...st.dealer.cards, ...st.hands.flatMap(h => h.cards)];
+  const firstSync = !prev;
+
+  // Opruimen zodra de ronde voorbij is
+  if (st.phase === 'collect' && prev && prev.phase !== 'collect') {
+    enqueue(() => collectTask([...cards.keys()]));
+    return;
+  }
+
+  for (const card of all) {
+    const pose = poses.get(card.id);
+    let entry = cards.get(card.id);
+    if (!entry) {
+      entry = createCard(card.id);
+      entry.pose = pose;
+      if (firstSync) {
+        // Halverwege een ronde binnenkomen: kaarten meteen neerleggen
+        if (!card.hidden) setFace(entry, card);
+        entry.group.visible = true;
+        placeCard(entry, pose, !card.hidden);
+        entry.faceUp = !card.hidden;
+      } else {
+        enqueue(() => dealCardTask(entry, card));
+      }
+      continue;
+    }
+    const moved = entry.pose && (entry.pose.pos.distanceTo(pose.pos) > 0.001 || Math.abs(entry.pose.rotY - pose.rotY) > 0.001);
+    entry.pose = pose;
+    if (!card.hidden && !entry.faceUp && !entry.revealQueued) {
+      entry.revealQueued = true;
+      enqueue(() => revealTask(entry, card));
+    } else if (moved && entry.group.visible) {
+      enqueue(() => moveCard(entry, pose));
+    }
+  }
+
+  // Kaarten die niet meer bestaan (bv. na herladen) direct weghalen
+  const ids = new Set(all.map(c => c.id));
+  if (st.phase === 'idle' || st.phase === 'betting') {
+    for (const [id, entry] of cards) {
+      if (!ids.has(id) && !queueBusy) { scene.remove(entry.group); cards.delete(id); }
+    }
+  }
+}
+
+// =====================================================
+// FICHES
+// =====================================================
+const stacks = new Map(); // key -> { group, amount }
+
+function chipBreakdown(amount) {
+  const chips = [];
+  let left = amount;
+  for (const d of DENOMS) {
+    while (left >= d.v && chips.length < 24) { chips.push(d); left -= d.v; }
+  }
+  return chips.reverse();
+}
+
+function buildStack(amount, seed) {
+  const group = new THREE.Group();
+  chipBreakdown(amount).forEach((d, i) => {
+    const chip = new THREE.Mesh(chipGeometry, chipMaterial(d));
+    chip.position.set((hash(seed + i) - 0.5) * 0.002, CHIP_H / 2 + i * CHIP_H, (hash(seed + 'z' + i) - 0.5) * 0.002);
+    chip.rotation.y = hash(seed + 'r' + i) * Math.PI;
+    chip.castShadow = true;
+    chip.receiveShadow = true;
+    group.add(chip);
+  });
+  return group;
+}
+
+function seatPoint(seat, r, tangentOffset = 0) {
+  const phi = SEAT_ANGLES[seat];
+  return CENTER.clone()
+    .add(new THREE.Vector3(Math.cos(phi), 0, Math.sin(phi)).multiplyScalar(r))
+    .add(new THREE.Vector3(-Math.sin(phi), 0, Math.cos(phi)).multiplyScalar(tangentOffset));
+}
+
+function desiredStacks(st) {
+  const list = [];
+  const inRound = !['idle', 'betting'].includes(st.phase);
+  st.seats.forEach((seat, i) => {
+    if (!seat) return;
+    if (!inRound && seat.bet > 0) list.push({ key: `bet-${i}`, amount: seat.bet, pos: seatPoint(i, 0.93), from: 'player', seat: i });
+    if (inRound && seat.insurance > 0) list.push({ key: `ins-${i}-${st.roundId}`, amount: seat.insurance, pos: seatPoint(i, 0.52), from: 'player', seat: i });
+  });
+  if (inRound) {
+    const bySeat = {};
+    st.hands.forEach(h => { (bySeat[h.seat] = bySeat[h.seat] || []).push(h); });
+    Object.entries(bySeat).forEach(([seat, hands]) => {
+      hands.forEach((h, k) => {
+        const offset = (k - (hands.length - 1) / 2) * CARD_W * 1.45;
+        const stake = h.doubled ? h.bet / 2 : h.bet;
+        list.push({ key: `hand-${h.id}`, amount: stake, pos: seatPoint(+seat, 0.93, offset), from: k === 0 ? 'bet' : 'player', seat: +seat, result: h.result, betKey: `bet-${seat}` });
+        if (h.doubled) list.push({ key: `dbl-${h.id}`, amount: stake, pos: seatPoint(+seat, 0.93, offset + 0.055), from: 'player', seat: +seat, result: h.result });
+        if (h.result && h.payout > h.bet) {
+          list.push({ key: `pay-${h.id}`, amount: h.payout - h.bet, pos: seatPoint(+seat, 0.93, offset - 0.055), from: 'rack', seat: +seat, result: h.result, delay: (6 - +seat) * 260 + k * 120 });
+        }
+      });
+    });
+  }
+  return list;
+}
+
+function syncChips(st) {
+  const want = desiredStacks(st);
+  const keys = new Set(want.map(w => w.key));
+  for (const w of want) {
+    const stack = stacks.get(w.key);
+    if (stack && stack.amount === w.amount) continue;
+    const group = buildStack(w.amount, w.key);
+    const target = w.pos.clone();
+    // Bestaande stapel (bijgezet) of inzet die bij het delen overgaat van stoel naar hand: alleen verschuiven
+    const inherited = !stack && w.betKey ? stacks.get(w.betKey) : null;
+    const previous = stack || inherited;
+    if (inherited) stacks.delete(w.betKey);
+    scene.add(group);
+    stacks.set(w.key, { group, amount: w.amount, info: w });
+    if (previous) {
+      const from = previous.group.position.clone();
+      scene.remove(previous.group);
+      group.position.copy(from);
+      if (stack) sound.chip();
+      animate(250, t => group.position.lerpVectors(from, target, easeOut(t)));
+      continue;
+    }
+    const from = w.from === 'rack' ? RACK.clone().add(new THREE.Vector3(0, 0.03, 0)) : seatPoint(w.seat, 1.35).setY(TABLE_Y + 0.05);
+    group.position.copy(from);
+    group.visible = w.from !== 'rack';
+    sleep(w.delay || 0).then(() => {
+      group.visible = true;
+      sound.chip();
+      return animate(w.from === 'rack' ? 520 : 320, t => {
+        group.position.lerpVectors(from, target, easeOut(t));
+        group.position.y += Math.sin(Math.PI * t) * 0.03;
+      });
+    });
+  }
+  // Stapels die verdwijnen: verloren naar het rek, anders terug naar de speler
+  for (const [key, stack] of stacks) {
+    if (keys.has(key)) continue;
+    stacks.delete(key);
+    const info = stack.info;
+    const lost = info && (info.result === 'lose' || key.startsWith('ins-'));
+    const to = lost ? RACK.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.03, 0)) : seatPoint(info ? info.seat : 0, 1.4).setY(TABLE_Y + 0.05);
+    const from = stack.group.position.clone();
+    const delay = lost ? 0 : 150;
+    sleep(delay).then(() => animate(lost ? 480 : 380, t => {
+      stack.group.position.lerpVectors(from, to, easeInOut(t));
+      stack.group.position.y += Math.sin(Math.PI * t) * 0.03;
+      if (!lost) stack.group.traverse(o => { if (o.material) o.visible = t < 0.85; });
+    })).then(() => scene.remove(stack.group));
+  }
+}
+
+// Verloren inzetten gaan al bij de uitslag naar het rek
+function collectLosers(st) {
+  if (st.phase !== 'settle') return;
+  for (const h of st.hands) {
+    if (h.result !== 'lose') continue;
+    for (const key of [`hand-${h.id}`, `dbl-${h.id}`]) {
+      const stack = stacks.get(key);
+      if (!stack || stack.taken) continue;
+      stack.taken = true;
+      const from = stack.group.position.clone();
+      const to = RACK.clone().add(new THREE.Vector3((hash(key) - 0.5) * 0.4, 0.03, 0));
+      sleep((6 - h.seat) * 220).then(() => {
+        sound.chip();
+        return animate(520, t => {
+          stack.group.position.lerpVectors(from, to, easeInOut(t));
+          stack.group.position.y += Math.sin(Math.PI * t) * 0.04;
+        });
+      }).then(() => { stack.group.visible = false; });
+    }
+  }
+}
+
+// =====================================================
+// STATUS + SERVER
+// =====================================================
+let state = null;
+let me = null;
+let clockOffset = 0;
+const clockSamples = [];
+const serverNow = () => Date.now() + clockOffset;
+function addClockSample(sample) {
+  clockSamples.push(sample);
+  if (clockSamples.length > 12) clockSamples.shift();
+  clockOffset = Math.max(...clockSamples);
+}
+
+async function api(action, body = {}, quiet = false) {
+  try {
+    const res = await fetch(`/api/blackjack/${action}`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (me && me.linked && typeof data.balance === 'number') { me.balance = data.balance; renderUser(); }
+    if (data.message && (!quiet || !data.ok)) toast(data.message, data.ok);
+    return data;
+  } catch (error) {
+    toast('Geen verbinding met de server.', false);
+    return { ok: false };
+  }
+}
+
+async function loadMe() {
+  try {
+    me = await (await fetch('/api/me', { credentials: 'same-origin' })).json();
+  } catch (error) {
+    me = { linked: false };
+  }
+  renderUser();
+  renderControls(true);
+  renderOverlay();
+}
+
+function connect() {
+  const es = new EventSource('/api/blackjack/stream');
+  es.onmessage = event => {
+    const data = JSON.parse(event.data);
+    addClockSample(data.serverNow - Date.now());
+    applyState(data);
+  };
+  es.addEventListener('time', event => addClockSample(JSON.parse(event.data).serverNow - Date.now()));
+}
+
+let lastMessageAt = 0;
+function applyState(next) {
+  const prev = state;
+  state = next;
+  syncCards(next, prev);
+  syncChips(next);
+  collectLosers(next);
+  if (!prev || prev.shoe.remaining !== next.shoe.remaining) updateDiscardStack();
+  if (next.phase === 'shuffle' && (!prev || prev.phase !== 'shuffle')) enqueue(shuffleTask);
+
+  // Dealer kijkt naar wie aan de beurt is
+  const active = next.hands.find(h => h.id === next.activeHandId);
+  if (active && !queueBusy) lookTarget = seatPoint(active.seat, 1.3).setY(1.0);
+  else if (next.phase === 'idle' || next.phase === 'betting') lookTarget = new THREE.Vector3(Math.sin(performance.now() / 4000) * 0.6, 1.0, 1.2);
+
+  if (me && me.linked) {
+    const mine = next.seats.find(s => s && s.userId === me.user.id);
+    if (mine && mine.balance !== me.balance) { me.balance = mine.balance; renderUser(); }
+  }
+  if (next.message && next.message.at !== lastMessageAt) lastMessageAt = next.message.at;
+  renderControls();
+  renderOverlay();
+  renderSideInfo();
+}
+
+async function shuffleTask() {
+  lookTarget = shoe.position.clone().setY(TABLE_Y + 0.1);
+  for (let i = 0; i < 3; i++) {
+    await Promise.all([
+      moveHand(arms.right, shoe.position.clone().add(new THREE.Vector3(0.0, 0.08, 0.06)), 420),
+      moveHand(arms.left, shoe.position.clone().add(new THREE.Vector3(-0.15, 0.06, 0.02)), 420)
+    ]);
+    sound.card();
+    await Promise.all([restHand(arms.right, 380), restHand(arms.left, 380)]);
+  }
+  discardCount = 0;
+  updateDiscardStack();
+}
+
+// =====================================================
+// UI
+// =====================================================
+let toastTimer = null;
+function toast(message, ok) {
+  if (!message) return;
+  const box = $('toast');
+  box.textContent = message;
+  box.className = `toast show ${ok ? 'ok' : 'err'}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { box.className = 'toast'; }, ok ? 2600 : 4200);
+}
+
+function el(tag, props = {}, children = []) {
+  const node = document.createElement(tag);
+  Object.entries(props).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === false) return;
+    if (key === 'class') node.className = value;
+    else if (key === 'text') node.textContent = value;
+    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value === true ? '' : value);
+  });
+  children.forEach(child => node.append(child));
+  return node;
+}
+
+function renderUser() {
+  const box = $('user');
+  box.replaceChildren();
+  if (!me || !me.linked) { box.hidden = true; return; }
+  box.hidden = false;
+  const img = el('img', { alt: '' });
+  if (me.user.avatar) img.src = me.user.avatar;
+  box.append(img,
+    el('div', {}, [el('div', { class: 'name', text: me.user.username }), el('div', { class: 'balance', text: `${fmt(me.balance)} punten` })]),
+    el('button', { text: 'Uitloggen', onclick: async () => { await fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); loadMe(); } }));
+}
+
+const mySeat = () => (state && me && me.linked) ? state.seats.findIndex(s => s && s.userId === me.user.id) : -1;
+
+function renderSideInfo() {
+  if (!state) return;
+  const box = $('sideInfo');
+  const pct = Math.round((state.shoe.remaining / Math.max(1, state.shoe.total)) * 100);
+  box.replaceChildren(
+    el('div', { class: 'pill' }, ['Schoen: ', el('b', { text: state.shoe.total ? `${pct}%` : '–' }), ` · ${state.config.decks} decks`]),
+    el('div', { class: 'pill' }, ['Inzet ', el('b', { text: `${state.config.minBet}–${state.config.maxBet}` })])
+  );
+  if (state.queue.length) {
+    box.append(el('div', { class: 'pill' }, ['Wachtrij: ', el('b', { text: state.queue.map(q => q.username).join(', ') })]));
+  }
+}
+
+// --- Overlay (namen, totalen, uitslagen) ---
+const overlayItems = []; // { node, world }
+function addTag(node, world) {
+  node.classList.add('tag');
+  $('overlay').append(node);
+  overlayItems.push({ node, world });
+}
+
+function handLabel(h) {
+  if (h.status === 'blackjack' || (h.cards.length === 2 && h.total === 21 && !h.fromSplit)) return { text: 'BJ', cls: 'bj' };
+  if (h.total > 21) return { text: `${h.total}`, cls: 'bust' };
+  const soft = h.soft && h.total < 21 ? `${h.total - 10}/${h.total}` : `${h.total}`;
+  return { text: soft, cls: '' };
+}
+
+function renderOverlay() {
+  if (!state) return;
+  $('overlay').replaceChildren();
+  overlayItems.length = 0;
+  const seatIndex = mySeat();
+  const canSit = me && me.linked && seatIndex === -1 && !state.queue.some(q => me && q.userId === me.user.id);
+
+  state.seats.forEach((seat, i) => {
+    const world = seatPoint(i, 1.2).setY(TABLE_Y + 0.06);
+    if (!seat) {
+      if (canSit) addTag(el('button', { class: 'seat-btn', text: `Ga zitten · ${i + 1}`, onclick: () => api('sit', { seat: i }) }), world);
+      else addTag(el('div', { class: 'seat-free', text: `STOEL ${i + 1}` }), world);
+      return;
+    }
+    const active = state.hands.find(h => h.id === state.activeHandId);
+    const img = el('img', { alt: '' });
+    if (seat.avatar) img.src = seat.avatar;
+    const plate = el('div', { class: `plate ${me && me.linked && seat.userId === me.user.id ? 'me' : ''} ${active && active.seat === i ? 'turn' : ''} ${seat.leaving ? 'leaving' : ''}` }, [
+      img,
+      el('div', {}, [el('div', { class: 'n', text: seat.username }), el('div', { class: 'b', text: `${fmt(seat.balance)}` })])
+    ]);
+    addTag(plate, world);
+  });
+
+  // Totalen en uitslagen per hand
+  const bySeat = {};
+  state.hands.forEach(h => { (bySeat[h.seat] = bySeat[h.seat] || []).push(h); });
+  Object.entries(bySeat).forEach(([seat, hands]) => {
+    hands.forEach((h, k) => {
+      if (!h.cards.length) return;
+      const offset = (k - (hands.length - 1) / 2) * CARD_W * 1.45;
+      const isActive = h.id === state.activeHandId && state.phase === 'playing';
+      const label = handLabel(h);
+      const wrap = el('div', { style: 'text-align:center' });
+      if (h.result && ['settle', 'collect'].includes(state.phase)) {
+        const texts = { win: `WIN +${fmt(h.payout - h.bet)}`, blackjack: `BLACKJACK +${fmt(h.payout - h.bet)}`, push: 'PUSH', lose: h.total > 21 ? 'BUST' : 'VERLOREN' };
+        wrap.append(el('div', { class: `result ${h.result}`, text: texts[h.result] }));
+      } else {
+        wrap.append(el('span', { class: `total ${label.cls} ${isActive ? 'active' : ''}`, text: label.text + (h.doubled ? ' ×2' : '') }));
+        if (isActive && state.awaitingDecision) {
+          const bar = el('i');
+          bar.dataset.ends = state.phaseEndsAt;
+          bar.dataset.total = state.config.decisionMs;
+          wrap.append(el('div', { class: 'timer' }, [bar]));
+        }
+      }
+      addTag(wrap, seatPoint(+seat, 0.56, offset).setY(TABLE_Y + 0.02));
+    });
+  });
+
+  // Dealer
+  if (state.dealer.cards.length) {
+    const d = state.dealer;
+    const text = d.blackjack ? 'BJ' : String(d.total);
+    addTag(el('span', { class: `total ${d.total > 21 ? 'bust' : d.blackjack ? 'bj' : ''}`, text }), CENTER.clone().add(new THREE.Vector3(0, 0.02, 0.36)));
+  }
+  if (state.message && state.message.text && serverNow() - state.message.at < 6000) {
+    addTag(el('div', { class: 'bubble', text: state.message.text }), new THREE.Vector3(0, 1.95, -0.74));
+  }
+}
+
+function projectOverlay() {
+  const w = innerWidth, h = innerHeight;
+  for (const item of overlayItems) {
+    const p = item.world.clone().project(camera);
+    item.node.style.left = `${(p.x * 0.5 + 0.5) * w}px`;
+    item.node.style.top = `${(-p.y * 0.5 + 0.5) * h}px`;
+    item.node.style.display = p.z > 1 ? 'none' : '';
+  }
+  document.querySelectorAll('.timer i, .phasebar i').forEach(bar => {
+    const left = Math.max(0, Number(bar.dataset.ends) - serverNow());
+    bar.style.transform = `scaleX(${Math.min(1, left / Number(bar.dataset.total))})`;
+    bar.style.background = left < 4000 ? 'var(--red)' : '';
+  });
+}
+
+// --- Bediening ---
+let betDraft = 0;
+let lastControlsKey = '';
+function renderControls(force) {
+  const box = $('controls');
+  if (!state || !me) return;
+  const seatIndex = mySeat();
+  const seat = seatIndex >= 0 ? state.seats[seatIndex] : null;
+  const active = state.hands.find(h => h.id === state.activeHandId);
+  const myTurn = active && seatIndex >= 0 && active.seat === seatIndex && state.awaitingDecision && state.phase === 'playing';
+  const inQueue = me.linked && state.queue.findIndex(q => q.userId === me.user.id);
+  const key = [state.phase, seatIndex, seat && seat.bet, seat && seat.insuranceDecided, myTurn && active.id, myTurn && active.cards.length, JSON.stringify(state.allowed), inQueue, me.linked, me.balance, state.activeHandId, state.roundId].join('|');
+  if (!force && key === lastControlsKey) return;
+  lastControlsKey = key;
+  box.replaceChildren();
+
+  if (!me.linked) {
+    box.append(el('div', { class: 'info' }, ['Je kijkt mee. Wil je spelen? Typ ', el('code', { text: '/tafel' }), ' in Discord en klik op de link.']));
+    return;
+  }
+
+  if (!seat) {
+    if (inQueue >= 0) {
+      box.append(el('div', { class: 'info' }, ['De tafel is vol. Je staat in de wachtrij op ', el('b', { text: `plek ${inQueue + 1}` }), '. Zodra er een stoel vrijkomt ga je automatisch zitten.']),
+        el('div', { class: 'row' }, [el('button', { class: 'act ghost', text: 'Wachtrij verlaten', onclick: () => api('leave') })]));
+    } else if (state.seats.some(s => !s)) {
+      box.append(el('div', { class: 'info', text: 'Klik op een vrije stoel aan de tafel om te gaan zitten.' }));
+    } else {
+      box.append(el('div', { class: 'info', text: 'Alle 7 stoelen zijn bezet.' }),
+        el('div', { class: 'row' }, [el('button', { class: 'act double', text: 'In de wachtrij', onclick: () => api('sit', {}) })]));
+    }
+    return;
+  }
+
+  const standBtn = el('button', { class: 'act ghost', text: seat.leaving ? 'Je staat op na deze ronde' : 'Opstaan', disabled: seat.leaving, onclick: () => api('leave') });
+
+  // Inzetten
+  if (state.phase === 'idle' || state.phase === 'betting') {
+    betDraft = seat.bet;
+    const cfg = state.config;
+    const chips = [10, 25, 100, 500].map(v => {
+      const d = DENOMS.find(x => x.v === v);
+      return el('button', {
+        class: 'chipbtn', text: v, style: `background:${d.color}`, disabled: seat.bet + v > cfg.maxBet || v > me.balance,
+        onclick: () => { sound.chip(); api('bet', { amount: Math.min(cfg.maxBet, seat.bet + v) }, true); }
+      });
+    });
+    const info = el('div', { class: 'betinfo' }, [el('b', { text: seat.bet ? fmt(seat.bet) : '0' }), el('small', { text: seat.bet ? 'INZET' : `MIN ${cfg.minBet}` })]);
+    box.append(el('div', { class: 'row' }, [...chips.slice(0, 2), info, ...chips.slice(2)]));
+    const row = el('div', { class: 'row' }, [
+      el('button', { class: 'act ghost', text: 'Wis', disabled: !seat.bet, onclick: () => api('bet', { amount: 0 }, true) }),
+      el('button', { class: 'act ghost', text: `Herhaal${seat.lastBet ? ` (${seat.lastBet})` : ''}`, disabled: !seat.lastBet || seat.bet === seat.lastBet, onclick: () => api('bet', { amount: seat.lastBet }, true) }),
+      el('button', { class: 'act ghost', text: '×2', disabled: !seat.bet || seat.bet * 2 > cfg.maxBet, onclick: () => api('bet', { amount: seat.bet * 2 }, true) }),
+      standBtn
+    ]);
+    box.append(row);
+    if (state.phase === 'betting') {
+      const bar = el('i');
+      bar.dataset.ends = state.phaseEndsAt;
+      bar.dataset.total = state.config.bettingMs;
+      box.append(el('div', { class: 'info', text: seat.bet ? 'Wachten tot de dealer deelt…' : 'Plaats je inzet, de dealer deelt zo.' }), el('div', { class: 'phasebar' }, [bar]));
+    } else {
+      box.append(el('div', { class: 'info', text: 'Plaats een inzet om de ronde te starten.' }));
+    }
+    return;
+  }
+
+  // Verzekering
+  const myHands = state.hands.filter(h => h.seat === seatIndex);
+  if (state.phase === 'insurance' && myHands.length && !seat.insuranceDecided) {
+    const cost = Math.floor(myHands[0].bet / 2);
+    const bar = el('i');
+    bar.dataset.ends = state.phaseEndsAt;
+    bar.dataset.total = state.config.insuranceMs;
+    box.append(
+      el('div', { class: 'info' }, ['De dealer toont een aas. ', el('b', { text: `Verzekering voor ${cost} punten?` }), ' Betaalt 2 op 1 als de dealer blackjack heeft.']),
+      el('div', { class: 'row' }, [
+        el('button', { class: 'act hit', text: 'Ja, verzekeren', disabled: cost > me.balance, onclick: () => api('insurance', { take: true }) }),
+        el('button', { class: 'act stand', text: 'Nee', onclick: () => api('insurance', { take: false }) })
+      ]),
+      el('div', { class: 'phasebar' }, [bar])
+    );
+    return;
+  }
+
+  // Aan de beurt
+  if (myTurn) {
+    const allowed = state.allowed || {};
+    const actBtn = (cls, label, keyHint, action, enabled) => el('button', {
+      class: `act ${cls}`, disabled: !enabled, onclick: () => api('act', { action }, true)
+    }, [label, el('small', { text: keyHint })]);
+    box.append(
+      el('div', { class: 'info' }, ['Jij bent aan de beurt', myHands.length > 1 ? ` (hand ${myHands.findIndex(h => h.id === active.id) + 1} van ${myHands.length})` : '', ': ', el('b', { text: handLabel(active).text })]),
+      el('div', { class: 'row' }, [
+        actBtn('hit', 'Kaart', 'H', 'hit', allowed.hit),
+        actBtn('stand', 'Pas', 'S', 'stand', allowed.stand),
+        actBtn('double', 'Verdubbel', 'D', 'double', allowed.double),
+        actBtn('split', 'Splits', 'P', 'split', allowed.split)
+      ])
+    );
+    return;
+  }
+
+  // Wachten
+  const texts = {
+    shuffle: 'De dealer schudt een nieuwe schoen…',
+    dealing: 'De kaarten worden gedeeld…',
+    insurance: 'Wachten op de verzekering van andere spelers…',
+    peek: 'De dealer kijkt of hij blackjack heeft…',
+    playing: active ? `${state.seats[active.seat] ? state.seats[active.seat].username : 'Een speler'} is aan de beurt` : 'Spelers zijn aan de beurt…',
+    dealer: 'De dealer speelt zijn hand…',
+    settle: 'Uitbetalen…',
+    collect: 'De kaarten worden opgeruimd…'
+  };
+  const myResult = myHands.length && ['settle', 'collect'].includes(state.phase)
+    ? myHands.reduce((sum, h) => sum + (h.payout - h.bet), 0) : null;
+  box.append(el('div', { class: 'info' }, [
+    myHands.length || !['dealing', 'playing'].includes(state.phase) ? '' : 'Je speelt mee vanaf de volgende ronde. ',
+    texts[state.phase] || '',
+    myResult !== null ? el('b', { text: ` Jouw resultaat: ${myResult >= 0 ? '+' : ''}${fmt(myResult)}`, style: `color:${myResult > 0 ? 'var(--green)' : myResult < 0 ? 'var(--red)' : 'var(--text)'}` }) : ''
+  ]), el('div', { class: 'row' }, [standBtn]));
+}
+
+addEventListener('keydown', event => {
+  if (!state || event.target.tagName === 'INPUT') return;
+  const map = { h: 'hit', s: 'stand', d: 'double', p: 'split' };
+  const action = map[event.key.toLowerCase()];
+  const seatIndex = mySeat();
+  const active = state.hands.find(h => h.id === state.activeHandId);
+  if (action && active && active.seat === seatIndex && state.awaitingDecision && state.allowed && state.allowed[action]) {
+    api('act', { action }, true);
+  }
+});
+
+// =====================================================
+// LUS
+// =====================================================
+let last = performance.now();
+let overlayTick = 0;
+
+// Automatische kwaliteit: trage apparaten krijgen minder pixels en daarna minder schaduw
+const perf = { frames: 0, time: 0, level: 0 };
+function adaptQuality(frameMs) {
+  perf.frames++;
+  perf.time += frameMs;
+  if (perf.frames < 90) return;
+  const avg = perf.time / perf.frames;
+  perf.frames = 0;
+  perf.time = 0;
+  if (avg > 28 && perf.level === 0) {
+    perf.level = 1;
+    renderer.setPixelRatio(1);
+    resize();
+  } else if (avg > 28 && perf.level === 1) {
+    perf.level = 2;
+    spot.shadow.mapSize.set(1024, 1024);
+    spot.shadow.map?.dispose();
+    spot.shadow.map = null;
+  } else if (avg > 40 && perf.level === 2) {
+    perf.level = 3;
+    renderer.shadowMap.enabled = false;
+    scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
+  }
+}
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  adaptQuality(now - last);
+  last = now;
+  runTweens(now);
+  updateDealer(now, dt);
+  camera.position.set(camBase.x + mouseX * 0.12, camBase.y - mouseY * 0.06, camBase.z);
+  camera.lookAt(camLook);
+  renderer.render(scene, camera);
+  projectOverlay();
+  // Berichten van de dealer verlopen vanzelf
+  if (now - overlayTick > 1000) { overlayTick = now; if (state && state.message) renderOverlay(); }
+  requestAnimationFrame(frame);
+}
+
+const params = new URLSearchParams(location.search);
+if (params.get('login') === 'invalid') {
+  setTimeout(() => toast('Die link is ongeldig of verlopen. Typ /tafel in Discord voor een nieuwe.', false), 300);
+  history.replaceState(null, '', '/blackjack');
+}
+
+loadMe();
+connect();
+requestAnimationFrame(frame);
+setTimeout(() => $('loading').classList.add('done'), 400);
+</script>
+</body>
+</html>
