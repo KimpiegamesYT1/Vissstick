@@ -673,7 +673,7 @@ async function handleCasinoCommands(interaction, client, config) {
             '**/blackjack** — Speel Blackjack tegen de dealer',
             '**/mines** — Kies inzet en difficulty, ontwijk de bommen',
             '**/double** — Double or Nothing: verdubbel je inzet of verlies alles',
-            '**/rocket** — Multiplayer: stap in en cash uit voordat de raket crasht',
+            '**/rocket** — Multiplayer op de website: cash uit voordat de raket crasht',
             '**/galgje** — Raad het Nederlandse woord met een inzet',
             '**/4opeenrij** `<tegenstander>` — Daag iemand uit met een inzet',
             '**/bet status** — Bekijk de actieve JA/NEE weddenschappen'

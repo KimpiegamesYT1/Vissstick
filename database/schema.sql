@@ -294,6 +294,17 @@ CREATE TABLE IF NOT EXISTS blackjack_stats (
 );
 CREATE INDEX IF NOT EXISTS idx_blackjack_stats_games ON blackjack_stats(games_played DESC);
 
+-- Rocket website sessies (gekoppeld via een eenmalige link uit Discord)
+CREATE TABLE IF NOT EXISTS rocket_web_sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    avatar_url TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_rocket_web_sessions_user ON rocket_web_sessions(user_id);
+
 -- Mines stats
 CREATE TABLE IF NOT EXISTS mines_stats (
     user_id TEXT PRIMARY KEY,

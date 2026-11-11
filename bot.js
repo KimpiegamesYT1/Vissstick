@@ -18,7 +18,8 @@ const { createHokPublicApiHandler } = require('./api/hokPublicApi');
 const { updateCasinoEmbed, sendLog, handleBetButton, handleDoubleOrNothingButton, handleBlackjackButton, handleApprovalButton, handleMinesButton } = require('./commands/casinoCommands.js');
 const { handleConnectFourButton } = require('./commands/connectFourCommands.js');
 const { handleHangmanButton } = require('./commands/hangmanCommands.js');
-const { handleRocketInteraction } = require('./commands/rocketCommands.js');
+const rocketGame = require('./modules/rocketGame.js');
+const { createRocketWebHandler } = require('./api/rocketWeb');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, STARBOARD_CHANNEL_ID, GROQ_API_KEY, COUNTING_CHANNEL_ID: RAW_COUNTING_CHANNEL_ID } = config;
@@ -189,6 +190,8 @@ function startPublicApiServer() {
     rateLimitMaxRequests: PUBLIC_API_RATE_LIMIT_MAX_REQUESTS,
   });
 
+  const rocketWebHandler = createRocketWebHandler();
+
   publicApiServer = http.createServer((req, res) => {
     let requestUrl;
     try {
@@ -202,6 +205,10 @@ function startPublicApiServer() {
 
     if (requestUrl.pathname === '/api/public/hok/status') {
       hokStatusHandler(req, res);
+      return;
+    }
+
+    if (rocketWebHandler(req, res, requestUrl)) {
       return;
     }
 
@@ -777,21 +784,8 @@ client.on('interactionCreate', async (interaction) => {
       await handleHangmanButton(interaction, client, config);
       return;
     }
-    // Try Rocket buttons
-    if (interaction.customId.startsWith('rk_')) {
-      await handleRocketInteraction(interaction);
-      return;
-    }
     // Then quiz buttons
     quiz.handleQuizButton(interaction);
-    return;
-  }
-
-  // Handle modal submits (Rocket inzet)
-  if (interaction.isModalSubmit()) {
-    if (interaction.customId.startsWith('rk_')) {
-      await handleRocketInteraction(interaction);
-    }
     return;
   }
 
@@ -815,6 +809,7 @@ client.once("clientReady", async () => {
   try {
     initDatabase();
     console.log('✅ Database geïnitialiseerd');
+    rocketGame.init(client, config);
   } catch (error) {
     console.error('❌ Database initialisatie mislukt:', error);
     process.exit(1);

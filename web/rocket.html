@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rocket</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2312142b'/%3E%3Cpath d='M9 23l3-7 9-9c2-1 4-1 4-1s0 2-1 4l-9 9-7 3z' fill='%23eceef8'/%3E%3Ccircle cx='19' cy='13' r='2' fill='%234fc3f7'/%3E%3Cpath d='M9 23l2-5 3 3z' fill='%23ff7b29'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b0d1f;
+    --panel: #12142b;
+    --panel-2: #1a1d3a;
+    --line: rgba(255, 255, 255, 0.08);
+    --text: #eceef8;
+    --muted: #8b90b8;
+    --orange: #ff9f1c;
+    --orange-2: #ff5e3a;
+    --green: #57f287;
+    --red: #ed4245;
+    --blue: #4fc3f7;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    min-height: 100vh;
+  }
+  button, input { font: inherit; color: inherit; }
+  .app { max-width: 1240px; margin: 0 auto; padding: 16px; }
+
+  /* Header */
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 3px; font-size: 18px; }
+  .brand svg { width: 30px; height: 30px; }
+  .history { flex: 1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  .history::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip.low { color: var(--red); background: rgba(237, 66, 69, 0.14); }
+  .chip.high { color: var(--green); background: rgba(87, 242, 135, 0.14); }
+  .user { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; flex: none; }
+  .user[hidden] { display: none; }
+  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--panel-2); }
+  .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
+  .user .balance { color: var(--orange); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
+  .user button:hover { background: var(--panel-2); color: var(--text); }
+
+  /* Layout */
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .stage { position: relative; aspect-ratio: 16 / 9; overflow: hidden; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .conn {
+    position: absolute; top: 12px; right: 12px; font-size: 12px; color: var(--muted);
+    display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,.35); padding: 4px 10px; border-radius: 999px;
+  }
+  .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; }
+  .conn.off i { background: var(--red); }
+
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  .panel { padding: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 700; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  .field { margin-bottom: 12px; }
+  input[type="text"], input[type="number"] {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; outline: none;
+  }
+  input:focus { border-color: var(--orange); }
+  .quick { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .quick button {
+    flex: 1; min-width: 44px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 0; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .quick button:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+  .btn {
+    width: 100%; border: 0; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 800;
+    cursor: pointer; letter-spacing: .5px; transition: transform .06s ease, filter .15s ease;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #1b0e00; }
+  .btn.cashout { background: var(--green); color: #052a12; font-size: 20px; padding: 18px; font-variant-numeric: tabular-nums; }
+  .btn.ghost { background: var(--panel-2); color: var(--muted); margin-top: 8px; font-size: 14px; padding: 10px; }
+  .btn:hover:not(:disabled) { filter: brightness(1.08); }
+  .note { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
+  .note code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; color: var(--text); }
+  .result { text-align: center; padding: 6px 0 2px; }
+  .result .big { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .result .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .win { color: var(--green); }
+  .loss { color: var(--red); }
+
+  /* Spelers */
+  .players { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
+  .players li {
+    display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 10px;
+    background: rgba(255,255,255,.035); border-radius: 10px; padding: 7px 10px; border-left: 3px solid transparent;
+  }
+  .players li.won { border-left-color: var(--green); }
+  .players li.lost { border-left-color: var(--red); }
+  .players li.me { background: rgba(255, 159, 28, .08); }
+  .players img { width: 28px; height: 28px; border-radius: 50%; background: var(--panel-2); }
+  .players .pname { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .players .pbet { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .players .pstat { font-weight: 800; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .players .pstat small { display: block; color: var(--muted); font-weight: 600; font-size: 11px; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 12px 0; }
+  .count { float: right; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+
+  /* Uitleg */
+  .how { padding: 16px; margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .how div { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .how b { display: block; color: var(--text); margin-bottom: 4px; font-size: 14px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: var(--panel-2); border: 1px solid var(--line); padding: 10px 16px; border-radius: 12px;
+    font-size: 14px; font-weight: 600; transition: all .2s ease; pointer-events: none; max-width: calc(100% - 32px);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok { border-color: rgba(87,242,135,.4); }
+  .toast.err { border-color: rgba(237,66,69,.5); }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .how { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    .app { padding: 12px; }
+    header { flex-wrap: wrap; }
+    .history { order: 3; flex-basis: 100%; }
+    .user { margin-left: auto; }
+    .stage { aspect-ratio: 4 / 3; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 23l3-7 9-9c2-1 4-1 4-1s0 2-1 4l-9 9-7 3z" fill="#eceef8"/><circle cx="19" cy="13" r="2" fill="#4fc3f7"/><path d="M9 23l2-5 3 3z" fill="#ff7b29"/><path d="M12 16l-4 1 2-4 4-1zM16 20l-1 4 4-2 1-4z" fill="#ed4245"/></svg>
+      ROCKET
+    </div>
+    <div class="history" id="history"></div>
+    <div class="user" id="user" hidden></div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="card stage">
+        <canvas id="canvas"></canvas>
+        <div class="conn" id="conn"><i></i><span>Live</span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card panel" id="action"></div>
+      <div class="card panel">
+        <h2>SPELERS <span class="count" id="playerCount"></span></h2>
+        <ul class="players" id="players"></ul>
+      </div>
+    </div>
+  </div>
+  <div class="card how">
+    <div><b>1. Stap in</b>Zet tijdens de lobby (30s) een inzet. Een auto-cashout is optioneel.</div>
+    <div><b>2. Cash out</b>De multiplier stijgt vanaf 1.00x. Cash uit voordat de raket crasht en je wint inzet × multiplier.</div>
+    <div><b>3. Crash</b>Crasht de raket eerder, dan ben je je inzet kwijt. De uitslag komt daarna in Discord.</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // =====================================================
+  // STATE + KLOK
+  // =====================================================
+  let state = null;          // publieke spelstatus van de server
+  let me = null;             // { linked, user, balance }
+  let clockOffset = 0;       // serverTijd - lokale tijd
+  const clockSamples = [];
+
+  // Verzendvertraging is altijd positief, dus de grootste meting zit het dichtst bij de echte offset
+  function addClockSample(sample) {
+    clockSamples.push(sample);
+    if (clockSamples.length > 12) clockSamples.shift();
+    clockOffset = Math.max(...clockSamples);
+  }
+  const serverNow = () => Date.now() + clockOffset;
+
+  const $ = id => document.getElementById(id);
+  const fmt = m => `${m.toFixed(2)}x`;
+  const growth = () => (state && state.config.growth) || 0.18;
+  const multiplierAt = t => Math.exp(growth() * t);
+  const timeFor = m => Math.log(m) / growth();
+  const floorMult = m => Math.floor(m * 100) / 100;
+
+  function myPlayer() {
+    if (!state || !state.game || !me || !me.linked) return null;
+    return state.game.players.find(p => p.userId === me.user.id) || null;
+  }
+
+  function flightTime(game) {
+    if (game.phase === 'crashed') return timeFor(game.crashPoint);
+    return (serverNow() - game.flightStart) / 1000;
+  }
+
+  // =====================================================
+  // SERVER
+  // =====================================================
+  async function api(action, body = {}) {
+    try {
+      const res = await fetch(`/api/rocket/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'same-origin'
+      });
+      const data = await res.json();
+      if (me && me.linked && typeof data.balance === 'number') me.balance = data.balance;
+      toast(data.message, data.ok);
+      renderUser();
+      return data;
+    } catch (error) {
+      toast('Geen verbinding met de server.', false);
+      return { ok: false };
+    }
+  }
+
+  async function loadMe() {
+    try {
+      const res = await fetch('/api/rocket/me', { credentials: 'same-origin' });
+      me = await res.json();
+    } catch (error) {
+      me = { linked: false };
+    }
+    renderUser();
+    renderAction(true);
+    renderPlayers();
+  }
+
+  let meTimer = null;
+  function refreshMeSoon() {
+    clearTimeout(meTimer);
+    meTimer = setTimeout(loadMe, 300);
+  }
+
+  function connect() {
+    const es = new EventSource('/api/rocket/stream');
+    es.onopen = () => $('conn').classList.remove('off');
+    es.onerror = () => $('conn').classList.add('off');
+    es.onmessage = event => {
+      const data = JSON.parse(event.data);
+      addClockSample(data.serverNow - Date.now());
+      applyState(data);
+    };
+    es.addEventListener('time', event => {
+      addClockSample(JSON.parse(event.data).serverNow - Date.now());
+    });
+  }
+
+  function applyState(next) {
+    const prev = state;
+    state = next;
+    const prevGame = prev && prev.game;
+    const game = next.game;
+
+    const phaseChanged = !prevGame || !game || prevGame.id !== game.id || prevGame.phase !== game.phase;
+    if (phaseChanged) {
+      renderAction(true);
+      if (game && game.phase === 'crashed') resetExplosion();
+    }
+
+    // Saldo bijwerken als mijn eigen inzet/cashout veranderde (ook auto-cashout)
+    if (me && me.linked) {
+      const mine = g => g && g.players.find(p => p.userId === me.user.id);
+      const a = mine(prevGame), b = mine(game);
+      if (JSON.stringify(a) !== JSON.stringify(b) || phaseChanged) refreshMeSoon();
+    }
+
+    renderHistory();
+    renderPlayers();
+    if (!phaseChanged) renderAction(false);
+  }
+
+  // =====================================================
+  // UI
+  // =====================================================
+  let toastTimer = null;
+  function toast(message, ok) {
+    if (!message) return;
+    const el = $('toast');
+    el.textContent = message;
+    el.className = `toast show ${ok ? 'ok' : 'err'}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = 'toast'; }, 2800);
+  }
+
+  function el(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    Object.entries(props).forEach(([key, value]) => {
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = value;
+      else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value);
+    });
+    children.forEach(child => node.append(child));
+    return node;
+  }
+
+  function renderUser() {
+    const box = $('user');
+    box.replaceChildren();
+    if (!me || !me.linked) { box.hidden = true; return; }
+    box.hidden = false;
+    const img = el('img', { alt: '' });
+    if (me.user.avatar) img.src = me.user.avatar;
+    box.append(
+      img,
+      el('div', {}, [
+        el('div', { class: 'name', text: me.user.username }),
+        el('div', { class: 'balance', text: `${me.balance} punten` })
+      ]),
+      el('button', {
+        text: 'Uitloggen',
+        title: 'Ontkoppel dit apparaat',
+        onclick: async () => { await api('logout'); loadMe(); }
+      })
+    );
+  }
+
+  function renderHistory() {
+    const box = $('history');
+    box.replaceChildren(...(state ? state.history : []).map(m =>
+      el('span', { class: `chip ${m >= 2 ? 'high' : 'low'}`, text: fmt(m) })));
+  }
+
+  function renderPlayers() {
+    const list = $('players');
+    const game = state && state.game;
+    const players = game ? [...game.players] : [];
+    $('playerCount').textContent = game ? `${players.length}/${state.config.maxPlayers}` : '';
+
+    if (players.length === 0) {
+      list.replaceChildren(el('li', { class: 'empty', text: game && game.phase === 'lobby' ? 'Nog niemand ingestapt.' : 'Geen spelers.' }));
+      list.firstChild.style.display = 'block';
+      return;
+    }
+
+    const crashed = game.phase === 'crashed';
+    players.sort((a, b) => (b.cashedAt ? b.payout - b.bet : -1e9) - (a.cashedAt ? a.payout - a.bet : -1e9) || b.bet - a.bet);
+    list.replaceChildren(...players.map(p => {
+      const won = Boolean(p.cashedAt);
+      const lost = crashed && !won;
+      const img = el('img', { alt: '' });
+      if (p.avatar) img.src = p.avatar;
+
+      let stat;
+      if (won) stat = el('div', { class: 'pstat win' }, [`+${p.payout - p.bet}`, el('small', { text: `@ ${fmt(p.cashedAt)}` })]);
+      else if (lost) stat = el('div', { class: 'pstat loss' }, [`-${p.bet}`, el('small', { text: 'crash' })]);
+      else stat = el('div', { class: 'pstat' }, [p.autoCashout ? fmt(p.autoCashout) : '—', el('small', { text: p.autoCashout ? 'auto' : 'handmatig' })]);
+
+      const isMe = me && me.linked && p.userId === me.user.id;
+      return el('li', { class: `${won ? 'won' : ''} ${lost ? 'lost' : ''} ${isMe ? 'me' : ''}` }, [
+        img,
+        el('div', {}, [el('div', { class: 'pname', text: p.username }), el('div', { class: 'pbet', text: `${p.bet} punten` })]),
+        stat
+      ]);
+    }));
+  }
+
+  // Houd ingevulde waarden vast tussen renders
+  const form = { bet: '100', auto: '' };
+
+  function renderAction(force) {
+    const box = $('action');
+    const game = state && state.game;
+    const phase = game ? game.phase : 'idle';
+    const mine = myPlayer();
+    const key = [phase, game && game.id, me && me.linked, mine && mine.bet, mine && mine.autoCashout, mine && mine.cashedAt].join('|');
+    if (!force && box.dataset.key === key) return;
+    box.dataset.key = key;
+    box.replaceChildren();
+
+    if (!me) return;
+
+    if (!me.linked) {
+      box.append(
+        el('h2', { text: 'KOPPEL JE DISCORD' }),
+        el('p', { class: 'note' }, [
+          'Typ ', el('code', { text: '/rocket' }), ' in Discord en klik op ', el('b', { text: 'Open Rocket' }),
+          '. Dit hoef je maar één keer per apparaat te doen. Meekijken kan altijd.'
+        ])
+      );
+      return;
+    }
+
+    if (phase === 'lobby') {
+      const betInput = el('input', { type: 'number', inputmode: 'numeric', min: state.config.minBet, max: state.config.maxBet, value: mine ? mine.bet : form.bet });
+      betInput.addEventListener('input', () => { form.bet = betInput.value; });
+      const autoInput = el('input', { type: 'text', inputmode: 'decimal', placeholder: 'Leeg = zelf uitcashen', value: mine ? (mine.autoCashout ? mine.autoCashout.toFixed(2) : '') : form.auto });
+      autoInput.addEventListener('input', () => { form.auto = autoInput.value; });
+
+      const setBet = v => { betInput.value = v; form.bet = String(v); };
+      const setAuto = v => { autoInput.value = v; form.auto = v; };
+      const maxBet = Math.max(state.config.minBet, Math.min(state.config.maxBet, me.balance + (mine ? mine.bet : 0)));
+
+      box.append(
+        el('h2', { text: mine ? 'JE ZIT IN DE RAKET' : 'INSTAPPEN' }),
+        el('div', { class: 'field' }, [
+          el('label', { text: `Inzet (${state.config.minBet}–${state.config.maxBet})` }),
+          betInput,
+          el('div', { class: 'quick' }, [10, 50, 100, 250].map(v => el('button', { type: 'button', text: v, onclick: () => setBet(v) }))
+            .concat(el('button', { type: 'button', text: 'MAX', onclick: () => setBet(maxBet) })))
+        ]),
+        el('div', { class: 'field' }, [
+          el('label', { text: 'Auto-cashout (optioneel)' }),
+          autoInput,
+          el('div', { class: 'quick' }, ['1.5', '2', '3', '5', '10'].map(v => el('button', { type: 'button', text: `${v}x`, onclick: () => setAuto(v) }))
+            .concat(el('button', { type: 'button', text: 'Uit', onclick: () => setAuto('') })))
+        ]),
+        el('button', {
+          class: 'btn primary',
+          text: mine ? 'Inzet aanpassen' : 'Instappen',
+          onclick: () => api('join', { bet: betInput.value, autoCashout: autoInput.value.trim() || null })
+        })
+      );
+      if (mine) box.append(el('button', { class: 'btn ghost', text: 'Uitstappen', onclick: () => api('leave') }));
+      return;
+    }
+
+    if (phase === 'flying') {
+      if (!mine) {
+        box.append(el('h2', { text: 'IN DE LUCHT' }), el('p', { class: 'note', text: 'Je speelt deze ronde niet mee. Na de crash kun je een nieuwe ronde starten.' }));
+        return;
+      }
+      if (mine.cashedAt) {
+        box.append(el('h2', { text: 'UITGECASHT' }), el('div', { class: 'result' }, [
+          el('div', { class: 'big win', text: `+${mine.payout - mine.bet}` }),
+          el('div', { class: 'sub', text: `${mine.payout} punten @ ${fmt(mine.cashedAt)}` })
+        ]));
+        return;
+      }
+      const button = el('button', { class: 'btn cashout', id: 'cashoutBtn', onclick: cashOut });
+      box.append(
+        el('h2', { text: mine.autoCashout ? `AUTO-CASHOUT OP ${fmt(mine.autoCashout)}` : 'CASH OUT (SPATIE)' }),
+        button,
+        el('p', { class: 'note', style: 'margin-top:10px', text: `Inzet ${mine.bet} punten` })
+      );
+      updateCashoutButton();
+      return;
+    }
+
+    // Geen ronde, geannuleerd of gecrasht
+    if (phase === 'crashed' && mine) {
+      const won = Boolean(mine.cashedAt);
+      box.append(el('h2', { text: 'JOUW RESULTAAT' }), el('div', { class: 'result' }, [
+        el('div', { class: `big ${won ? 'win' : 'loss'}`, text: won ? `+${mine.payout - mine.bet}` : `-${mine.bet}` }),
+        el('div', { class: 'sub', text: won ? `Uitgecasht op ${fmt(mine.cashedAt)}` : `Gecrasht op ${fmt(game.crashPoint)}` })
+      ]));
+      box.lastChild.style.marginBottom = '14px';
+    } else {
+      box.append(el('h2', { text: 'NIEUWE RONDE' }), el('p', { class: 'note', style: 'margin-bottom:14px', text: 'Start een ronde: iedereen heeft dan 30 seconden om in te stappen.' }));
+    }
+    box.append(el('button', { class: 'btn primary', text: 'Start nieuwe ronde', onclick: () => api('start') }));
+  }
+
+  function updateCashoutButton() {
+    const button = $('cashoutBtn');
+    const game = state && state.game;
+    const mine = myPlayer();
+    if (!button || !game || game.phase !== 'flying' || !mine) return;
+    const m = floorMult(multiplierAt(Math.max(0, flightTime(game))));
+    button.textContent = `CASH OUT  ${Math.floor(mine.bet * m)}`;
+  }
+
+  let cashingOut = false;
+  async function cashOut() {
+    if (cashingOut) return;
+    cashingOut = true;
+    await api('cashout');
+    cashingOut = false;
+  }
+
+  document.addEventListener('keydown', event => {
+    if (event.code !== 'Space' || event.target.tagName === 'INPUT') return;
+    if ($('cashoutBtn')) { event.preventDefault(); cashOut(); }
+  });
+
+  // =====================================================
+  // CANVAS
+  // =====================================================
+  const canvas = $('canvas');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+  }
+  new ResizeObserver(resize).observe(canvas);
+
+  const stars = Array.from({ length: 90 }, () => ({
+    x: Math.random(), y: Math.random(), r: Math.random() * 1.3 + 0.3, depth: Math.random() * 0.8 + 0.2, tw: Math.random() * Math.PI * 2
+  }));
+  let starShift = 0;
+
+  const smoke = [];
+  let explosion = null;
+  function resetExplosion() {
+    explosion = {
+      sparks: Array.from({ length: 36 }, () => ({ a: Math.random() * Math.PI * 2, v: 60 + Math.random() * 180, s: 1.5 + Math.random() * 2.5 })),
+      debris: Array.from({ length: 10 }, () => ({ a: Math.random() * Math.PI * 2, v: 30 + Math.random() * 90, spin: (Math.random() - .5) * 10 }))
+    };
+  }
+
+  function niceStep(range, maxLines) {
+    return [0.1, 0.2, 0.5, 1, 2, 5, 10, 20].find(s => range / s <= maxLines) || 20;
+  }
+
+  function plotArea() {
+    const small = W < 520;
+    return { left: small ? 40 : 56, right: W - (small ? 14 : 24), top: small ? 18 : 28, bottom: H - (small ? 28 : 36) };
+  }
+
+  function drawBackground(dt, speed) {
+    ctx.fillStyle = '#12142b';
+    ctx.fillRect(0, 0, W, H);
+    const glow = ctx.createRadialGradient(W * 0.8, H * 0.1, 0, W * 0.8, H * 0.1, W * 0.7);
+    glow.addColorStop(0, 'rgba(255, 94, 58, 0.10)');
+    glow.addColorStop(1, 'rgba(255, 94, 58, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    starShift += dt * speed;
+    const now = performance.now() / 1000;
+    for (const s of stars) {
+      const x = (((s.x - starShift * s.depth) % 1) + 1) % 1 * W;
+      const y = (((s.y + starShift * s.depth * 0.35) % 1) + 1) % 1 * H;
+      ctx.globalAlpha = 0.35 + 0.35 * Math.sin(now * 2 + s.tw) * s.depth + 0.2;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x, y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function buildScale(t, m) {
+    const area = plotArea();
+    const xMax = Math.max(4, t * 1.12);
+    const yMax = Math.max(2, 1 + (m - 1) * 1.22);
+    return {
+      ...area, xMax, yMax,
+      px: time => area.left + (time / xMax) * (area.right - area.left),
+      py: mult => area.bottom - ((mult - 1) / (yMax - 1)) * (area.bottom - area.top)
+    };
+  }
+
+  function drawGrid(sc) {
+    ctx.font = '600 11px system-ui, sans-serif';
+    ctx.fillStyle = '#8b90b8';
+    ctx.lineWidth = 1;
+
+    const yStep = niceStep(sc.yMax - 1, 5);
+    ctx.textAlign = 'right';
+    for (let v = Math.floor(1 / yStep + 1) * yStep; v < sc.yMax; v += yStep) {
+      const y = sc.py(v);
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+      ctx.beginPath(); ctx.moveTo(sc.left, y); ctx.lineTo(sc.right, y); ctx.stroke();
+      ctx.fillText(`${+v.toFixed(1)}x`, sc.left - 8, y + 4);
+    }
+    const xStep = niceStep(sc.xMax, 6);
+    ctx.textAlign = 'center';
+    for (let v = xStep; v < sc.xMax; v += xStep) {
+      const x = sc.px(v);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.beginPath(); ctx.moveTo(x, sc.top); ctx.lineTo(x, sc.bottom); ctx.stroke();
+      ctx.fillText(`${+v.toFixed(1)}s`, x, sc.bottom + 18);
+    }
+    ctx.strokeStyle = 'rgba(139,144,184,0.5)';
+    ctx.beginPath();
+    ctx.moveTo(sc.left, sc.top); ctx.lineTo(sc.left, sc.bottom); ctx.lineTo(sc.right, sc.bottom);
+    ctx.stroke();
+  }
+
+  function drawCurve(sc, t, crashed) {
+    const samples = 90;
+    ctx.beginPath();
+    for (let i = 0; i <= samples; i++) {
+      const time = (t * i) / samples;
+      const x = sc.px(time), y = sc.py(multiplierAt(time));
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    const tipX = sc.px(t);
+
+    // Vlak onder de curve
+    ctx.save();
+    ctx.lineTo(tipX, sc.bottom);
+    ctx.lineTo(sc.left, sc.bottom);
+    ctx.closePath();
+    const fill = ctx.createLinearGradient(0, sc.top, 0, sc.bottom);
+    fill.addColorStop(0, crashed ? 'rgba(237,66,69,0.30)' : 'rgba(255,159,28,0.30)');
+    fill.addColorStop(1, 'rgba(255,159,28,0)');
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.restore();
+
+    // Lijn zelf (opnieuw tekenen zonder sluiting)
+    ctx.beginPath();
+    for (let i = 0; i <= samples; i++) {
+      const time = (t * i) / samples;
+      const x = sc.px(time), y = sc.py(multiplierAt(time));
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    const stroke = ctx.createLinearGradient(sc.left, sc.bottom, tipX, sc.py(multiplierAt(t)));
+    stroke.addColorStop(0, crashed ? '#a3292b' : '#ffb347');
+    stroke.addColorStop(1, crashed ? '#ed4245' : '#ff5e3a');
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 4.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = crashed ? 'rgba(237,66,69,0.6)' : 'rgba(255,120,40,0.7)';
+    ctx.shadowBlur = 14;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawRocket(x, y, angle, scale = 1) {
+    const now = performance.now();
+    const flame = 12 + Math.sin(now / 35) * 4 + Math.random() * 3;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.scale(scale, scale);
+
+    const flameGrad = ctx.createLinearGradient(-16 - flame, 0, -14, 0);
+    flameGrad.addColorStop(0, 'rgba(255,94,58,0)');
+    flameGrad.addColorStop(0.5, '#ff7b29');
+    flameGrad.addColorStop(1, '#ffe066');
+    ctx.fillStyle = flameGrad;
+    ctx.beginPath(); ctx.moveTo(-15, -5); ctx.quadraticCurveTo(-16 - flame, 0, -15, 5); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#ed4245';
+    ctx.beginPath(); ctx.moveTo(-16, -6); ctx.lineTo(-8, -6); ctx.lineTo(-21, -14); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-16, 6); ctx.lineTo(-8, 6); ctx.lineTo(-21, 14); ctx.closePath(); ctx.fill();
+
+    const body = ctx.createLinearGradient(0, -7, 0, 7);
+    body.addColorStop(0, '#ffffff');
+    body.addColorStop(1, '#c9cce0');
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.roundRect(-17, -6.5, 27, 13, 5);
+    ctx.fill();
+
+    ctx.fillStyle = '#ed4245';
+    ctx.beginPath(); ctx.moveTo(9, -6.5); ctx.quadraticCurveTo(24, 0, 9, 6.5); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#4fc3f7';
+    ctx.strokeStyle = '#2b2d31';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(0, 0, 3.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  function updateSmoke(dt, x, y, angle, emitting) {
+    if (emitting) {
+      for (let i = 0; i < 2; i++) {
+        smoke.push({
+          x: x - Math.cos(angle) * 22, y: y - Math.sin(angle) * 22,
+          vx: -Math.cos(angle) * 30 + (Math.random() - .5) * 20, vy: -Math.sin(angle) * 30 + (Math.random() - .5) * 20 + 10,
+          life: 1, r: 3 + Math.random() * 3
+        });
+      }
+    }
+    for (let i = smoke.length - 1; i >= 0; i--) {
+      const p = smoke[i];
+      p.life -= dt * 1.4;
+      if (p.life <= 0) { smoke.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt; p.r += dt * 10;
+      ctx.globalAlpha = p.life * 0.25;
+      ctx.fillStyle = '#c9cce0';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawExplosion(x, y, elapsed) {
+    if (!explosion) resetExplosion();
+    const p = Math.min(1, elapsed / 1.4);
+    const fade = 1 - p;
+
+    if (elapsed < 0.15) {
+      ctx.fillStyle = `rgba(255,246,213,${0.35 * (1 - elapsed / 0.15)})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    const ring = 10 + p * 110;
+    ctx.strokeStyle = `rgba(255,179,71,${0.7 * fade})`;
+    ctx.lineWidth = 3 * fade + 0.5;
+    ctx.beginPath(); ctx.arc(x, y, ring, 0, Math.PI * 2); ctx.stroke();
+
+    const core = ctx.createRadialGradient(x, y, 0, x, y, 20 + p * 45);
+    core.addColorStop(0, `rgba(255,246,213,${fade})`);
+    core.addColorStop(0.4, `rgba(255,123,41,${0.8 * fade})`);
+    core.addColorStop(1, 'rgba(237,66,69,0)');
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(x, y, 20 + p * 45, 0, Math.PI * 2); ctx.fill();
+
+    for (const s of explosion.sparks) {
+      const d = s.v * Math.min(elapsed, 1.4) * (1 - p * 0.4);
+      ctx.fillStyle = `rgba(255,209,102,${fade})`;
+      ctx.beginPath(); ctx.arc(x + Math.cos(s.a) * d, y + Math.sin(s.a) * d + 30 * elapsed * elapsed, s.s * fade + 0.3, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const b of explosion.debris) {
+      const d = b.v * elapsed;
+      ctx.save();
+      ctx.translate(x + Math.cos(b.a) * d, y + Math.sin(b.a) * d + 60 * elapsed * elapsed);
+      ctx.rotate(b.spin * elapsed);
+      ctx.fillStyle = `rgba(201,204,224,${Math.max(0, 1 - elapsed / 2.5)})`;
+      ctx.fillRect(-3, -2, 6, 4);
+      ctx.restore();
+    }
+  }
+
+  function drawCashouts(sc, game, t, crashed) {
+    ctx.font = '700 12px system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    for (const p of game.players) {
+      if (!p.cashedAt) continue;
+      const tp = timeFor(p.cashedAt);
+      if (tp > t + 0.01) continue;
+      const x = sc.px(tp), y = sc.py(p.cashedAt);
+      ctx.fillStyle = '#57f287';
+      ctx.strokeStyle = '#12142b';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+      const since = t - tp;
+      if (!crashed && since < 1.6) {
+        ctx.globalAlpha = Math.max(0, 1 - since / 1.6);
+        ctx.fillText(`${p.username} +${p.payout - p.bet}`, x - 10, y - 8 - since * 26);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  function drawCenter(lines) {
+    const cx = W / 2;
+    const cy = H * 0.46;
+    lines.forEach(({ text, size, color, weight = 800, dy = 0, spacing = 0 }) => {
+      ctx.font = `${weight} ${size}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = color;
+      if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacing}px`;
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 12;
+      ctx.fillText(text, cx, cy + dy);
+      ctx.shadowBlur = 0;
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+    });
+  }
+
+  let lastFrame = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - lastFrame) / 1000);
+    lastFrame = now;
+    if (!W || !H) { requestAnimationFrame(frame); return; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const game = state && state.game;
+    const phase = game ? game.phase : 'idle';
+    const big = Math.max(40, Math.min(96, W * 0.11));
+    const small = Math.max(12, Math.round(big * 0.2));
+
+    if (phase === 'flying' || phase === 'crashed') {
+      const rawT = flightTime(game);
+      const t = Math.max(0, rawT);
+      const crashed = phase === 'crashed';
+      const m = crashed ? game.crashPoint : multiplierAt(t);
+
+      drawBackground(dt, crashed ? 0.004 : 0.02 + Math.min(0.25, (m - 1) * 0.03));
+      const sc = buildScale(t, m);
+      drawGrid(sc);
+      drawCurve(sc, t, crashed);
+      drawCashouts(sc, game, t, crashed);
+
+      const x = sc.px(t), y = sc.py(m);
+      const dxdt = (sc.right - sc.left) / sc.xMax;
+      const dydt = (growth() * m * (sc.bottom - sc.top)) / (sc.yMax - 1);
+      const angle = rawT < 0 ? -Math.PI / 4 : Math.atan2(-dydt, dxdt);
+
+      if (crashed) {
+        updateSmoke(dt, x, y, angle, false);
+        const crashServerTime = game.flightStart + timeFor(game.crashPoint) * 1000;
+        drawExplosion(x, y, Math.max(0, (serverNow() - crashServerTime) / 1000));
+        drawCenter([
+          { text: fmt(game.crashPoint), size: big, color: '#ed4245' },
+          { text: 'CRASHED', size: small, color: '#ed4245', dy: big * 0.3 + small + 4, spacing: 5 }
+        ]);
+      } else {
+        updateSmoke(dt, x, y, angle, rawT >= 0);
+        const shake = rawT < 0 ? (Math.random() - 0.5) * 2.5 : 0;
+        drawRocket(x + shake, y + shake, angle, W < 520 ? 1.1 : 1.35);
+        const mine = myPlayer();
+        const color = mine && mine.cashedAt ? '#57f287' : '#ffffff';
+        const lines = [{ text: fmt(floorMult(m)), size: big, color }];
+        if (rawT < 0) lines.push({ text: `LIFTOFF ${Math.ceil(-rawT)}`, size: small, color: '#ffb347', dy: big * 0.3 + small + 4, spacing: 5 });
+        else if (mine && !mine.cashedAt) lines.push({ text: `${Math.floor(mine.bet * floorMult(m))} punten`, size: Math.max(13, Math.round(big * 0.22)), color: '#57f287', dy: big * 0.3 + small + 4, weight: 700 });
+        drawCenter(lines);
+      }
+      updateCashoutButton();
+    } else {
+      drawBackground(dt, 0.006);
+      const sc = buildScale(0, 1);
+      drawGrid(sc);
+      drawRocket(sc.left + 4, sc.bottom - 4, -Math.PI / 4, W < 520 ? 1.1 : 1.35);
+
+      if (phase === 'lobby') {
+        const left = Math.max(0, (game.launchAt - serverNow()) / 1000);
+        drawCenter([
+          { text: 'VERTREK OVER', size: small, color: '#8b90b8', dy: -big * 0.8 - 6, spacing: 5, weight: 700 },
+          { text: `${left.toFixed(1)}s`, size: big, color: '#ffffff' },
+          { text: `${game.players.length} ${game.players.length === 1 ? 'speler' : 'spelers'} aan boord`, size: small, color: '#ffb347', dy: big * 0.3 + small + 4, weight: 700 }
+        ]);
+        // Voortgangsbalk
+        const sc2 = plotArea();
+        const progress = 1 - left / 30;
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(sc2.left, H - 6, sc2.right - sc2.left, 3);
+        ctx.fillStyle = '#ff9f1c';
+        ctx.fillRect(sc2.left, H - 6, (sc2.right - sc2.left) * Math.min(1, progress), 3);
+      } else {
+        drawCenter([
+          { text: 'Wachten op een nieuwe ronde', size: Math.max(16, Math.round(big * 0.32)), color: '#dcdfee', weight: 700 },
+          { text: 'Start er een met de knop rechts', size: Math.max(12, Math.round(big * 0.18)), color: '#8b90b8', dy: big * 0.3 + small + 4, weight: 600 }
+        ]);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // =====================================================
+  // START
+  // =====================================================
+  const params = new URLSearchParams(location.search);
+  if (params.get('login') === 'invalid') {
+    setTimeout(() => toast('Die link is ongeldig of verlopen. Typ /rocket in Discord voor een nieuwe.', false), 300);
+    history.replaceState(null, '', '/rocket');
+  }
+
+  resize();
+  loadMe();
+  connect();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
