@@ -90,6 +90,9 @@
   .play:active:not(:disabled) { transform: scale(.98); }
   .play:disabled { background: var(--raise); color: var(--muted); cursor: not-allowed; }
   .play.cashout { background: var(--orange); color: #241a02; font-size: 18px; }
+  .play.stop { background: var(--red); color: #fff; }
+  .play + .play { margin-top: 8px; }
+  .autoinfo { margin-top: 10px; font-size: 13px; color: var(--muted); text-align: center; }
   .link { display: block; margin: 10px auto 0; background: none; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; text-decoration: underline; }
   .last { margin-top: 12px; font-size: 13px; color: var(--muted); text-align: center; }
   .last b { font-variant-numeric: tabular-nums; }
@@ -253,7 +256,7 @@
       });
       const data = await res.json();
       if (me && me.linked && typeof data.balance === 'number') me.balance = data.balance;
-      if (!quiet || !data.ok) {
+      if (quiet !== 'silent' && (!quiet || !data.ok)) {
         toast(data.message, data.ok);
         setNotice(data.message, data.ok);
       }
@@ -315,6 +318,7 @@
     renderHistory();
     renderPlayers();
     renderAction(phaseChanged);
+    autoTick();
   }
 
   // =====================================================
@@ -424,12 +428,16 @@
   // Ingevulde waarden blijven bewaard tussen renders
   const form = { mode: 'manual', bet: '100', auto: '2.00' };
 
+  // Auto-inzet: zet elke ronde automatisch dezelfde inzet in tot je stopt
+  let autoPlay = null; // { bet, cashout, rounds, lastGameId, nextTry, jitter }
+  let autoBusy = false;
+
   function renderAction(force) {
     const box = $('action');
     const game = state && state.game;
     const phase = game ? game.phase : 'idle';
     const mine = myPlayer();
-    const key = [phase, game && game.id, me && me.linked, mine && mine.bet, mine && mine.autoCashout, mine && mine.cashedAt, form.mode].join('|');
+    const key = [phase, game && game.id, me && me.linked, mine && mine.bet, mine && mine.autoCashout, mine && mine.cashedAt, form.mode, autoPlay ? autoPlay.rounds : '-'].join('|');
     if (!force && box.dataset.key === key) return;
     if (box.dataset.key && box.dataset.key.split('|')[0] !== phase) notice = null;
     box.dataset.key = key;
@@ -446,8 +454,8 @@
     }
 
     const cfg = state ? state.config : { minBet: 10, maxBet: 250 };
-    const editable = phase !== 'flying';
-    if (mine && phase === 'lobby') {
+    const editable = phase !== 'flying' && !autoPlay;
+    if (mine && phase === 'lobby' && !autoPlay) {
       form.bet = String(mine.bet);
       if (mine.autoCashout) { form.mode = 'auto'; form.auto = mine.autoCashout.toFixed(2); }
     }
@@ -524,23 +532,49 @@
 
     const joinBody = () => ({ bet: betInput.value, autoCashout: form.mode === 'auto' ? autoInput.value.trim() || null : null });
 
-    // Hoofdknop per fase
-    if (phase === 'lobby') {
+    const cashoutButton = () => {
+      box.append(el('button', { class: 'play cashout', id: 'cashoutBtn', onclick: cashOut }));
+      updateCashoutButton();
+    };
+
+    // Auto-tabblad: elke ronde automatisch inzetten
+    if (form.mode === 'auto') {
+      if (phase === 'flying' && mine && !mine.cashedAt) cashoutButton();
+      if (autoPlay) {
+        box.append(el('button', { class: 'play stop', text: 'Stop auto', onclick: () => stopAuto() }));
+        box.append(el('div', { class: 'autoinfo', text: `Auto actief: ${autoPlay.bet} punten per ronde${autoPlay.cashout ? ` @ ${fmt(Number(autoPlay.cashout))}` : ''} · ${autoPlay.rounds} ${autoPlay.rounds === 1 ? 'ronde' : 'rondes'} gespeeld` }));
+      } else {
+        box.append(el('button', {
+          class: 'play', text: 'Start auto',
+          onclick: guarded(async () => {
+            const cashout = autoInput.value.trim();
+            const value = parseFloat(cashout.replace(',', '.'));
+            if (cashout && !(value >= cfg.minCashout && value <= cfg.maxCashout)) {
+              const problem = `Ongeldige cashout: kies een multiplier tussen ${cfg.minCashout}x en ${cfg.maxCashout}x.`;
+              toast(problem, false); setNotice(problem, false); return;
+            }
+            autoPlay = { bet: Number(betInput.value), cashout: cashout || null, rounds: 0, lastGameId: null, nextTry: 0, jitter: Math.random() * 1200 };
+            toast('Auto staat aan: je zet elke ronde automatisch in.', true);
+            renderAction(true);
+            autoTick();
+          })
+        }));
+      }
+    } else if (phase === 'lobby') {
       box.append(el('button', { class: 'play', text: mine ? 'Inzet aanpassen' : 'Instappen', onclick: guarded(() => api('join', joinBody())) }));
       if (mine) box.append(el('button', { class: 'link', text: 'Uitstappen', onclick: () => api('leave') }));
     } else if (phase === 'flying') {
       if (mine && !mine.cashedAt) {
-        box.append(el('button', { class: 'play cashout', id: 'cashoutBtn', onclick: cashOut }));
-        updateCashoutButton();
+        cashoutButton();
       } else if (mine) {
         box.append(el('button', { class: 'play', disabled: true, text: `Uitgecasht · +${mine.payout - mine.bet}` }));
       } else {
         box.append(el('button', { class: 'play', disabled: true, text: 'Ronde bezig…' }));
       }
     } else {
-      // Geen ronde: starten en meteen instappen
+      // Geen ronde: starten en meteen instappen (na een crash pas na een korte pauze)
       box.append(el('button', {
-        class: 'play', text: 'Start ronde & stap in',
+        class: 'play', id: 'startBtn', text: 'Start ronde & stap in',
         onclick: guarded(async () => {
           const started = await api('start', {}, true);
           if (started.ok) await api('join', joinBody());
@@ -559,6 +593,51 @@
         won ? ` @ ${fmt(mine.cashedAt)}` : ` (crash ${fmt(game.crashPoint)})`
       ]));
     }
+  }
+
+  function stopAuto(reason) {
+    if (!autoPlay) return;
+    autoPlay = null;
+    if (reason) {
+      toast(`Auto gestopt: ${reason}`, false);
+      setNotice(`Auto gestopt: ${reason}`, false);
+    } else {
+      toast('Auto staat uit.', true);
+    }
+    renderAction(true);
+  }
+
+  async function autoTick() {
+    if (!autoPlay || autoBusy || !state || !me || !me.linked) return;
+    const game = state.game;
+    const phase = game ? game.phase : 'idle';
+    autoBusy = true;
+    try {
+      if (phase === 'lobby') {
+        if (myPlayer() || autoPlay.lastGameId === game.id) return;
+        autoPlay.lastGameId = game.id;
+        const result = await api('join', { bet: autoPlay.bet, autoCashout: autoPlay.cashout }, 'silent');
+        if (!autoPlay) return;
+        if (!result.ok) { stopAuto(result.message); return; }
+        autoPlay.rounds++;
+        renderAction(true);
+      } else if (phase !== 'flying' && Date.now() >= autoPlay.nextTry && serverNow() >= (state.nextStartAt || 0) + autoPlay.jitter) {
+        // Geen ronde bezig: zelf een starten (lukt het niet, dan was iemand anders net eerder)
+        autoPlay.nextTry = Date.now() + 1500;
+        await api('start', {}, 'silent');
+      }
+    } finally {
+      autoBusy = false;
+    }
+  }
+  setInterval(autoTick, 400);
+
+  function updateStartButton() {
+    const button = $('startBtn');
+    if (!button || !state) return;
+    const wait = Math.ceil((state.nextStartAt - serverNow()) / 1000);
+    button.disabled = wait > 0;
+    button.textContent = wait > 0 ? `Nieuwe ronde over ${wait}s` : 'Start ronde & stap in';
   }
 
   function updateCashoutButton() {
@@ -1025,6 +1104,7 @@
         drawCenter(lines);
       }
       updateCashoutButton();
+      updateStartButton();
     } else {
       drawBackground(dt, 0.006);
       const sc = buildScale(0, 1);
@@ -1043,7 +1123,7 @@
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
         ctx.fillRect(area.left, H - 6, area.right - area.left, 3);
         ctx.fillStyle = '#f2c14e';
-        ctx.fillRect(area.left, H - 6, (area.right - area.left) * Math.min(1, 1 - left / 30), 3);
+        ctx.fillRect(area.left, H - 6, (area.right - area.left) * Math.min(1, 1 - left / (state.config.lobbyMs / 1000)), 3);
       } else {
         drawCenter([
           { text: 'Wachten op een nieuwe ronde', size: Math.max(16, Math.round(big * 0.32)), color: '#e4e2de', weight: 700 },

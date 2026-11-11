@@ -1,6 +1,6 @@
 /**
  * Rocket spelstatus
- * Het spel wordt volledig op de website gespeeld (api/casinoWeb.js). Een ronde heeft een lobby van 30s,
+ * Het spel wordt volledig op de website gespeeld (api/casinoWeb.js). Een ronde heeft een lobby van 20s,
  * daarna stijgt de multiplier tot het crashpunt. Na een ronde met spelers wordt de uitslag in Discord gepost.
  */
 
@@ -9,7 +9,8 @@ const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const rocket = require('./rocket');
 const casino = require('./casino');
 
-const LOBBY_DURATION = 30000; // 30 seconden om mee te doen
+const LOBBY_DURATION = 20000; // 20 seconden om mee te doen
+const CRASH_COOLDOWN = 6000;  // crash + uitslag blijven even staan voordat er een nieuwe ronde kan starten
 const LIFTOFF_MS = 2000;      // Korte liftoff op 1.00x voordat de multiplier stijgt
 const MIN_BET = 10;
 const MAX_BET = 250;
@@ -72,8 +73,10 @@ function getPublicState() {
       maxBet: MAX_BET,
       minCashout: rocket.MIN_CASHOUT,
       maxCashout: rocket.MAX_CASHOUT,
-      maxPlayers: MAX_PLAYERS
+      maxPlayers: MAX_PLAYERS,
+      lobbyMs: LOBBY_DURATION
     },
+    nextStartAt: lastGame && lastGame.crashedAt ? lastGame.crashedAt + CRASH_COOLDOWN : 0,
     history: crashHistory,
     game: game && {
       id: game.gameId,
@@ -107,6 +110,10 @@ function getPublicState() {
 function startGame(user) {
   if (activeGame) {
     return { ok: false, message: 'Er is al een ronde bezig. Wacht tot die klaar is.' };
+  }
+  const waitMs = lastGame && lastGame.crashedAt ? lastGame.crashedAt + CRASH_COOLDOWN - Date.now() : 0;
+  if (waitMs > 0) {
+    return { ok: false, message: `Even wachten: over ${Math.ceil(waitMs / 1000)} seconden kun je een nieuwe ronde starten.` };
   }
 
   const game = {
@@ -255,6 +262,7 @@ async function launch(game) {
 
   await sleep(game.flightStart + rocket.timeForMultiplier(game.crashPoint) * 1000 - Date.now());
   game.phase = 'crashed';
+  game.crashedAt = Date.now();
   game.autoTimers.forEach(clearTimeout);
   crashHistory.unshift(game.crashPoint);
   if (crashHistory.length > 10) crashHistory.pop();
