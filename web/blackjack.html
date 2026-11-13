@@ -225,7 +225,7 @@
     </svg>
     <span class="word"><small>VISSSTICK</small><b>Blackjack</b></span>
   </a>
-  <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack" class="active">Blackjack</a><a href="/spin">Daily spin</a></nav>
+  <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack" class="active">Blackjack</a><a href="/plinko">Plinko</a><a href="/spin">Daily spin</a></nav>
   <button class="icon-btn snd" id="musicBtn" type="button"></button>
   <button class="icon-btn snd" id="mute" type="button"></button>
   <div class="user" id="user" hidden></div>
@@ -1619,7 +1619,8 @@ function layoutCards(st) {
   const poses = new Map();
   const n = st.dealer.cards.length;
   st.dealer.cards.forEach((c, i) => {
-    const pos = new THREE.Vector3(CENTER.x + (i - (n - 1) / 2) * (CARD_W * 0.78), TABLE_Y + 0.002 + i * 0.0006, CENTER.z + 0.24);
+    // Van links naar rechts neerleggen: eerdere kaarten schuiven nooit op
+    const pos = new THREE.Vector3(CENTER.x - CARD_W * 0.4 + i * CARD_W * 0.72, TABLE_Y + 0.002 + i * 0.0006, CENTER.z + 0.24);
     poses.set(c.id, { pos, rotY: 0 });
   });
   for (let seat = 0; seat < SEATS; seat++) {
@@ -1656,6 +1657,7 @@ function syncCards(st, prev) {
     return;
   }
 
+  const moves = [];
   for (const card of all) {
     const pose = poses.get(card.id);
     let entry = cards.get(card.id);
@@ -1680,9 +1682,10 @@ function syncCards(st, prev) {
       entry.revealQueued = true;
       enqueue(() => revealTask(entry, card));
     } else if (moved && entry.group.visible) {
-      enqueue(() => moveCard(entry, pose));
+      moves.push([entry, pose]);
     }
   }
+  if (moves.length) enqueue(() => Promise.all(moves.map(([entry, pose]) => moveCard(entry, pose))));
 
   // Kaarten die niet meer bestaan (bv. na herladen) direct weghalen
   const ids = new Set(all.map(c => c.id));
@@ -1733,7 +1736,13 @@ function desiredStacks(st) {
   st.seats.forEach((seat, i) => {
     if (!seat) return;
     if (!inRound && seat.bet > 0) list.push({ key: `bet-${i}`, amount: seat.bet, pos: seatPoint(i, 0.93), from: 'player', seat: i });
-    if (inRound && seat.insurance > 0) list.push({ key: `ins-${i}-${st.roundId}`, amount: seat.insurance, pos: seatPoint(i, 0.52), from: 'player', seat: i });
+    // Verzekering: ligt er tot de dealer gekeken heeft. Verloren = meteen weg, gewonnen = uitbetaald (2:1)
+    const insuranceOpen = ['insurance', 'peek'].includes(st.phase);
+    if (inRound && seat.insurance > 0 && (insuranceOpen || st.dealer.blackjack)) {
+      const won = st.dealer.blackjack;
+      list.push({ key: `ins-${i}-${st.roundId}`, amount: seat.insurance, pos: seatPoint(i, 0.52), from: 'player', seat: i, won });
+      if (won) list.push({ key: `inspay-${i}-${st.roundId}`, amount: seat.insurance * 2, pos: seatPoint(i, 0.52, 0.055), from: 'rack', seat: i, won, delay: 300 });
+    }
   });
   if (inRound) {
     const bySeat = {};
@@ -1753,7 +1762,7 @@ function desiredStacks(st) {
   return list;
 }
 
-function syncChips(st) {
+function syncChips(st, instant = false) {
   const want = desiredStacks(st);
   const keys = new Set(want.map(w => w.key));
   for (const w of want) {
@@ -1775,6 +1784,11 @@ function syncChips(st) {
       animate(250, t => group.position.lerpVectors(from, target, easeOut(t)));
       continue;
     }
+    // Pagina net geopend: fiches liggen er al
+    if (instant) {
+      group.position.copy(target);
+      continue;
+    }
     const from = w.from === 'rack' ? RACK.clone().add(new THREE.Vector3(0, 0.03, 0)) : seatPoint(w.seat, 1.35).setY(TABLE_Y + 0.05);
     group.position.copy(from);
     group.visible = w.from !== 'rack';
@@ -1792,7 +1806,7 @@ function syncChips(st) {
     if (keys.has(key)) continue;
     stacks.delete(key);
     const info = stack.info;
-    const lost = info && (info.result === 'lose' || key.startsWith('ins-'));
+    const lost = info && (info.result === 'lose' || (key.startsWith('ins-') && !info.won));
     const to = lost ? RACK.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.03, 0)) : seatPoint(info ? info.seat : 0, 1.4).setY(TABLE_Y + 0.05);
     const from = stack.group.position.clone();
     const delay = lost ? 0 : 150;
@@ -1882,7 +1896,7 @@ function applyState(next) {
   const prev = state;
   state = next;
   syncCards(next, prev);
-  syncChips(next);
+  syncChips(next, !prev);
   collectLosers(next);
   if (!prev || prev.shoe.remaining !== next.shoe.remaining) updateDiscardStack();
   if (next.phase === 'shuffle' && (!prev || prev.phase !== 'shuffle')) enqueue(shuffleTask);
@@ -2368,7 +2382,7 @@ function seatCamera(seat) {
   return { pos, aim };
 }
 // Bij openen: camera zweeft vanuit de zaal naar de tafel
-const INTRO_MS = 2800;
+const INTRO_MS = 1800;
 let introStart = Infinity; // start zodra het laadscherm weg is
 const introFrom = { pos: new THREE.Vector3(1.6, 3.9, 6.8), aim: new THREE.Vector3(0, 1.2, -1.5) };
 function updateCamera(dt) {

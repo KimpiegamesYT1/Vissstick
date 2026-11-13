@@ -152,6 +152,14 @@ function activeHand() {
   return table.hands.find(h => h.id === table.activeHandId) || null;
 }
 
+/**
+ * Is deze stoel nu aan de beurt? Dan direct passen in plaats van de bedenktijd uit te zitten
+ */
+function standIfActive(index) {
+  const hand = activeHand();
+  if (decisionWaiter && hand && hand.seat === index) decisionWaiter.resolve('stand');
+}
+
 function fail(message) {
   return { ok: false, message };
 }
@@ -281,6 +289,7 @@ function sweepAbsent() {
     if (inRound && handsOfSeat(index).length > 0) {
       // Midden in een ronde: hand past automatisch, opstaan na de ronde
       if (!seat.leaving) { seat.leaving = true; changed = true; }
+      standIfActive(index);
       return;
     }
     removeSeat(index);
@@ -333,6 +342,7 @@ function standUp(user) {
   const inRound = table.phase !== 'idle' && table.phase !== 'betting';
   if (inRound && handsOfSeat(index).length > 0) {
     table.seats[index].leaving = true;
+    standIfActive(index);
     emit();
     return { ok: true, message: 'Je staat op na deze ronde.' };
   }
