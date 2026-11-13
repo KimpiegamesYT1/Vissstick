@@ -22,11 +22,12 @@ const MIN_BET = 10;
 const MAX_BET = 500;
 const MAX_HANDS_PER_SEAT = 4;
 const IDLE_ROUNDS_BEFORE_STANDUP = 3;
+const AWAY_GRACE_MS = 20000;        // pagina dicht (of verbinding weg): na 20s automatisch opstaan
+const IDLE_STANDUP_MS = 120000;     // 2 minuten aan tafel zonder inzet terwijl er niet gespeeld wordt
 
 // Tijden (ms), afgestemd op het tempo van een echte tafel
 const TIMING = {
-  betting: 15000,       // inzetten nadat de eerste speler inzet
-  bettingAllIn: 2500,   // iedereen heeft ingezet: snel door
+  betting: 10000,       // vaste inzettijd vanaf de eerste inzet (wordt nooit ingekort of herstart)
   shuffle: 3500,
   deal: 700,            // tussen kaarten bij het delen
   insurance: 9000,
@@ -35,8 +36,8 @@ const TIMING = {
   afterAction: 450,
   dealerReveal: 1100,
   dealerDraw: 1000,
-  settle: 5500,
-  collect: 1600
+  settle: 4500,
+  collect: 1300
 };
 
 const SUITS = ['clubs', 'diamonds', 'hearts', 'spades'];
@@ -223,9 +224,74 @@ function fillSeatsFromQueue() {
 function newSeat(user) {
   return {
     userId: user.id || user.userId, username: user.username, avatar: user.avatar,
-    bet: 0, lastBet: 0, idleRounds: 0, leaving: false, insurance: 0, insuranceDecided: false
+    bet: 0, lastBet: 0, idleRounds: 0, idleSince: Date.now(), leaving: false, insurance: 0, insuranceDecided: false
   };
 }
+
+// =====================================================
+// AANWEZIGHEID
+// Wie de tafelpagina sluit, blijft anders voor altijd zitten (zonder inzetten start er nooit een ronde)
+// =====================================================
+
+const presence = new Map(); // userId -> { count, goneSince }
+
+function presenceOf(userId) {
+  if (!presence.has(userId)) presence.set(userId, { count: 0, goneSince: Date.now() });
+  return presence.get(userId);
+}
+
+/**
+ * Een browser opent de live verbinding van de tafel
+ */
+function connect(userId) {
+  const p = presenceOf(userId);
+  p.count++;
+  p.goneSince = null;
+}
+
+/**
+ * Een browser sluit de live verbinding
+ */
+function disconnect(userId) {
+  const p = presenceOf(userId);
+  p.count = Math.max(0, p.count - 1);
+  if (p.count === 0) p.goneSince = Date.now();
+}
+
+function isAway(userId, now) {
+  const p = presenceOf(userId);
+  return p.count === 0 && now - p.goneSince > AWAY_GRACE_MS;
+}
+
+function sweepAbsent() {
+  const now = Date.now();
+  const inRound = table.phase !== 'idle' && table.phase !== 'betting';
+  let changed = false;
+
+  const before = table.queue.length;
+  table.queue = table.queue.filter(q => !isAway(q.userId, now));
+  if (table.queue.length !== before) changed = true;
+
+  table.seats.forEach((seat, index) => {
+    if (!seat) return;
+    const away = isAway(seat.userId, now);
+    const idle = !inRound && seat.bet === 0 && now - seat.idleSince > IDLE_STANDUP_MS;
+    if (!away && !idle) return;
+    if (inRound && handsOfSeat(index).length > 0) {
+      // Midden in een ronde: hand past automatisch, opstaan na de ronde
+      if (!seat.leaving) { seat.leaving = true; changed = true; }
+      return;
+    }
+    removeSeat(index);
+    changed = true;
+  });
+
+  if (changed) {
+    checkBettingState();
+    emit();
+  }
+}
+setInterval(sweepAbsent, 5000).unref();
 
 function sit(user, seatIndex) {
   if (seatOf(user.id) !== -1) return fail('Je zit al aan tafel.');
@@ -299,6 +365,7 @@ function placeBet(user, amountInput) {
   }
   seat.bet = amount;
   seat.leaving = false;
+  seat.idleSince = Date.now();
   checkBettingState();
   emit();
   return { ok: true, message: amount ? `Inzet: ${amount} punten.` : 'Inzet weggehaald.' };
@@ -312,21 +379,14 @@ function checkBettingState() {
   const seated = table.seats.filter(Boolean);
   const betting = seated.filter(s => s.bet > 0);
 
-  if (betting.length === 0) {
-    clearTimeout(bettingTimer);
-    table.phase = 'idle';
-    table.phaseEndsAt = 0;
-    return;
-  }
+  // Een lopende aftelling blijft gewoon doorlopen, ook als iemand zijn inzet weghaalt
+  // (zonder inzetten gaat de tafel na afloop vanzelf terug naar wachten)
+  if (table.phase === 'betting' || betting.length === 0) return;
   const now = Date.now();
-  let endsAt = table.phase === 'betting' ? table.phaseEndsAt : now + TIMING.betting;
-  if (betting.length === seated.length) endsAt = Math.min(endsAt, now + TIMING.bettingAllIn);
-  if (table.phase !== 'betting' || endsAt !== table.phaseEndsAt) {
-    table.phase = 'betting';
-    table.phaseEndsAt = endsAt;
-    clearTimeout(bettingTimer);
-    bettingTimer = setTimeout(() => runRound().catch(err => console.error('Blackjack ronde fout:', err)), endsAt - now);
-  }
+  table.phase = 'betting';
+  table.phaseEndsAt = now + TIMING.betting;
+  clearTimeout(bettingTimer);
+  bettingTimer = setTimeout(() => runRound().catch(err => console.error('Blackjack ronde fout:', err)), TIMING.betting);
 }
 
 // =====================================================
@@ -350,6 +410,7 @@ async function runRound() {
     table.phaseEndsAt = 0;
     for (let i = 0; i < SEATS; i++) {
       if (table.seats[i] && table.seats[i].leaving) removeSeat(i);
+      else if (table.seats[i]) table.seats[i].idleSince = Date.now();
     }
     fillSeatsFromQueue();
     checkBettingState();
@@ -474,7 +535,7 @@ async function playRound() {
     }
   }
   const dealerTotal = handTotal(table.dealer).total;
-  say(dealerTotal > 21 ? 'Dealer is kapot!' : `Dealer heeft ${dealerTotal}`);
+  say(dealerTotal > 21 ? `Dealer gaat over 21 (${dealerTotal})!` : `Dealer heeft ${dealerTotal}`);
   await settle();
 }
 
@@ -695,6 +756,8 @@ module.exports = {
   placeBet,
   act,
   insurance,
+  connect,
+  disconnect,
   // Voor tests / simulatie
   _internals: { handTotal, isBlackjack, cardValue, newShoe, TIMING, table }
 };

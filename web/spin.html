@@ -55,11 +55,14 @@
   }
   .wheel-wrap { position: relative; width: min(100%, 580px); aspect-ratio: 1; }
   .wheel-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .mute {
-    position: absolute; top: 14px; right: 14px; z-index: 2; background: var(--raise); border: 1px solid var(--line);
-    border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer;
+  .sound-btns { position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; gap: 6px; }
+  .snd {
+    width: 38px; height: 38px; display: grid; place-items: center; background: var(--raise); border: 1px solid var(--line);
+    border-radius: 999px; padding: 0; color: var(--gold); cursor: pointer;
   }
-  .mute:hover { color: var(--text); }
+  .snd svg { width: 19px; height: 19px; }
+  .snd.off { color: var(--muted); }
+  .snd:hover { filter: brightness(1.2); }
 
   .spin-btn {
     position: relative; margin-top: 14px; width: min(100%, 360px); border: 0; border-radius: 14px; padding: 18px;
@@ -176,7 +179,10 @@
 
   <div class="layout">
     <section class="card stage" id="stage">
-      <button class="mute" id="mute" type="button">Geluid aan</button>
+      <div class="sound-btns">
+        <button class="snd" id="musicBtn" type="button"></button>
+        <button class="snd" id="mute" type="button"></button>
+      </div>
       <div class="wheel-wrap" id="wheelWrap"><canvas id="wheel"></canvas></div>
       <button class="spin-btn" id="spinBtn" type="button" disabled>SPIN</button>
       <div class="hint" id="hint"></div>
@@ -442,7 +448,72 @@
     }
   }
 
-  function renderMute() { $('mute').textContent = muted ? 'Geluid uit' : 'Geluid aan'; }
+  // Achtergrondmuziek staat los van de geluidseffecten (standaard aan) en start bij de eerste klik
+  let musicOn = true;
+  try { musicOn = localStorage.getItem('spin_music_off') !== '1'; } catch (error) { /* geen opslag */ }
+  const MUSIC_URL = '/audio/spin-the-winning-wheel.mp3';
+  const MUSIC_VOLUME = 0.25;
+  let musicGain = null;
+  let musicLoading = false;
+  function musicContext() {
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      audioCtx = new Ctx();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  async function startMusic() {
+    if (musicGain || musicLoading || !musicOn) return;
+    const a = musicContext();
+    if (!a) return;
+    musicLoading = true;
+    try {
+      const buffer = await a.decodeAudioData(await (await fetch(MUSIC_URL)).arrayBuffer());
+      const source = a.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      musicGain = a.createGain();
+      musicGain.gain.setValueAtTime(0, a.currentTime);
+      musicGain.gain.linearRampToValueAtTime(musicOn ? MUSIC_VOLUME : 0, a.currentTime + 2.5);
+      source.connect(musicGain).connect(a.destination);
+      source.start();
+    } catch (error) {
+      console.error('Muziek laden mislukt', error);
+    } finally {
+      musicLoading = false;
+    }
+  }
+  addEventListener('pointerdown', startMusic, { once: true });
+  addEventListener('keydown', startMusic, { once: true });
+
+  const SPEAKER = '<path d="M4 9.5h3.2L12 5.6v12.8l-4.8-3.9H4z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>';
+  const NOTE = '<path d="M9 17.5V6.2l10-2.2v11.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6.8" cy="17.6" r="2.4" fill="currentColor"/><circle cx="16.8" cy="15.4" r="2.4" fill="currentColor"/>';
+  const ICONS = {
+    sfxOn: `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER}<path d="M15.2 9.2a4 4 0 0 1 0 5.6M17.8 6.6a7.6 7.6 0 0 1 0 10.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+    sfxOff: `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER}<path d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+    musicOn: `<svg viewBox="0 0 24 24" aria-hidden="true">${NOTE}</svg>`,
+    musicOff: `<svg viewBox="0 0 24 24" aria-hidden="true">${NOTE}<path d="M3.5 3.5l17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
+  };
+  function renderMute() {
+    const music = $('musicBtn'), fx = $('mute');
+    music.innerHTML = musicOn ? ICONS.musicOn : ICONS.musicOff;
+    music.classList.toggle('off', !musicOn);
+    music.title = musicOn ? 'Muziek uitzetten' : 'Muziek aanzetten';
+    music.setAttribute('aria-label', music.title);
+    fx.innerHTML = muted ? ICONS.sfxOff : ICONS.sfxOn;
+    fx.classList.toggle('off', muted);
+    fx.title = muted ? 'Geluidseffecten aanzetten' : 'Geluidseffecten uitzetten';
+    fx.setAttribute('aria-label', fx.title);
+  }
+  $('musicBtn').addEventListener('click', () => {
+    musicOn = !musicOn;
+    try { localStorage.setItem('spin_music_off', musicOn ? '0' : '1'); } catch (error) { /* geen opslag */ }
+    if (musicGain && audioCtx) musicGain.gain.setTargetAtTime(musicOn ? MUSIC_VOLUME : 0, audioCtx.currentTime, 0.35);
+    if (musicOn) startMusic();
+    renderMute();
+  });
   $('mute').addEventListener('click', () => {
     muted = !muted;
     try { localStorage.setItem('spin_muted', muted ? '1' : '0'); } catch (error) { /* geen opslag */ }

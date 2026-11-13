@@ -6,6 +6,7 @@
  *   GET  /blackjack                 Blackjack tafel (3D)
  *   GET  /vendor/three/*.js         three.js (uit node_modules)
  *   GET  /cards/<naam>.png          kaartafbeeldingen
+ *   GET  /audio/<naam>.mp3          achtergrondmuziek (web/audio)
  *   GET  /login?code=...&next=...   eenmalige code uit Discord inwisselen voor een sessie-cookie
  *   GET  /rocket/login?code=...     (oude links uit /rocket)
  *   GET  /api/me                    ingelogde speler + saldo
@@ -193,7 +194,13 @@ function createCasinoWebHandler() {
     res.write('retry: 2000\n');
     res.write(`data: ${JSON.stringify(stream.getState())}\n\n`);
     stream.clients.add(res);
-    req.on('close', () => stream.clients.delete(res));
+    // Aan de blackjack tafel telt een open verbinding als "aanwezig"
+    const user = stream === streams.blackjack ? getUser(req) : null;
+    if (user) blackjackTable.connect(user.id);
+    req.on('close', () => {
+      stream.clients.delete(res);
+      if (user) blackjackTable.disconnect(user.id);
+    });
   }
 
   async function handleAction(req, res, action) {
@@ -317,6 +324,13 @@ function createCasinoWebHandler() {
       const vendorMatch = pathname.match(/^\/vendor\/three\/(three\.(?:module|core)\.js)$/);
       if (vendorMatch) {
         sendStatic(res, readStatic(VENDOR_FILES[vendorMatch[1]]), 'text/javascript; charset=utf-8');
+        return true;
+      }
+      const audioMatch = pathname.match(/^\/audio\/([a-z0-9-]+\.mp3)$/);
+      if (audioMatch) {
+        const file = path.join(WEB_DIR, 'audio', audioMatch[1]);
+        if (!fs.existsSync(file)) return false;
+        sendStatic(res, readStatic(file), 'audio/mpeg');
         return true;
       }
       const cardMatch = pathname.match(/^\/cards\/([a-z0-9_]+\.png)$/);
