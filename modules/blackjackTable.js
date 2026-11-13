@@ -192,7 +192,8 @@ function getPublicState() {
       balance: casino.getUserBalance(s.userId),
       insurance: s.insurance,
       insuranceDecided: s.insuranceDecided,
-      leaving: s.leaving
+      leaving: s.leaving,
+      streak: s.streak
     }),
     hands: table.hands.map(h => {
       const { total, soft } = handTotal(h.cards);
@@ -224,7 +225,7 @@ function fillSeatsFromQueue() {
 function newSeat(user) {
   return {
     userId: user.id || user.userId, username: user.username, avatar: user.avatar,
-    bet: 0, lastBet: 0, idleRounds: 0, idleSince: Date.now(), leaving: false, insurance: 0, insuranceDecided: false
+    bet: 0, lastBet: 0, idleRounds: 0, idleSince: Date.now(), leaving: false, insurance: 0, insuranceDecided: false, streak: 0
   };
 }
 
@@ -744,8 +745,25 @@ async function settle() {
       casino.addBalance(seat.userId, seat.username, hand.payout, `Blackjack tafel: ${result}`);
     }
   }
+  updateStreaks();
   await phase('settle', TIMING.settle);
   await phase('collect', TIMING.collect);
+}
+
+/**
+ * Winstreeks per speler: winst telt op, push laat de reeks staan, verlies zet hem op 0
+ */
+function updateStreaks() {
+  let best = null;
+  table.seats.forEach((seat, index) => {
+    const hands = handsOfSeat(index);
+    if (!seat || hands.length === 0) return;
+    const net = hands.reduce((sum, h) => sum + h.payout - h.bet, 0);
+    if (net > 0) seat.streak++;
+    else if (net < 0) seat.streak = 0;
+    if (net > 0 && seat.streak >= 3 && (!best || seat.streak > best.streak)) best = seat;
+  });
+  if (best) say(`${best.username} wint ${best.streak} keer op rij!`);
 }
 
 module.exports = {

@@ -66,6 +66,13 @@
   .plate.me { border-color: rgba(242,193,78,.7); }
   .plate.turn { border-color: var(--green); box-shadow: 0 0 0 3px rgba(76,212,123,.25), 0 0 18px rgba(76,212,123,.35); }
   .plate.leaving { opacity: .6; }
+  .streak {
+    display: inline-flex; align-items: center; gap: 2px; margin-left: 2px; padding: 2px 7px 2px 4px; border-radius: 999px;
+    background: rgba(242,193,78,.16); color: var(--gold); font-weight: 900; font-size: 12px; font-variant-numeric: tabular-nums;
+  }
+  .streak svg { width: 15px; height: 15px; }
+  .plate.hot { border-color: rgba(239,120,60,.9); box-shadow: 0 0 0 2px rgba(239,120,60,.25), 0 0 20px rgba(242,150,60,.45); animation: hot 1.6s ease-in-out infinite; }
+  @keyframes hot { 50% { box-shadow: 0 0 0 3px rgba(239,120,60,.35), 0 0 28px rgba(242,150,60,.65); } }
   .seat-btn {
     pointer-events: auto; cursor: pointer; border: 1px dashed rgba(242,193,78,.6); background: rgba(14,15,17,.7);
     color: var(--gold); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 800;
@@ -1973,8 +1980,7 @@ function renderSideInfo() {
     }));
   }
   box.append(
-    el('div', { class: 'pill info-pill' }, ['Schoen: ', el('b', { text: state.shoe.total ? `${pct}%` : '–' }), ` · ${state.config.decks} decks`]),
-    el('div', { class: 'pill info-pill' }, ['Inzet ', el('b', { text: `${state.config.minBet}–${state.config.maxBet}` })])
+    el('div', { class: 'pill info-pill' }, ['Schoen: ', el('b', { text: state.shoe.total ? `${pct}%` : '–' }), ` · ${state.config.decks} decks`])
   );
   if (state.queue.length) {
     box.append(el('div', { class: 'pill info-pill' }, ['Wachtrij: ', el('b', { text: state.queue.map(q => q.username).join(', ') })]));
@@ -1982,6 +1988,7 @@ function renderSideInfo() {
 }
 
 // --- Overlay (namen, totalen, uitslagen) ---
+const FLAME_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.6 3.2 3.2 4.8 4.6 7.4 1.6 3 .9 7.4-2.6 9.3a6.6 6.6 0 0 1-8.4-1.9c-1.9-2.6-1.6-6.2.6-8.6.2 1.6 1 2.8 2.3 3.4-.5-3.6.8-7 3.5-9.6z" fill="url(#flameGrad)"/><path d="M12.2 12.2c.4 1.7 2.1 2.6 2.1 4.5a2.4 2.4 0 0 1-4.8.2c-.1-1.6 1.2-2.6 2.7-4.7z" fill="#fff3c4"/><defs><linearGradient id="flameGrad" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef5b4c"/><stop offset="1" stop-color="#f2c14e"/></linearGradient></defs></svg>';
 // Labels worden hergebruikt zolang ze niet veranderen, zodat ze niet steeds opnieuw "poppen"
 const overlayNodes = new Map(); // key -> { node, sig, world }
 
@@ -2041,14 +2048,22 @@ function renderOverlay() {
     }
     const isMe = me && me.linked && seat.userId === me.user.id;
     const turn = active && active.seat === i;
-    const sig = [seat.userId, seat.balance, isMe, turn, seat.leaving].join('|');
+    const streak = seat.streak || 0;
+    const sig = [seat.userId, seat.balance, isMe, turn, seat.leaving, streak].join('|');
     setTag(seen, `seat-${i}`, sig, world, () => {
       const img = el('img', { alt: '' });
       if (seat.avatar) img.src = seat.avatar;
-      return el('div', { class: `plate ${isMe ? 'me' : ''} ${turn ? 'turn' : ''} ${seat.leaving ? 'leaving' : ''}` }, [
+      const plate = el('div', { class: `plate ${isMe ? 'me' : ''} ${turn ? 'turn' : ''} ${seat.leaving ? 'leaving' : ''} ${streak >= 3 ? 'hot' : ''}` }, [
         img,
         el('div', {}, [el('div', { class: 'n', text: seat.username }), el('div', { class: 'b', text: `${fmt(seat.balance)}` })])
       ]);
+      if (streak >= 2) {
+        const badge = el('span', { class: 'streak', title: `${streak} keer op rij gewonnen` });
+        badge.innerHTML = FLAME_ICON;
+        badge.append(String(streak));
+        plate.append(badge);
+      }
+      return plate;
     });
   });
 
@@ -2352,12 +2367,26 @@ function seatCamera(seat) {
   aim.y = TABLE_Y + 0.02;
   return { pos, aim };
 }
+// Bij openen: camera zweeft vanuit de zaal naar de tafel
+const INTRO_MS = 2800;
+let introStart = Infinity; // start zodra het laadscherm weg is
+const introFrom = { pos: new THREE.Vector3(1.6, 3.9, 6.8), aim: new THREE.Vector3(0, 1.2, -1.5) };
 function updateCamera(dt) {
   const seat = mySeat();
   const target = seat >= 0 ? seatCamera(seat) : { pos: camBase, aim: camLook };
-  const k = Math.min(1, dt * 2.5);
-  camPos.lerp(target.pos, k);
-  camAim.lerp(target.aim, k);
+  const t = (performance.now() - introStart) / INTRO_MS;
+  if (t < 1) {
+    const e = t < 0 ? 0 : easeInOut(t);
+    camPos.lerpVectors(introFrom.pos, target.pos, e);
+    camAim.lerpVectors(introFrom.aim, target.aim, e);
+    // Naamplaatjes en totalen pas aan het eind van de zoom infaden
+    $('overlay').style.opacity = String(THREE.MathUtils.clamp((t - 0.75) / 0.25, 0, 1));
+  } else {
+    if ($('overlay').style.opacity !== '1') $('overlay').style.opacity = '1';
+    const k = Math.min(1, dt * 2.5);
+    camPos.lerp(target.pos, k);
+    camAim.lerp(target.aim, k);
+  }
   camera.position.copy(camPos);
   camera.lookAt(camAim);
 }
@@ -2433,7 +2462,10 @@ updateDiscardStack();
 loadMe();
 connect();
 requestAnimationFrame(frame);
-setTimeout(() => $('loading').classList.add('done'), 400);
+setTimeout(() => {
+  $('loading').classList.add('done');
+  introStart = performance.now();
+}, 400);
 </script>
 </body>
 </html>
