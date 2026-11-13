@@ -358,6 +358,18 @@ CREATE TABLE IF NOT EXISTS mines_stats (
 );
 CREATE INDEX IF NOT EXISTS idx_mines_stats_games ON mines_stats(games_played DESC);
 
+-- Plinko stats (website)
+CREATE TABLE IF NOT EXISTS plinko_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    biggest_multiplier REAL DEFAULT 0,
+    last_played DATETIME
+);
+
 -- =====================================================
 -- CHATBOT MODULE
 -- =====================================================

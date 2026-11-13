@@ -4,6 +4,7 @@
  *   GET  /rocket                    Rocket pagina
  *   GET  /spin, /daily              Dagelijkse spin pagina
  *   GET  /blackjack                 Blackjack tafel (3D)
+ *   GET  /plinko                    Plinko
  *   GET  /vendor/three/*.js         three.js (uit node_modules)
  *   GET  /cards/<naam>.png          kaartafbeeldingen
  *   GET  /audio/<naam>.mp3          achtergrondmuziek (web/audio)
@@ -18,6 +19,8 @@
  *   POST /api/spin/reminder         ochtendmelding aan/uit
  *   GET  /api/blackjack/stream      Server-Sent Events met de tafelstatus
  *   POST /api/blackjack/{sit,leave,bet,act,insurance}
+ *   GET  /api/plinko/status         instellingen, tabellen en eigen stats
+ *   POST /api/plinko/drop           laat een bal vallen
  *   POST /api/logout
  */
 
@@ -26,6 +29,7 @@ const path = require('path');
 const rocketGame = require('../modules/rocketGame');
 const dailySpin = require('../modules/dailySpin');
 const blackjackTable = require('../modules/blackjackTable');
+const plinko = require('../modules/plinko');
 const rocketAuth = require('../modules/rocketAuth');
 const casino = require('../modules/casino');
 const { createRateLimiter, getClientIp } = require('./security');
@@ -36,7 +40,7 @@ const COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 const MAX_STREAM_CLIENTS = 300;
 const HEARTBEAT_MS = 15000;
 const MAX_BODY_BYTES = 1024;
-const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack'];
+const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
   'three.core.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.core.js')
@@ -130,10 +134,13 @@ function createCasinoWebHandler() {
   const pages = {
     rocket: fs.readFileSync(path.join(WEB_DIR, 'rocket.html')),
     spin: fs.readFileSync(path.join(WEB_DIR, 'spin.html')),
-    blackjack: fs.readFileSync(path.join(WEB_DIR, 'blackjack.html'))
+    blackjack: fs.readFileSync(path.join(WEB_DIR, 'blackjack.html')),
+    plinko: fs.readFileSync(path.join(WEB_DIR, 'plinko.html'))
   };
   const staticCache = new Map();
   const actionLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 40 });
+  // Plinko: veel snelle ballen achter elkaar (auto-modus), daarom een eigen, ruimere limiet
+  const plinkoLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 100 });
 
   // Live streams per spel
   const streams = {
@@ -210,10 +217,11 @@ function createCasinoWebHandler() {
     }
     const user = getUser(req);
     if (!user) {
-      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin of /tafel in Discord voor je persoonlijke link.' });
+      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel of /plinko in Discord voor je persoonlijke link.' });
       return;
     }
-    if (!actionLimiter.check(user.id).allowed) {
+    const limiter = action === 'plinko/drop' ? plinkoLimiter : actionLimiter;
+    if (!limiter.check(user.id).allowed) {
       sendJson(res, 429, { ok: false, message: 'Rustig aan! Probeer het over een paar seconden opnieuw.' });
       return;
     }
@@ -237,6 +245,7 @@ function createCasinoWebHandler() {
       case 'blackjack/leave': result = blackjackTable.standUp(user); break;
       case 'blackjack/bet': result = blackjackTable.placeBet(user, body.amount); break;
       case 'blackjack/act': result = blackjackTable.act(user, String(body.action || '')); break;
+      case 'plinko/drop': result = plinko.drop(user, body.bet, body.risk, body.rows); break;
       case 'blackjack/insurance': result = blackjackTable.insurance(user, Boolean(body.take)); break;
       case 'spin/reminder':
         dailySpin.setReminder(user.id, Boolean(body.enabled));
@@ -274,6 +283,20 @@ function createCasinoWebHandler() {
         case '/blackjack/':
           sendPage(res, pages.blackjack);
           return true;
+        case '/plinko':
+        case '/plinko/':
+          sendPage(res, pages.plinko);
+          return true;
+        case '/api/plinko/status': {
+          const user = getUser(req);
+          const payload = { linked: Boolean(user), config: plinko.getConfig() };
+          if (user) {
+            casino.getOrCreateUser(user.id, user.username);
+            Object.assign(payload, { user, balance: casino.getUserBalance(user.id), stats: plinko.getStats(user.id) });
+          }
+          sendJson(res, 200, payload);
+          return true;
+        }
         case '/api/blackjack/stream':
           handleStream(req, res, streams.blackjack);
           return true;
@@ -342,7 +365,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

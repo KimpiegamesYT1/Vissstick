@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vissstick Plinko</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%23f2c14e'/%3E%3Cg fill='%2316181b'%3E%3Ccircle cx='20' cy='10' r='2.4'/%3E%3Ccircle cx='14' cy='17' r='2.4'/%3E%3Ccircle cx='26' cy='17' r='2.4'/%3E%3Ccircle cx='8' cy='24' r='2.4'/%3E%3Ccircle cx='20' cy='24' r='2.4'/%3E%3Ccircle cx='32' cy='24' r='2.4'/%3E%3C/g%3E%3Ccircle cx='23' cy='30.5' r='4' fill='%23e2552f'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --panel: #16181b;
+    --side: #1b1d21;
+    --field: #111315;
+    --raise: #262a2f;
+    --line: rgba(255, 255, 255, 0.07);
+    --text: #eceae6;
+    --muted: #8d9299;
+    --gold: #f2c14e;
+    --green: #4cd47b;
+    --red: #ef5b4c;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; min-height: 100vh; overflow-x: hidden; }
+  button, input { font: inherit; color: inherit; }
+  .app { max-width: 1280px; margin: 0 auto; padding: 14px 16px 24px; }
+
+  /* Kopregel (zelfde als Rocket) */
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand svg { width: 36px; height: 36px; flex: none; }
+  .brand .word { display: flex; flex-direction: column; line-height: 1; }
+  .brand .word small { font-size: 10px; font-weight: 800; letter-spacing: 3px; color: var(--muted); }
+  .brand .word b { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin-top: 3px; }
+  .nav { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; margin-right: auto; margin-left: 18px; }
+  .nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
+  .nav a:hover { color: var(--text); }
+  .nav a.active { background: var(--raise); color: var(--text); }
+  .user { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; }
+  .user[hidden] { display: none; }
+  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--raise); }
+  .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
+  .user .balance { color: var(--gold); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; transition: color .2s; }
+  .user .balance.up { color: var(--green); }
+  .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
+  .user button:hover { background: var(--raise); color: var(--text); }
+
+  /* Spelvlak: zijbalk + bord */
+  .game {
+    display: grid; grid-template-columns: 310px minmax(0, 1fr);
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden; height: clamp(560px, calc(100vh - 90px), 800px);
+  }
+  .sidebar { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+  .betbox { padding: 16px; border-bottom: 1px solid var(--line); }
+  .main { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+  .main::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 30%, rgba(242,193,78,.06), transparent 65%);
+  }
+  .board { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+
+  /* Tabbladen + keuzeknoppen */
+  .tabs, .seg { display: grid; background: var(--field); border-radius: 999px; padding: 4px; }
+  .tabs { grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
+  .seg { grid-template-columns: repeat(3, 1fr); border-radius: 10px; }
+  .tabs button, .seg button { border: 0; background: none; border-radius: 999px; padding: 8px 0; font-size: 14px; font-weight: 700; color: var(--muted); cursor: pointer; transition: background .15s, color .15s; }
+  .seg button { border-radius: 7px; }
+  .tabs button.active, .seg button.active { background: var(--raise); color: var(--text); }
+  .seg button.active[data-risk="low"] { box-shadow: inset 0 -2px 0 var(--gold); }
+  .seg button.active[data-risk="medium"] { box-shadow: inset 0 -2px 0 #f08a3c; }
+  .seg button.active[data-risk="high"] { box-shadow: inset 0 -2px 0 var(--red); }
+  .tabs button:disabled, .seg button:disabled { cursor: not-allowed; opacity: .55; }
+
+  /* Velden */
+  .field { margin-bottom: 14px; }
+  .field[hidden] { display: none; }
+  .field label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+  .field label span { font-weight: 600; }
+  .field label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .inputrow { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .inputrow:focus-within { border-color: var(--gold); }
+  .inputrow input {
+    flex: 1; min-width: 0; background: none; border: 0; outline: none; padding: 10px 12px;
+    font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .inputrow button {
+    border: 0; border-left: 1px solid var(--line); background: var(--raise); color: var(--text);
+    padding: 0 12px; font-size: 13px; font-weight: 700; cursor: pointer; min-width: 42px;
+  }
+  .inputrow button:hover:not(:disabled) { filter: brightness(1.2); }
+  .inputrow button:disabled, .inputrow input:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Schuifregelaar voor rijen */
+  .range { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 999px; outline: none; margin: 8px 0 4px; cursor: pointer;
+    background: linear-gradient(90deg, var(--gold) var(--fill, 100%), var(--field) var(--fill, 100%)); }
+  .range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 4px solid var(--gold); box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 4px solid var(--gold); box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .range:disabled { opacity: .5; cursor: not-allowed; }
+  .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-weight: 700; padding: 0 4px; }
+
+  /* Grote knop */
+  .play {
+    width: 100%; border: 0; border-radius: 10px; padding: 15px; font-size: 16px; font-weight: 800;
+    cursor: pointer; background: var(--green); color: #062612; transition: transform .06s ease, filter .15s ease;
+    font-variant-numeric: tabular-nums; user-select: none;
+  }
+  .play:hover:not(:disabled) { filter: brightness(1.06); }
+  .play:active:not(:disabled) { transform: scale(.98); }
+  .play:disabled { background: var(--raise); color: var(--muted); cursor: not-allowed; }
+  .play.stop { background: var(--red); color: #fff; }
+  .keyhint { margin-top: 8px; font-size: 12px; color: var(--muted); text-align: center; }
+  .keyhint kbd { background: var(--raise); border-radius: 5px; padding: 1px 6px; font: inherit; font-weight: 700; color: var(--text); }
+
+  .notice {
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; line-height: 1.45;
+    background: rgba(239,91,76,.12); border: 1px solid rgba(239,91,76,.55); color: #fbd8d3;
+  }
+  .notice[hidden] { display: none; }
+
+  .login { text-align: center; padding: 10px 4px; }
+  .login[hidden] { display: none; }
+  .login h3 { margin: 0 0 8px; font-size: 16px; }
+  .login p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .login code { background: var(--raise); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+
+  /* Statistieken */
+  .stats { padding: 14px 16px 16px; }
+  .stats h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 800; display: flex; justify-content: space-between; }
+  .stats h2 button { background: none; border: 0; color: var(--muted); font-size: 11px; letter-spacing: 0; cursor: pointer; padding: 0; }
+  .stats h2 button:hover { color: var(--text); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
+  .stat small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
+  .stat b { display: block; font-size: 16px; margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .win { color: var(--green); }
+  .loss { color: var(--red); }
+  .alltime { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .alltime b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+  /* Geluid */
+  .sound-btns { position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; gap: 6px; }
+  .snd {
+    width: 36px; height: 36px; display: grid; place-items: center; background: var(--raise); border: 1px solid var(--line);
+    border-radius: 999px; padding: 0; color: var(--gold); cursor: pointer;
+  }
+  .snd svg { width: 18px; height: 18px; }
+  .snd.off { color: var(--muted); }
+  .snd:hover { filter: brightness(1.2); }
+
+  /* Laatste uitslagen (rechts naast het bord, nieuwste bovenaan) */
+  .hist {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%); z-index: 2; width: 62px;
+    display: flex; flex-direction: column; gap: 6px; border-radius: 12px; overflow: hidden; pointer-events: none;
+  }
+  .hchip {
+    height: 40px; display: grid; place-items: center; border-radius: 8px; font-weight: 900; font-size: 13px; color: #1d1203;
+    font-variant-numeric: tabular-nums; box-shadow: inset 0 -3px 0 rgba(0,0,0,.25);
+    animation: chipIn .28s cubic-bezier(.2, 1.4, .4, 1);
+  }
+  .hchip.out { animation: chipOut .25s ease forwards; }
+  @keyframes chipIn { from { transform: translateY(-46px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes chipOut { to { transform: translateY(20px) scale(.8); opacity: 0; } }
+
+  /* Uitleg bij een vakje */
+  .tip {
+    position: absolute; z-index: 4; pointer-events: none; transform: translate(-50%, calc(-100% - 12px));
+    background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 12px;
+    box-shadow: 0 10px 26px rgba(0,0,0,.5); white-space: nowrap; display: grid; grid-template-columns: auto auto; gap: 3px 14px;
+  }
+  .tip[hidden] { display: none; }
+  .tip span { color: var(--muted); font-weight: 700; }
+  .tip b { text-align: right; font-variant-numeric: tabular-nums; }
+  .tip::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; background: var(--raise); transform: translateX(-50%) rotate(45deg); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+
+  /* Grote winst */
+  .bigwin {
+    position: absolute; left: 50%; top: 34%; z-index: 5; transform: translate(-50%, -50%); pointer-events: none; text-align: center;
+    padding: 18px 30px; border-radius: 18px; background: rgba(22,24,27,.88); border: 1px solid rgba(242,193,78,.5);
+    box-shadow: 0 0 60px rgba(242,193,78,.25), 0 20px 50px rgba(0,0,0,.5); backdrop-filter: blur(4px);
+  }
+  .bigwin[hidden] { display: none; }
+  .bigwin.go { animation: bigIn .5s cubic-bezier(.2, 1.5, .4, 1), bigOut .5s ease 2.3s forwards; }
+  @keyframes bigIn { from { transform: translate(-50%, -50%) scale(.4); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+  @keyframes bigOut { to { transform: translate(-50%, -60%) scale(.95); opacity: 0; } }
+  .bigwin small { display: block; font-size: 12px; letter-spacing: 3px; font-weight: 800; color: var(--muted); }
+  .bigwin .mult { font-size: 52px; font-weight: 900; line-height: 1.05; margin: 4px 0; font-variant-numeric: tabular-nums;
+    background: linear-gradient(180deg, #fff1b8, #f2c14e 60%, #c98f1d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .bigwin .amt { font-size: 18px; font-weight: 800; color: var(--green); font-variant-numeric: tabular-nums; }
+
+  .flash { position: absolute; inset: 0; pointer-events: none; z-index: 4; background: radial-gradient(circle at 50% 85%, rgba(255,226,140,.45), rgba(242,193,78,0) 70%); opacity: 0; }
+  .flash.go { animation: flash 900ms ease-out; }
+  @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .shake { animation: shake 600ms cubic-bezier(.36,.07,.19,.97); }
+  @keyframes shake {
+    10%, 90% { transform: translate(-1px, 1px); } 20%, 80% { transform: translate(3px, -1px); }
+    30%, 50%, 70% { transform: translate(-5px, 2px); } 40%, 60% { transform: translate(5px, -2px); }
+  }
+
+  .toast {
+    position: fixed; left: 50%; top: 18px; transform: translateX(-50%) translateY(-12px); opacity: 0; z-index: 40;
+    display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px;
+    font-size: 15px; font-weight: 700; transition: all .2s ease; pointer-events: none; max-width: calc(100% - 32px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  .toast::before { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok { background: #16301f; border: 1px solid var(--green); color: #cdeed8; }
+  .toast.ok::before { content: '✓'; background: var(--green); color: #062612; }
+  .toast.err { background: #3a1a17; border: 1px solid var(--red); color: #fbd8d3; }
+  .toast.err::before { content: '✕'; background: var(--red); color: #fff; }
+
+  @media (max-width: 860px) {
+    .game { grid-template-columns: minmax(0, 1fr); height: auto; }
+    .main { order: -1; height: min(72vh, 560px, calc(100vw * 1.02 + 30px)); border-bottom: 1px solid var(--line); }
+    .sidebar { border-right: 0; overflow: visible; }
+    .hist { top: 12px; right: 12px; transform: none; flex-direction: row-reverse; width: auto; }
+    .hchip { width: 46px; height: 30px; font-size: 12px; }
+    .keyhint { display: none; }
+  }
+  @media (max-width: 520px) {
+    .app { padding: 10px; }
+    header { flex-wrap: wrap; }
+    .brand .word { display: none; }
+    .user { margin-left: auto; }
+    .nav { order: 3; width: 100%; margin: 0; }
+    .nav a { flex: 1; text-align: center; padding: 7px 6px; }
+    .hchip:nth-child(n+4) { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <a class="brand" href="/plinko" aria-label="Vissstick Plinko">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="#f2c14e"/>
+        <g fill="#16181b"><circle cx="20" cy="10" r="2.4"/><circle cx="14" cy="17" r="2.4"/><circle cx="26" cy="17" r="2.4"/><circle cx="8" cy="24" r="2.4"/><circle cx="20" cy="24" r="2.4"/><circle cx="32" cy="24" r="2.4"/></g>
+        <circle cx="23" cy="30.5" r="4" fill="#e2552f"/>
+      </svg>
+      <span class="word"><small>VISSSTICK</small><b>Plinko</b></span>
+    </a>
+    <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack">Blackjack</a><a href="/plinko" class="active">Plinko</a><a href="/spin">Daily spin</a></nav>
+    <div class="user" id="user" hidden></div>
+  </header>
+
+  <div class="game">
+    <aside class="sidebar">
+      <div class="betbox">
+        <div class="login" id="login" hidden>
+          <h3>Niet ingelogd</h3>
+          <p>Wil je spelen? Typ <code>/plinko</code> in Discord en klik op de link. Dit hoef je maar één keer te doen.</p>
+        </div>
+        <div id="controls" hidden>
+          <div class="tabs" id="tabs">
+            <button type="button" data-mode="manual">Handmatig</button>
+            <button type="button" data-mode="auto">Auto</button>
+          </div>
+          <div class="field">
+            <label for="bet">Inzet <span id="betRange"></span></label>
+            <div class="inputrow">
+              <input id="bet" type="number" inputmode="numeric" min="1" step="1">
+              <button type="button" id="betHalf">½</button>
+              <button type="button" id="betDouble">2×</button>
+              <button type="button" id="betMax">Max</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Risico</label>
+            <div class="seg" id="risk">
+              <button type="button" data-risk="low">Laag</button>
+              <button type="button" data-risk="medium">Midden</button>
+              <button type="button" data-risk="high">Hoog</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="rows">Rijen <b id="rowsVal">16</b></label>
+            <input class="range" id="rows" type="range" min="8" max="16" step="1">
+            <div class="ticks"><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span></div>
+          </div>
+          <div class="field" id="autoField" hidden>
+            <label for="autoCount">Aantal ballen <span>0 = oneindig</span></label>
+            <div class="inputrow">
+              <input id="autoCount" type="number" inputmode="numeric" min="0" step="1">
+              <button type="button" data-count="10">10</button>
+              <button type="button" data-count="50">50</button>
+              <button type="button" data-count="0">∞</button>
+            </div>
+          </div>
+          <button class="play" id="play" type="button">Inzetten</button>
+          <div class="keyhint" id="keyhint">Tip: druk op <kbd>spatie</kbd> om een bal te laten vallen</div>
+          <div class="notice" id="notice" hidden></div>
+        </div>
+      </div>
+      <div class="stats" id="statsBox" hidden>
+        <h2>DEZE SESSIE <button type="button" id="resetSession">wissen</button></h2>
+        <div class="grid">
+          <div class="stat"><small>Ballen</small><b id="sBalls">0</b></div>
+          <div class="stat"><small>Ingezet</small><b id="sWagered">0</b></div>
+          <div class="stat"><small>Winst</small><b id="sProfit">0</b></div>
+          <div class="stat"><small>Beste</small><b id="sBest">–</b></div>
+        </div>
+        <div class="alltime" id="allTime"></div>
+      </div>
+    </aside>
+    <section class="main" id="main">
+      <div class="sound-btns"><button class="snd" id="mute" type="button"></button></div>
+      <canvas class="board" id="board"></canvas>
+      <div class="hist" id="hist"></div>
+      <div class="tip" id="tip" hidden></div>
+      <div class="flash" id="flash"></div>
+      <div class="bigwin" id="bigwin" hidden><small id="bigKicker">GROTE WINST</small><div class="mult" id="bigMult"></div><div class="amt" id="bigAmt"></div></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('nl-NL');
+  const fmtMult = m => `${String(m).replace('.', ',')}×`;
+  const TAU = Math.PI * 2;
+  const MAX_INFLIGHT = 4;    // tegelijk openstaande verzoeken
+  const MAX_BALLS = 80;      // ballen tegelijk op het bord
+  const MIN_GAP_MS = 110;    // minimale tijd tussen twee ballen (handmatig)
+  const AUTO_GAP_MS = 260;   // tijd tussen ballen in auto-modus
+
+  // =====================================================
+  // STATE
+  // =====================================================
+  let me = null;           // antwoord van /api/plinko/status
+  let cfg = null;
+  let serverBalance = 0;   // saldo volgens de laatste server-reactie (inzet al afgeschreven)
+  let pending = 0;         // uitbetalingen van ballen die nog vallen
+  let outstanding = 0;     // inzet van verzoeken die nog onderweg zijn
+  let reqSeq = 0, lastSeq = 0;
+  let inflight = 0;
+  let lastDropAt = 0;
+  let auto = null;         // { left }
+  const balls = [];
+  const session = { balls: 0, wagered: 0, won: 0, best: 0 };
+
+  const settings = { bet: 10, risk: 'medium', rows: 16, mode: 'manual', autoCount: 0 };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem('plinko_settings') || '{}')); } catch (error) { /* geen opslag */ }
+  function saveSettings() {
+    try { localStorage.setItem('plinko_settings', JSON.stringify(settings)); } catch (error) { /* geen opslag */ }
+  }
+
+  // =====================================================
+  // SERVER
+  // =====================================================
+  async function loadStatus() {
+    try {
+      const res = await fetch('/api/plinko/status', { credentials: 'same-origin' });
+      me = await res.json();
+    } catch (error) {
+      toast('Geen verbinding met de server.', false);
+      return;
+    }
+    cfg = me.config;
+    if (me.linked) serverBalance = me.balance;
+    settings.rows = Math.min(cfg.maxRows, Math.max(cfg.minRows, Number(settings.rows) || 16));
+    if (!cfg.risks.includes(settings.risk)) settings.risk = 'medium';
+    renderAll();
+    layout();
+  }
+
+  async function post(path, body = {}) {
+    try {
+      const res = await fetch(path, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      return await res.json();
+    } catch (error) {
+      return { ok: false, message: 'Geen verbinding met de server.' };
+    }
+  }
+
+  // Saldo bijwerken als je terugkomt (je kunt intussen elders gespeeld hebben)
+  addEventListener('focus', () => { if (me && !balls.length && !inflight && !auto) loadStatus(); });
+
+  // =====================================================
+  // UI
+  // =====================================================
+  let toastTimer = null;
+  function toast(message, ok) {
+    if (!message) return;
+    const box = $('toast');
+    box.textContent = message;
+    box.className = `toast show ${ok ? 'ok' : 'err'}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { box.className = 'toast'; }, ok ? 2800 : 4500);
+  }
+  function setNotice(message) {
+    $('notice').hidden = !message;
+    $('notice').textContent = message || '';
+  }
+
+  function el(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    Object.entries(props).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === false) return;
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = value;
+      else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? '' : value);
+    });
+    children.forEach(child => node.append(child));
+    return node;
+  }
+
+  const shownBalance = () => serverBalance - pending - outstanding;
+
+  function renderUser() {
+    const box = $('user');
+    box.replaceChildren();
+    if (!me || !me.linked) { box.hidden = true; return; }
+    box.hidden = false;
+    const img = el('img', { alt: '' });
+    if (me.user.avatar) img.src = me.user.avatar;
+    box.append(img,
+      el('div', {}, [el('div', { class: 'name', text: me.user.username }), el('div', { class: 'balance', id: 'balance' })]),
+      el('button', { text: 'Uitloggen', onclick: async () => { stopAuto(); await post('/api/logout'); loadStatus(); } }));
+    renderBalance();
+  }
+
+  let balanceTimer = null;
+  function renderBalance(up) {
+    const node = $('balance');
+    if (!node) return;
+    node.textContent = `${fmt(shownBalance())} punten`;
+    if (up) {
+      node.classList.add('up');
+      clearTimeout(balanceTimer);
+      balanceTimer = setTimeout(() => node.classList.remove('up'), 450);
+    }
+  }
+
+  function maxBet() {
+    return Math.max(cfg.minBet, Math.min(cfg.maxBet, shownBalance()));
+  }
+  function setBet(value) {
+    settings.bet = Math.max(cfg.minBet, Math.min(maxBet(), Math.floor(value) || cfg.minBet));
+    $('bet').value = settings.bet;
+    saveSettings();
+    updateTip();
+  }
+
+  function renderControls() {
+    const linked = me && me.linked;
+    $('login').hidden = !me || linked;
+    $('controls').hidden = !linked;
+    $('statsBox').hidden = !linked;
+    if (!linked) return;
+
+    const busy = balls.length > 0 || inflight > 0;
+    const locked = Boolean(auto);
+    $('betRange').textContent = `${cfg.minBet}–${cfg.maxBet}`;
+    $('tabs').querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.mode === settings.mode); b.disabled = locked; });
+    $('risk').querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.risk === settings.risk); b.disabled = busy || locked; });
+    $('rows').disabled = busy || locked;
+    ['bet', 'betHalf', 'betDouble', 'betMax'].forEach(id => { $(id).disabled = locked; });
+    $('autoField').hidden = settings.mode !== 'auto';
+    $('autoField').querySelectorAll('input, button').forEach(n => { n.disabled = locked; });
+    $('keyhint').hidden = settings.mode !== 'manual';
+
+    const play = $('play');
+    play.classList.toggle('stop', Boolean(auto));
+    if (settings.mode === 'manual') play.textContent = 'Inzetten';
+    else if (auto) play.textContent = Number.isFinite(auto.left) ? `Stop auto · nog ${auto.left}` : 'Stop auto';
+    else play.textContent = 'Start auto';
+  }
+
+  function renderStats() {
+    $('sBalls').textContent = fmt(session.balls);
+    $('sWagered').textContent = fmt(session.wagered);
+    const profit = session.won - session.wagered;
+    const p = $('sProfit');
+    p.textContent = `${profit > 0 ? '+' : ''}${fmt(profit)}`;
+    p.className = profit > 0 ? 'win' : profit < 0 ? 'loss' : '';
+    $('sBest').textContent = session.best ? fmtMult(session.best) : '–';
+    const s = me && me.stats;
+    const all = $('allTime');
+    all.replaceChildren();
+    if (s && s.games_played > 0) {
+      all.append('Totaal ', el('b', { text: fmt(s.games_played) }), ' ballen · grootste winst ', el('b', { text: `+${fmt(s.biggest_win)}` }),
+        ' · beste ', el('b', { text: fmtMult(s.biggest_multiplier) }));
+    }
+  }
+
+  function renderAll() {
+    renderUser();
+    $('bet').value = settings.bet;
+    $('autoCount').value = settings.autoCount;
+    $('rows').value = settings.rows;
+    $('rowsVal').textContent = settings.rows;
+    updateRangeFill();
+    renderControls();
+    renderStats();
+  }
+
+  function updateRangeFill() {
+    const r = $('rows');
+    r.style.setProperty('--fill', `${((r.value - r.min) / (r.max - r.min)) * 100}%`);
+  }
+
+  // Bediening
+  $('tabs').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    settings.mode = b.dataset.mode; saveSettings(); setNotice(null); renderControls();
+  });
+  $('risk').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    settings.risk = b.dataset.risk; saveSettings(); renderControls(); layout(); sfx.click();
+  });
+  $('rows').addEventListener('input', () => {
+    settings.rows = Number($('rows').value); saveSettings();
+    $('rowsVal').textContent = settings.rows; updateRangeFill(); layout(); sfx.click();
+  });
+  $('bet').addEventListener('input', () => { settings.bet = Number($('bet').value) || 0; saveSettings(); updateTip(); });
+  $('bet').addEventListener('change', () => setBet(Number($('bet').value)));
+  $('betHalf').addEventListener('click', () => setBet(settings.bet / 2));
+  $('betDouble').addEventListener('click', () => setBet(settings.bet * 2));
+  $('betMax').addEventListener('click', () => setBet(maxBet()));
+  $('autoCount').addEventListener('input', () => { settings.autoCount = Math.max(0, Math.floor(Number($('autoCount').value)) || 0); saveSettings(); });
+  $('autoField').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    settings.autoCount = Number(b.dataset.count); $('autoCount').value = settings.autoCount; saveSettings();
+  }));
+  $('play').addEventListener('click', () => {
+    if (settings.mode === 'manual') dropBall();
+    else if (auto) stopAuto();
+    else startAuto();
+  });
+  $('resetSession').addEventListener('click', () => {
+    Object.assign(session, { balls: 0, wagered: 0, won: 0, best: 0 }); renderStats();
+  });
+  // Spatie = bal laten vallen (niet tijdens typen in een veld)
+  const typing = t => t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type !== 'range'));
+  addEventListener('keydown', e => {
+    if (e.code !== 'Space' || typing(e.target)) return;
+    if (!me || !me.linked || settings.mode !== 'manual') return;
+    e.preventDefault();
+    dropBall();
+  });
+  addEventListener('keyup', e => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault(); });
+
+  // =====================================================
+  // SPELEN
+  // =====================================================
+  function checkBet() {
+    const bet = Number(settings.bet);
+    if (!Number.isInteger(bet) || bet < cfg.minBet || bet > cfg.maxBet) return `Ongeldige inzet: kies een bedrag tussen ${cfg.minBet} en ${cfg.maxBet} punten.`;
+    if (bet > shownBalance()) return `Niet genoeg punten: je wilt ${fmt(bet)} inzetten, maar je hebt er ${fmt(shownBalance())}.`;
+    return null;
+  }
+
+  async function dropBall() {
+    if (!me || !me.linked) return false;
+    const now = performance.now();
+    if (inflight >= MAX_INFLIGHT || balls.length >= MAX_BALLS || now - lastDropAt < MIN_GAP_MS) return null;
+    const problem = checkBet();
+    if (problem) { toast(problem, false); setNotice(problem); return false; }
+    setNotice(null);
+    lastDropAt = now;
+
+    const seq = ++reqSeq;
+    const bet = settings.bet;
+    inflight++;
+    outstanding += bet; // inzet direct van het getoonde saldo af
+    renderBalance();
+    renderControls();
+    const res = await post('/api/plinko/drop', { bet, risk: settings.risk, rows: settings.rows });
+    inflight--;
+    outstanding -= bet;
+    if (typeof res.balance === 'number' && seq > lastSeq) { lastSeq = seq; serverBalance = res.balance; }
+    if (!res.ok) {
+      toast(res.message, false);
+      setNotice(res.message);
+      stopAuto();
+      renderBalance(); renderControls();
+      return false;
+    }
+    pending += res.payout;
+    renderBalance();
+    session.balls++; session.wagered += res.bet;
+    renderStats();
+    spawnBall(res);
+    renderControls();
+    return true;
+  }
+
+  function startAuto() {
+    const problem = checkBet();
+    if (problem) { toast(problem, false); setNotice(problem); return; }
+    auto = { left: settings.autoCount > 0 ? settings.autoCount : Infinity, timer: null };
+    renderControls();
+    autoTick();
+  }
+  function stopAuto() {
+    if (!auto) return;
+    clearTimeout(auto.timer);
+    auto = null;
+    renderControls();
+  }
+  async function autoTick() {
+    const run = auto;
+    if (!run) return;
+    if (run.left <= 0) { stopAuto(); return; }
+    const result = await dropBall();
+    if (auto !== run) return;
+    if (result === false) { stopAuto(); return; }
+    if (result === true) run.left--;
+    renderControls();
+    if (run.left <= 0) { stopAuto(); return; }
+    run.timer = setTimeout(autoTick, result === true ? AUTO_GAP_MS : 60);
+  }
+
+  // =====================================================
+  // BORD: geometrie
+  // =====================================================
+  const canvas = $('board');
+  const ctx = canvas.getContext('2d');
+  const main = $('main');
+  let W = 0, H = 0, dpr = 1;
+  const g = { n: 16, s: 30, cx: 0, top: 0, pegR: 3, ballR: 6, bucketY: 0, bucketW: 26, bucketH: 22 };
+  let pegLayer = document.createElement('canvas');
+  let ballSprite = document.createElement('canvas');
+  let bucketColors = [];
+  let needsDraw = true;
+
+  function lerpColor(a, b, t) {
+    const pa = a.match(/\w\w/g).map(h => parseInt(h, 16));
+    const pb = b.match(/\w\w/g).map(h => parseInt(h, 16));
+    return pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
+  }
+  // Midden goud (laag), naar buiten oranje en rood (hoog)
+  function bucketColor(k, n) {
+    const t = Math.abs(k - n / 2) / (n / 2);
+    const rgb = t < 0.5 ? lerpColor('f2c14e', 'f08a3c', t / 0.5) : lerpColor('f08a3c', 'ef4b4c', (t - 0.5) / 0.5);
+    const dark = rgb.map(v => Math.round(v * 0.62));
+    return { fill: `rgb(${rgb})`, light: `rgb(${rgb.map(v => Math.min(255, v + 40))})`, dark: `rgb(${dark})`, rgb };
+  }
+
+  function layout() {
+    const rect = main.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+
+    const n = settings.rows;
+    const narrow = W < 640;
+    const padL = narrow ? 8 : 60, padR = narrow ? 8 : 90;
+    const padTop = narrow ? 52 : 46, padBot = narrow ? 10 : 16;
+    const availW = W - padL - padR, availH = H - padTop - padBot;
+    const s = Math.min(64, availW / (n + 1), availH / (n - 1 + 0.85 + 0.85));
+    g.n = n; g.s = s;
+    g.pegR = Math.max(1.8, s * 0.09);
+    g.ballR = Math.max(3.4, s * 0.22);
+    const totalH = (n - 1 + 0.85 + 0.85) * s;
+    g.top = padTop + (availH - totalH) / 2 + s * 0.15;
+    g.cx = padL + availW / 2;
+    g.bucketY = g.top + (n - 1 + 0.85) * s;
+    g.bucketW = s * 0.9;
+    g.bucketH = Math.min(s * 0.8, 44);
+    bucketColors = Array.from({ length: n + 1 }, (_, k) => bucketColor(k, n));
+
+    // Statische pinnen één keer tekenen
+    pegLayer.width = canvas.width; pegLayer.height = canvas.height;
+    const p = pegLayer.getContext('2d');
+    p.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (let r = 0; r < n; r++) {
+      for (let j = 0; j < r + 3; j++) {
+        const [x, y] = pegPos(r, j);
+        p.fillStyle = 'rgba(0,0,0,.45)';
+        p.beginPath(); p.arc(x, y + g.pegR * 0.45, g.pegR, 0, TAU); p.fill();
+        const grad = p.createRadialGradient(x - g.pegR * 0.35, y - g.pegR * 0.35, 0, x, y, g.pegR);
+        grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#b9bfc8');
+        p.fillStyle = grad;
+        p.beginPath(); p.arc(x, y, g.pegR, 0, TAU); p.fill();
+      }
+    }
+
+    // Bal met gloed als sprite (sneller dan shadowBlur per frame)
+    const R = g.ballR, size = Math.ceil(R * 6 * dpr);
+    ballSprite.width = ballSprite.height = size;
+    const b = ballSprite.getContext('2d');
+    b.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const c = size / dpr / 2;
+    const glow = b.createRadialGradient(c, c, R * 0.6, c, c, R * 3);
+    glow.addColorStop(0, 'rgba(255,190,90,.45)'); glow.addColorStop(1, 'rgba(255,150,60,0)');
+    b.fillStyle = glow; b.beginPath(); b.arc(c, c, R * 3, 0, TAU); b.fill();
+    const body = b.createRadialGradient(c - R * 0.35, c - R * 0.4, R * 0.1, c, c, R);
+    body.addColorStop(0, '#fffaf0'); body.addColorStop(0.45, '#ff9a5a'); body.addColorStop(1, '#e2552f');
+    b.fillStyle = body; b.beginPath(); b.arc(c, c, R, 0, TAU); b.fill();
+
+    hoverBucket = -1; updateTip();
+    needsDraw = true;
+  }
+  new ResizeObserver(() => layout()).observe(main);
+
+  function pegPos(r, j) {
+    return [g.cx + (j - (r + 2) / 2) * g.s, g.top + r * g.s];
+  }
+  function bucketX(k) { return g.cx + (k - g.n / 2) * g.s; }
+
+  // =====================================================
+  // BALLEN
+  // =====================================================
+  // Posities in roostereenheden (x: pinafstand vanaf het midden, y: rijen vanaf de bovenste rij)
+  function spawnBall(res) {
+    const n = res.rows;
+    const contactY = ((g.pegR + g.ballR) * 0.92) / g.s;
+    const points = [{ x: (Math.random() - 0.5) * 0.16, y: -1.7 }];
+    let rights = 0;
+    for (let r = 0; r < n; r++) {
+      const dir = res.path[r] ? 1 : -1;
+      points.push({ x: rights - r / 2 + dir * 0.09 + (Math.random() - 0.5) * 0.04, y: r - contactY, row: r, peg: rights + 1 });
+      rights += res.path[r];
+    }
+    points.push({ x: res.bucket - n / 2, y: n - 1 + 0.85 + 0.12 });
+
+    const T = 150 * (0.95 + Math.random() * 0.1);
+    const durations = points.slice(1).map((_, i) => (i === 0 ? 300 : i === n ? T * 0.85 : T));
+    const ball = { ...res, points, durations, total: durations.reduce((a, b) => a + b, 0), start: performance.now(), hit: 0, trail: [] };
+    balls.push(ball);
+    sfx.drop();
+  }
+
+  function ballPosition(ball, t) {
+    let i = 0, acc = 0;
+    while (i < ball.durations.length - 1 && t > acc + ball.durations[i]) { acc += ball.durations[i]; i++; }
+    const tau = Math.min(1, Math.max(0, (t - acc) / ball.durations[i]));
+    const a = ball.points[i], b = ball.points[i + 1];
+    const d = b.y - a.y;
+    // Eerste stuk: vrije val vanuit stilstand. Daarna: korte stuiter omhoog en weer naar beneden.
+    const y = i === 0 ? a.y + d * tau * tau : a.y + d * (-0.42 * tau + 1.42 * tau * tau);
+    return { seg: i, x: a.x + (b.x - a.x) * tau, y };
+  }
+
+  // =====================================================
+  // EFFECTEN
+  // =====================================================
+  const pegGlow = new Map();   // rij*32+pin -> tijd
+  const bucketHit = [];        // vakje -> tijd
+  const particles = [];
+  const floaters = [];
+
+  function land(ball, now) {
+    pending -= ball.payout;
+    session.won += ball.payout;
+    session.best = Math.max(session.best, ball.multiplier);
+    if (me && me.stats) {
+      me.stats.games_played++;
+      me.stats.biggest_win = Math.max(me.stats.biggest_win, ball.payout - ball.bet);
+      me.stats.biggest_multiplier = Math.max(me.stats.biggest_multiplier, ball.multiplier);
+    } else if (me) {
+      me.stats = { games_played: 1, biggest_win: Math.max(0, ball.payout - ball.bet), biggest_multiplier: ball.multiplier };
+    }
+    renderBalance(ball.payout > ball.bet);
+    renderStats();
+    bucketHit[ball.bucket] = now;
+    addHistory(ball);
+    sfx.land(ball.multiplier);
+
+    const x = bucketX(ball.bucket), y = g.bucketY;
+    const color = bucketColors[ball.bucket] ? bucketColors[ball.bucket].rgb : [242, 193, 78];
+    if (ball.multiplier >= 2) {
+      floaters.push({ x, y: y - g.s * 0.2, text: `+${fmt(ball.payout)}`, start: now, color: `rgb(${color})`, big: ball.multiplier >= 10 });
+    }
+    if (ball.multiplier >= 5) burst(x, y, ball.multiplier >= 50 ? 70 : ball.multiplier >= 10 ? 40 : 16, color);
+    if (ball.multiplier >= 10) {
+      main.classList.remove('shake'); void main.offsetWidth; main.classList.add('shake');
+      const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+    }
+    if (ball.multiplier >= 25) showBigWin(ball);
+    if (!balls.length) renderControls();
+  }
+
+  function burst(x, y, count, rgb) {
+    for (let i = 0; i < count; i++) {
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+      const speed = 2 + Math.random() * 6;
+      particles.push({
+        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 2,
+        life: 1, decay: 0.012 + Math.random() * 0.018, size: 1.5 + Math.random() * 3,
+        color: Math.random() < 0.35 ? '255,244,214' : rgb.join(',')
+      });
+    }
+  }
+
+  function showBigWin(ball) {
+    const box = $('bigwin');
+    $('bigKicker').textContent = ball.multiplier >= 100 ? 'MEGA WINST' : 'GROTE WINST';
+    $('bigMult').textContent = fmtMult(ball.multiplier);
+    $('bigAmt').textContent = `+${fmt(ball.payout)} punten`;
+    box.hidden = false;
+    box.classList.remove('go'); void box.offsetWidth; box.classList.add('go');
+    clearTimeout(showBigWin.timer);
+    showBigWin.timer = setTimeout(() => { box.hidden = true; }, 2900);
+  }
+
+  function addHistory(ball) {
+    const hist = $('hist');
+    const c = bucketColors[ball.bucket] || bucketColor(ball.bucket, ball.rows);
+    hist.prepend(el('div', { class: 'hchip', text: fmtMult(ball.multiplier), style: `background:linear-gradient(180deg, ${c.light}, ${c.fill})` }));
+    const chips = [...hist.children].filter(n => !n.classList.contains('out'));
+    chips.slice(6).forEach(n => { n.classList.add('out'); setTimeout(() => n.remove(), 260); });
+  }
+
+  // =====================================================
+  // TEKENEN
+  // =====================================================
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+  }
+
+  function drawBuckets(now) {
+    const table = cfg.payouts[g.n][settings.risk];
+    const r = Math.min(6, g.bucketW * 0.18);
+    const lip = Math.max(2, g.bucketH * 0.12);
+    for (let k = 0; k <= g.n; k++) {
+      const col = bucketColors[k];
+      const age = bucketHit[k] ? now - bucketHit[k] : Infinity;
+      const push = age < 320 ? Math.sin(Math.PI * (age / 320)) * g.bucketH * 0.28 : 0;
+      const x = bucketX(k) - g.bucketW / 2, y = g.bucketY + push;
+      ctx.fillStyle = col.dark;
+      roundRect(ctx, x, y + lip, g.bucketW, g.bucketH, r); ctx.fill();
+      const grad = ctx.createLinearGradient(0, y, 0, y + g.bucketH);
+      grad.addColorStop(0, col.light); grad.addColorStop(1, col.fill);
+      ctx.fillStyle = grad;
+      roundRect(ctx, x, y, g.bucketW, g.bucketH, r); ctx.fill();
+      if (age < 320 || k === hoverBucket) {
+        ctx.fillStyle = `rgba(255,255,255,${k === hoverBucket && age >= 320 ? 0.18 : 0.45 * (1 - age / 320)})`;
+        roundRect(ctx, x, y, g.bucketW, g.bucketH, r); ctx.fill();
+      }
+      // Tekst: zo groot mogelijk zonder over de rand te gaan
+      const label = g.bucketW < 34 ? String(table[k]).replace('.', ',') : fmtMult(table[k]);
+      let size = Math.min(g.bucketH * 0.48, 15);
+      ctx.font = `900 ${size}px system-ui, sans-serif`;
+      const w = ctx.measureText(label).width;
+      if (w > g.bucketW * 0.88) { size *= (g.bucketW * 0.88) / w; ctx.font = `900 ${size}px system-ui, sans-serif`; }
+      ctx.fillStyle = '#1d1203';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, x + g.bucketW / 2, y + g.bucketH / 2 + 1);
+    }
+  }
+
+  let lastFrame = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(50, now - lastFrame) / 16.67;
+    lastFrame = now;
+    if (!cfg) return;
+    const active = balls.length || particles.length || floaters.length || pegGlow.size
+      || bucketHit.some(t => t && now - t < 340);
+    if (!active && !needsDraw) return;
+    needsDraw = false;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(pegLayer, 0, 0, W, H);
+
+    // Ballen verplaatsen + botsingen met pinnen
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const ball = balls[i];
+      const t = now - ball.start;
+      if (t >= ball.total) { balls.splice(i, 1); land(ball, now); continue; }
+      const pos = ballPosition(ball, t);
+      while (ball.hit < pos.seg) {
+        ball.hit++;
+        const p = ball.points[ball.hit];
+        if (p.row !== undefined && p.row < g.n) {
+          pegGlow.set(p.row * 32 + p.peg, now);
+          sfx.peg(p.row);
+        }
+      }
+      ball.pos = pos;
+    }
+
+    // Pinnen die net geraakt zijn lichten op
+    for (const [key, t0] of pegGlow) {
+      const a = 1 - (now - t0) / 380;
+      if (a <= 0) { pegGlow.delete(key); continue; }
+      const r = Math.floor(key / 32), j = key % 32;
+      if (r >= g.n) { pegGlow.delete(key); continue; }
+      const [x, y] = pegPos(r, j);
+      ctx.fillStyle = `rgba(242,193,78,${a * 0.28})`;
+      ctx.beginPath(); ctx.arc(x, y, g.pegR * (1.8 + (1 - a) * 2.6), 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(255,236,190,${a})`;
+      ctx.beginPath(); ctx.arc(x, y, g.pegR * 1.15, 0, TAU); ctx.fill();
+    }
+
+    drawBuckets(now);
+
+    // Ballen met spoor
+    const sprite = ballSprite.width / dpr;
+    for (const ball of balls) {
+      const x = g.cx + ball.pos.x * g.s, y = g.top + ball.pos.y * g.s;
+      ball.trail.push(x, y);
+      if (ball.trail.length > 14) ball.trail.splice(0, 2);
+      for (let i = 0; i < ball.trail.length - 2; i += 2) {
+        const a = (i + 2) / ball.trail.length;
+        ctx.globalAlpha = a * 0.22;
+        const s = sprite * (0.45 + a * 0.4);
+        ctx.drawImage(ballSprite, ball.trail[i] - s / 2, ball.trail[i + 1] - s / 2, s, s);
+      }
+      ctx.globalAlpha = 1;
+      ctx.drawImage(ballSprite, x - sprite / 2, y - sprite / 2, sprite, sprite);
+    }
+
+    // Vonken
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.vy += 0.22 * dt; p.vx *= 0.985;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.life -= p.decay * dt;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.fillStyle = `rgba(${p.color},${p.life})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.5 + p.life * 0.5), 0, TAU); ctx.fill();
+    }
+
+    // Zwevende winstbedragen
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = floaters.length - 1; i >= 0; i--) {
+      const f = floaters[i];
+      const t = (now - f.start) / (f.big ? 1400 : 900);
+      if (t >= 1) { floaters.splice(i, 1); continue; }
+      ctx.globalAlpha = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
+      ctx.font = `900 ${f.big ? 18 : 13}px system-ui, sans-serif`;
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y - t * g.s * (f.big ? 2.2 : 1.4));
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // =====================================================
+  // UITLEG BIJ EEN VAKJE (hover)
+  // =====================================================
+  let hoverBucket = -1;
+  const binom = (n, k) => { let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return r; };
+  canvas.addEventListener('pointermove', e => {
+    if (!cfg) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    let k = -1;
+    if (y >= g.bucketY - 4 && y <= g.bucketY + g.bucketH + 8) {
+      const idx = Math.round((x - g.cx) / g.s + g.n / 2);
+      if (idx >= 0 && idx <= g.n && Math.abs(x - bucketX(idx)) <= g.bucketW / 2) k = idx;
+    }
+    if (k !== hoverBucket) { hoverBucket = k; updateTip(); needsDraw = true; }
+  });
+  canvas.addEventListener('pointerleave', () => { hoverBucket = -1; updateTip(); needsDraw = true; });
+
+  function updateTip() {
+    const tip = $('tip');
+    if (hoverBucket < 0 || !cfg) { tip.hidden = true; return; }
+    const m = cfg.payouts[g.n][settings.risk][hoverBucket];
+    const bet = Number(settings.bet) || 0;
+    const chance = binom(g.n, hoverBucket) / 2 ** g.n * 100;
+    const profit = Math.floor(bet * m) - bet;
+    tip.replaceChildren(
+      el('span', { text: 'Multiplier' }), el('b', { text: fmtMult(m) }),
+      el('span', { text: `Winst bij ${fmt(bet)}` }), el('b', { class: profit > 0 ? 'win' : profit < 0 ? 'loss' : '', text: `${profit > 0 ? '+' : ''}${fmt(profit)}` }),
+      el('span', { text: 'Kans' }), el('b', { text: chance >= 0.1 ? `${chance.toFixed(2).replace('.', ',')}%` : `1 op ${fmt(100 / chance)}` })
+    );
+    tip.style.left = `${Math.max(95, Math.min(W - 95, bucketX(hoverBucket)))}px`;
+    tip.style.top = `${g.bucketY}px`;
+    tip.hidden = false;
+  }
+
+  // =====================================================
+  // GELUID
+  // =====================================================
+  let muted = false;
+  try { muted = localStorage.getItem('plinko_muted') === '1'; } catch (error) { /* geen opslag */ }
+  let audioCtx = null, master = null;
+
+  function audio() {
+    if (muted) return null;
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      audioCtx = new Ctx();
+      // Compressor voorkomt vervorming als er veel ballen tegelijk vallen
+      const comp = audioCtx.createDynamicsCompressor();
+      comp.threshold.value = -18; comp.ratio.value = 6;
+      master = audioCtx.createGain();
+      master.gain.value = 0.9;
+      master.connect(comp).connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function tone(freq, start, length, volume, type = 'triangle', slideTo = null) {
+    const a = audio();
+    if (!a) return;
+    const t = a.currentTime + start;
+    const osc = a.createOscillator();
+    const gain = a.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + length);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(volume, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    osc.connect(gain).connect(master);
+    osc.start(t);
+    osc.stop(t + length + 0.05);
+  }
+
+  // Pentatonische toonladder: elke rij een iets hogere "plink"
+  const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33, 36];
+  let lastPeg = 0, lastLand = 0;
+  const sfx = {
+    peg(row) {
+      const now = performance.now();
+      if (now - lastPeg < 16) return;
+      lastPeg = now;
+      const f = 520 * 2 ** (SCALE[Math.min(15, Math.round(row * 15 / Math.max(1, g.n - 1)))] / 24);
+      const vol = 0.05 / Math.max(1, Math.sqrt(balls.length) * 0.6);
+      tone(f, 0, 0.09, vol, 'sine');
+      tone(f * 3, 0, 0.025, vol * 0.35, 'triangle');
+    },
+    drop() { tone(950, 0, 0.08, 0.04, 'sine', 520); },
+    click() { tone(1400, 0, 0.03, 0.03, 'square'); },
+    land(m) {
+      // Landen er veel tegelijk (bv. na terugkeren naar het tabblad), dan niet alles tegelijk afspelen
+      const now = performance.now();
+      if (m < 10 && now - lastLand < 30) return;
+      lastLand = now;
+      if (m < 1) { tone(190, 0, 0.16, 0.09, 'sine', 110); return; }
+      if (m < 2) { tone(587, 0, 0.14, 0.07); tone(880, 0.04, 0.16, 0.06); return; }
+      if (m < 10) { [659, 880, 1319].forEach((f, i) => tone(f, i * 0.05, 0.22, 0.08)); return; }
+      if (m < 100) {
+        [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.06, 0.32, 0.09));
+        [2093, 2637].forEach((f, i) => tone(f, 0.32 + i * 0.05, 0.4, 0.03, 'sine'));
+        return;
+      }
+      [523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => tone(f, i * 0.08, 0.4, 0.1));
+      [523, 659, 784].forEach(f => tone(f, 0.6, 1.5, 0.06, 'sawtooth'));
+    }
+  };
+
+  const SPEAKER = '<path d="M4 9.5h3.2L12 5.6v12.8l-4.8-3.9H4z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>';
+  const ICONS = {
+    on: `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER}<path d="M15.2 9.2a4 4 0 0 1 0 5.6M17.8 6.6a7.6 7.6 0 0 1 0 10.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+    off: `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER}<path d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`
+  };
+  function renderMute() {
+    const b = $('mute');
+    b.innerHTML = muted ? ICONS.off : ICONS.on;
+    b.classList.toggle('off', muted);
+    b.title = muted ? 'Geluid aanzetten' : 'Geluid uitzetten';
+    b.setAttribute('aria-label', b.title);
+  }
+  $('mute').addEventListener('click', () => {
+    muted = !muted;
+    try { localStorage.setItem('plinko_muted', muted ? '1' : '0'); } catch (error) { /* geen opslag */ }
+    renderMute();
+  });
+  renderMute();
+
+  // =====================================================
+  // START
+  // =====================================================
+  const params = new URLSearchParams(location.search);
+  if (params.get('login') === 'invalid') {
+    setTimeout(() => toast('Die link is ongeldig of verlopen. Typ /plinko in Discord voor een nieuwe.', false), 300);
+    history.replaceState(null, '', location.pathname);
+  }
+
+  loadStatus();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
