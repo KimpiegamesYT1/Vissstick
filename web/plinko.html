@@ -687,15 +687,12 @@
       }
     }
 
-    // Bal met gloed als sprite (sneller dan shadowBlur per frame)
-    const R = g.ballR, size = Math.ceil(R * 6 * dpr);
+    // Bal als sprite (sneller dan per frame een verloop tekenen)
+    const R = g.ballR, size = Math.ceil(R * 2.2 * dpr);
     ballSprite.width = ballSprite.height = size;
     const b = ballSprite.getContext('2d');
     b.setTransform(dpr, 0, 0, dpr, 0, 0);
     const c = size / dpr / 2;
-    const glow = b.createRadialGradient(c, c, R * 0.6, c, c, R * 3);
-    glow.addColorStop(0, 'rgba(255,190,90,.45)'); glow.addColorStop(1, 'rgba(255,150,60,0)');
-    b.fillStyle = glow; b.beginPath(); b.arc(c, c, R * 3, 0, TAU); b.fill();
     const body = b.createRadialGradient(c - R * 0.35, c - R * 0.4, R * 0.1, c, c, R);
     body.addColorStop(0, '#fffaf0'); body.addColorStop(0.45, '#ff9a5a'); body.addColorStop(1, '#e2552f');
     b.fillStyle = body; b.beginPath(); b.arc(c, c, R, 0, TAU); b.fill();
@@ -909,8 +906,8 @@
       if (ball.trail.length > 14) ball.trail.splice(0, 2);
       for (let i = 0; i < ball.trail.length - 2; i += 2) {
         const a = (i + 2) / ball.trail.length;
-        ctx.globalAlpha = a * 0.22;
-        const s = sprite * (0.45 + a * 0.4);
+        ctx.globalAlpha = a * 0.25;
+        const s = sprite * (0.5 + a * 0.45);
         ctx.drawImage(ballSprite, ball.trail[i] - s / 2, ball.trail[i + 1] - s / 2, s, s);
       }
       ctx.globalAlpha = 1;
