@@ -44,6 +44,7 @@
   .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
   .user .balance { color: var(--gold); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; transition: color .2s; }
   .user .balance.up { color: var(--green); }
+  .user .balance.down { color: var(--red); }
   .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
   .user button:hover { background: var(--raise); color: var(--text); }
 
@@ -188,6 +189,13 @@
     background: linear-gradient(180deg, #fff6cf, #f2c14e 55%, #c98f1d); -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .winbox.hot { animation: winhot .35s ease; }
+  .winbox .net { display: block; font-size: 11px; font-weight: 800; letter-spacing: .5px; font-variant-numeric: tabular-nums; margin-top: 1px; min-height: 14px; }
+  .winbox .net.plus { color: var(--green); }
+  .winbox .net.minus { color: var(--red); }
+  .winbox.lost { border-color: rgba(239,91,76,.6); box-shadow: 0 0 22px rgba(239,91,76,.2), inset 0 0 20px rgba(0,0,0,.5); animation: lost .45s ease; }
+  .winbox.lost small { color: #f3a39a; }
+  .winbox.lost b { background: linear-gradient(180deg, #ffd0ca, #ef5b4c 60%, #b8352a); -webkit-background-clip: text; background-clip: text; }
+  @keyframes lost { 30% { transform: translateX(-5px); } 60% { transform: translateX(4px); } }
   @keyframes winhot { 40% { transform: scale(1.08); box-shadow: 0 0 40px rgba(242,193,78,.6); } }
   .spinwrap { justify-self: end; display: flex; align-items: center; gap: 10px; }
   .rbtn {
@@ -442,7 +450,7 @@
           <div class="v"><small>INZET</small><b id="betVal">10</b></div>
           <button type="button" id="betUp" aria-label="Hogere inzet">+</button>
         </div>
-        <div class="winbox" id="winbox"><small id="winLabel">WINST</small><b id="winVal">0</b></div>
+        <div class="winbox" id="winbox"><small id="winLabel">WINST</small><b id="winVal">0</b><small class="net" id="winNet"></small></div>
         <div class="spinwrap">
           <button class="rbtn" id="turboBtn" type="button" title="Turbo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="currentColor"/></svg></button>
           <button class="spin" id="spinBtn" type="button" aria-label="Draai"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -623,7 +631,13 @@
     const node = $('balance');
     if (!node) return;
     node.textContent = `${fmt(shownBalance())} punten`;
-    if (up) {
+    if (up === 'down') {
+      node.classList.remove('up');
+      node.classList.add('down');
+      clearTimeout(balanceTimer);
+      balanceTimer = setTimeout(() => node.classList.remove('down'), 500);
+    } else if (up) {
+      node.classList.remove('down');
       node.classList.add('up');
       clearTimeout(balanceTimer);
       balanceTimer = setTimeout(() => node.classList.remove('up'), 500);
@@ -802,7 +816,7 @@
     view.bet = bet;
     clearWinDisplay();
     outstanding = bet;
-    renderBalance(); renderControls();
+    renderBalance('down'); renderControls();
     session.spins++; session.wagered += bet;
     renderStats();
     // Fever-meter loopt meteen op
@@ -834,7 +848,7 @@
     pending -= res.payout;
     session.won += res.payout;
     session.best = Math.max(session.best, res.payout / res.bet);
-    renderBalance(res.payout > 0);
+    renderBalance(res.payout > res.bet);
 
     progress = res.progress;
     renderStats();
@@ -892,6 +906,7 @@
       restoreGrid(baseGrid);
     }
     setWin(res.payout, true);
+    showNet(res.payout, bet);
     if (r.capped) await banner('MAX WIN', `${fmt(cfg.maxWinX)}× je inzet`, '#00e5ff', 1600);
     hideBadge();
     if (res.payout / bet >= 10) await bigWin(res.payout, bet);
@@ -1323,7 +1338,28 @@
     winShown = 0; winTarget = 0;
     $('winVal').textContent = '0';
     $('winLabel').textContent = 'WINST';
+    $('winNet').textContent = '';
+    $('winNet').className = 'net';
+    $('winbox').classList.remove('lost');
     view.hl = null; view.lines = []; view.cycle = null; view.badge = null;
+  }
+  // Netto resultaat van de spin: verlies in rood, anders winst min inzet
+  function showNet(payout, bet) {
+    const net = payout - bet;
+    const node = $('winNet');
+    if (payout <= 0) {
+      $('winLabel').textContent = 'VERLIES';
+      $('winVal').textContent = `−${fmt(bet)}`;
+      winShown = winTarget = 0;
+      restart($('winbox'), 'lost');
+      node.textContent = '';
+      node.className = 'net';
+      floater(`−${fmt(bet)}`, view.geom.x + view.geom.w / 2, view.geom.y + view.geom.h / 2, 0.9, '#ef5b4c');
+      sfx.lose();
+      return;
+    }
+    node.textContent = net === 0 ? 'inzet terug' : `netto ${net > 0 ? '+' : '−'}${fmt(Math.abs(net))}`;
+    node.className = `net ${net > 0 ? 'plus' : net < 0 ? 'minus' : ''}`;
   }
   function addWin(a) {
     winTarget += a;
@@ -2519,6 +2555,7 @@
       tone(2200 + Math.random() * 300, 0, 0.012, 0.012, 'square');
     },
     stop(r) { tone(150, 0, 0.1, 0.16, 'sine', 70); noise(0, 0.05, 0.05, 1800, 1.5); tone(700 + (r || 0) * 40, 0, 0.03, 0.02, 'square'); },
+    lose() { tone(196, 0, 0.18, 0.06, 'sine', 130); tone(147, 0.12, 0.22, 0.05, 'sine', 98); },
     thud() { tone(110, 0, 0.12, 0.12, 'sine', 55); },
     wildLand() { [1047, 1568].forEach((f, i) => tone(f, i * 0.04, 0.18, 0.035, 'sine')); },
     scatter(n) { const base = [880, 1175, 1568, 1976, 2349][Math.min(4, n - 1)]; tone(base, 0, 0.5, 0.08, 'triangle'); tone(base * 1.5, 0.05, 0.6, 0.04, 'sine'); },
