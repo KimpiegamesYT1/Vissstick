@@ -454,7 +454,7 @@
       return;
     }
 
-    const cfg = state ? state.config : { minBet: 10, maxBet: 250 };
+    const cfg = state ? state.config : { minBet: 10, maxBet: 500 };
     const editable = phase !== 'flying' && !autoPlay;
     if (mine && phase === 'lobby' && !autoPlay) {
       form.bet = String(mine.bet);

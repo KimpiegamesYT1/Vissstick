@@ -13,7 +13,7 @@ const LOBBY_DURATION = 20000; // 20 seconden om mee te doen
 const CRASH_COOLDOWN = 6000;  // crash + uitslag blijven even staan voordat er een nieuwe ronde kan starten
 const LIFTOFF_MS = 2000;      // Korte liftoff op 1.00x voordat de multiplier stijgt
 const MIN_BET = 10;
-const MAX_BET = 250;
+const MAX_BET = 500;
 const MAX_PLAYERS = 20;
 
 // Er kan maar één ronde tegelijk actief zijn
