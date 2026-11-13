@@ -169,7 +169,7 @@
     .nav a { flex: 1; text-align: center; padding: 7px 2px; font-size: 12px; white-space: nowrap; }
   }
 </style>
-<script src="/connection.js?v=1"></script>
+<script src="/connection.js?v=2"></script>
 </head>
 <body>
 <div class="app">
@@ -432,6 +432,7 @@
   // Auto-inzet: zet elke ronde automatisch dezelfde inzet in tot je stopt
   let autoPlay = null; // { bet, cashout, rounds, lastGameId, nextTry, jitter }
   let autoBusy = false;
+  let syncedGameId = null;
 
   function renderAction(force) {
     const box = $('action');
@@ -456,7 +457,9 @@
 
     const cfg = state ? state.config : { minBet: 10, maxBet: 500 };
     const editable = phase !== 'flying' && !autoPlay;
-    if (mine && phase === 'lobby' && !autoPlay) {
+    // Eenmalig per ronde je inzet overnemen (bijv. na herladen), anders kun je niet meer van tabblad wisselen
+    if (mine && phase === 'lobby' && !autoPlay && syncedGameId !== game.id) {
+      syncedGameId = game.id;
       form.bet = String(mine.bet);
       if (mine.autoCashout) { form.mode = 'auto'; form.auto = mine.autoCashout.toFixed(2); }
     }
@@ -560,6 +563,10 @@
             autoTick();
           })
         }));
+        if (phase === 'lobby' && mine) {
+          box.append(el('button', { class: 'link', text: 'Inzet aanpassen', onclick: guarded(() => api('join', joinBody())) }));
+          box.append(el('button', { class: 'link', text: 'Uitstappen', onclick: () => api('leave') }));
+        }
       }
     } else if (phase === 'lobby') {
       box.append(el('button', { class: 'play', text: mine ? 'Inzet aanpassen' : 'Instappen', onclick: guarded(() => api('join', joinBody())) }));

@@ -7,6 +7,8 @@
  *
  * Werkt door fetch en EventSource te omwikkelen, dus de pagina's zelf hoeven niets te doen: dit script moet
  * alleen vóór het eigen script van de pagina geladen worden.
+ *
+ * Daarnaast krijgen Firefox-gebruikers max. 1x per week een melding linksonder dat een Chromium-browser beter presteert.
  */
 (() => {
   'use strict';
@@ -223,4 +225,53 @@
     const left = Math.ceil((nextRetryAt - Date.now()) / 1000);
     if (left > 0) setStatus(`Opnieuw proberen over ${left} s${attempts ? ` · poging ${attempts + 1}` : ''}`, false);
   }
+
+  // =====================================================
+  // FIREFOX MELDING
+  // =====================================================
+  const FIREFOX_KEY = 'firefoxNoticeAt';
+  const FIREFOX_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+  function showFirefoxNotice() {
+    if (!/firefox|fxios/i.test(navigator.userAgent)) return;
+    try {
+      const last = Number(localStorage.getItem(FIREFOX_KEY)) || 0;
+      if (Date.now() - last < FIREFOX_INTERVAL_MS) return;
+      localStorage.setItem(FIREFOX_KEY, String(Date.now()));
+    } catch (error) {
+      // Geen opslag: dan maar elke keer tonen
+    }
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .vsc-ff { position: fixed; left: 16px; bottom: 16px; z-index: 2147482000; width: min(340px, calc(100vw - 32px));
+        display: flex; gap: 10px; align-items: flex-start; padding: 12px 12px 12px 14px; border-radius: 12px;
+        background: #1b1d21; border: 1px solid rgba(242,193,78,.3); box-shadow: 0 12px 32px rgba(0,0,0,.5);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; color: #eceae6;
+        font-size: 13px; line-height: 1.5; opacity: 0; transform: translateY(10px); transition: opacity .25s ease, transform .25s ease; }
+      .vsc-ff.show { opacity: 1; transform: none; }
+      .vsc-ff b { color: #f2c14e; }
+      .vsc-ff p { margin: 0; flex: 1; }
+      .vsc-ff button { flex: none; width: 24px; height: 24px; margin: -2px -2px 0 0; border: 0; border-radius: 6px; padding: 0;
+        background: transparent; color: #8d9299; font-size: 18px; line-height: 24px; cursor: pointer; }
+      .vsc-ff button:hover { background: rgba(255,255,255,.08); color: #eceae6; }
+    `;
+    document.head.append(style);
+
+    const box = document.createElement('div');
+    box.className = 'vsc-ff';
+    box.setAttribute('role', 'status');
+    box.innerHTML = `
+      <p><b>Je gebruikt Firefox.</b> Het kan zijn dat de game-performance niet optimaal is. Probeer een Chromium-based browser (zoals Chrome, Edge of Brave) voor betere performance.</p>
+      <button type="button" aria-label="Sluiten" title="Sluiten">×</button>`;
+    box.querySelector('button').addEventListener('click', () => {
+      box.classList.remove('show');
+      setTimeout(() => box.remove(), 250);
+    });
+    document.body.append(box);
+    requestAnimationFrame(() => box.classList.add('show'));
+  }
+
+  if (document.body) showFirefoxNotice();
+  else document.addEventListener('DOMContentLoaded', showFirefoxNotice);
 })();
