@@ -370,6 +370,24 @@ CREATE TABLE IF NOT EXISTS plinko_stats (
     last_played DATETIME
 );
 
+-- Slots stats + voortgang (website)
+CREATE TABLE IF NOT EXISTS slots_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    spins INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    biggest_multiplier REAL DEFAULT 0,
+    free_spins INTEGER DEFAULT 0,
+    holds INTEGER DEFAULT 0,
+    fevers INTEGER DEFAULT 0,
+    xp INTEGER DEFAULT 0,
+    fever_spins INTEGER DEFAULT 0,
+    fever_wagered INTEGER DEFAULT 0,
+    last_played DATETIME
+);
+
 -- =====================================================
 -- CHATBOT MODULE
 -- =====================================================

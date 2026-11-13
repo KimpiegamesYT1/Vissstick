@@ -1,6 +1,6 @@
 /**
  * Website commando's
- * Rocket, Plinko, de dagelijkse spin en de blackjack tafel worden op de website gespeeld. Deze commando's geven een persoonlijke,
+ * Rocket, Plinko, Slots, de dagelijkse spin en de blackjack tafel worden op de website gespeeld. Deze commando's geven een persoonlijke,
  * eenmalige inloglink waarmee je je Discord account aan de website koppelt.
  */
 
@@ -12,7 +12,8 @@ const PAGES = {
   spin: { path: '/spin', label: 'Draai aan het rad', intro: '🎡 Je **dagelijkse spin** staat op de website.' },
   daily: { path: '/spin', label: 'Draai aan het rad', intro: '🎡 Je **dagelijkse spin** staat op de website.' },
   tafel: { path: '/blackjack', label: 'Naar de tafel', intro: '🃏 De **blackjack tafel** staat op de website: speel met maximaal 7 spelers tegen de dealer.' },
-  plinko: { path: '/plinko', label: 'Speel Plinko', intro: '🟡 **Plinko** speel je op de website: laat ballen vallen en win tot 1000x je inzet.' }
+  plinko: { path: '/plinko', label: 'Speel Plinko', intro: '🟡 **Plinko** speel je op de website: laat ballen vallen en win tot 1000x je inzet.' },
+  slots: { path: '/slots', label: 'Speel Slots', intro: '🍒 **Slots** speel je op de website: een fruitautomaat met 10 niveaus, free spins, jackpots en tot 2500x je inzet.' }
 };
 
 async function handleWebCommands(interaction, client, config) {
@@ -50,7 +51,8 @@ const webCommands = [
   { name: 'spin', description: 'Draai aan het dagelijkse rad voor gratis punten' },
   { name: 'daily', description: 'Draai aan het dagelijkse rad voor gratis punten' },
   { name: 'tafel', description: 'Krijg je link naar de online blackjack tafel' },
-  { name: 'plinko', description: 'Krijg je persoonlijke link naar Plinko op de website' }
+  { name: 'plinko', description: 'Krijg je persoonlijke link naar Plinko op de website' },
+  { name: 'slots', description: 'Krijg je persoonlijke link naar de fruitautomaat op de website' }
 ];
 
 module.exports = {
