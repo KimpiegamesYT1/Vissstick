@@ -102,6 +102,58 @@ function subtractBalance(userId, amount) {
   return getUserBalance(userId);
 }
 
+// =====================================================
+// OPEN INZETTEN (bescherming tegen herstarts)
+// =====================================================
+// Spellen die de inzet afschrijven en het spel in het geheugen houden, zetten het bedrag dat nog
+// "op tafel ligt" in open_stakes. Is het spel afgelopen (winst, verlies of terugbetaling), dan gaat
+// de regel weg. Wat er bij het opstarten nog staat, was van een spel dat door een herstart is afgebroken.
+
+/**
+ * Leg vast hoeveel een speler nu in een lopend spel heeft zitten (0 = niets meer)
+ * @param {string} game bijv. 'rocket', 'bj_table', 'discord_bj'
+ * @param {string} ref uniek binnen het spel (ronde, speler, spel-id)
+ */
+function setStake(game, ref, userId, username, amount) {
+  const db = getDatabase();
+  const value = Math.max(0, Math.floor(Number(amount) || 0));
+  if (value <= 0) {
+    db.prepare('DELETE FROM open_stakes WHERE game = ? AND ref = ?').run(game, String(ref));
+    return;
+  }
+  db.prepare(`
+    INSERT INTO open_stakes (game, ref, user_id, username, amount, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(game, ref) DO UPDATE SET amount = excluded.amount, username = excluded.username, updated_at = excluded.updated_at
+  `).run(game, String(ref), userId, username || userId, value);
+}
+
+function releaseStake(game, ref) {
+  getDatabase().prepare('DELETE FROM open_stakes WHERE game = ? AND ref = ?').run(game, String(ref));
+}
+
+/** Alle open inzetten van één spel, als Map ref -> amount */
+function getStakes(game) {
+  const rows = getDatabase().prepare('SELECT ref, amount FROM open_stakes WHERE game = ?').all(game);
+  return new Map(rows.map(r => [r.ref, r.amount]));
+}
+
+/**
+ * Stort alle open inzetten terug (bij het opstarten, voordat er nieuwe spellen kunnen beginnen)
+ * @returns {{user_id: string, username: string, game: string, amount: number}[]}
+ */
+function refundOpenStakes() {
+  const db = getDatabase();
+  return db.transaction(() => {
+    const rows = db.prepare('SELECT game, ref, user_id, username, amount FROM open_stakes').all();
+    for (const row of rows) {
+      if (row.amount > 0) addBalance(row.user_id, row.username, row.amount, `Terugbetaling na herstart (${row.game})`);
+    }
+    db.prepare('DELETE FROM open_stakes').run();
+    return rows;
+  })();
+}
+
 /**
  * Haal top users op gesorteerd op balance
  */
@@ -841,6 +893,12 @@ module.exports = {
   getTopUsers,
   getAllUsersWithBalance,
   getUserPosition,
+
+  // Open inzetten
+  setStake,
+  releaseStake,
+  getStakes,
+  refundOpenStakes,
   
   // Bet functions
   createBet,

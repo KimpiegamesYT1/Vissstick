@@ -21,9 +21,57 @@ function generateApprovalId() {
 }
 
 // =====================================================
+// OPEN INZETTEN (bescherming tegen herstarts)
+// =====================================================
+// De spellen hieronder schrijven de inzet af en houden het spel in het geheugen. Het bedrag dat nog in
+// een lopend spel zit, staat in open_stakes (casino.setStake); bij het opstarten van de bot wordt dat
+// teruggestort. Een StakeMap werkt dat bij als een spel wordt opgeslagen of verwijderd; syncStake() na een
+// wijziging van de inzet, settleStake() zodra de uitslag vastligt (vóór de await's van het bericht).
+const STAKE_OF = {
+  don: g => g.pot || 0,
+  bj: g => (g.phase === 'betting' || g.settled ? 0 : getTotalBet(g)),
+  mines: g => (g.mines && !g.ended ? g.betAmount || 0 : 0)
+};
+
+class StakeMap extends Map {
+  constructor(kind) {
+    super();
+    this.kind = kind;
+  }
+
+  set(key, game) {
+    super.set(key, game);
+    syncStake(this.kind, key, game);
+    return this;
+  }
+
+  delete(key) {
+    safeStake(() => casino.releaseStake(`discord_${this.kind}`, key));
+    return super.delete(key);
+  }
+}
+
+function safeStake(fn) {
+  try {
+    fn();
+  } catch (error) {
+    console.error('Open inzet bijwerken mislukt:', error);
+  }
+}
+
+function syncStake(kind, key, game) {
+  safeStake(() => casino.setStake(`discord_${kind}`, key, game.userId, game.username, STAKE_OF[kind](game)));
+}
+
+function settleStake(kind, key, game) {
+  if (game) game.settled = true;
+  safeStake(() => casino.releaseStake(`discord_${kind}`, key));
+}
+
+// =====================================================
 // DOUBLE OR NOTHING - Game State
 // =====================================================
-const activeDoNGames = new Map();
+const activeDoNGames = new StakeMap('don');
 const DON_WIN_CHANCE = 0.50;
 const DON_MAX_ROUNDS = 5;
 
@@ -34,13 +82,13 @@ function generateDoNGameId() {
 // =====================================================
 // BLACKJACK - Game State
 // =====================================================
-const activeBlackjackGames = new Map();
+const activeBlackjackGames = new StakeMap('bj');
 const KEEP_GAMBLING_IMG = 'https://i.imgur.com/MUNEEPD.jpeg';
 
 // =====================================================
 // MINES - Game State
 // =====================================================
-const activeMinesGames = new Map();
+const activeMinesGames = new StakeMap('mines');
 
 // =====================================================
 // BLACKJACK - Stats Database
@@ -1618,6 +1666,7 @@ async function playDoNRound(interaction, game, gameId, client, config) {
 
   if (won) {
     game.pot *= 2;
+    syncStake('don', gameId, game);
 
     if (game.round >= DON_MAX_ROUNDS) {
       // Maximale rondes bereikt, automatisch uitbetalen
@@ -1729,6 +1778,7 @@ async function handleDoubleOrNothingButton(interaction, client, config) {
     game.pot = betAmount;
     game.bet = betAmount;
     game.round = 1;
+    syncStake('don', gameId, game);
 
     await interaction.deferUpdate();
     await playDoNRound(interaction, game, gameId, client, config);
@@ -2253,6 +2303,7 @@ async function handleMinesButton(interaction, client, config) {
 
       if (game.mines.has(idx)) {
         game.ended = true;
+        settleStake('mines', gameId, game);
         clearTimeout(game.timeout);
 
         recordMinesResult(game.userId, game.username, game.betAmount, 0, 'lose');
@@ -2315,6 +2366,7 @@ async function handleMinesButton(interaction, client, config) {
       casino.addBalance(game.userId, game.username, payout, 'Mines cashout');
 
       game.ended = true;
+      settleStake('mines', gameId, game);
       clearTimeout(game.timeout);
 
       recordMinesResult(game.userId, game.username, game.betAmount, payout, 'win');
@@ -2516,6 +2568,7 @@ async function handleBlackjackButton(interaction, client, config) {
     casino.subtractBalance(game.userId, betAmount);
     game.bet = betAmount;
     game.phase = 'playing';
+    syncStake('bj', gameId, game);
 
     // Maak deck (6-deck shoe) en deel kaarten
     game.deck = blackjack.createDeck(6);
@@ -2537,6 +2590,7 @@ async function handleBlackjackButton(interaction, client, config) {
       // Direct resultaat
       const outcome = blackjack.determineOutcome(game.playerCards, game.dealerCards);
       const payout = blackjack.calculatePayout(betAmount, outcome);
+      settleStake('bj', gameId, game);
       if (payout > 0) {
         casino.addBalance(game.userId, game.username, payout, `Blackjack ${outcome}`);
       }
@@ -2594,6 +2648,7 @@ async function handleBlackjackButton(interaction, client, config) {
 
     if (blackjack.isBusted(game.playerCards)) {
       // Bust - verloren
+      settleStake('bj', gameId, game);
       const newBalance = casino.getUserBalance(game.userId);
       const { embed, files } = await buildBlackjackEmbed(game, true,
         `💥 **Bust!** Je bent over de 21!\nJe verliest **${game.bet} punten**.\n\n💰 Saldo: ${newBalance} punten`,
@@ -2644,6 +2699,7 @@ async function handleBlackjackButton(interaction, client, config) {
       casino.subtractBalance(game.userId, hand.bet);
       hand.bet *= 2;
       hand.doubled = true;
+      syncStake('bj', gameId, game);
       blackjack.reshuffleIfNeeded(game);
       hand.cards.push(blackjack.dealCard(game.deck));
 
@@ -2669,10 +2725,12 @@ async function handleBlackjackButton(interaction, client, config) {
     casino.subtractBalance(game.userId, game.bet);
     game.bet *= 2;
     game.doubled = true;
+    syncStake('bj', gameId, game);
     blackjack.reshuffleIfNeeded(game);
     game.playerCards.push(blackjack.dealCard(game.deck));
 
     if (blackjack.isBusted(game.playerCards)) {
+      settleStake('bj', gameId, game);
       const newBalance = casino.getUserBalance(game.userId);
       const { embed, files } = await buildBlackjackEmbed(game, true,
         `💰 **Doubled & Bust!** Je bent over de 21!\nJe verliest **${game.bet} punten**.\n\n💰 Saldo: ${newBalance} punten`,
@@ -2719,6 +2777,7 @@ async function handleBlackjackButton(interaction, client, config) {
     ];
     game.isSplit = true;
     game.activeHandIndex = 0;
+    syncStake('bj', gameId, game);
     // Wis playerCards (niet meer in gebruik)
     game.playerCards = [];
 
@@ -2817,6 +2876,7 @@ async function resolveSplitDealerTurn(interaction, game, gameId) {
     }
   });
 
+  settleStake('bj', gameId, game);
   if (totalPayout > 0) {
     casino.addBalance(game.userId, game.username, totalPayout, 'Blackjack split');
   }
@@ -2898,6 +2958,7 @@ async function resolveBJDealerTurn(interaction, game, gameId) {
   // Bepaal resultaat
   const outcome = blackjack.determineOutcome(game.playerCards, game.dealerCards);
   const payout = blackjack.calculatePayout(game.bet, outcome);
+  settleStake('bj', gameId, game);
 
   if (payout > 0) {
     casino.addBalance(game.userId, game.username, payout, `Blackjack ${outcome}`);

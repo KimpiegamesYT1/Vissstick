@@ -56,7 +56,8 @@ const BASE5 = { C: 18, L: 18, O: 16, P: 15, G: 13, M: 10, B: 8, R: 6, 7: 4 };
 
 /**
  * Niveaus. Elk niveau zet nieuwe features aan; je kunt altijd terug naar een lager niveau.
- * weights.W/S/K: gewicht van wild, scatter en geldfruit per vakje.
+ * wild/scatter: gewicht per vakje. coin: kans dat een fruit geldfruit is (fruit met een munt erop; het fruit
+ * telt gewoon mee voor lijnen, 6+ geldfruit start Hold & Win).
  */
 const LEVELS = [
   {
@@ -80,24 +81,24 @@ const LEVELS = [
     reels: 5, rows: 3, base: BASE5, wild: 6, scatter: 4.2, coin: 0, cascade: true, scale: 1.009
   },
   {
-    level: 6, xp: 150, name: 'Geldfruit', unlock: '6+ munten = Hold & Win met MINI, MINOR, MAJOR en GRAND jackpots.',
-    reels: 5, rows: 3, base: BASE5, wild: 6, scatter: 4.2, coin: 15, cascade: true, scale: 1.386
+    level: 6, xp: 150, name: 'Geldfruit', unlock: 'Geldfruit: 6+ fruit met een munt = Hold & Win met MINI, MINOR, MAJOR en GRAND jackpots.',
+    reels: 5, rows: 3, base: BASE5, wild: 6, scatter: 4.2, coin: 0.118, cascade: true, scale: 0.916
   },
   {
     level: 7, xp: 220, name: 'Gekke events', unlock: 'Willekeurige events: wildstorm, multiplier-regen, fruitsalade en muntenregen.',
-    reels: 5, rows: 3, base: BASE5, wild: 6, scatter: 4.2, coin: 13, cascade: true, events: true, scale: 0.726
+    reels: 5, rows: 3, base: BASE5, wild: 6, scatter: 4.2, coin: 0.12, cascade: true, events: true, scale: 0.503
   },
   {
     level: 8, xp: 300, name: 'Mega-rollen', unlock: 'Vier rijen hoog en veertig lijnen.',
-    reels: 5, rows: 4, base: BASE5, wild: 6, scatter: 3.1, coin: 13, cascade: true, events: true, scale: 0.804
+    reels: 5, rows: 4, base: BASE5, wild: 6, scatter: 3.1, coin: 0.115, cascade: true, events: true, scale: 0.555
   },
   {
     level: 9, xp: 400, name: 'Gouden spins', unlock: 'In free spins blijven wilds plakken en start de multiplier op ×2.',
-    reels: 5, rows: 4, base: BASE5, wild: 6, scatter: 3.1, coin: 13, cascade: true, events: true, sticky: true, fsStart: 2, scale: 0.652
+    reels: 5, rows: 4, base: BASE5, wild: 6, scatter: 3.1, coin: 0.115, cascade: true, events: true, sticky: true, fsStart: 2, scale: 0.448
   },
   {
     level: 10, xp: 520, name: 'Vissstick-modus', unlock: 'Vijf bij vijf, vijftig lijnen en wilds met ×2, ×3 en ×5.',
-    reels: 5, rows: 5, base: BASE5, wild: 5, scatter: 2.5, coin: 12, cascade: true, events: true, sticky: true, fsStart: 2, wildMults: true, scale: 0.466
+    reels: 5, rows: 5, base: BASE5, wild: 5, scatter: 2.5, coin: 0.11, cascade: true, events: true, sticky: true, fsStart: 2, wildMults: true, scale: 0.323
   }
 ];
 
@@ -177,23 +178,30 @@ function drawer(cfg, mode) {
     // In free spins meer wilds, behalve als ze blijven plakken
     if (cfg.wild && wildReel) table.push(['W', cfg.wild * (mode === 'fs' ? (cfg.sticky ? 0.55 : 1.25) : 1)]);
     if (cfg.scatter) table.push(['S', cfg.scatter]);
-    if (cfg.coin && mode === 'base') table.push(['K', cfg.coin]);
     perReel.push(table);
   }
   cached[mode] = perReel;
   return perReel;
 }
 
-function makeCell(s, cfg, rand) {
+function makeCell(s, cfg, rand, mode) {
   if (s === 'W') return cfg.wildMults ? { s, m: pickWeighted(WILD_MULTS, rand) } : { s };
-  if (s === 'K') return coinCell(rand);
+  // Geldfruit: een fruit met een munt erop (alleen in het basisspel)
+  if (cfg.coin && mode === 'base' && FRUITS.includes(s) && rand() < cfg.coin) return { s, ...coinValue(rand) };
   return { s };
 }
 
-function coinCell(rand) {
+function coinValue(rand) {
   const v = pickWeighted(COIN_VALUES, rand);
-  return typeof v === 'string' ? { s: 'K', v: JACKPOTS[v], j: v } : { s: 'K', v };
+  return typeof v === 'string' ? { v: JACKPOTS[v], j: v } : { v };
 }
+
+/** Munt op het Hold & Win bord */
+function coinCell(rand) {
+  return { s: 'K', ...coinValue(rand) };
+}
+
+const isCoin = c => c.v !== undefined;
 
 /** Eén vakje trekken voor rol `reel`. Maximaal één scatter per rol. */
 function drawCell(cfg, mode, reel, column, rand) {
@@ -201,7 +209,7 @@ function drawCell(cfg, mode, reel, column, rand) {
   for (let tries = 0; tries < 20; tries++) {
     const s = pickWeighted(table, rand);
     if (s === 'S' && column.some(c => c && c.s === 'S')) continue;
-    return makeCell(s, cfg, rand);
+    return makeCell(s, cfg, rand, mode);
   }
   return { s: 'C' };
 }
@@ -383,7 +391,7 @@ const EVENTS = [['wildstorm', 36], ['multiplier', 32], ['fruitsalad', 20], ['coi
 function rollEvent(grid, cfg, rand) {
   let type = pickWeighted(EVENTS, rand);
   if (type === 'coinrain' && !cfg.coin) type = 'wildstorm';
-  const plain = c => c.s !== 'S' && c.s !== 'K' && c.s !== 'W';
+  const plain = c => c.s !== 'S' && c.s !== 'W' && !isCoin(c);
   if (type === 'wildstorm') {
     const cells = randomCells(grid, 3 + Math.floor(rand() * 4), rand, plain);
     cells.forEach(([r, row]) => { grid[r][row] = makeCell('W', cfg, rand); });
@@ -397,11 +405,11 @@ function rollEvent(grid, cfg, rand) {
     const from = present.length ? present[Math.floor(rand() * present.length)] : 'C';
     const to = pickWeighted([['M', 40], ['B', 30], ['R', 20], ['7', 10]], rand);
     const cells = [];
-    grid.forEach((col, r) => col.forEach((c, row) => { if (c.s === from) { col[row] = { s: to }; cells.push([r, row]); } }));
+    grid.forEach((col, r) => col.forEach((c, row) => { if (c.s === from) { col[row] = { ...c, s: to }; cells.push([r, row]); } }));
     return { type, from, to, cells };
   }
-  const cells = randomCells(grid, 2 + Math.floor(rand() * 2), rand, c => c.s !== 'S' && c.s !== 'K');
-  cells.forEach(([r, row]) => { grid[r][row] = coinCell(rand); });
+  const cells = randomCells(grid, 2 + Math.floor(rand() * 2), rand, c => FRUITS.includes(c.s) && !isCoin(c));
+  cells.forEach(([r, row]) => { grid[r][row] = { s: grid[r][row].s, ...coinValue(rand) }; });
   return { type: 'coinrain', cells: cells.map(([r, row]) => [r, row, grid[r][row]]) };
 }
 
@@ -448,7 +456,7 @@ function coinTrigger(cfg) {
 /** Hold & Win: munten blijven staan, 3 respins, elke nieuwe munt zet de respins terug op 3. */
 function holdAndWin(grid, cfg, rand) {
   const cells = cfg.reels * cfg.rows;
-  const board = grid.map(col => col.map(c => (c.s === 'K' ? c : null)));
+  const board = grid.map(col => col.map(c => (isCoin(c) ? { s: 'K', v: c.v, ...(c.j ? { j: c.j } : {}) } : null)));
   let filled = board.flat().filter(Boolean).length;
   const start = board.map(col => col.map(c => c && { ...c }));
   const fillChance = 0.4 / cells;
@@ -516,10 +524,12 @@ function spin(cfg, bet, rand, scaleOverride) {
   }
 
   let fixedWin = 0;
+  // Geldfruit telt op het grid zoals het landde (na een event), vóór de cascades
   if (cfg.coin) {
-    const coins = countSymbol(base.final, 'K');
-    if (coins.length >= coinTrigger(cfg)) {
-      result.hold = holdAndWin(base.final, cfg, rand);
+    let coins = 0;
+    grid.forEach(col => col.forEach(c => { if (isCoin(c)) coins++; }));
+    if (coins >= coinTrigger(cfg)) {
+      result.hold = holdAndWin(grid, cfg, rand);
       result.hold.win = result.hold.x * bet;
       fixedWin = result.hold.win;
     }

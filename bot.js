@@ -815,6 +815,14 @@ client.once("clientReady", async () => {
   try {
     initDatabase();
     console.log('✅ Database geïnitialiseerd');
+    // Inzetten van spellen die door de vorige herstart zijn afgebroken teruggeven,
+    // voordat de website en de casino-commando's weer nieuwe spellen kunnen starten
+    const refunded = casino.refundOpenStakes();
+    if (refunded.length > 0) {
+      const total = refunded.reduce((sum, row) => sum + row.amount, 0);
+      console.log(`💸 ${refunded.length} open inzet(ten) teruggestort na herstart (${total} punten):`);
+      refunded.forEach(row => console.log(`   - ${row.username}: ${row.amount} (${row.game})`));
+    }
     rocketGame.init(client, config);
   } catch (error) {
     console.error('❌ Database initialisatie mislukt:', error);

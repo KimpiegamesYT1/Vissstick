@@ -367,6 +367,7 @@
     .spinwrap { gap: 6px; }
   }
 </style>
+<script src="/connection.js?v=1"></script>
 </head>
 <body>
 <div class="app">
@@ -962,7 +963,6 @@
     const table = Object.entries(COSMETIC);
     if (L.features.wild && wildReel(L, r)) table.push(['W', 5]);
     if (L.features.scatter) table.push(['S', 3]);
-    if (L.features.coins && mode !== 'fs') table.push(['K', 9]);
     let total = 0;
     table.forEach(([, w]) => { total += w; });
     let x = Math.random() * total, s = 'C';
@@ -971,7 +971,8 @@
       const m = Math.random();
       return { s, m: m < 0.62 ? 1 : m < 0.88 ? 2 : m < 0.97 ? 3 : 5 };
     }
-    if (s === 'K') {
+    // Geldfruit: fruit met een munt erop
+    if (L.features.coins && mode !== 'fs' && FRUITS.includes(s) && Math.random() < 0.11) {
       const v = [0.5, 1, 1, 2, 2, 3, 5, 8, 10][Math.floor(Math.random() * 9)];
       return Math.random() < 0.04 ? { s, v: 25, j: 'MINI' } : { s, v };
     }
@@ -980,7 +981,7 @@
   function randomGrid(L, mode) {
     return Array.from({ length: L.reels }, (_, r) => Array.from({ length: L.rows }, () => {
       let c = randomCell(L, r, mode);
-      if (c.s === 'S' || c.s === 'K') c = { s: FRUITS[Math.floor(Math.random() * 6)] };
+      if (c.s === 'S' || c.v !== undefined) c = { s: FRUITS[Math.floor(Math.random() * 6)] };
       return c;
     }));
   }
@@ -1294,7 +1295,7 @@
           view.fx[r] = reel.final.map(() => freshFx());
           sfx.stop(r);
           const scat = reel.final.filter(c => c.s === 'S').length;
-          const coins = reel.final.filter(c => c.s === 'K').length;
+          const coins = reel.final.filter(c => c.v !== undefined).length;
           if (scat) sfx.scatter(view.scatSeen = (view.scatSeen || 0) + scat);
           if (coins) sfx.coin(4);
           if (reel.final.some(c => c.s === 'W')) sfx.wildLand();
@@ -1323,7 +1324,7 @@
       }
       promises.push(stopReel(r, grid[r]));
       scat += grid[r].filter(c => c.s === 'S').length;
-      coins += grid[r].filter(c => c.s === 'K').length;
+      coins += grid[r].filter(c => c.v !== undefined).length;
     }
     await Promise.all(promises);
     view.grid = grid.map(col => col.slice());
@@ -1503,9 +1504,11 @@
       for (const [r, row, cell] of ev.cells) {
         view.grid[r][row] = cell;
         const fx = view.fx[r][row];
-        const d = -(row + 1.5) * g.s;
-        tween(420, t => { fx.dy = d * (1 - t); }, easeBounce).then(() => { sfx.coin(6); const [x, y] = cellCenter(r, row); sparks(x, y, 10, '#ffd54f', g.s * 0.05); });
-        await sleep(110);
+        const [x, y] = cellCenter(r, row);
+        sparks(x, y, 14, '#ffd54f', g.s * 0.06);
+        sfx.coin(6);
+        tween(380, t => { fx.sc = 1.45 - 0.45 * t; fx.flash = 1 - t; }, easeBack);
+        await sleep(160);
       }
       await sleep(450);
     }
@@ -1591,7 +1594,7 @@
   // =====================================================
   async function playHold(hold, L, bet, baseGrid) {
     view.hl = { cells: new Set(), start: T };
-    baseGrid.forEach((col, r) => col.forEach((c, row) => { if (c.s === 'K') view.hl.cells.add(r * 10 + row); }));
+    hold.start.forEach((col, r) => col.forEach((c, row) => { if (c) view.hl.cells.add(r * 10 + row); }));
     sfx.feature(); shake(8); flash('#9fd3ff', 0.4);
     await sleep(700);
     await showFeature({ kicker: 'GELDFRUIT', title: 'HOLD & WIN', cls: 'hold', sub: '3 respins · elke nieuwe munt zet ze terug op 3', desc: 'Vul het hele scherm voor de GRAND jackpot', ms: 2300 });
@@ -2153,6 +2156,21 @@
         const yy = cell.j ? size * 0.12 : size * 0.02;
         ctx.strokeText(label, 0, yy);
         ctx.fillStyle = cell.j ? '#fff' : '#4a2a00'; ctx.fillText(label, 0, yy);
+      } else if (cell.v !== undefined) {
+        // Munt-badge op geldfruit
+        const br = size * 0.24, bx = size * 0.28, by = size * 0.28;
+        const jc = { MINI: ['#c8ffe0', '#1fd17a', '#0a5a30'], MINOR: ['#d0e6ff', '#2f86ff', '#0a2f6a'], MAJOR: ['#f2d0ff', '#b12cf0', '#4a0a6a'] }[cell.j] || ['#fff3b8', '#ffc61a', '#9a6400'];
+        ctx.save();
+        ctx.shadowColor = jc[1]; ctx.shadowBlur = 10;
+        ball(ctx, bx, by, br, jc[0], jc[1], jc[2]);
+        ctx.restore();
+        ctx.strokeStyle = jc[2]; ctx.lineWidth = Math.max(1, br * 0.1); ctx.beginPath(); ctx.arc(bx, by, br * 0.95, 0, TAU); ctx.stroke();
+        const label = fmtPts(cell.v * (view.bet || settings.bet));
+        ctx.font = `900 ${br * (label.length > 3 ? 0.62 : 0.85)}px ${BIGFONT}`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = cell.j ? 'rgba(0,0,0,.55)' : 'rgba(255,248,214,.9)'; ctx.lineWidth = br * 0.16;
+        ctx.strokeText(label, bx, by + 1);
+        ctx.fillStyle = cell.j ? '#fff' : '#4a2a00'; ctx.fillText(label, bx, by + 1);
       } else if (cell.s === 'W' && cell.m > 1) {
         const bx = size * 0.32, by = -size * 0.34, br = size * 0.17;
         ball(ctx, bx, by, br, '#ffb3b3', '#e0102a', '#6a0010');
@@ -2460,7 +2478,7 @@
       [f.wild, 'Wild', `Vervangt elk fruit${L.reels === 3 ? ' (alleen op de middelste rol)' : ' (op rol 2, 3 en 4)'}.${f.wildMults ? ' Wilds kunnen ×2, ×3 of ×5 dragen; meerdere op één lijn tellen op.' : ''}`],
       [f.scatter, 'Free spins', `3, 4 of 5 sterren overal = ${cfg.scatterSpins[3]}, ${cfg.scatterSpins[4]} of ${cfg.scatterSpins[5]} free spins plus ${fmtPts(cfg.scatterPay[3] * bet * L.scale)}, ${fmtPts(cfg.scatterPay[4] * bet * L.scale)} of ${fmtPts(cfg.scatterPay[5] * bet * L.scale)} punten. Elke winnende free spin verhoogt de multiplier met 1${f.fsStart > 1 ? ` (start op ×${f.fsStart})` : ''}. 3 sterren in een free spin = +${cfg.retrigger} spins.`],
       [f.cascade, 'Fruitregen (cascades)', `Winnende symbolen ontploffen en er valt nieuw fruit in. Elke volgende cascade betaalt meer: ${cfg.cascadeMults.map(m => `×${m}`).join(', ')}.`],
-      [f.coins, 'Hold & Win', `${L.coinTrigger || 6}+ munten = 3 respins. Munten blijven staan; elke nieuwe munt zet de respins terug op 3. Jackpots: MINI ${cfg.jackpots.MINI}×, MINOR ${cfg.jackpots.MINOR}×, MAJOR ${cfg.jackpots.MAJOR}× je inzet. Vol scherm = GRAND (${fmt(cfg.jackpots.GRAND)}×).`],
+      [f.coins, 'Hold & Win', `Geldfruit is fruit met een munt erop; het telt gewoon mee voor lijnen. ${L.coinTrigger || 6}+ geldfruit = 3 respins. Munten blijven staan; elke nieuwe munt zet de respins terug op 3. Jackpots: MINI ${cfg.jackpots.MINI}×, MINOR ${cfg.jackpots.MINOR}×, MAJOR ${cfg.jackpots.MAJOR}× je inzet. Vol scherm = GRAND (${fmt(cfg.jackpots.GRAND)}×).`],
       [f.events, 'Gekke events', 'Ongeveer één op tien spins: wildstorm, multiplier ×2 tot ×10, fruitsalade of muntenregen.'],
       [f.sticky, 'Gouden spins', 'In free spins blijven wilds plakken tot het einde van de bonus.'],
       [true, 'Fever-rad', `Na elke ${cfg.feverSpins} spins draai je aan het fever-rad: ${Math.min(...cfg.feverWheel)}× tot ${Math.max(...cfg.feverWheel)}× je gemiddelde inzet van die spins.`]

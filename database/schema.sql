@@ -370,6 +370,19 @@ CREATE TABLE IF NOT EXISTS plinko_stats (
     last_played DATETIME
 );
 
+-- Inzetten die nog in een lopend spel zitten (Rocket, blackjack, mines, ...).
+-- Bij het opstarten van de bot wordt alles wat hier nog staat teruggestort,
+-- zodat een herstart midden in een spel geen punten kost.
+CREATE TABLE IF NOT EXISTS open_stakes (
+    game TEXT NOT NULL,
+    ref TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (game, ref)
+);
+
 -- Slots stats + voortgang (website)
 CREATE TABLE IF NOT EXISTS slots_stats (
     user_id TEXT PRIMARY KEY,

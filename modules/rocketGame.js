@@ -36,6 +36,9 @@ function init(client, config) {
   botConfig = config;
 }
 
+// Open inzet van een speler in deze ronde (zie casino.setStake: wordt teruggestort na een herstart)
+const stakeRef = (game, userId) => `${game.gameId}:${userId}`;
+
 function generateGameId() {
   return Math.random().toString(36).substring(2, 9);
 }
@@ -132,8 +135,17 @@ function startGame(user) {
 
   setTimeout(() => {
     launch(game).catch(err => {
-      console.error('Fout bij Rocket ronde:', err);
-      activeGame = null;
+      console.error('Fout bij Rocket ronde, open inzetten worden teruggestort:', err);
+      if (game.phase !== 'crashed') {
+        game.autoTimers.forEach(clearTimeout);
+        for (const p of game.players.values()) {
+          if (p.cashedAt) continue;
+          casino.addBalance(p.userId, p.username, p.bet, 'Rocket: terugbetaling na fout');
+          casino.releaseStake('rocket', stakeRef(game, p.userId));
+        }
+        game.phase = 'cancelled';
+      }
+      if (activeGame === game) activeGame = null;
       emitUpdate();
     });
   }, LOBBY_DURATION);
@@ -177,6 +189,7 @@ function join(user, betInput, cashoutInput) {
     casino.addBalance(user.id, user.username, existing.bet, 'Rocket inzet aangepast');
   }
   casino.subtractBalance(user.id, bet);
+  casino.setStake('rocket', stakeRef(game, user.id), user.id, user.username, bet);
   game.players.set(user.id, { userId: user.id, username: user.username, avatar: user.avatar, bet, autoCashout, cashedAt: null, payout: 0 });
   emitUpdate();
 
@@ -195,6 +208,7 @@ function leave(user) {
   }
   game.players.delete(user.id);
   casino.addBalance(user.id, user.username, existing.bet, 'Rocket uitgestapt');
+  casino.releaseStake('rocket', stakeRef(game, user.id));
   emitUpdate();
   return { ok: true, message: `Uitgestapt, ${existing.bet} punten teruggestort.` };
 }
@@ -205,6 +219,7 @@ function settleCashout(game, player, multiplier) {
   player.cashedAt = multiplier;
   player.payout = rocket.calculatePayout(player.bet, multiplier);
   casino.addBalance(player.userId, player.username, player.payout, `Rocket cashout @ ${formatMult(multiplier)}`);
+  casino.releaseStake('rocket', stakeRef(game, player.userId));
   emitUpdate();
   return true;
 }
@@ -264,6 +279,8 @@ async function launch(game) {
   game.phase = 'crashed';
   game.crashedAt = Date.now();
   game.autoTimers.forEach(clearTimeout);
+  // Wie niet heeft uitgecasht is zijn inzet kwijt: niets meer open
+  for (const p of players) casino.releaseStake('rocket', stakeRef(game, p.userId));
   crashHistory.unshift(game.crashPoint);
   if (crashHistory.length > 10) crashHistory.pop();
   activeGame = null;

@@ -19,7 +19,7 @@ const SEATS = 7;
 const DECKS = 6;
 const PENETRATION = 0.75;
 const MIN_BET = 10;
-const MAX_BET = 500;
+const MAX_BET = 1000;
 const MAX_HANDS_PER_SEAT = 4;
 const IDLE_ROUNDS_BEFORE_STANDUP = 3;
 const AWAY_GRACE_MS = 20000;        // pagina dicht (of verbinding weg): na 20s automatisch opstaan
@@ -133,7 +133,33 @@ function sleep(ms) {
 }
 
 function emit() {
+  syncStakes();
   events.emit('update');
+}
+
+// Wat elke speler nu op tafel heeft liggen (inzet voor de volgende ronde, open handen en verzekering)
+// staat in open_stakes, zodat een herstart van de bot die punten terugstort. Alleen wijzigingen schrijven.
+let stakeCache = new Map();
+function syncStakes() {
+  try {
+    const now = new Map();
+    table.seats.forEach((seat, index) => {
+      if (!seat) return;
+      let amount = seat.bet;
+      for (const hand of table.hands) if (hand.seat === index && !hand.result) amount += hand.bet;
+      if (seat.insurance && !seat.insurancePaid) amount += seat.insurance;
+      if (amount > 0) now.set(seat.userId, { amount, username: seat.username });
+    });
+    for (const [userId, v] of now) {
+      if (stakeCache.get(userId) !== v.amount) casino.setStake('bj_table', userId, userId, v.username, v.amount);
+    }
+    for (const userId of stakeCache.keys()) {
+      if (!now.has(userId)) casino.releaseStake('bj_table', userId);
+    }
+    stakeCache = new Map([...now].map(([userId, v]) => [userId, v.amount]));
+  } catch (error) {
+    console.error('Blackjack tafel: open inzetten bijwerken mislukt', error);
+  }
 }
 
 function say(text) {
@@ -455,6 +481,7 @@ async function playRound() {
   table.seats.forEach((seat, index) => {
     if (!seat) return;
     seat.insurance = 0;
+    seat.insurancePaid = false;
     seat.insuranceDecided = false;
     if (seat.bet > 0) {
       table.hands.push({ id: `${table.roundId}-${index}-0`, seat: index, cards: [], bet: seat.bet, doubled: false, fromSplit: false, splitAces: false, status: 'waiting', result: null, payout: 0 });
@@ -717,10 +744,12 @@ function insurance(user, take) {
 function payInsurance(dealerBlackjack) {
   for (const seat of table.seats) {
     if (!seat || !seat.insurance) continue;
+    seat.insurancePaid = true;
     if (dealerBlackjack) {
       casino.addBalance(seat.userId, seat.username, seat.insurance * 3, 'Blackjack tafel: verzekering');
     }
   }
+  syncStakes();
 }
 
 // =====================================================
@@ -755,6 +784,7 @@ async function settle() {
       casino.addBalance(seat.userId, seat.username, hand.payout, `Blackjack tafel: ${result}`);
     }
   }
+  syncStakes();
   updateStreaks();
   await phase('settle', TIMING.settle);
   await phase('collect', TIMING.collect);

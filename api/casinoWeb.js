@@ -6,6 +6,7 @@
  *   GET  /blackjack                 Blackjack tafel (3D)
  *   GET  /plinko                    Plinko
  *   GET  /slots                     Slots (fruitautomaat)
+ *   GET  /connection.js             verbindingspopup voor alle casino-pagina's
  *   GET  /vendor/three/*.js         three.js (uit node_modules)
  *   GET  /cards/<naam>.png          kaartafbeeldingen
  *   GET  /audio/<naam>.mp3          achtergrondmuziek (web/audio)
@@ -328,6 +329,9 @@ function createCasinoWebHandler() {
           return true;
         case '/login':
           handleLogin(req, res, url);
+          return true;
+        case '/connection.js':
+          sendStatic(res, readStatic(path.join(WEB_DIR, 'connection.js')), 'text/javascript; charset=utf-8');
           return true;
         case '/rocket/login':
           url.searchParams.set('next', '/rocket');
