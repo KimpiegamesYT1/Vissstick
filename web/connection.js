@@ -1,5 +1,5 @@
 /**
- * Verbindingsbewaking voor de casino-pagina's (Rocket, Blackjack, Plinko, Slots, Roulette, Daily spin).
+ * Verbindingsbewaking voor de casino-pagina's (Rocket, Blackjack, Plinko, Slots, Roulette, Sterrenrad, Daily spin).
  *
  * Als de server even weg is (bot herstart, internet weg, proxy geeft 502/503/504) verschijnt er een popup die
  * zelf opnieuw verbinding probeert te maken. Is de server terug, dan wordt de pagina herladen zodat alles
@@ -326,7 +326,8 @@
     { key: 'blackjack', name: 'Blackjack', desc: 'Versla de dealer zonder over de 21 te gaan', live: true },
     { key: 'plinko', name: 'Plinko', desc: 'Laat ballen vallen en jaag op de randen' },
     { key: 'slots', name: 'Slots', desc: 'Draai de rollen en mik op drie op een rij' },
-    { key: 'roulette', name: 'Roulette', desc: 'Europese roulette: zet in op je geluksgetal', live: true }
+    { key: 'roulette', name: 'Roulette', desc: 'Europese roulette: zet in op je geluksgetal', live: true },
+    { key: 'sterrenrad', name: 'Sterrenrad', desc: 'Gameshow in de ruimte met vier bonusspellen', live: true }
   ];
   const NAV_LINKS = [
     { key: 'spin', name: 'Daily spin' },
@@ -444,7 +445,34 @@
     </svg>`;
   }
 
-  const GAME_ART = { rocket: rocketArt, blackjack: blackjackArt, plinko: plinkoArt, slots: slotsArt, roulette: rouletteArt };
+  function sterrenradArt() {
+    const cx = 80, cy = 70, r = 46, n = 18;
+    const colors = ['#2fc4d6', '#f2b233', '#2fc4d6', '#e0459b', '#2fc4d6', '#7ad94a', '#f2b233', '#2fc4d6', '#c9a6ff'];
+    let seg = '';
+    for (let k = 0; k < n; k++) {
+      const a0 = (k / n) * Math.PI * 2 - Math.PI / 2;
+      const a1 = ((k + 1) / n) * Math.PI * 2 - Math.PI / 2;
+      seg += `<path d="M${cx} ${cy}L${r2(cx + r * Math.cos(a0))} ${r2(cy + r * Math.sin(a0))}A${r} ${r} 0 0 1 ${r2(cx + r * Math.cos(a1))} ${r2(cy + r * Math.sin(a1))}Z" fill="${colors[k % colors.length]}"/>`;
+    }
+    const bulbs = Array.from({ length: 14 }, (_, i) => {
+      const a = Math.PI + (i / 13) * Math.PI;
+      return `<circle cx="${r2(cx + 50 * Math.cos(a))}" cy="${r2(cy + 50 * Math.sin(a))}" r="1.6" fill="${i % 2 ? '#fff6d2' : '#ffb347'}"/>`;
+    }).join('');
+    const stars = [[12, 10], [30, 26], [140, 14], [150, 40], [118, 8], [20, 50], [46, 8]]
+      .map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 2 ? 0.8 : 1.2}" fill="#fff" opacity=".7"/>`).join('');
+    return `<svg viewBox="0 0 160 90" aria-hidden="true"><defs>
+      <radialGradient id="vn-sr-bg" cx=".7" cy=".1" r=".9"><stop offset="0" stop-color="#3b2a7a"/><stop offset=".6" stop-color="#120c2c"/><stop offset="1" stop-color="#05040e"/></radialGradient>
+      <radialGradient id="vn-sr-pl" cx=".35" cy=".35" r=".7"><stop offset="0" stop-color="#ffb46b"/><stop offset="1" stop-color="#7a2d18"/></radialGradient></defs>
+      <rect width="160" height="90" fill="url(#vn-sr-bg)"/>${stars}
+      <circle cx="136" cy="22" r="11" fill="url(#vn-sr-pl)"/>
+      <ellipse cx="136" cy="22" rx="18" ry="4" fill="none" stroke="#ffd9a8" stroke-opacity=".6"/>
+      <circle cx="${cx}" cy="${cy}" r="52" fill="#1a1530" stroke="#c9a6ff" stroke-opacity=".5"/>${seg}${bulbs}
+      <circle cx="${cx}" cy="${cy}" r="11" fill="#1a1530" stroke="#f2c14e" stroke-width="2"/>
+      <path d="M${cx - 5} 14L${cx + 5} 14L${cx} 26Z" fill="#f2c14e"/>
+    </svg>`;
+  }
+
+  const GAME_ART = { rocket: rocketArt, blackjack: blackjackArt, plinko: plinkoArt, slots: slotsArt, roulette: rouletteArt, sterrenrad: sterrenradArt };
 
   const NAV_CSS = `
     .nav { display: flex; align-items: center; gap: 4px; background: var(--nav-bg, var(--panel, #16181b)); border: 1px solid var(--line, rgba(255,255,255,.07));

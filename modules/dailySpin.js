@@ -13,6 +13,19 @@ const casino = require('./casino');
 const rocketAuth = require('./rocketAuth');
 
 const TIME_ZONE = 'Europe/Amsterdam';
+// Het rad draait op de website tot ~12s; de melding in Discord wacht tot het rad stilstaat
+const ANNOUNCE_DELAY_MS = 13000;
+
+let discordClient = null;
+let botConfig = {};
+
+/**
+ * Koppel de Discord client (voor meldingen van grote prijzen)
+ */
+function init(client, config) {
+  discordClient = client;
+  botConfig = config;
+}
 
 // Kans per prijs in promille (samen 1000)
 const PRIZES = {
@@ -137,6 +150,9 @@ function spin(user) {
   }
 
   const { prizeKey, prize, segmentIndex } = result;
+  if (prize.tier === 'mega' || prize.tier === 'jackpot') {
+    setTimeout(() => announceBigWin(user, prize), ANNOUNCE_DELAY_MS);
+  }
   const message = prize.spins
     ? `Je hebt ${prize.spins} extra spins gewonnen!`
     : `Je hebt ${prize.label} punten gewonnen!`;
@@ -147,6 +163,27 @@ function spin(user) {
     prize: { key: prizeKey, label: prize.label, amount: prize.amount, spins: prize.spins || 0, tier: prize.tier || (prize.spins ? 'spins' : 'normal') },
     ...getStatus(user)
   };
+}
+
+/**
+ * Meld een MEGA of JACKPOT in het casinokanaal
+ */
+async function announceBigWin(user, prize) {
+  if (!discordClient || !botConfig.CASINO_CHANNEL_ID) return;
+  try {
+    const channel = await discordClient.channels.fetch(botConfig.CASINO_CHANNEL_ID);
+    const jackpot = prize.tier === 'jackpot';
+    const webUrl = (botConfig.ROCKET_WEB_URL || '').replace(/\/+$/, '');
+    const embed = new EmbedBuilder()
+      .setTitle(jackpot ? '💰 JACKPOT bij de dagelijkse spin!' : '🎉 MEGA-prijs bij de dagelijkse spin!')
+      .setDescription(`<@${user.id}> heeft **${prize.label}** punten gewonnen!`)
+      .setColor(jackpot ? '#F6C343' : '#B98CFF')
+      .setFooter({ text: webUrl ? `Draai zelf op ${webUrl}/spin · /spin voor je link` : 'Typ /spin voor je link naar het rad' })
+      .setTimestamp();
+    await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
+  } catch (error) {
+    console.error('Fout bij melden spin-prijs:', error);
+  }
 }
 
 // =====================================================
@@ -221,6 +258,7 @@ async function handleReminderButton(interaction) {
 }
 
 module.exports = {
+  init,
   getWheel,
   getStatus,
   spin,

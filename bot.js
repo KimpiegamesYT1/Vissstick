@@ -824,6 +824,7 @@ client.once("clientReady", async () => {
       refunded.forEach(row => console.log(`   - ${row.username}: ${row.amount} (${row.game})`));
     }
     rocketGame.init(client, config);
+    dailySpin.init(client, config);
   } catch (error) {
     console.error('❌ Database initialisatie mislukt:', error);
     process.exit(1);

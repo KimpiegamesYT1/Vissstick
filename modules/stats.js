@@ -132,6 +132,7 @@ function buildOverview() {
     plinko: byUser(safeAll(db, 'SELECT * FROM plinko_stats')),
     slots: byUser(safeAll(db, 'SELECT * FROM slots_stats')),
     roulette: byUser(safeAll(db, 'SELECT * FROM roulette_stats')),
+    sterrenrad: byUser(safeAll(db, 'SELECT * FROM sterrenrad_stats')),
     mines: byUser(safeAll(db, 'SELECT * FROM mines_stats'))
   };
   const spins = byUser(safeAll(db, 'SELECT user_id, COUNT(*) AS spins, SUM(amount) AS won, MAX(amount) AS best, MAX(created_at) AS last FROM daily_spin_log GROUP BY user_id'));
@@ -183,6 +184,11 @@ function buildOverview() {
     if (ro && ro.games_played) {
       games.roulette = { played: ro.games_played, bet: ro.total_bet, payout: ro.total_payout, biggest: ro.biggest_win };
       lastPlayed = Math.max(lastPlayed, toMs(ro.last_played));
+    }
+    const sr = tables.sterrenrad.get(id);
+    if (sr && sr.games_played) {
+      games.sterrenrad = { played: sr.games_played, bet: sr.total_bet, payout: sr.total_payout, biggest: sr.biggest_win, bestMult: sr.biggest_multiplier, bonuses: sr.bonuses };
+      lastPlayed = Math.max(lastPlayed, toMs(sr.last_played));
     }
     const m = tables.mines.get(id);
     if (m && m.games_played) {

@@ -1,6 +1,6 @@
 /**
  * Website commando's
- * Rocket, Plinko, Slots, Roulette, Afwassen, de dagelijkse spin en de blackjack tafel worden op de website gespeeld. Deze commando's geven een persoonlijke,
+ * Rocket, Plinko, Slots, Roulette, Sterrenrad, Afwassen, de dagelijkse spin en de blackjack tafel worden op de website gespeeld. Deze commando's geven een persoonlijke,
  * eenmalige inloglink waarmee je je Discord account aan de website koppelt.
  */
 
@@ -15,6 +15,7 @@ const PAGES = {
   plinko: { path: '/plinko', label: 'Speel Plinko', intro: '🟡 **Plinko** speel je op de website: laat ballen vallen en win tot 1000x je inzet.' },
   slots: { path: '/slots', label: 'Speel Slots', intro: '🍒 **Slots** speel je op de website: een fruitautomaat met 10 niveaus, free spins, jackpots en tot 2500x je inzet.' },
   roulette: { path: '/roulette', label: 'Speel Roulette', intro: '🎯 **Roulette** speel je op de website: één gedeelde Europese roulettetafel, speel mee met de rest. Tot 35x je inzet.' },
+  sterrenrad: { path: '/sterrenrad', label: 'Naar het Sterrenrad', intro: '🌌 Het **Sterrenrad** staat op de website: een gameshow in de ruimte met host Astro, kometen en vier bonusspellen. Speel mee met iedereen, tot 20.000x je inzet.' },
   afwassen: { path: '/afwas', label: 'Naar de keuken', intro: '🧽 **Afwassen** doe je op de website: heb je minder dan 50 punten, dan verdien je 10 punten per schoon bord.' }
 };
 
@@ -56,6 +57,7 @@ const webCommands = [
   { name: 'plinko', description: 'Krijg je persoonlijke link naar Plinko op de website' },
   { name: 'slots', description: 'Krijg je persoonlijke link naar de fruitautomaat op de website' },
   { name: 'roulette', description: 'Krijg je link naar de gedeelde roulettetafel op de website' },
+  { name: 'sterrenrad', description: 'Krijg je link naar de Sterrenrad gameshow op de website' },
   { name: 'afwassen', description: 'Blut? Was borden af in de keuken voor punten (onder 50 punten)' }
 ];
 
