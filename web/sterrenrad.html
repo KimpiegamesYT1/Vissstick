@@ -668,27 +668,11 @@ const PLATFORM_R = 17;
 const station = new THREE.Group();
 scene.add(station);
 {
-  // Vloer
-  const S = 2048, c = makeCanvas(S, S), g = c.getContext('2d');
-  g.fillStyle = '#17142a'; g.fillRect(0, 0, S, S);
-  const n = noise2(4);
-  const img = g.getImageData(0, 0, S, S);
-  for (let y = 0; y < S; y += 2) for (let x = 0; x < S; x += 2) {
-    const v = (fbm(n, x / 200, y / 200, 3) - 0.5) * 18;
-    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) { const i = ((y + dy) * S + x + dx) * 4; img.data[i] += v; img.data[i + 1] += v; img.data[i + 2] += v * 1.4; }
-  }
-  g.putImageData(img, 0, 0);
-  const cx = S / 2;
-  g.strokeStyle = 'rgba(185,140,255,.35)'; g.lineWidth = 3;
-  for (let r = 160; r < cx; r += 150) { g.beginPath(); g.arc(cx, cx, r, 0, TAU); g.stroke(); }
-  g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 2;
-  for (let a = 0; a < 48; a++) { const t = a / 48 * TAU; g.beginPath(); g.moveTo(cx + Math.cos(t) * 160, cx + Math.sin(t) * 160); g.lineTo(cx + Math.cos(t) * cx, cx + Math.sin(t) * cx); g.stroke(); }
-  g.fillStyle = 'rgba(242,193,78,.85)'; g.font = '900 120px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.save(); g.translate(cx, cx + 560); g.fillText('STERRENRAD', 0, 0); g.restore();
-  const floorTex = canvasTex(c);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(PLATFORM_R, 128), new THREE.MeshStandardMaterial({ map: floorTex, metalness: 0.75, roughness: 0.32 }));
+  // Vloer: gepolijst marmer met ingelegd goud (getekend in buildFloor, zodra de stations bekend zijn)
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(PLATFORM_R, 160), new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.32, metalness: 0.25, clearcoat: 0.9, clearcoatRoughness: 0.12 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
   station.add(floor);
+  station.userData.floor = floor;
   // Rand en onderkant
   const rimMat = new THREE.MeshStandardMaterial({ color: '#2b2550', metalness: 0.9, roughness: 0.25 });
   const side = new THREE.Mesh(new THREE.CylinderGeometry(PLATFORM_R, PLATFORM_R - 3, 2.2, 96, 1, true), rimMat);
@@ -702,17 +686,6 @@ scene.add(station);
   for (let i = 0; i < 6; i++) {
     const a = i / 6 * TAU, gl = glow('#7fb6ff', 6, 0.7);
     gl.position.set(Math.cos(a) * 10, -3, Math.sin(a) * 10); station.add(gl);
-  }
-  // Lantaarnpalen op de rand
-  const postMat = new THREE.MeshStandardMaterial({ color: '#3a3366', metalness: 0.9, roughness: 0.3 });
-  for (let i = 0; i < 14; i++) {
-    const a = i / 14 * TAU + 0.11;
-    if (Math.sin(a) < -0.55 && Math.abs(Math.cos(a)) < 0.45) continue; // niet voor het rad
-    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 2.4, 10), postMat);
-    p.position.set(Math.cos(a) * (PLATFORM_R - 0.4), 1.2, Math.sin(a) * (PLATFORM_R - 0.4)); p.castShadow = true; station.add(p);
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshBasicMaterial({ color: i % 2 ? '#b98cff' : '#4fd1ff' }));
-    bulb.position.copy(p.position).setY(2.5); station.add(bulb);
-    const gl = glow(i % 2 ? '#b98cff' : '#4fd1ff', 1.6, 0.8); gl.position.copy(bulb.position); station.add(gl);
   }
 }
 // Studiolampen
@@ -1037,7 +1010,7 @@ const hunt = (() => {
   barrel.rotation.x = Math.PI / 2; barrel.position.z = 0.7; barrel.castShadow = true;
   barrelPivot.add(barrel);
   cannon.add(cBase, barrelPivot);
-  cannon.position.copy(local(s, 0, 0, 6.5)); cannon.rotation.y = s.rot + Math.PI;
+  cannon.position.copy(local(s, 3.4, 0, 3.6)); cannon.rotation.y = s.rot + Math.PI;
   scene.add(cannon);
   let symbols = [], values = null, revealed = new Set(), marks = new Map(), hl = -1;
   const cols = 12, rows = 9;
@@ -1088,7 +1061,10 @@ const portal = (() => {
   const gl = glow('#8a4dff', 10, 0.5);
   const light = new THREE.PointLight('#8a4dff', 40, 14, 2);
   group.add(ring, disc, gl, light);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 0.6, 32), metal); base.position.copy(s.pos).setY(0.3); scene.add(base);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 0.6, 48), new THREE.MeshStandardMaterial({ color: '#241c4a', metalness: 0.6, roughness: 0.45 }));
+  base.position.copy(s.pos).setY(0.3); base.receiveShadow = true; scene.add(base);
+  const baseRim = new THREE.Mesh(new THREE.TorusGeometry(1.42, 0.05, 8, 64), new THREE.MeshStandardMaterial({ color: '#d9a640', metalness: 1, roughness: 0.3 }));
+  baseRim.rotation.x = Math.PI / 2; baseRim.position.copy(s.pos).setY(0.6); scene.add(baseRim);
   return { group, mat, light, gl };
 })();
 
@@ -1180,26 +1156,92 @@ const polar = (a, r, y) => V(Math.sin(a) * r, y, Math.cos(a) * r);
   }
   scene.userData.wallMat = wallMat;
 
-  // Kleurige looppaden van het midden naar de bonusstations
-  const paths = [['coin', '#e8493a'], ['meteor', '#ff7a2a'], ['hunt', '#1fae7a'], ['portal', '#8a4dff']];
-  for (const [key, col] of paths) {
-    const s = STN[key], from = V(0, 0, 1.5), to = s.pos.clone().setY(0).addScaledVector(s.fwd, 2.2);
-    const dir = to.clone().sub(from), len = dir.length();
-    const strip = new THREE.Mesh(new THREE.PlaneGeometry(1.6, len), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.25, metalness: 0.4, roughness: 0.4, transparent: true, opacity: 0.75 }));
-    strip.rotation.x = -Math.PI / 2; strip.rotation.z = -Math.atan2(dir.x, dir.z) + Math.PI;
-    strip.position.copy(from.clone().add(to).multiplyScalar(0.5)).setY(0.012); strip.receiveShadow = true; scene.add(strip);
-    for (const side of [-1, 1]) {
-      const edge = new THREE.Mesh(new THREE.PlaneGeometry(0.08, len), new THREE.MeshBasicMaterial({ color: '#ffe27a' }));
-      edge.rotation.copy(strip.rotation); edge.position.copy(strip.position).add(V(Math.cos(Math.atan2(dir.x, dir.z)) * 0.84 * side, 0.004, -Math.sin(Math.atan2(dir.x, dir.z)) * 0.84 * side));
-      scene.add(edge);
-    }
-  }
-  // Presentatieplek in het midden
-  const spotRing = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.45, 64), new THREE.MeshBasicMaterial({ color: '#f2c14e', side: THREE.DoubleSide }));
-  spotRing.rotation.x = -Math.PI / 2; spotRing.position.set(0, 0.015, -0.5); scene.add(spotRing);
-  const spotDisc = new THREE.Mesh(new THREE.CircleGeometry(2.2, 64), new THREE.MeshStandardMaterial({ color: '#2a1f5a', metalness: 0.8, roughness: 0.2 }));
-  spotDisc.rotation.x = -Math.PI / 2; spotDisc.position.set(0, 0.013, -0.5); spotDisc.receiveShadow = true; scene.add(spotDisc);
 }
+// Vloer tekenen: canvas (x, y) hoort bij wereld (x, z); de voorkant (+z) is de onderkant van het canvas
+function buildFloor() {
+  const S = 3072, c = makeCanvas(S, S), g = c.getContext('2d'), k = S / (PLATFORM_R * 2);
+  const P = (x, z) => [(x / PLATFORM_R + 1) / 2 * S, (z / PLATFORM_R + 1) / 2 * S];
+  // Marmer: donkerblauw met lichte aders
+  const M = 768, mc = makeCanvas(M, M), mg = mc.getContext('2d'), img = mg.createImageData(M, M), n = noise2(12), n2 = noise2(31);
+  for (let y = 0; y < M; y++) for (let x = 0; x < M; x++) {
+    const w = fbm(n, x / 70, y / 70, 5), vein = Math.abs(Math.sin((x * 0.6 + y * 0.35) / 34 + w * 9));
+    const v2 = Math.abs(Math.sin((x * -0.3 + y * 0.7) / 21 + fbm(n2, x / 50, y / 50, 4) * 7));
+    const line = Math.pow(1 - Math.min(vein, v2 * 1.4), 18);
+    const base = 0.55 + fbm(n2, x / 160, y / 160, 3) * 0.45;
+    const i = (y * M + x) * 4;
+    img.data[i] = 20 * base + line * 120; img.data[i + 1] = 17 * base + line * 105; img.data[i + 2] = 42 * base + line * 150; img.data[i + 3] = 255;
+  }
+  mg.putImageData(img, 0, 0);
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(mc, 0, 0, S, S);
+  // Zachte lichtval naar het midden
+  const vg = g.createRadialGradient(S / 2, S / 2, S * 0.05, S / 2, S / 2, S / 2);
+  vg.addColorStop(0, 'rgba(120,90,220,.18)'); vg.addColorStop(0.7, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)');
+  g.fillStyle = vg; g.fillRect(0, 0, S, S);
+  const gold = (w, a = 1) => { g.strokeStyle = `rgba(232,192,106,${a})`; g.lineWidth = w; };
+  const ring = (r, w, a, cx = 0, cz = 0) => { const [px, py] = P(cx, cz); gold(w, a); g.beginPath(); g.arc(px, py, r * k, 0, TAU); g.stroke(); };
+  // Buitenrand: brede band met dubbele gouden lijn en sterren
+  ring(PLATFORM_R - 0.25, 10, 1); ring(PLATFORM_R - 1.3, 5, 0.9);
+  g.fillStyle = 'rgba(10,8,26,.55)'; g.beginPath(); g.arc(S / 2, S / 2, (PLATFORM_R - 0.3) * k, 0, TAU); g.arc(S / 2, S / 2, (PLATFORM_R - 1.25) * k, 0, TAU, true); g.fill('evenodd');
+  const starAt = (x, z, r, rot = 0, fill = '#e8c06a') => {
+    const [px, py] = P(x, z); g.save(); g.translate(px, py); g.rotate(rot); g.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.42 * k : r * k; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+    g.closePath(); g.fillStyle = fill; g.fill(); g.restore();
+  };
+  for (let i = 0; i < 72; i++) { const a = i / 72 * TAU; starAt(Math.cos(a) * (PLATFORM_R - 0.78), Math.sin(a) * (PLATFORM_R - 0.78), i % 3 ? 0.13 : 0.22, a); }
+  // Middenring met lichtstreepjes en sterrenband
+  ring(10.2, 4, 0.8); ring(9.4, 4, 0.8);
+  for (let i = 0; i < 48; i++) { const a = i / 48 * TAU; starAt(Math.cos(a) * 9.8, Math.sin(a) * 9.8, 0.16, a, i % 2 ? '#e8c06a' : '#b98cff'); }
+  g.setLineDash([22, 18]); g.strokeStyle = 'rgba(127,214,255,.45)'; g.lineWidth = 6; g.beginPath(); g.arc(S / 2, S / 2, 6 * k, 0, TAU); g.stroke(); g.setLineDash([]);
+  // Gouden lijnen naar de bonusstations, met een gekleurd landingspunt
+  const pads = [['coin', '#e8493a'], ['meteor', '#ff7a2a'], ['hunt', '#1fae7a'], ['portal', '#8a4dff']];
+  for (const [key, col] of pads) {
+    const s = STN[key], end = s.pos.clone().addScaledVector(s.fwd, 2.4), dir = end.clone().setY(0).normalize();
+    const from = dir.clone().multiplyScalar(3.2);
+    for (const off of [-0.18, 0.18]) {
+      const side = V(-dir.z, 0, dir.x).multiplyScalar(off);
+      const [x0, y0] = P(from.x + side.x, from.z + side.z), [x1, y1] = P(end.x + side.x, end.z + side.z);
+      gold(5, 0.85); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    }
+    const [px, py] = P(end.x, end.z), pr = 1.2 * k;
+    const pg = g.createRadialGradient(px, py, 0, px, py, pr); pg.addColorStop(0, col + 'aa'); pg.addColorStop(0.7, col + '33'); pg.addColorStop(1, col + '00');
+    g.fillStyle = pg; g.beginPath(); g.arc(px, py, pr, 0, TAU); g.fill();
+    ring(1.05, 6, 1, end.x, end.z); ring(0.85, 3, 0.7, end.x, end.z);
+    // 3D-lichtring op het landingspunt
+    const pad = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.035, 8, 64), new THREE.MeshBasicMaterial({ color: col }));
+    pad.rotation.x = Math.PI / 2; pad.position.set(end.x, 0.03, end.z); scene.add(pad);
+  }
+  // Kompasster in het midden (presentatieplek)
+  const [mx, my] = P(0, -0.5), mr = 2.3 * k;
+  const md = g.createRadialGradient(mx, my, 0, mx, my, mr); md.addColorStop(0, '#2c2368'); md.addColorStop(1, '#151033');
+  g.fillStyle = md; g.beginPath(); g.arc(mx, my, mr, 0, TAU); g.fill();
+  gold(8, 1); g.beginPath(); g.arc(mx, my, mr, 0, TAU); g.stroke();
+  gold(3, 0.8); g.beginPath(); g.arc(mx, my, mr * 0.9, 0, TAU); g.stroke();
+  g.save(); g.translate(mx, my);
+  for (let i = 0; i < 16; i++) {
+    const a = i / 16 * TAU, long = i % 2 === 0, len = (long ? (i % 4 === 0 ? 0.86 : 0.62) : 0.42) * mr, wdt = (long ? 0.11 : 0.07) * mr;
+    g.save(); g.rotate(a);
+    const sg = g.createLinearGradient(-wdt, 0, wdt, 0); sg.addColorStop(0, '#fff3c4'); sg.addColorStop(0.5, '#e8c06a'); sg.addColorStop(0.5, '#a8741c'); sg.addColorStop(1, '#d9a640');
+    g.fillStyle = sg; g.beginPath(); g.moveTo(0, -len); g.lineTo(wdt, 0); g.lineTo(0, wdt * 0.6); g.lineTo(-wdt, 0); g.closePath(); g.fill();
+    g.restore();
+  }
+  g.fillStyle = '#e8c06a'; g.beginPath(); g.arc(0, 0, mr * 0.1, 0, TAU); g.fill();
+  g.restore();
+  // STERRENRAD in een boog aan de voorkant
+  const text = 'STERRENRAD', R = 7.6 * k, span = 0.62;
+  g.font = `900 ${0.62 * k}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  [...text].forEach((ch, i) => {
+    const a = Math.PI / 2 + span / 2 - (i / (text.length - 1)) * span;
+    g.save(); g.translate(S / 2 + Math.cos(a) * R, S / 2 + Math.sin(a) * R); g.rotate(a - Math.PI / 2);
+    g.fillStyle = 'rgba(0,0,0,.4)'; g.fillText(ch, 4, 4);
+    const tg = g.createLinearGradient(0, -0.3 * k, 0, 0.3 * k); tg.addColorStop(0, '#fff3c4'); tg.addColorStop(1, '#c98a22');
+    g.fillStyle = tg; g.fillText(ch, 0, 0); g.restore();
+  });
+  const tex = canvasTex(c); tex.anisotropy = 16;
+  const mat = station.userData.floor.material; mat.map = tex; mat.needsUpdate = true;
+}
+buildFloor();
+
 // Verlichte borden met eigen belettering
 function sign(title, icon, color, pos, rot, w = 5.4) {
   const c = makeCanvas(1024, 256), g = c.getContext('2d');
@@ -1760,8 +1802,29 @@ const cam = { pos: V(0, 7.5, 18), look: V(0, 5, -6), fov: 50 };
 let shotKey = '', shotStart = 0;
 const hostPos = () => astro.root.position;
 const hostFwd = () => V(Math.sin(astro.root.rotation.y), 0, Math.cos(astro.root.rotation.y));
+const ease = t => easeInOut(clamp(t, 0, 1));
+const pointerSpot = () => V(0, WHEEL_POS.y + WHEEL_R - 0.2, WHEEL_POS.z);
 const SHOTS = {
   wide: () => ({ pos: V(0, 7.5, 18), look: V(0, 5, -6), fov: 50 }),
+  // Openingsshot: langzaam naar binnen rijden
+  establish: t => { const e = ease(t / 12); return { pos: V(0, lerp(10, 7, e), lerp(23, 16.5, e)), look: V(0, lerp(4.5, 5.2, e), -7), fov: 48 }; },
+  // Kraan: van hoog naar ooghoogte van het rad
+  crane: t => { const e = ease(t / 9); return { pos: V(lerp(-3, 1.5, e), lerp(15, 6.5, e), lerp(12, 8.5, e)), look: V(0, lerp(3, 5.6, e), -8), fov: 46 }; },
+  // Langzame boog langs de studio (links of rechts)
+  arcL: t => { const a = lerp(-0.75, -0.35, ease(t / 10)); return { pos: V(Math.sin(a) * 14, 5.5, Math.cos(a) * 14), look: V(0, 4.8, -6), fov: 46 }; },
+  arcR: t => { const a = lerp(0.75, 0.35, ease(t / 10)); return { pos: V(Math.sin(a) * 14, 5.5, Math.cos(a) * 14), look: V(0, 4.8, -6), fov: 46 }; },
+  // Max en het rad samen in beeld
+  hostTwo: t => {
+    const h = hostPos(), side = h.x >= 0 ? 1 : -1, head = h.clone().add(V(0, 1.75, 0));
+    return { pos: h.clone().add(V(2.6 * side + Math.sin(t * 0.15) * 0.4, 2.1, 5.2)), look: head.lerp(WHEEL_POS, 0.4), fov: 44 };
+  },
+  // Tijdens de draai: één doorlopende beweging van het hele rad naar de wijzer
+  spinPush: () => {
+    const r = rnd(), p = r && r.spinStartAt ? clamp((now() - r.spinStartAt) / (r.landAt - r.spinStartAt), 0, 1) : 0, e = ease((p - 0.25) / 0.75);
+    return { pos: V(lerp(0, 0.4, e), lerp(5.8, WHEEL_POS.y + WHEEL_R + 0.6, e), lerp(8.5, -2.2, e)), look: WHEEL_POS.clone().lerp(pointerSpot(), e), fov: lerp(48, 36, e) };
+  },
+  // Kometen: van het rad omhoog kantelen naar het kometenscherm
+  cometTilt: t => { const e = ease(t / 2.2); return { pos: V(0, lerp(6.5, COMET_Y - 0.6, e), lerp(7, 3.2, e)), look: V(0, lerp(5.6, COMET_Y, e), -8.5), fov: lerp(50, 56, e) }; },
   dolly: t => ({ pos: V(lerp(-7, 7, clamp(t / 6, 0, 1)), 6, 15.5), look: V(0, 5.5, -7), fov: 46 }),
   high: t => ({ pos: V(7 - t * 0.2, 12.5, 11), look: V(0, 3.5, -5), fov: 50 }),
   left: t => ({ pos: V(-8, 3.5, 10 - t * 0.15), look: V(0, 5, -6), fov: 48 }),
@@ -1797,22 +1860,21 @@ function playlist(t) {
     if (pk === 'bonus' && b) return { key: `fixed-${b.type}-${inWormWorld() ? 'w' : 's'}`, list: [[fixedBonusShot(b), 99]] };
     return { key: 'fixed', list: [['wide', 99]] };
   }
-  if (pk === 'open') return { key: 'open', list: [['wide', 11], ['orbit', 14, 1], ['host', 7, 1], ['high', 10, 1], ['left', 9, 1]] };
+  if (pk === 'open') return { key: 'open', list: [['establish', 12], ['arcL', 10, 1], ['hostTwo', 8, 1], ['crane', 9, 1], ['arcR', 10, 1], ['host', 6, 1]] };
   if (pk === 'betting' || pk === 'closing') {
     const left = r.bettingEndsAt - t;
-    if (left < 4000) return { key: `bet-end-${r.id}`, list: [['wheel', 99, 1]] };
-    return { key: `bet-${r.id}`, list: [['wide', 5.5], ['host', 5.5, 1]] };
+    if (left < 4500) return { key: `bet-end-${r.id}`, list: [['wheel', 99]] };
+    return { key: `bet-${r.id}`, list: [['hostTwo', 6], ['establish', 99, 1]] };
   }
-  if (pk === 'comets') return { key: `comets-${r.id}`, list: [['comets', 99, 1]] };
+  if (pk === 'comets') return { key: `comets-${r.id}`, list: [['cometTilt', 99]] };
   if (pk === 'spinning') {
     const s = (t - r.spinStartAt) / 1000;
-    if (s < 4.5) return { key: `spin-a-${r.id}`, list: [['wheel', 99]] };
-    return { key: `spin-d-${r.id}`, list: [['pointer', 99]] };
+    return { key: `spin-${r.id}`, list: [['spinPush', 99]] };
   }
-  if (pk === 'landed') return { key: `land-${r.id}`, list: [['pointer', 2.6], ['host', 99]] };
+  if (pk === 'landed') return { key: `land-${r.id}`, list: [['pointer', 2.8], ['hostTwo', 99]] };
   if (pk === 'result') {
     if (inWormWorld()) return { key: `res-w-${r.id}`, list: [['wormWide', 99]] };
-    return { key: `res-${r.id}`, list: [['host', 3.5], ['wide', 99]] };
+    return { key: `res-${r.id}`, list: [['hostTwo', 4], ['establish', 99, 1]] };
   }
   if (pk === 'bonus' && b) {
     const key = `b-${r.id}-${b.type}-${b.stage}`;
