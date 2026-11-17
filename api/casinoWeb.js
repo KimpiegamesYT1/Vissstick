@@ -13,6 +13,7 @@
  *   GET  /login?code=...&next=...   eenmalige code uit Discord inwisselen voor een sessie-cookie
  *   GET  /rocket/login?code=...     (oude links uit /rocket)
  *   GET  /api/me                    ingelogde speler + saldo
+ *   GET  /api/online                wie er nu actief op de casino-site is (telt jezelf ook als actief)
  *   GET  /api/rocket/state          spelstatus
  *   GET  /api/rocket/stream         Server-Sent Events met live spelstatus
  *   POST /api/rocket/{start,join,leave,cashout}
@@ -45,6 +46,8 @@ const COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 const MAX_STREAM_CLIENTS = 300;
 const HEARTBEAT_MS = 15000;
 const MAX_BODY_BYTES = 1024;
+const ONLINE_WINDOW_MS = 45000; // zo lang na de laatste ping telt iemand als online
+const MAX_ONLINE_SHOWN = 50;
 const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
@@ -169,6 +172,27 @@ function createCasinoWebHandler() {
       for (const res of stream.clients) res.write(message);
     }
   }, HEARTBEAT_MS).unref();
+
+  // Wie er online is: alleen ingelogde spelers met een zichtbaar tabblad (connection.js pingt elke 15 s)
+  const online = new Map();
+
+  function markOnline(user) {
+    online.set(user.id, { username: user.username, avatar: user.avatar, lastSeen: Date.now() });
+  }
+
+  function getOnline() {
+    const cutoff = Date.now() - ONLINE_WINDOW_MS;
+    const users = [];
+    for (const [id, entry] of online) {
+      if (entry.lastSeen < cutoff) online.delete(id);
+      else users.push(entry);
+    }
+    users.sort((a, b) => b.lastSeen - a.lastSeen);
+    return {
+      count: users.length,
+      users: users.slice(0, MAX_ONLINE_SHOWN).map(({ username, avatar }) => ({ username, avatar }))
+    };
+  }
 
   function readStatic(file) {
     if (!staticCache.has(file)) staticCache.set(file, fs.readFileSync(file));
@@ -346,6 +370,12 @@ function createCasinoWebHandler() {
           }
           casino.getOrCreateUser(user.id, user.username);
           sendJson(res, 200, { linked: true, user, balance: casino.getUserBalance(user.id) });
+          return true;
+        }
+        case '/api/online': {
+          const user = getUser(req);
+          if (user && url.searchParams.get('active') === '1') markOnline(user);
+          sendJson(res, 200, getOnline());
           return true;
         }
         case '/api/rocket/state':

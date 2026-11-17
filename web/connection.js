@@ -8,6 +8,9 @@
  * Werkt door fetch en EventSource te omwikkelen, dus de pagina's zelf hoeven niets te doen: dit script moet
  * alleen vóór het eigen script van de pagina geladen worden.
  *
+ * Toont daarnaast in de menubalk hoeveel ingelogde spelers er nu actief zijn (met hun profielfoto's).
+ * Alleen een zichtbaar tabblad meldt zich als actief, dus wie wegklikt verdwijnt vanzelf uit de lijst.
+ *
  * Daarnaast krijgen Firefox-gebruikers max. 1x per week een melding linksonder dat een Chromium-browser beter presteert.
  */
 (() => {
@@ -129,6 +132,148 @@
 
   window.addEventListener('offline', () => goDown());
   window.addEventListener('online', () => { if (down) retry(); });
+
+  // =====================================================
+  // ONLINE SPELERS IN DE MENUBALK
+  // =====================================================
+  const ONLINE_URL = '/api/online';
+  const ONLINE_POLL_MS = 15000;
+  const ONLINE_AVATARS = 4;
+  const ONLINE_CSS = `
+    .vso { position: relative; pointer-events: auto; font-family: inherit; }
+    .vso[hidden] { display: none; }
+    .vso-btn { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 6px; border-radius: 999px; cursor: pointer;
+      background: var(--panel, #16181b); border: 1px solid var(--line, rgba(255,255,255,.07)); color: var(--text, #eceae6);
+      font: inherit; font-size: 13px; font-weight: 700; }
+    .vso-btn:hover { background: var(--raise, #262a2f); }
+    .vso-stack { display: flex; }
+    .vso-av { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; background: var(--raise, #262a2f);
+      border: 2px solid var(--panel, #16181b); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--muted, #8d9299); }
+    .vso-stack .vso-av + .vso-av { margin-left: -9px; }
+    .vso-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green, #4cd47b); box-shadow: 0 0 0 3px rgba(76,212,123,.18); flex: none; }
+    .vso-stack:empty + .vso-dot { margin-left: 6px; }
+    .vso-count { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .vso-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 50; min-width: 200px; max-width: 260px; max-height: 320px; overflow: auto;
+      background: var(--side, #1b1d21); border: 1px solid var(--line, rgba(255,255,255,.07)); border-radius: 12px; padding: 6px;
+      box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+    .vso-pop[hidden] { display: none; }
+    .vso-pop h3 { margin: 4px 8px 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #8d9299); }
+    .vso-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--text, #eceae6); }
+    .vso-row .vso-av { border: 0; width: 28px; height: 28px; }
+    .vso-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .vso-more { padding: 6px 8px; font-size: 12px; color: var(--muted, #8d9299); }
+    @media (max-width: 640px) {
+      .vso { margin-left: auto; }
+      .vso + .user { margin-left: 0 !important; }
+      .vso-btn { padding: 0 10px 0 4px; gap: 6px; }
+      .vso-stack .vso-av:nth-child(n+3) { display: none; }
+      .vso-label { display: none; }
+    }
+  `;
+  let onlineUi = null;
+  let onlineTimer = null;
+
+  function avatarEl(user) {
+    if (user.avatar) {
+      const img = document.createElement('img');
+      img.className = 'vso-av';
+      img.alt = '';
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      img.src = user.avatar;
+      return img;
+    }
+    const span = document.createElement('span');
+    span.className = 'vso-av';
+    span.textContent = (user.username || '?').charAt(0).toUpperCase();
+    return span;
+  }
+
+  function buildOnline() {
+    const header = document.querySelector('header');
+    if (!header) return null;
+    const style = document.createElement('style');
+    style.textContent = ONLINE_CSS;
+    document.head.append(style);
+    const root = document.createElement('div');
+    root.className = 'vso';
+    root.hidden = true;
+    root.innerHTML = `
+      <button class="vso-btn" type="button" aria-haspopup="true" aria-expanded="false">
+        <span class="vso-stack"></span><span class="vso-dot" aria-hidden="true"></span>
+        <span class="vso-count"></span>
+      </button>
+      <div class="vso-pop" hidden><h3>Nu online</h3><div class="vso-list"></div></div>`;
+    const user = header.querySelector('#user');
+    if (user) header.insertBefore(root, user); else header.append(root);
+    const ui = {
+      root,
+      button: root.querySelector('.vso-btn'),
+      stack: root.querySelector('.vso-stack'),
+      count: root.querySelector('.vso-count'),
+      pop: root.querySelector('.vso-pop'),
+      list: root.querySelector('.vso-list')
+    };
+    const setOpen = open => {
+      ui.pop.hidden = !open;
+      ui.button.setAttribute('aria-expanded', String(open));
+    };
+    ui.button.addEventListener('click', event => {
+      event.stopPropagation();
+      setOpen(ui.pop.hidden);
+    });
+    document.addEventListener('click', event => { if (!root.contains(event.target)) setOpen(false); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') setOpen(false); });
+    return ui;
+  }
+
+  function renderOnline(data) {
+    if (!onlineUi) onlineUi = buildOnline();
+    if (!onlineUi) return;
+    const users = Array.isArray(data.users) ? data.users : [];
+    const count = Number(data.count) || 0;
+    onlineUi.root.hidden = count === 0;
+    onlineUi.stack.replaceChildren(...users.slice(0, ONLINE_AVATARS).map(avatarEl));
+    onlineUi.count.innerHTML = '';
+    onlineUi.count.append(String(count));
+    const label = document.createElement('span');
+    label.className = 'vso-label';
+    label.textContent = ' online';
+    onlineUi.count.append(label);
+    onlineUi.button.title = `${count} ${count === 1 ? 'speler' : 'spelers'} online`;
+    onlineUi.list.replaceChildren(...users.map(user => {
+      const row = document.createElement('div');
+      row.className = 'vso-row';
+      const name = document.createElement('span');
+      name.textContent = user.username;
+      row.append(avatarEl(user), name);
+      return row;
+    }));
+    if (count > users.length) {
+      const more = document.createElement('div');
+      more.className = 'vso-more';
+      more.textContent = `+ ${count - users.length} meer`;
+      onlineUi.list.append(more);
+    }
+  }
+
+  async function pollOnline() {
+    clearTimeout(onlineTimer);
+    // Een verborgen tabblad telt niet als actief en hoeft ook niets op te halen
+    if (!document.hidden && !down) {
+      try {
+        const res = await nativeFetch(`${ONLINE_URL}?active=1&t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
+        if (res.ok) renderOnline(await res.json());
+      } catch (error) {
+        // Storingen worden al door de verbindingsbewaking afgehandeld
+      }
+    }
+    onlineTimer = setTimeout(pollOnline, ONLINE_POLL_MS);
+  }
+
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollOnline(); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pollOnline);
+  else pollOnline();
 
   // =====================================================
   // POPUP
