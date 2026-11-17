@@ -58,6 +58,16 @@ const MAX_BODY_BYTES = 1024;
 const MAX_ROULETTE_BODY_BYTES = 8192; // een volle roulettetafel past niet in 1 kB
 const ONLINE_WINDOW_MS = 45000; // zo lang na de laatste ping telt iemand als online
 const MAX_ONLINE_SHOWN = 50;
+// Spellen die in de online-lijst getoond worden (pad zonder '/' → naam)
+const ONLINE_GAMES = {
+  rocket: 'Rocket',
+  blackjack: 'Blackjack',
+  plinko: 'Plinko',
+  slots: 'Slots',
+  roulette: 'Roulette',
+  spin: 'Daily spin',
+  afwas: 'Afwassen'
+};
 const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/afwas'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
@@ -192,8 +202,14 @@ function createCasinoWebHandler() {
   // Wie er online is: alleen ingelogde spelers met een zichtbaar tabblad (connection.js pingt elke 15 s)
   const online = new Map();
 
-  function markOnline(user) {
-    online.set(user.id, { username: user.username, avatar: user.avatar, lastSeen: Date.now() });
+  function markOnline(user, page) {
+    const game = String(page || '').replace(/^\/+|\/+$/g, '').split('/')[0];
+    online.set(user.id, {
+      username: user.username,
+      avatar: user.avatar,
+      game: Object.prototype.hasOwnProperty.call(ONLINE_GAMES, game) ? game : null,
+      lastSeen: Date.now()
+    });
   }
 
   function getOnline() {
@@ -206,7 +222,11 @@ function createCasinoWebHandler() {
     users.sort((a, b) => b.lastSeen - a.lastSeen);
     return {
       count: users.length,
-      users: users.slice(0, MAX_ONLINE_SHOWN).map(({ username, avatar }) => ({ username, avatar }))
+      users: users.slice(0, MAX_ONLINE_SHOWN).map(({ username, avatar, game }) => ({
+        username,
+        avatar,
+        game: game ? { name: ONLINE_GAMES[game], path: `/${game}` } : null
+      }))
     };
   }
 
@@ -425,7 +445,7 @@ function createCasinoWebHandler() {
         }
         case '/api/online': {
           const user = getUser(req);
-          if (user && url.searchParams.get('active') === '1') markOnline(user);
+          if (user && url.searchParams.get('active') === '1') markOnline(user, url.searchParams.get('page'));
           sendJson(res, 200, getOnline());
           return true;
         }

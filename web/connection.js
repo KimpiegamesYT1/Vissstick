@@ -168,7 +168,12 @@
     .vso-pop h3 { margin: 4px 8px 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #8d9299); }
     .vso-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--text, #eceae6); }
     .vso-row .vso-av { border: 0; width: 28px; height: 28px; }
-    .vso-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    a.vso-row { text-decoration: none; cursor: pointer; }
+    a.vso-row:hover { background: var(--raise, #262a2f); }
+    .vso-info { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+    .vso-info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .vso-game { font-size: 12px; font-weight: 600; color: var(--muted, #8d9299); }
+    a.vso-row .vso-game { color: var(--green, #4cd47b); }
     .vso-more { padding: 6px 8px; font-size: 12px; color: var(--muted, #8d9299); }
     @media (max-width: 640px) {
       .vso { margin-left: auto; }
@@ -253,11 +258,26 @@
     onlineUi.button.title = `${count} ${count === 1 ? 'speler' : 'spelers'} online`;
     onlineUi.pop.querySelector('h3').textContent = `Nu online · ${count}`;
     onlineUi.list.replaceChildren(...users.map(user => {
-      const row = document.createElement('div');
+      // Met een bekend spel wordt de rij een link naar dat spel
+      const game = user.game && typeof user.game.path === 'string' && user.game.path.startsWith('/') ? user.game : null;
+      const row = document.createElement(game ? 'a' : 'div');
       row.className = 'vso-row';
+      if (game) {
+        row.href = game.path;
+        row.title = `Naar ${game.name}`;
+      }
+      const info = document.createElement('div');
+      info.className = 'vso-info';
       const name = document.createElement('span');
       name.textContent = user.username;
-      row.append(avatarEl(user), name);
+      info.append(name);
+      if (game) {
+        const where = document.createElement('span');
+        where.className = 'vso-game';
+        where.textContent = game.name;
+        info.append(where);
+      }
+      row.append(avatarEl(user), info);
       return row;
     }));
     if (count > users.length) {
@@ -273,7 +293,7 @@
     // Een verborgen tabblad telt niet als actief en hoeft ook niets op te halen
     if (!document.hidden && !down) {
       try {
-        const res = await nativeFetch(`${ONLINE_URL}?active=1&t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
+        const res = await nativeFetch(`${ONLINE_URL}?active=1&page=${encodeURIComponent(location.pathname)}&t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
         if (res.ok) renderOnline(await res.json());
       } catch (error) {
         // Storingen worden al door de verbindingsbewaking afgehandeld
