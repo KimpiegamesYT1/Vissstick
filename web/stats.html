@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vissstick Stats</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%23f2c14e'/%3E%3Cpath d='M13 10h14v7a7 7 0 0 1-14 0z' fill='%2316181b'/%3E%3Cpath d='M18 23h4v5h-4zM14 28h12v3H14z' fill='%2316181b'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --panel: #16181b;
+    --side: #1b1d21;
+    --field: #111315;
+    --raise: #262a2f;
+    --line: rgba(255, 255, 255, 0.07);
+    --text: #eceae6;
+    --muted: #8d9299;
+    --gold: #f2c14e;
+    --silver: #c9d1db;
+    --bronze: #d68a52;
+    --green: #4cd47b;
+    --red: #ef5b4c;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; min-height: 100vh; overflow-x: hidden; }
+  button, input { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .num { font-variant-numeric: tabular-nums; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .app { max-width: 1280px; margin: 0 auto; padding: 14px 16px 40px; }
+
+  /* Kopregel (zelfde als de andere pagina's) */
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand svg { width: 36px; height: 36px; flex: none; }
+  .brand .word { display: flex; flex-direction: column; line-height: 1; }
+  .brand .word small { font-size: 10px; font-weight: 800; letter-spacing: 3px; color: var(--muted); }
+  .brand .word b { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin-top: 3px; }
+  .user { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; }
+  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--raise); }
+  .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
+  .user .balance { color: var(--gold); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
+  .user button:hover { background: var(--raise); color: var(--text); }
+
+  /* ===== Hero + podium ===== */
+  .hero { position: relative; overflow: hidden; border-radius: 20px; border: 1px solid var(--line); padding: 26px 26px 0;
+    background:
+      radial-gradient(ellipse 60% 70% at 50% 110%, rgba(242,193,78,.18), transparent 70%),
+      radial-gradient(ellipse 40% 60% at 0% 0%, rgba(124,140,255,.12), transparent 70%),
+      radial-gradient(ellipse 40% 60% at 100% 0%, rgba(255,95,162,.10), transparent 70%),
+      var(--panel); }
+  .hero::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1px); background-size: 22px 22px;
+    mask-image: linear-gradient(#000, transparent 75%); -webkit-mask-image: linear-gradient(#000, transparent 75%); }
+  .hero-top { position: relative; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .hero h1 { margin: 0; font-size: clamp(26px, 4vw, 38px); font-weight: 900; letter-spacing: -.5px; }
+  .hero h1 span { background: linear-gradient(90deg, #ffe08a, var(--gold) 50%, #f28a4e); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  .live { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(76,212,123,.18); }
+
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 999px; }
+  .seg button { border: 0; background: none; color: var(--muted); font-size: 13px; font-weight: 700; padding: 7px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .seg button:hover { color: var(--text); }
+  .seg button.active { background: var(--raise); color: var(--text); box-shadow: inset 0 -2px 0 var(--gold); }
+
+  .podium { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 220px)); justify-content: center; align-items: end; gap: 14px; margin-top: 26px; }
+  .pod { display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; border: 0; background: none; padding: 0; color: inherit; min-width: 0; }
+  .pod:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 12px; }
+  .pod.p1 { order: 2; } .pod.p2 { order: 1; } .pod.p3 { order: 3; }
+  .pod .av-wrap { position: relative; margin-bottom: 10px; transition: transform .25s cubic-bezier(.2,1.4,.4,1); }
+  .pod:hover .av-wrap { transform: translateY(-4px); }
+  .pod .av { width: 76px; height: 76px; border-width: 3px; font-size: 28px; }
+  .pod.p1 .av { width: 96px; height: 96px; font-size: 34px; }
+  .pod.p1 .av { border-color: var(--gold); box-shadow: 0 0 0 5px rgba(242,193,78,.18), 0 0 40px rgba(242,193,78,.35); }
+  .pod.p2 .av { border-color: var(--silver); box-shadow: 0 0 0 5px rgba(201,209,219,.14); }
+  .pod.p3 .av { border-color: var(--bronze); box-shadow: 0 0 0 5px rgba(214,138,82,.16); }
+  .crown { position: absolute; left: 50%; top: -26px; width: 40px; transform: translateX(-50%) rotate(-8deg); filter: drop-shadow(0 3px 6px rgba(0,0,0,.5)); animation: crown 3s ease-in-out infinite; }
+  @keyframes crown { 50% { transform: translateX(-50%) translateY(-3px) rotate(6deg); } }
+  .pod .pname { font-weight: 800; font-size: 15px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pod .pval { font-size: 22px; font-weight: 900; margin: 2px 0 12px; }
+  .pod.p1 .pval { color: var(--gold); font-size: 26px; }
+  .pod .psub { font-size: 12px; color: var(--muted); margin-top: -10px; margin-bottom: 12px; }
+  .step { width: 100%; border-radius: 14px 14px 0 0; display: grid; place-items: start center; padding-top: 12px; font-size: 40px; font-weight: 900;
+    color: rgba(0,0,0,.45); text-shadow: 0 1px 0 rgba(255,255,255,.25); transform-origin: bottom; animation: rise .8s cubic-bezier(.2,1.1,.3,1) both; }
+  .p1 .step { height: 120px; background: linear-gradient(#ffe08a, var(--gold) 40%, #b88a22); animation-delay: .25s; }
+  .p2 .step { height: 88px; background: linear-gradient(#f2f5f8, var(--silver) 40%, #8e98a5); animation-delay: .1s; }
+  .p3 .step { height: 66px; background: linear-gradient(#f3b98d, var(--bronze) 40%, #94552b); animation-delay: .4s; }
+  @keyframes rise { from { transform: scaleY(0); } }
+
+  /* ===== Avatar ===== */
+  .av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; display: grid; place-items: center;
+    background: var(--raise); color: var(--muted); font-weight: 800; border: 2px solid transparent; }
+
+  /* ===== Tegels ===== */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
+  .tile { position: relative; overflow: hidden; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px; }
+  .tile small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .tile b { display: block; font-size: 24px; font-weight: 900; margin-top: 6px; }
+  .tile span { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile i { position: absolute; right: -12px; top: -12px; width: 64px; height: 64px; border-radius: 50%; opacity: .14; background: var(--c, var(--gold)); filter: blur(4px); }
+
+  /* ===== Kolommen ===== */
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .card + .card { margin-top: 16px; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .card-head h2 { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .search { flex: 1; max-width: 240px; min-width: 140px; background: var(--field); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; font-size: 13px; outline: none; }
+  .search:focus { border-color: rgba(242,193,78,.5); }
+
+  /* Ranglijst */
+  .list { list-style: none; margin: 0; padding: 6px; }
+  .row { position: relative; display: grid; grid-template-columns: 34px 38px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    padding: 9px 12px; border-radius: 11px; cursor: pointer; isolation: isolate; }
+  .row::before { content: ''; position: absolute; inset: 3px auto 3px 0; width: var(--w, 0%); border-radius: 9px; z-index: -1;
+    background: linear-gradient(90deg, transparent, var(--bar, rgba(242,193,78,.09))); transition: width .6s cubic-bezier(.2,1,.3,1); }
+  .row:hover { background: rgba(255,255,255,.03); }
+  .row:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .row.me { background: rgba(242,193,78,.06); box-shadow: inset 0 0 0 1px rgba(242,193,78,.3); }
+  .rank { font-weight: 900; font-size: 15px; color: var(--muted); text-align: center; }
+  .rank.r1 { color: var(--gold); } .rank.r2 { color: var(--silver); } .rank.r3 { color: var(--bronze); }
+  .who { min-width: 0; }
+  .who .n { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 15px; }
+  .who .n span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who .sub { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; }
+  .tag { flex: none; font-size: 10px; font-weight: 800; letter-spacing: .06em; padding: 2px 6px; border-radius: 999px; background: var(--gold); color: #1d1203; }
+  .medals { flex: none; display: inline-flex; align-items: center; gap: 3px; }
+  .medal { display: inline-flex; align-items: center; gap: 1px; font-size: 11px; font-weight: 800; color: var(--muted); }
+  .medal svg { width: 14px; height: 18px; flex: none; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; }
+  .chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--muted)); }
+  .val { text-align: right; }
+  .val b { display: block; font-size: 16px; font-weight: 800; }
+  .val small { display: block; font-size: 12px; font-weight: 700; margin-top: 1px; }
+  .empty { padding: 30px 16px; text-align: center; color: var(--muted); font-size: 14px; }
+
+  /* Records */
+  .records { list-style: none; margin: 0; padding: 6px; }
+  .rec { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 11px; align-items: center; padding: 9px 10px; border-radius: 11px; cursor: pointer; }
+  .rec:hover { background: rgba(255,255,255,.03); }
+  .rec .ico { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: var(--c);
+    background: color-mix(in srgb, var(--c) 12%, var(--field)); border: 1px solid color-mix(in srgb, var(--c) 28%, transparent); }
+  .rec .ico svg { width: 22px; height: 22px; }
+  .rec .t { font-size: 12px; color: var(--muted); font-weight: 700; }
+  .rec .w { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rec .v { text-align: right; font-weight: 800; font-size: 14px; }
+  .rec .v small { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+
+  /* Hall of fame */
+  .fame { padding: 8px 12px 12px; display: grid; gap: 8px; }
+  .month { background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .month h3 { margin: 0 0 8px; font-size: 12px; font-weight: 800; text-transform: capitalize; color: var(--muted); }
+  .month ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .month li { display: grid; grid-template-columns: 16px 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+  .month li .av { width: 26px; height: 26px; font-size: 11px; border: 0; }
+  .month li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .month li b { font-size: 12px; color: var(--muted); }
+
+  /* Per spel */
+  .games { margin-top: 16px; }
+  .gtabs { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
+  .gtab { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--field);
+    color: var(--muted); font-weight: 700; font-size: 14px; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+  .gtab::before { content: ''; width: 9px; height: 9px; border-radius: 3px; background: var(--c); box-shadow: 0 0 10px var(--c); }
+  .gtab:hover { color: var(--text); }
+  .gtab.active { color: var(--text); border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, var(--field)); }
+  .gsum { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+  .gsum div { background: var(--panel); padding: 12px 16px; }
+  .gsum small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .gsum b { display: block; font-size: 18px; font-weight: 800; margin-top: 4px; }
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: right; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 10px 16px; white-space: nowrap; }
+  td { text-align: right; padding: 9px 16px; border-top: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th:nth-child(-n+2), td:nth-child(-n+2) { text-align: left; }
+  th:first-child, td:first-child { width: 40px; padding-right: 0; color: var(--muted); font-weight: 800; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: rgba(255,255,255,.025); }
+  tbody tr.me td { background: rgba(242,193,78,.06); }
+  .pl { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .pl .av { width: 28px; height: 28px; font-size: 12px; border: 0; }
+  .rtp { display: inline-block; min-width: 54px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; text-align: center; }
+  .rtp.pos { background: rgba(76,212,123,.12); } .rtp.neg { background: rgba(239,91,76,.12); }
+
+  /* ===== Spelerkaart ===== */
+  dialog { width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid rgba(255,255,255,.1); border-radius: 20px;
+    background: var(--side); color: var(--text); box-shadow: 0 30px 80px rgba(0,0,0,.6); overflow: hidden auto; }
+  dialog::backdrop { background: rgba(5,6,8,.72); backdrop-filter: blur(6px); }
+  dialog[open] { animation: pop-in .35s cubic-bezier(.2,1.3,.4,1); }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(16px) scale(.97); } }
+  .pc-head { position: relative; display: flex; align-items: center; gap: 16px; padding: 24px 24px 20px;
+    background: radial-gradient(ellipse 70% 120% at 0% 0%, rgba(242,193,78,.16), transparent 60%), var(--panel); border-bottom: 1px solid var(--line); }
+  .pc-head .av { width: 72px; height: 72px; font-size: 28px; border-color: var(--gold); }
+  .pc-head h2 { margin: 0; font-size: 24px; font-weight: 900; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pc-head p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  .pc-head .bal { margin-left: auto; margin-right: 26px; text-align: right; }
+  .pc-head .bal small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .pc-head .bal b { font-size: 26px; font-weight: 900; color: var(--gold); }
+  .close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(255,255,255,.06); color: var(--muted);
+    font-size: 20px; line-height: 1; cursor: pointer; }
+  .close:focus:not(:focus-visible) { outline: none; }
+  .close:hover { background: rgba(255,255,255,.12); color: var(--text); }
+  .pc-body { padding: 18px 24px 24px; }
+  .pc-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .pc-tiles div { background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; }
+  .pc-tiles small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
+  .pc-tiles b { display: block; font-size: 18px; font-weight: 800; margin-top: 3px; }
+  .pc-h { margin: 22px 0 10px; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+  .div-chart { display: grid; gap: 7px; }
+  .dc-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 84px; align-items: center; gap: 10px; font-size: 13px; }
+  .dc-row .lbl { font-weight: 700; }
+  .dc-track { position: relative; height: 14px; }
+  .dc-track::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: rgba(255,255,255,.18); }
+  .dc-bar { position: absolute; top: 0; height: 100%; border-radius: 4px; transition: width .7s cubic-bezier(.2,1,.3,1); }
+  .dc-bar.pos { left: 50%; background: linear-gradient(90deg, rgba(76,212,123,.55), var(--green)); border-radius: 0 4px 4px 0; }
+  .dc-bar.neg { right: 50%; background: linear-gradient(270deg, rgba(239,91,76,.55), var(--red)); border-radius: 4px 0 0 4px; }
+  .dc-row .amt { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  .gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .gcard { background: var(--field); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 12px; padding: 12px 13px; }
+  .gcard h4 { margin: 0 0 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: baseline; }
+  .gcard h4 small { font-size: 12px; font-weight: 800; }
+  .gcard dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 12px; }
+  .gcard dt { color: var(--muted); }
+  .gcard dd { margin: 0; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .winrate { height: 6px; border-radius: 999px; background: rgba(239,91,76,.35); overflow: hidden; margin: 2px 0 8px; display: flex; }
+  .winrate i { display: block; height: 100%; background: var(--green); }
+  .winrate i + i { background: var(--muted); }
+
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 20px); opacity: 0; transition: opacity .2s, transform .2s;
+    background: var(--side); border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; font-size: 14px; font-weight: 700; z-index: 10; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .skeleton { height: 18px; border-radius: 6px; background: linear-gradient(90deg, var(--raise), #30353b, var(--raise)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  @media (max-width: 980px) {
+    .cols { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    header { flex-wrap: wrap; }
+    .brand .word { display: none; }
+    .nav { margin-left: 0 !important; order: 3; width: 100%; }
+    .hero { padding: 20px 14px 0; }
+    .podium { gap: 8px; }
+    .pod .av { width: 56px; height: 56px; font-size: 22px; }
+    .pod.p1 .av { width: 72px; height: 72px; font-size: 26px; }
+    .pod .pval { font-size: 17px; } .pod.p1 .pval { font-size: 20px; }
+    .pod .pname { font-size: 13px; }
+    .step { font-size: 30px; }
+    .p1 .step { height: 92px; } .p2 .step { height: 68px; } .p3 .step { height: 52px; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .tiles .tile:last-child { grid-column: 1 / -1; }
+    .tile { padding: 12px 13px; }
+    .tile b { font-size: 20px; }
+    .row { grid-template-columns: 26px 34px minmax(0, 1fr) auto; gap: 9px; padding: 8px; }
+    .pc-head { flex-wrap: wrap; padding: 20px 16px 16px; }
+    .pc-head .av { width: 56px; height: 56px; }
+    .pc-head .bal { margin: 0; width: 100%; text-align: left; }
+    .pc-body { padding: 14px 16px 18px; }
+    .pc-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dc-row { grid-template-columns: 76px minmax(0, 1fr) 70px; font-size: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+<script src="/connection.js?v=7"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <a class="brand" href="/stats" aria-label="Vissstick Stats">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="#f2c14e"/>
+        <path d="M13 10h14v7a7 7 0 0 1-14 0z" fill="#16181b"/>
+        <path d="M13 12H9.5a3.5 3.5 0 0 0 4 4.5M27 12h3.5a3.5 3.5 0 0 1-4 4.5" fill="none" stroke="#16181b" stroke-width="2"/>
+        <path d="M18 23h4v5h-4zM14 28h12v3H14z" fill="#16181b"/>
+      </svg>
+      <span class="word"><small>VISSSTICK</small><b>Stats</b></span>
+    </a>
+    <nav class="nav" aria-label="Spellen"></nav>
+    <div class="user" id="user" hidden></div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-top">
+      <div>
+        <h1><span>Leaderboard</span></h1>
+        <p>Wie is de rijkste van het HOK? <span class="live" id="updated">Laden…</span></p>
+      </div>
+      <div class="seg" id="metric" role="tablist" aria-label="Sorteren op"></div>
+    </div>
+    <div class="podium" id="podium"></div>
+  </section>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="cols">
+    <section class="card">
+      <div class="card-head">
+        <h2 id="listTitle">Ranglijst</h2>
+        <input class="search" id="search" type="search" placeholder="Zoek speler…" autocomplete="off" aria-label="Zoek speler">
+      </div>
+      <ol class="list" id="list"><li class="empty"><div class="skeleton"></div></li></ol>
+    </section>
+
+    <aside>
+      <section class="card">
+        <div class="card-head"><h2>Records</h2></div>
+        <ul class="records" id="records"></ul>
+      </section>
+      <section class="card" id="fameCard" hidden>
+        <div class="card-head"><h2>Hall of fame</h2></div>
+        <div class="fame" id="fame"></div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="card games" id="gamesCard" hidden>
+    <div class="card-head"><h2>Per spel</h2></div>
+    <div class="gtabs" id="gtabs" role="tablist" aria-label="Spel"></div>
+    <div class="gsum" id="gsum"></div>
+    <div class="tbl-wrap"><table id="gtable"></table></div>
+  </section>
+</div>
+
+<dialog id="player" aria-labelledby="pcName"></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const POLL_MS = 30000;
+  const GAMES = {
+    rocket: { name: 'Rocket', color: '#7c8cff' },
+    blackjack: { name: 'Blackjack', color: '#3fcf7f' },
+    roulette: { name: 'Roulette', color: '#ef5b4c' },
+    slots: { name: 'Slots', color: '#ffb347' },
+    plinko: { name: 'Plinko', color: '#ff5fa2' },
+    mines: { name: 'Mines', color: '#5ec8ff' },
+    bets: { name: 'Weddenschappen', color: '#c49bff' }
+  };
+  const METRICS = {
+    balance: { label: 'Saldo', title: 'Saldo deze maand', get: p => p.balance },
+    net: { label: 'Winst', title: 'Netto winst (all-time)', get: p => p.net, signed: true },
+    biggest: { label: 'Grootste winst', title: 'Grootste winst in één keer', get: p => p.biggest.amount },
+    wagered: { label: 'Ingezet', title: 'Totaal ingezet', get: p => p.wagered },
+    played: { label: 'Rondes', title: 'Aantal rondes gespeeld', get: p => p.played, unit: '' }
+  };
+
+  const $ = id => document.getElementById(id);
+  const nf = new Intl.NumberFormat('nl-NL');
+  const fmt = n => nf.format(Math.round(n || 0));
+  const signed = n => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmt(Math.abs(n))}`;
+  const cls = n => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
+  const fmtMult = m => `${Number(m).toLocaleString('nl-NL', { maximumFractionDigits: 2, minimumFractionDigits: m < 10 ? 2 : 0 })}×`;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let data = null;
+  let firstRender = true;
+  let metric = load('statsMetric', 'balance');
+  let game = load('statsGame', null);
+  let query = '';
+  if (!METRICS[metric]) metric = 'balance';
+
+  function load(key, fallback) {
+    try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) { /* geen opslag */ }
+  }
+
+  function el(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (value === undefined || value === null || value === false) continue;
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = value;
+      else if (key === 'style') node.style.cssText = value;
+      else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? '' : value);
+    }
+    for (const child of [].concat(children)) if (child !== null && child !== undefined && child !== false) node.append(child);
+    return node;
+  }
+
+  function avatar(p, extra = '') {
+    if (p && p.avatar) {
+      const img = el('img', { class: `av ${extra}`, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer', src: p.avatar });
+      img.addEventListener('error', () => img.replaceWith(avatar({ name: p.name }, extra)), { once: true });
+      return img;
+    }
+    return el('span', { class: `av ${extra}`, 'aria-hidden': 'true', text: ((p && p.name) || '?').charAt(0).toUpperCase() });
+  }
+
+  // Eigen iconen (geen emoji's): 24x24, lijnen in currentColor
+  const svg = (inner, fill) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${fill ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  const ICONS = {
+    coins: svg('<ellipse cx="9" cy="7" rx="6" ry="2.6"/><path d="M3 7v4c0 1.4 2.7 2.6 6 2.6s6-1.2 6-2.6V7"/><path d="M9 13.6v3.8c0 1.4 2.7 2.6 6 2.6s6-1.2 6-2.6v-4c0-1.4-2.7-2.6-6-2.6"/>'),
+    rocket: svg('<path d="M12 2.5c3.2 2.4 4.6 6 4.4 10.5l-2 2.5H9.6l-2-2.5C7.4 8.5 8.8 4.9 12 2.5z"/><circle cx="12" cy="9" r="1.8"/><path d="M7.6 13 5 15.5v3l4.6-3M16.4 13l2.6 2.5v3l-4.6-3M10.5 18.5 12 21.5l1.5-3"/>'),
+    up: svg('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
+    down: svg('<path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/>'),
+    flame: svg('<path d="M12 21.5c-4 0-6.5-2.7-6.5-6.3 0-3.2 2-5.2 3.4-7.2.6 1.6 1.6 2.6 2.6 3C11.3 7.8 12.7 4.6 15 2.5c.4 3.4 3.5 5.6 3.5 10.4 0 4.6-2.8 8.6-6.5 8.6z"/><path d="M12 21.5c-1.6 0-2.7-1.2-2.7-2.8 0-1.8 1.4-2.8 2.4-4.2 1.4 1.4 3 2.4 3 4.4 0 1.5-1.2 2.6-2.7 2.6z"/>'),
+    dice: svg('<rect x="3" y="3" width="13" height="13" rx="3"/><path d="M19.5 8.5 21 10a2 2 0 0 1 0 2.8l-6.2 6.2a2 2 0 0 1-2.8 0l-1.5-1.5"/><circle cx="6.8" cy="6.8" r=".9" fill="currentColor"/><circle cx="12.2" cy="12.2" r=".9" fill="currentColor"/><circle cx="9.5" cy="9.5" r=".9" fill="currentColor"/>'),
+    plate: svg('<circle cx="11" cy="13" r="8"/><circle cx="11" cy="13" r="4.5"/><circle cx="19" cy="4.5" r="2"/><circle cx="21" cy="9" r="1"/>'),
+    bulb: svg('<path d="M9 17.5h6M10 21h4"/><path d="M8.5 14.5C7 13.3 6 11.5 6 9.5a6 6 0 0 1 12 0c0 2-1 3.8-2.5 5l-.5 3H9z"/><path d="M12 6.5v3l1.5 1.5"/>'),
+    wheel: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7M5.6 5.6l5 5M13.4 13.4l5 5M18.4 5.6l-5 5M10.6 13.4l-5 5"/>'),
+    crown: svg('<path d="M3 8l4.5 4L12 4.5 16.5 12 21 8l-2 11H5z"/><path d="M5.5 15.5h13"/>')
+  };
+  const MEDAL_COLORS = ['#f2c14e', '#c9d1db', '#d68a52'];
+  // Medaille met lint en plaatsnummer
+  function medalSvg(position) {
+    const c = MEDAL_COLORS[position - 1];
+    return `<svg viewBox="0 0 14 18" aria-hidden="true"><path d="M3 0h3.2l1.8 5-2 2.6zM11 0H7.8L6 5l2 2.6z" fill="${c}" opacity=".55"/>`
+      + `<circle cx="7" cy="11.5" r="5.6" fill="${c}"/><circle cx="7" cy="11.5" r="4" fill="none" stroke="#000" stroke-opacity=".22"/>`
+      + `<text x="7" y="14" text-anchor="middle" font-family="system-ui,sans-serif" font-size="6.5" font-weight="900" fill="#000" fill-opacity=".55">${position}</text></svg>`;
+  }
+  function medalsEl(m) {
+    const counts = [m.gold, m.silver, m.bronze];
+    if (!counts.some(Boolean)) return null;
+    const box = el('span', { class: 'medals', title: `Maandtitels: ${m.gold}× eerste, ${m.silver}× tweede, ${m.bronze}× derde` });
+    counts.forEach((n, i) => {
+      if (!n) return;
+      const span = el('span', { class: 'medal' });
+      span.innerHTML = medalSvg(i + 1);
+      if (n > 1) span.append(`${n}`);
+      box.append(span);
+    });
+    return box;
+  }
+  function iconEl(name, cls) {
+    const span = el('span', { class: cls, 'aria-hidden': 'true' });
+    span.innerHTML = ICONS[name] || '';
+    return span;
+  }
+
+  function ago(ms) {
+    if (!ms) return 'nooit';
+    const s = Math.max(0, (Date.now() - ms) / 1000);
+    if (s < 60) return 'zojuist';
+    if (s < 3600) return `${Math.floor(s / 60)} min geleden`;
+    if (s < 86400) return `${Math.floor(s / 3600)} uur geleden`;
+    const d = Math.floor(s / 86400);
+    return d === 1 ? 'gisteren' : `${d} dagen geleden`;
+  }
+
+  function metricValue(p, key = metric) { return METRICS[key].get(p); }
+  function metricText(p, key = metric) {
+    const v = metricValue(p, key);
+    if (key === 'played') return fmt(v);
+    return `${METRICS[key].signed ? signed(v) : fmt(v)} pt`;
+  }
+
+  function ranked(key = metric) {
+    return [...data.players].sort((a, b) => metricValue(b, key) - metricValue(a, key) || b.balance - a.balance);
+  }
+
+  // Tellen naar het getal (alleen de eerste keer)
+  function countUp(node, target, format) {
+    if (!firstRender || reduced || !target) { node.textContent = format(target); return; }
+    const start = performance.now();
+    const dur = 900;
+    const step = now => {
+      const t = Math.min(1, (now - start) / dur);
+      node.textContent = format(target * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+  function renderUser() {
+    const box = $('user');
+    box.replaceChildren();
+    if (!data.linked) { box.hidden = true; return; }
+    box.hidden = false;
+    const img = el('img', { alt: '', referrerpolicy: 'no-referrer' });
+    if (data.user.avatar) img.src = data.user.avatar;
+    box.append(img,
+      el('div', {}, [el('div', { class: 'name', text: data.user.username }), el('div', { class: 'balance', text: `${fmt(data.balance)} punten` })]),
+      el('button', { text: 'Uitloggen', onclick: async () => {
+        await fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', credentials: 'same-origin' });
+        refresh();
+      } }));
+  }
+
+  function renderMetricTabs() {
+    $('metric').replaceChildren(...Object.entries(METRICS).map(([key, m]) => el('button', {
+      type: 'button', role: 'tab', class: key === metric ? 'active' : '', 'aria-selected': String(key === metric), text: m.label,
+      onclick: () => { metric = key; save('statsMetric', key); renderMetricTabs(); renderPodium(); renderList(); }
+    })));
+    $('listTitle').textContent = METRICS[metric].title;
+  }
+
+  const CROWN = '<svg class="crown" viewBox="0 0 40 28" aria-hidden="true"><path d="M3 9l9 7 8-13 8 13 9-7-4 17H7z" fill="#f2c14e" stroke="#b88a22" stroke-width="1.5" stroke-linejoin="round"/><circle cx="3" cy="8" r="2.6" fill="#ffe08a"/><circle cx="20" cy="3" r="2.6" fill="#ffe08a"/><circle cx="37" cy="8" r="2.6" fill="#ffe08a"/><rect x="7" y="22" width="26" height="4" rx="1" fill="#b88a22"/></svg>';
+
+  function renderPodium() {
+    const top = ranked().slice(0, 3);
+    $('podium').replaceChildren(...top.map((p, i) => {
+      const wrap = el('div', { class: 'av-wrap' }, avatar(p));
+      if (i === 0) wrap.insertAdjacentHTML('afterbegin', CROWN);
+      const val = el('div', { class: `pval num ${METRICS[metric].signed ? cls(metricValue(p)) : ''}` });
+      countUp(val, metricValue(p), v => metricText({ ...p, balance: v, net: v, wagered: v, played: v, biggest: { amount: v } }));
+      return el('button', { type: 'button', class: `pod p${i + 1}`, onclick: () => openPlayer(p.key), 'aria-label': `${p.name}, plek ${i + 1}` }, [
+        wrap,
+        el('div', { class: 'pname', text: p.name }),
+        val,
+        el('div', { class: 'step', text: String(i + 1) })
+      ]);
+    }));
+  }
+
+  function renderTiles() {
+    const ps = data.players;
+    const sum = f => ps.reduce((s, p) => s + f(p), 0);
+    const wagered = sum(p => p.wagered);
+    const house = -sum(p => p.net);
+    const rounds = sum(p => p.played);
+    let best = null;
+    for (const p of ps) if (p.biggest.amount > 0 && (!best || p.biggest.amount > best.biggest.amount)) best = p;
+    const active = ps.filter(p => Date.now() - p.lastPlayed < 7 * 86400000).length;
+
+    const tiles = [
+      { label: 'Spelers', value: ps.length, fmt: fmt, sub: `${active} actief deze week`, c: '#7c8cff' },
+      { label: 'Punten in omloop', value: sum(p => Math.max(0, p.balance)), fmt: v => fmt(v), sub: 'samen op de bank', c: '#f2c14e' },
+      { label: 'Totaal ingezet', value: wagered, fmt: v => fmt(v), sub: `${fmt(rounds)} rondes gespeeld`, c: '#ff5fa2' },
+      { label: 'Huis-resultaat', value: house, fmt: v => signed(v), sub: house >= 0 ? 'het casino staat op winst' : 'de spelers winnen van het huis', c: house >= 0 ? '#ef5b4c' : '#4cd47b', cls: cls(house) },
+      { label: 'Grootste winst ooit', value: best ? best.biggest.amount : 0, fmt: v => `+${fmt(v)}`, sub: best ? `${best.name} · ${GAMES[best.biggest.game].name}` : 'nog niemand', c: '#4cd47b', cls: best ? 'pos' : '' }
+    ];
+    $('tiles').replaceChildren(...tiles.map(t => {
+      const b = el('b', { class: `num ${t.cls || ''}` });
+      countUp(b, t.value, t.fmt);
+      return el('div', { class: 'tile', style: `--c:${t.c}` }, [el('i'), el('small', { text: t.label }), b, el('span', { text: t.sub })]);
+    }));
+  }
+
+  function renderList() {
+    const all = ranked();
+    const max = Math.max(1, ...all.map(p => Math.abs(metricValue(p))));
+    const q = query.trim().toLowerCase();
+    const rows = all.map((p, i) => ({ p, rank: i + 1 })).filter(({ p }) => !q || p.name.toLowerCase().includes(q));
+    if (!rows.length) {
+      $('list').replaceChildren(el('li', { class: 'empty', text: data.players.length ? 'Geen speler gevonden.' : 'Nog geen spelers. Speel een potje om op de lijst te komen!' }));
+      return;
+    }
+    $('list').replaceChildren(...rows.map(({ p, rank }) => {
+      const v = metricValue(p);
+      const secondary = metric === 'net'
+        ? el('small', { class: 'num', style: 'color:var(--gold)', text: `${fmt(p.balance)} pt saldo` })
+        : el('small', { class: `num ${cls(p.net)}`, text: `${signed(p.net)} winst` });
+      const sub = el('div', { class: 'sub' }, [
+        p.favorite ? el('span', { class: 'chip', style: `--c:${GAMES[p.favorite].color}`, text: GAMES[p.favorite].name }) : el('span', { text: 'nog niet gegokt' }),
+        el('span', { text: `· ${ago(p.lastPlayed)}` })
+      ]);
+      return el('li', {
+        class: `row${p.me ? ' me' : ''}`, tabindex: '0', role: 'button',
+        style: `--w:${(Math.abs(v) / max) * 100}%;${METRICS[metric].signed && v < 0 ? '--bar:rgba(239,91,76,.1)' : ''}`,
+        onclick: () => openPlayer(p.key),
+        onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPlayer(p.key); } }
+      }, [
+        el('span', { class: `rank r${rank}`, text: String(rank) }),
+        avatar(p),
+        el('div', { class: 'who' }, [
+          el('div', { class: 'n' }, [el('span', { text: p.name }), p.me ? el('em', { class: 'tag', text: 'JIJ' }) : null, medalsEl(p.medals)]),
+          sub
+        ]),
+        el('div', { class: 'val' }, [el('b', { class: `num ${METRICS[metric].signed ? cls(v) : ''}`, text: metricText(p) }), secondary])
+      ]);
+    }));
+  }
+
+  function renderRecords() {
+    const recs = [];
+    const top = (fn, filter = v => v > 0) => {
+      let best = null, bestV = 0, extra = null;
+      for (const p of data.players) {
+        const r = fn(p);
+        if (!r) continue;
+        const [v, ex] = Array.isArray(r) ? r : [r, null];
+        if (filter(v) && (best === null || v > bestV)) { best = p; bestV = v; extra = ex; }
+      }
+      return best ? { p: best, v: bestV, extra } : null;
+    };
+    const bestGame = (p, field) => {
+      let v = 0, g = null;
+      for (const [k, s] of Object.entries(p.games)) if ((s[field] || 0) > v) { v = s[field]; g = k; }
+      return g ? [v, GAMES[g].name] : null;
+    };
+
+    const add = (ico, color, title, r, valText) => { if (r) recs.push({ ico, color, title, r, valText: valText(r) }); };
+    add('coins', '#4cd47b', 'Grootste winst', top(p => bestGame(p, 'biggest')), r => [`+${fmt(r.v)}`, r.extra]);
+    add('rocket', '#7c8cff', 'Hoogste multiplier', top(p => bestGame(p, 'bestMult')), r => [fmtMult(r.v), r.extra]);
+    add('up', '#4cd47b', 'Meeste winst ooit', top(p => p.net), r => [signed(r.v), 'netto']);
+    add('flame', '#f28a4e', 'Langste winstreeks', top(p => bestGame(p, 'bestStreak')), r => [`${r.v}× op rij`, r.extra]);
+    add('dice', '#ff5fa2', 'Fanatiekste speler', top(p => p.played), r => [fmt(r.v), 'rondes']);
+    add('down', '#ef5b4c', 'Beste klant van het casino', top(p => -p.net), r => [signed(-r.v), 'netto']);
+    add('plate', '#5ec8ff', 'Afwaskampioen', top(p => p.extras.afwas && p.extras.afwas.plates), r => [fmt(r.v), 'borden']);
+    add('bulb', '#c49bff', 'Quizkoning', top(p => p.extras.quiz && p.extras.quiz.correct), r => [fmt(r.v), 'goed']);
+    add('wheel', '#ffb347', 'Beste daily spin', top(p => p.extras.spin && p.extras.spin.best), r => [`+${fmt(r.v)}`, 'in één spin']);
+    add('crown', '#f2c14e', 'Meeste maandtitels', top(p => p.medals.gold), r => [`${r.v}×`, 'maandwinnaar']);
+
+    if (!recs.length) { $('records').replaceChildren(el('li', { class: 'empty', text: 'Nog geen records.' })); return; }
+    $('records').replaceChildren(...recs.map(({ ico, color, title, r, valText }) => el('li', { class: 'rec', onclick: () => openPlayer(r.p.key), title: `Bekijk ${r.p.name}` }, [
+      (() => { const i = iconEl(ico, 'ico'); i.style.setProperty('--c', color); return i; })(),
+      el('div', { style: 'min-width:0' }, [el('div', { class: 't', text: title }), el('div', { class: 'w', text: r.p.name })]),
+      el('div', { class: 'v num' }, [valText[0], valText[1] ? el('small', { text: valText[1] }) : null])
+    ])));
+  }
+
+  function monthName(key) {
+    const [y, m] = key.split('-').map(Number);
+    if (!y || !m) return key;
+    return new Date(y, m - 1, 1).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
+  }
+
+  function renderFame() {
+    const months = data.hallOfFame || [];
+    $('fameCard').hidden = months.length === 0;
+    $('fame').replaceChildren(...months.map(m => el('div', { class: 'month' }, [
+      el('h3', { text: monthName(m.month) }),
+      el('ol', {}, m.top.map(t => el('li', { style: t.key ? 'cursor:pointer' : '', onclick: t.key ? () => openPlayer(t.key) : null }, [
+        (() => { const m = el('span', { class: 'medal', title: `${t.position}e plek` }); m.innerHTML = medalSvg(t.position); return m; })(), avatar(t), el('span', { text: t.name }), el('b', { class: 'num', text: `${fmt(t.balance)} pt` })
+      ])))
+    ])));
+  }
+
+  function renderGames() {
+    const present = Object.keys(GAMES).filter(k => data.players.some(p => p.games[k]));
+    $('gamesCard').hidden = present.length === 0;
+    if (!present.length) return;
+    if (!present.includes(game)) game = present[0];
+    const g = GAMES[game];
+
+    $('gtabs').replaceChildren(...present.map(k => el('button', {
+      type: 'button', role: 'tab', class: `gtab${k === game ? ' active' : ''}`, 'aria-selected': String(k === game), style: `--c:${GAMES[k].color}`,
+      text: GAMES[k].name, onclick: () => { game = k; save('statsGame', k); renderGames(); }
+    })));
+
+    const rows = data.players.filter(p => p.games[game]).map(p => ({ p, s: p.games[game] })).sort((a, b) => b.s.net - a.s.net);
+    const tot = rows.reduce((t, { s }) => ({ played: t.played + s.played, bet: t.bet + s.bet, payout: t.payout + s.payout }), { played: 0, bet: 0, payout: 0 });
+    const rtp = tot.bet ? (tot.payout / tot.bet) * 100 : 0;
+    $('gsum').replaceChildren(
+      el('div', {}, [el('small', { text: 'Spelers' }), el('b', { class: 'num', text: fmt(rows.length) })]),
+      el('div', {}, [el('small', { text: 'Rondes' }), el('b', { class: 'num', text: fmt(tot.played) })]),
+      el('div', {}, [el('small', { text: 'Ingezet' }), el('b', { class: 'num', text: fmt(tot.bet) })]),
+      el('div', {}, [el('small', { text: 'Uitbetaald' }), el('b', { class: 'num', text: fmt(tot.payout) })]),
+      el('div', {}, [el('small', { text: 'Terugbetaald %' }), el('b', { class: `num ${rtp >= 100 ? 'pos' : 'neg'}`, text: `${rtp.toFixed(1).replace('.', ',')}%` })])
+    );
+
+    const hasMult = rows.some(({ s }) => s.bestMult);
+    const hasWins = rows.some(({ s }) => s.wins !== undefined);
+    const head = ['#', 'Speler', 'Rondes', hasWins ? 'Gewonnen' : null, 'Ingezet', 'Netto', 'Grootste winst', hasMult ? 'Beste ×' : null, 'Terug %'].filter(Boolean);
+    const thead = el('thead', {}, el('tr', {}, head.map(h => el('th', { text: h }))));
+    const tbody = el('tbody', {}, rows.map(({ p, s }, i) => {
+      const r = s.bet ? (s.payout / s.bet) * 100 : 0;
+      return el('tr', { class: p.me ? 'me' : '', onclick: () => openPlayer(p.key), title: `Bekijk ${p.name}` }, [
+        el('td', { text: String(i + 1) }),
+        el('td', {}, el('div', { class: 'pl' }, [avatar(p), el('span', { text: p.name })])),
+        el('td', { text: fmt(s.played) }),
+        hasWins ? el('td', { text: s.wins !== undefined ? `${fmt(s.wins)} (${s.played ? Math.round((s.wins / s.played) * 100) : 0}%)` : '–' }) : null,
+        el('td', { text: fmt(s.bet) }),
+        el('td', { class: cls(s.net), style: 'font-weight:800', text: signed(s.net) }),
+        el('td', { text: s.biggest ? `+${fmt(s.biggest)}` : '–' }),
+        hasMult ? el('td', { text: s.bestMult ? fmtMult(s.bestMult) : '–' }) : null,
+        el('td', {}, el('span', { class: `rtp ${r >= 100 ? 'pos' : 'neg'}`, text: s.bet ? `${Math.round(r)}%` : '–' }))
+      ]);
+    }));
+    $('gtable').replaceChildren(thead, tbody);
+    $('gtable').style.setProperty('--c', g.color);
+  }
+
+  // =====================================================
+  // SPELERKAART
+  // =====================================================
+  let openKey = null;
+
+  function openPlayer(key) {
+    const p = data && data.players.find(x => x.key === key);
+    if (!p) return;
+    openKey = key;
+    renderPlayer(p);
+    const dlg = $('player');
+    if (!dlg.open) dlg.showModal();
+    if (location.hash !== `#${key}`) history.replaceState(null, '', `#${key}`);
+  }
+
+  function renderPlayer(p) {
+    const rankBal = ranked('balance').findIndex(x => x.key === p.key) + 1;
+    const rankNet = ranked('net').findIndex(x => x.key === p.key) + 1;
+
+    const head = el('div', { class: 'pc-head' }, [
+      avatar(p),
+      el('div', { style: 'min-width:0' }, [
+        el('h2', { id: 'pcName' }, [el('span', { text: p.name }), p.me ? el('em', { class: 'tag', text: 'JIJ' }) : null, medalsEl(p.medals)]),
+        el('p', { text: `#${rankBal} op saldo · #${rankNet} op winst · laatst actief ${ago(p.lastPlayed)}` })
+      ]),
+      el('div', { class: 'bal' }, [el('small', { text: 'Saldo' }), el('b', { class: 'num', text: `${fmt(p.balance)} pt` })]),
+      el('button', { class: 'close', type: 'button', 'aria-label': 'Sluiten', text: '×', onclick: closePlayer })
+    ]);
+
+    const winRounds = Object.values(p.games).reduce((s, g) => s + (g.wins || 0), 0);
+    const tiles = el('div', { class: 'pc-tiles' }, [
+      el('div', {}, [el('small', { text: 'Netto winst' }), el('b', { class: `num ${cls(p.net)}`, text: signed(p.net) })]),
+      el('div', {}, [el('small', { text: 'Ingezet' }), el('b', { class: 'num', text: fmt(p.wagered) })]),
+      el('div', {}, [el('small', { text: 'Rondes' }), el('b', { class: 'num', text: fmt(p.played) })]),
+      el('div', {}, [el('small', { text: 'Grootste winst' }), el('b', { class: `num ${p.biggest.amount ? 'pos' : ''}`, text: p.biggest.amount ? `+${fmt(p.biggest.amount)}` : '–' })])
+    ]);
+
+    const body = el('div', { class: 'pc-body' }, [tiles]);
+
+    const entries = Object.entries(p.games).sort((a, b) => b[1].bet - a[1].bet);
+    if (entries.length) {
+      const max = Math.max(1, ...entries.map(([, g]) => Math.abs(g.net)));
+      body.append(el('h3', { class: 'pc-h', text: 'Winst & verlies per spel' }),
+        el('div', { class: 'div-chart' }, entries.map(([k, g]) => {
+          const bar = el('i', { class: `dc-bar ${g.net >= 0 ? 'pos' : 'neg'}`, style: 'width:0' });
+          requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = `${(Math.abs(g.net) / max) * 50}%`; }));
+          return el('div', { class: 'dc-row' }, [
+            el('span', { class: 'lbl chip', style: `--c:${GAMES[k].color}`, text: GAMES[k].name }),
+            el('div', { class: 'dc-track' }, bar),
+            el('span', { class: `amt ${cls(g.net)}`, text: signed(g.net) })
+          ]);
+        })));
+
+      body.append(el('h3', { class: 'pc-h', text: 'Details' }), el('div', { class: 'gcards' }, entries.map(([k, g]) => {
+        const rows = [['Rondes', fmt(g.played)], ['Ingezet', fmt(g.bet)], ['Uitbetaald', fmt(g.payout)]];
+        if (g.biggest) rows.push(['Grootste winst', `+${fmt(g.biggest)}`]);
+        if (g.bestMult) rows.push(['Beste multiplier', fmtMult(g.bestMult)]);
+        if (g.blackjacks) rows.push(['Blackjacks', fmt(g.blackjacks)]);
+        if (g.bestStreak) rows.push(['Beste reeks', `${g.bestStreak}× op rij`]);
+        if (g.fevers) rows.push(['Fevers', fmt(g.fevers)]);
+        if (g.freeSpins) rows.push(['Free spins', fmt(g.freeSpins)]);
+        const parts = [el('h4', {}, [GAMES[k].name, el('small', { class: cls(g.net), text: signed(g.net) })])];
+        if (g.wins !== undefined && g.played) {
+          const pushes = g.pushes || 0;
+          parts.push(el('div', { class: 'winrate', title: `${g.wins} gewonnen${pushes ? `, ${pushes} gelijk` : ''}, ${g.played - g.wins - pushes} verloren` }, [
+            el('i', { style: `width:${(g.wins / g.played) * 100}%` }), pushes ? el('i', { style: `width:${(pushes / g.played) * 100}%` }) : null
+          ]));
+          rows.unshift(['Gewonnen', `${fmt(g.wins)} (${Math.round((g.wins / g.played) * 100)}%)`]);
+        }
+        parts.push(el('dl', {}, rows.flatMap(([dt, dd]) => [el('dt', { text: dt }), el('dd', { text: dd })])));
+        return el('div', { class: 'gcard', style: `--c:${GAMES[k].color}` }, parts);
+      })));
+    } else {
+      body.append(el('p', { class: 'empty', text: `${p.name} heeft nog geen casinospellen gespeeld.` }));
+    }
+
+    const ex = p.extras;
+    const extraCards = [];
+    if (ex.spin) extraCards.push(['Daily spin', '#f2c14e', [['Spins', fmt(ex.spin.spins)], ['Gewonnen', `+${fmt(ex.spin.won)}`], ['Beste spin', `+${fmt(ex.spin.best)}`]]]);
+    if (ex.afwas) extraCards.push(['Afwassen', '#5ec8ff', [['Borden schoon', fmt(ex.afwas.plates)], ['Afgekeurd', fmt(ex.afwas.rejected)], ['Verdiend', `+${fmt(ex.afwas.earned)}`]]]);
+    if (ex.quiz) extraCards.push(['Dagelijkse quiz', '#c49bff', [['Goed', `${fmt(ex.quiz.correct)} / ${fmt(ex.quiz.total)}`], ['Score', `${Math.round((ex.quiz.correct / ex.quiz.total) * 100)}%`]]]);
+    if (p.medals.gold || p.medals.silver || p.medals.bronze) extraCards.push(['Maandtitels', '#f2c14e', [['Eerste plek', fmt(p.medals.gold)], ['Tweede plek', fmt(p.medals.silver)], ['Derde plek', fmt(p.medals.bronze)]]]);
+    if (extraCards.length) {
+      body.append(el('h3', { class: 'pc-h', text: 'Buiten het casino' }), el('div', { class: 'gcards' }, extraCards.map(([name, color, rows]) =>
+        el('div', { class: 'gcard', style: `--c:${color}` }, [el('h4', { text: name }), el('dl', {}, rows.flatMap(([dt, dd]) => [el('dt', { text: dt }), el('dd', { text: dd })]))]))));
+    }
+
+    $('player').replaceChildren(head, body);
+  }
+
+  function closePlayer() {
+    $('player').close();
+  }
+
+  $('player').addEventListener('close', () => {
+    openKey = null;
+    if (location.hash) history.replaceState(null, '', location.pathname);
+  });
+  // Klik naast de kaart sluit hem
+  $('player').addEventListener('click', e => { if (e.target === $('player')) closePlayer(); });
+
+  $('search').addEventListener('input', e => { query = e.target.value; renderList(); });
+
+  // =====================================================
+  // DATA
+  // =====================================================
+  function render() {
+    renderUser();
+    renderMetricTabs();
+    renderPodium();
+    renderTiles();
+    renderList();
+    renderRecords();
+    renderFame();
+    renderGames();
+    if (openKey) {
+      const p = data.players.find(x => x.key === openKey);
+      if (p) renderPlayer(p);
+    } else if (firstRender && location.hash.length > 1) {
+      openPlayer(location.hash.slice(1));
+    }
+    firstRender = false;
+  }
+
+  function renderUpdated() {
+    if (!data) return;
+    const s = Math.round((Date.now() - data.generatedAt) / 1000);
+    $('updated').textContent = s < 5 ? 'Live bijgewerkt' : `Bijgewerkt ${s < 60 ? `${s} s` : `${Math.floor(s / 60)} min`} geleden`;
+  }
+
+  let pollTimer = null;
+  async function refresh() {
+    clearTimeout(pollTimer);
+    try {
+      const res = await fetch(`/api/stats?t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
+      if (res.ok) {
+        data = await res.json();
+        render();
+        renderUpdated();
+      }
+    } catch (error) {
+      // De verbindingsbewaking (connection.js) toont zelf een melding
+    }
+    pollTimer = setTimeout(() => { if (!document.hidden) refresh(); }, POLL_MS);
+  }
+
+  setInterval(renderUpdated, 5000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  refresh();
+})();
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@
  *   GET  /slots                     Slots (fruitautomaat)
  *   GET  /roulette                  Roulette (Europees)
  *   GET  /afwas                     Afwassen (alleen onder 50 punten)
+ *   GET  /stats                     Statistieken en leaderboard van alle spelers
  *   GET  /connection.js             verbindingspopup voor alle casino-pagina's
  *   GET  /vendor/three/*.js         three.js (uit node_modules)
  *   GET  /cards/<naam>.png          kaartafbeeldingen
@@ -32,6 +33,7 @@
  *   GET  /api/roulette/stream       Server-Sent Events met de gedeelde roulettetafel
  *   POST /api/roulette/bet          eigen fiches voor deze ronde vervangen (eerste fiche opent een ronde)
  *   GET  /api/afwas/status          instellingen, saldo en eigen stats
+ *   GET  /api/stats                 leaderboard + stats per speler (iedereen, 'me' gemarkeerd als ingelogd)
  *   POST /api/afwas/{plate,clean,reject}  nieuw bord / bord schoon (+1) / bord afgekeurd
  *   POST /api/logout
  */
@@ -47,6 +49,7 @@ const roulette = require('../modules/roulette');
 const afwas = require('../modules/afwas');
 const rocketAuth = require('../modules/rocketAuth');
 const casino = require('../modules/casino');
+const stats = require('../modules/stats');
 const { createRateLimiter, getClientIp } = require('./security');
 
 const WEB_DIR = path.join(__dirname, '..', 'web');
@@ -66,9 +69,10 @@ const ONLINE_GAMES = {
   slots: 'Slots',
   roulette: 'Roulette',
   spin: 'Daily spin',
-  afwas: 'Afwassen'
+  afwas: 'Afwassen',
+  stats: 'Stats'
 };
-const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/afwas'];
+const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/afwas', '/stats'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
   'three.core.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.core.js')
@@ -166,7 +170,8 @@ function createCasinoWebHandler() {
     plinko: fs.readFileSync(path.join(WEB_DIR, 'plinko.html')),
     slots: fs.readFileSync(path.join(WEB_DIR, 'slots.html')),
     roulette: fs.readFileSync(path.join(WEB_DIR, 'roulette.html')),
-    afwas: fs.readFileSync(path.join(WEB_DIR, 'afwas.html'))
+    afwas: fs.readFileSync(path.join(WEB_DIR, 'afwas.html')),
+    stats: fs.readFileSync(path.join(WEB_DIR, 'stats.html'))
   };
   const staticCache = new Map();
   const actionLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 40 });
@@ -411,6 +416,18 @@ function createCasinoWebHandler() {
             casino.getOrCreateUser(user.id, user.username);
             Object.assign(payload, { user, balance: casino.getUserBalance(user.id), canWash: afwas.canWash(user.id), stats: afwas.getStats(user.id) });
           }
+          sendJson(res, 200, payload);
+          return true;
+        }
+        case '/stats':
+        case '/stats/':
+          sendPage(res, pages.stats);
+          return true;
+        case '/api/stats': {
+          const user = getUser(req);
+          const payload = stats.getOverview(user ? user.id : null);
+          payload.linked = Boolean(user);
+          if (user) Object.assign(payload, { user, balance: casino.getUserBalance(user.id) });
           sendJson(res, 200, payload);
           return true;
         }

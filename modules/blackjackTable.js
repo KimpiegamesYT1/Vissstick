@@ -14,6 +14,7 @@
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const casino = require('./casino');
+const stats = require('./stats');
 
 const SEATS = 7;
 const DECKS = 6;
@@ -783,6 +784,7 @@ async function settle() {
     if (seat && hand.payout > 0) {
       casino.addBalance(seat.userId, seat.username, hand.payout, `Blackjack tafel: ${result}`);
     }
+    if (seat) stats.recordBlackjackHand(seat.userId, seat.username, hand.bet, hand.payout, result);
   }
   syncStakes();
   updateStreaks();

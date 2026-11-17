@@ -381,6 +381,19 @@ CREATE TABLE IF NOT EXISTS roulette_stats (
     last_played DATETIME
 );
 
+-- Rocket (website): één rij per speler, bijgewerkt na elke ronde
+CREATE TABLE IF NOT EXISTS rocket_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0, -- op tijd uitgecasht
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    best_multiplier REAL DEFAULT 0,
+    last_played DATETIME
+);
+
 -- Afwassen (website): borden schoonmaken voor punten als je blut bent
 CREATE TABLE IF NOT EXISTS afwas_stats (
     user_id TEXT PRIMARY KEY,

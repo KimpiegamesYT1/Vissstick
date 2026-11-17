@@ -8,6 +8,7 @@ const { EventEmitter } = require('events');
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const rocket = require('./rocket');
 const casino = require('./casino');
+const stats = require('./stats');
 
 const LOBBY_DURATION = 20000; // 20 seconden om mee te doen
 const CRASH_COOLDOWN = 6000;  // crash + uitslag blijven even staan voordat er een nieuwe ronde kan starten
@@ -281,6 +282,7 @@ async function launch(game) {
   game.autoTimers.forEach(clearTimeout);
   // Wie niet heeft uitgecasht is zijn inzet kwijt: niets meer open
   for (const p of players) casino.releaseStake('rocket', stakeRef(game, p.userId));
+  for (const p of players) stats.recordRocket(p.userId, p.username, p.bet, p.payout, p.cashedAt);
   crashHistory.unshift(game.crashPoint);
   if (crashHistory.length > 10) crashHistory.pop();
   activeGame = null;
