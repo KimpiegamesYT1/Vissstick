@@ -74,16 +74,17 @@ const SPOT_NAMES = {
   1: 'de 1', 2: 'de 2', 5: 'de 5', 10: 'de 10',
   coin: 'de Maanmunt', meteor: 'de Meteorenmuur', hunt: 'de Sterrenjacht', worm: 'het Wormgat'
 };
-const COUNTS = { 1: 21, 2: 13, 5: 7, 10: 4 };
-const BONUS_ORDER = ['coin', 'meteor', 'coin', 'hunt', 'worm', 'coin', 'meteor', 'coin', 'hunt'];
+const COUNTS = { 1: 19, 2: 12, 5: 6, 10: 4 };
+// 13 bonusvakken: gemiddeld eens per ±4 draaien een bonus
+const BONUS_ORDER = ['coin', 'meteor', 'hunt', 'coin', 'worm', 'meteor', 'coin', 'hunt', 'coin', 'meteor', 'hunt', 'coin', 'worm'];
 const SEGMENT_COUNT = 54;
 
 /**
- * Indeling: om de 6 vakken een bonus, daartussen de getallen zo gelijkmatig mogelijk verspreid
+ * Indeling: om de ±4 vakken een bonus, daartussen de getallen zo gelijkmatig mogelijk verspreid
  */
 function buildWheel() {
   const wheel = new Array(SEGMENT_COUNT).fill(null);
-  BONUS_ORDER.forEach((bonus, i) => { wheel[3 + i * 6] = bonus; });
+  BONUS_ORDER.forEach((bonus, i) => { wheel[Math.round(2 + (i * SEGMENT_COUNT) / BONUS_ORDER.length)] = bonus; });
   const left = { ...COUNTS };
   const used = { 1: 0, 2: 0, 5: 0, 10: 0 };
   const total = Object.values(COUNTS).reduce((a, b) => a + b, 0);
@@ -113,14 +114,14 @@ const WHEEL = buildWheel();
 // KOMETEN
 // =====================================================
 
-const COMET_COUNT = [[1, 55], [2, 34], [3, 11]];
+const COMET_COUNT = [[1, 40], [2, 40], [3, 20]];
 const COMET_SPOT_WEIGHT = { 1: 3, 2: 2.5, 5: 0.8, 10: 0.5, coin: 1.3, meteor: 1, hunt: 1, worm: 0.8 };
 const BONUS_COMET = [[2, 54], [3, 26], [5, 13], [10, 7]];
 const COMET_MULTS = {
-  1: [[2, 86], [3, 10], [5, 3], [10, 1]],
-  2: [[2, 76], [3, 16], [5, 6], [7, 1.5], [10, 0.5]],
-  5: [[2, 56], [3, 24], [5, 13], [10, 5], [20, 2]],
-  10: [[2, 58], [3, 22], [5, 12], [10, 6], [25, 1.5], [50, 0.5]],
+  1: [[2, 68], [3, 20], [5, 9], [10, 3]],
+  2: [[2, 66], [3, 21], [5, 9], [7, 2], [10, 2]],
+  5: [[2, 40], [3, 24], [5, 18], [10, 12], [20, 6]],
+  10: [[2, 62], [3, 21], [5, 10], [10, 5], [25, 1.5], [50, 0.5]],
   coin: BONUS_COMET, meteor: BONUS_COMET, hunt: BONUS_COMET, worm: BONUS_COMET
 };
 
@@ -128,17 +129,17 @@ const COMET_MULTS = {
 // BONUSSEN
 // =====================================================
 
-const COIN_MULTS = [[2, 10], [3, 13], [4, 13], [5, 14], [6, 9], [7, 7], [8, 8], [10, 10], [12, 5], [15, 4], [20, 3], [25, 2], [50, 1.2], [100, 1]];
+const COIN_MULTS = [[2, 22], [3, 18], [4, 15], [5, 13], [6, 8], [7, 6], [8, 5], [10, 7], [12, 3], [15, 2.5], [20, 2], [25, 1.2], [50, 0.6], [100, 0.45]];
 
 const METEOR_SLOTS = 16;
 const METEOR_ROWS = 12;
 const METEOR_DOUBLES = 2;
 const METEOR_MAX_DROPS = 6;
-const METEOR_VALUES = [[3, 18], [4, 14], [5, 18], [7, 14], [10, 10], [15, 8], [25, 8], [40, 4], [50, 3], [100, 2.7], [250, 1]];
+const METEOR_VALUES = [[2, 18], [3, 14], [4, 18], [5, 14], [7, 10], [10, 8], [15, 8], [25, 4], [35, 3], [75, 2.3], [150, 0.6]];
 
 const HUNT_COLS = 12;
 const HUNT_ROWS = 9;
-const HUNT_VALUES = [[5, 24], [7, 15], [10, 19], [15, 14], [20, 10], [25, 7], [50, 6], [75, 2], [100, 2], [200, 0.5], [500, 0.2], [1000, 0.03]];
+const HUNT_VALUES = [[3, 26], [5, 15], [7, 19], [10, 14], [15, 10], [20, 7], [30, 6], [50, 2], [75, 1.6], [150, 0.4], [300, 0.1], [750, 0.02]];
 const HUNT_SYMBOLS = ['planet', 'star', 'moon', 'ufo', 'rocket', 'comet'];
 
 // Wormgat-rad: 64 vakken, waarvan 4× DUBBEL en 2× TRIPEL
@@ -148,8 +149,8 @@ const WORM_POINTER_NAMES = ['Groen', 'Blauw', 'Geel'];
 const WORM_MAX_SPINS = 6;
 function buildWormWheel() {
   const values = [
-    ...Array(14).fill(10), ...Array(8).fill(15), ...Array(10).fill(20), ...Array(8).fill(25), ...Array(8).fill(50),
-    ...Array(4).fill(75), ...Array(4).fill(100), 150, 150
+    ...Array(14).fill(5), ...Array(8).fill(7), ...Array(10).fill(10), ...Array(8).fill(15), ...Array(8).fill(25),
+    ...Array(4).fill(30), ...Array(2).fill(40), ...Array(4).fill(50)
   ];
   const wheel = new Array(WORM_SEGMENTS).fill(null);
   [4, 20, 36, 52].forEach(i => { wheel[i] = 'D'; });
@@ -269,7 +270,7 @@ function wormRoll(rnd = rand) {
   }
   // Na te veel draaien: het hoogste vak telt
   for (let p = 0; p < 3; p++) {
-    if (result[p] === null) result[p] = { value: Math.min(MAX_X, 200 * mult[p]), base: 200, mult: mult[p], spin: spins.length - 1 };
+    if (result[p] === null) result[p] = { value: Math.min(MAX_X, 100 * mult[p]), base: 100, mult: mult[p], spin: spins.length - 1 };
   }
   return { spins, results: result };
 }

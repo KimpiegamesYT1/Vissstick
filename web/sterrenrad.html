@@ -50,7 +50,7 @@
   /* ===== Podium (3D) ===== */
   .stage {
     position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line);
-    height: clamp(380px, 64vh, 780px); background: #000; isolation: isolate;
+    height: clamp(400px, 70vh, 860px); background: #000; isolation: isolate;
   }
   .stage canvas.gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6; }
@@ -144,24 +144,24 @@
   .loading.gone { opacity: 0; pointer-events: none; }
 
   /* ===== Inzetbord ===== */
-  .board { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; }
+  .board { margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 10px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-  .betpanel { padding: 14px; }
+  .betpanel { padding: 10px 12px; }
   .spots { display: grid; grid-template-columns: repeat(4, 1fr) repeat(4, 1fr); gap: 8px; }
-  .spot { position: relative; border: 0; border-radius: 14px; min-height: 104px; cursor: pointer; overflow: hidden; padding: 10px 8px 8px; color: #fff; text-align: center;
+  .spot { position: relative; border: 0; border-radius: 12px; min-height: 76px; cursor: pointer; overflow: hidden; padding: 7px 6px 6px; color: #fff; text-align: center;
     background: linear-gradient(180deg, color-mix(in srgb, var(--sc) 85%, #fff 15%), color-mix(in srgb, var(--sc) 70%, #000 30%));
     box-shadow: inset 0 -4px 0 rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.35); transition: transform .12s ease, filter .15s, box-shadow .2s; user-select: none; }
   .spot:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.1); }
   .spot:active:not(:disabled) { transform: translateY(0) scale(.97); }
   .spot:disabled { cursor: not-allowed; filter: saturate(.55) brightness(.75); }
-  .spot .spot-ico { width: 40px; height: 40px; display: block; margin: 0 auto; filter: drop-shadow(0 3px 2px rgba(0,0,0,.35)); }
+  .spot .spot-ico { width: 30px; height: 30px; display: block; margin: 0 auto; filter: drop-shadow(0 3px 2px rgba(0,0,0,.35)); }
   .hist .hist-ico { width: 20px; height: 20px; }
   .huntgrid .hunt-ico { width: 72%; height: 72%; pointer-events: none; }
   .spot .others .o-ico { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
-  .spot .v { font-size: 34px; font-weight: 1000; line-height: 1; text-shadow: 0 3px 0 rgba(0,0,0,.25); }
-  .spot .n { font-size: 12px; font-weight: 900; letter-spacing: .5px; text-transform: uppercase; line-height: 1.1; margin-top: 4px; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
-  .spot .bonusname { font-size: 13px; font-weight: 1000; margin-top: 6px; overflow-wrap: anywhere; letter-spacing: 0; }
-  .spot .odds { font-size: 11px; opacity: .85; font-weight: 700; margin-top: 3px; }
+  .spot .v { font-size: 26px; font-weight: 1000; line-height: 1; text-shadow: 0 3px 0 rgba(0,0,0,.25); }
+  .spot .n { font-size: 10px; font-weight: 900; letter-spacing: .5px; text-transform: uppercase; line-height: 1.1; margin-top: 4px; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
+  .spot .bonusname { font-size: 11px; font-weight: 1000; margin-top: 3px; overflow-wrap: anywhere; letter-spacing: 0; }
+  .spot .odds { display: none; }
   .spot .mychip { position: absolute; left: 6px; bottom: 6px; min-width: 30px; height: 30px; border-radius: 50%; display: none; place-items: center; font-size: 11px; font-weight: 900;
     background: repeating-conic-gradient(from 7deg, #fff 0 16deg, var(--gold) 16deg 45deg); color: #1a1205; box-shadow: 0 3px 6px rgba(0,0,0,.4); }
   .spot .mychip span { width: 72%; height: 72%; border-radius: 50%; display: grid; place-items: center; background: var(--gold); border: 1.5px dashed #fff; }
@@ -179,9 +179,9 @@
   .spot.ccoin { --sc: var(--ccoin); background: linear-gradient(135deg, #e8493a 0 50%, #2f6fe0 50% 100%); }
   .spot.cmeteor { --sc: var(--cmeteor); } .spot.chunt { --sc: var(--chunt); } .spot.cworm { --sc: var(--cworm); }
 
-  .betbar { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+  .betbar { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
   .chips { display: flex; gap: 6px; }
-  .chipbtn { width: 46px; height: 46px; border: 0; padding: 0; border-radius: 50%; cursor: pointer; font-weight: 900; font-size: 13px; display: grid; place-items: center;
+  .chipbtn { width: 38px; height: 38px; border: 0; padding: 0; border-radius: 50%; cursor: pointer; font-weight: 900; font-size: 13px; display: grid; place-items: center;
     color: var(--ct); background: repeating-conic-gradient(from 7deg, var(--s) 0 16deg, var(--c) 16deg 45deg); box-shadow: inset 0 0 0 1px rgba(0,0,0,.3), 0 2px 4px rgba(0,0,0,.45);
     transition: transform .12s ease, box-shadow .12s ease; }
   .chipbtn > span { display: grid; place-items: center; width: 70%; height: 70%; border-radius: 50%; background: var(--c); border: 1.5px dashed var(--s); }
@@ -195,7 +195,7 @@
   .tools button:disabled { opacity: .4; cursor: not-allowed; }
   .total { margin-left: auto; text-align: right; font-size: 12px; color: var(--muted); font-weight: 700; }
   .total b { display: block; font-size: 22px; color: var(--text); font-variant-numeric: tabular-nums; }
-  .syncline { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+  .syncline { font-size: 12px; color: var(--muted); margin-top: 4px; min-height: 16px; }
   .syncline.err { color: var(--red); }
   .login { text-align: center; padding: 18px 10px; }
   .login[hidden] { display: none; }
@@ -203,7 +203,7 @@
   .login p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
   .login code { background: var(--raise); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 700; }
 
-  .side { padding: 12px 14px; display: flex; flex-direction: column; min-height: 0; max-height: 420px; }
+  .side { padding: 10px 12px; display: flex; flex-direction: column; min-height: 0; max-height: 210px; }
   .side h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 800; display: flex; justify-content: space-between; }
   .players { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 60px; }
   .pl { display: flex; align-items: center; gap: 8px; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; animation: fadeIn .3s; }
@@ -214,7 +214,7 @@
   .pl .amt.win { color: var(--green); } .pl .amt.loss { color: var(--red); }
   .pl.me { border-color: rgba(242,193,78,.5); }
   .empty { color: var(--muted); font-size: 13px; padding: 8px 2px; }
-  .mystats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+  .mystats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
   .mystats div { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 6px 9px; }
   .mystats small { display: block; font-size: 10px; color: var(--muted); font-weight: 800; }
   .mystats b { font-size: 14px; font-variant-numeric: tabular-nums; }
@@ -761,7 +761,7 @@ function labelMain(g, s, R, size) {
   g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = size / 160;
   g.shadowBlur = 0;
   if (/^\d+$/.test(s)) {
-    g.font = `900 ${size * (s === '10' ? 0.036 : 0.044)}px system-ui, sans-serif`;
+    g.font = `900 ${size * (s === '10' ? 0.037 : 0.056)}px system-ui, sans-serif`;
     g.lineWidth = size / 260; g.strokeStyle = 'rgba(20,10,40,.85)'; g.lineJoin = 'round';
     g.strokeText(s, 0, -R * 0.885); g.fillText(s, 0, -R * 0.885);
   } else {
@@ -1211,6 +1211,8 @@ function sign(title, icon, color, pos, rot, w = 5.4) {
   const tex = canvasTex(c), h = w / 4;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
   m.position.copy(pos); m.rotation.y = rot; scene.add(m);
+  // Achterkant: zelfde bord, zodat je van achteren ook gewoon tekst ziet
+  const backSide = new THREE.Mesh(m.geometry, m.material); backSide.position.copy(pos); backSide.rotation.y = rot + Math.PI; backSide.translateZ(0.21); scene.add(backSide);
   const back = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, h + 0.2, 0.15), goldTrim); back.position.copy(pos); back.rotation.y = rot; back.translateZ(-0.1); scene.add(back);
   const gl = glow(color, w * 1.4, 0.35); gl.position.copy(pos); gl.translateZ(-0.3); scene.add(gl);
   // Lampjes rond het bord
@@ -1658,12 +1660,18 @@ function buildWorld() {
   wormWheel = buildWheel({
     segments: ws, radius: WORM_R, bulbs: 128, logo: 'WORMGAT',
     colorOf: (s, i) => s === 'D' ? '#f2c14e' : s === 'T' ? '#ff4fa3' : ['#5b2ad0', '#2a7ad8', '#1aa37a', '#d0402a', '#d08a1a', '#9a2ad0', '#2ab4c9', '#c92a7a'][i % 8],
+    // Tekst langs de straal (van buiten naar binnen), zodat ook 3 cijfers in een smal vak passen
     labelOf: (g, s, R, size) => {
-      g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = s === 'D' || s === 'T' ? '#2a1a00' : '#fff';
-      if (s === 'D' || s === 'T') { g.font = `1000 ${size * 0.026}px system-ui, sans-serif`; [...(s === 'D' ? 'DUBBEL' : 'TRIPEL')].forEach((ch, k) => g.fillText(ch, 0, -R * 0.9 + k * size * 0.026)); }
-      else { g.font = `1000 ${size * (String(s).length > 2 ? 0.032 : 0.04)}px system-ui, sans-serif`; g.fillText(String(s), 0, -R * 0.88); g.font = `900 ${size * 0.02}px system-ui, sans-serif`; g.fillText('×', 0, -R * 0.8); }
+      const special = s === 'D' || s === 'T';
+      g.save(); g.translate(0, -R * 0.78); g.rotate(Math.PI / 2);
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      const text = special ? (s === 'D' ? 'DUBBEL' : 'TRIPEL') : `${s}×`;
+      g.font = `900 ${size * (special ? 0.026 : 0.03)}px system-ui, sans-serif`;
+      g.lineWidth = size / 300; g.strokeStyle = special ? 'rgba(255,255,255,.6)' : 'rgba(15,8,30,.8)';
+      g.strokeText(text, 0, 0); g.fillStyle = special ? '#2a1a00' : '#fff'; g.fillText(text, 0, 0);
+      g.restore();
     },
-    pointerAngles: cfg.wormPointers.map(p => p * wseg), pointerColors: WORM_COLORS
+    pointerAngles: cfg.wormPointers.map(p => p * wseg), pointerColors: WORM_COLORS, size: 4096
   });
   wormWheel.group.position.copy(WORM_CENTER);
   wormWorld.add(wormWheel.group);
@@ -1751,15 +1759,15 @@ const hostFwd = () => V(Math.sin(astro.root.rotation.y), 0, Math.cos(astro.root.
 const SHOTS = {
   wide: () => ({ pos: V(0, 7.5, 18), look: V(0, 5, -6), fov: 50 }),
   dolly: t => ({ pos: V(lerp(-7, 7, clamp(t / 6, 0, 1)), 6, 15.5), look: V(0, 5.5, -7), fov: 46 }),
-  high: t => ({ pos: V(13 - t * 0.3, 15, 12), look: V(0, 3, -4), fov: 48 }),
-  left: t => ({ pos: V(-15, 4.5, 8 - t * 0.3), look: V(0, 5, -6), fov: 44 }),
+  high: t => ({ pos: V(7 - t * 0.2, 12.5, 11), look: V(0, 3.5, -5), fov: 50 }),
+  left: t => ({ pos: V(-8, 3.5, 10 - t * 0.15), look: V(0, 5, -6), fov: 48 }),
   low: t => ({ pos: V(4.5, 1.1, 1.5 - t * 0.2), look: V(0, 7.5, -8), fov: 60 }),
-  orbit: t => { const a = 0.6 + t * 0.12; return { pos: V(Math.sin(a) * 21, 9 + Math.sin(t * 0.3), Math.cos(a) * 21), look: V(0, 4, -3), fov: 46 }; },
+  orbit: t => { const a = Math.sin(t * 0.09) * 0.8; return { pos: V(Math.sin(a) * 12, 7.5, Math.cos(a) * 12 - 1), look: V(0, 4.5, -6), fov: 52 }; },
   top: t => ({ pos: V(0, 27, 4 + t * 0.2), look: V(0, 0, -3), fov: 55 }),
   wheel: t => ({ pos: V(0, 5.6, 6 - t * 0.25), look: WHEEL_POS, fov: 55 }),
   pointer: t => ({ pos: V(0.6, WHEEL_POS.y + WHEEL_R + 0.8, -2.6 - Math.min(t, 4) * 0.35), look: V(0, WHEEL_POS.y + WHEEL_R - 0.3, -8), fov: 36 }),
   comets: () => ({ pos: V(0, COMET_Y - 0.4, 2.5), look: V(0, COMET_Y, -8.6), fov: 58 }),
-  host: t => { const h = hostPos(), f = hostFwd(); return { pos: h.clone().addScaledVector(f, 2.8 - t * 0.05).add(V(0.5, 1.85, 0)), look: h.clone().add(V(0, 1.72, 0)), fov: 36 }; },
+  host: t => { const h = hostPos(), side = h.x >= 0 ? 1 : -1; return { pos: h.clone().add(V(-0.8 * side, 1.9, 3.4 - t * 0.05)), look: h.clone().add(V(0, 1.6, 0)), fov: 38 }; },
   hostWide: () => { const h = hostPos(); return { pos: h.clone().add(V(3.5, 3, 7)), look: h.clone().add(V(-1, 2, -3)), fov: 48 }; },
   follow: () => { const h = hostPos(), f = hostFwd(); return { pos: h.clone().addScaledVector(f, -5).add(V(1.5, 3.2, 0)), look: h.clone().addScaledVector(f, 4).add(V(0, 1.5, 0)), fov: 52 }; },
   coinWide: () => ({ pos: local(STN.coin, 0, 3.6, 9), look: local(STN.coin, 0, 2.8, 0), fov: 46 }),
