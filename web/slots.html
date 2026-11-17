@@ -117,8 +117,8 @@
   /* HUD boven */
   .hud-top { position: absolute; top: 12px; left: 104px; right: 12px; z-index: 3; display: flex; justify-content: space-between; gap: 10px; pointer-events: none; }
   .pill {
-    display: flex; align-items: center; gap: 10px; background: rgba(8,6,12,.62); border: 1px solid rgba(255,255,255,.09);
-    border-radius: 999px; padding: 5px 14px 5px 5px; backdrop-filter: blur(6px); min-width: 0;
+    display: flex; align-items: center; gap: 10px; background: rgba(8,6,12,.8); border: 1px solid rgba(255,255,255,.09);
+    border-radius: 999px; padding: 5px 14px 5px 5px; min-width: 0;
   }
   .pill .badge {
     flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 15px;
@@ -164,8 +164,8 @@
     display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px;
   }
   .betctl {
-    justify-self: start; display: flex; align-items: center; background: rgba(8,6,12,.7); border: 1px solid rgba(255,255,255,.1);
-    border-radius: 16px; padding: 5px; backdrop-filter: blur(6px);
+    justify-self: start; display: flex; align-items: center; background: rgba(8,6,12,.82); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px; padding: 5px;
   }
   .betctl button {
     width: 40px; height: 40px; border-radius: 12px; border: 0; background: var(--raise); font-size: 22px; font-weight: 800; cursor: pointer; line-height: 1;
@@ -195,8 +195,8 @@
   @keyframes winhot { 40% { transform: scale(1.08); box-shadow: 0 0 40px rgba(242,193,78,.6); } }
   .spinwrap { justify-self: end; display: flex; align-items: center; gap: 10px; }
   .rbtn {
-    width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: rgba(8,6,12,.75);
-    font-size: 11px; font-weight: 900; letter-spacing: .5px; cursor: pointer; color: var(--muted); display: grid; place-items: center; backdrop-filter: blur(6px);
+    width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: rgba(8,6,12,.85);
+    font-size: 11px; font-weight: 900; letter-spacing: .5px; cursor: pointer; color: var(--muted); display: grid; place-items: center;
   }
   .rbtn svg { width: 20px; height: 20px; }
   .rbtn:hover { color: var(--text); }
@@ -246,9 +246,9 @@
   .ov {
     position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; text-align: center; padding: 20px;
     background: radial-gradient(ellipse at center, rgba(14,6,26,.86), rgba(0,0,0,.94)); opacity: 0; pointer-events: none; transition: opacity .25s;
-    backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+    visibility: hidden;
   }
-  .ov.show { opacity: 1; pointer-events: auto; cursor: pointer; }
+  .ov.show { opacity: 1; pointer-events: auto; cursor: pointer; visibility: visible; }
   .ov .card { transform: scale(.6); transition: transform .45s cubic-bezier(.2,1.5,.4,1); max-width: 620px; }
   .ov.show .card { transform: scale(1); }
   .ov .kick { font-size: 14px; font-weight: 900; letter-spacing: 5px; color: var(--kc, #ffe082); text-shadow: 0 0 12px var(--kc, #ffe082); }
@@ -1001,6 +1001,22 @@
   const ctx = canvas.getContext('2d');
   const main = $('main');
   let W = 0, H = 0, dpr = 1, T = 0;
+  // Automatische resolutie: zakt de framerate langer weg, dan tekenen we op een lagere pixeldichtheid (minimaal 1×)
+  let dprCap = 2;
+  const perf = { t: 0, frames: 0, slow: 0 };
+  function adaptResolution(dt) {
+    if (document.hidden) return;
+    perf.t += dt; perf.frames++;
+    if (perf.t < 1000) return;
+    const avg = perf.t / perf.frames;
+    perf.t = 0; perf.frames = 0;
+    perf.slow = avg > 22 ? perf.slow + 1 : 0;
+    if (perf.slow >= 2 && dpr > 1) {
+      perf.slow = 0;
+      dprCap = Math.max(1, dpr - 0.25);
+      layout();
+    }
+  }
 
   const view = {
     L: null, geom: null, grid: null, fx: null, reels: [], bet: 10,
@@ -1025,8 +1041,8 @@
   function layout() {
     const rect = main.getBoundingClientRect();
     W = rect.width; H = rect.height;
-    const nd = Math.min(2, window.devicePixelRatio || 1);
-    if (nd !== dpr) spriteCache.clear();
+    const nd = Math.min(dprCap, window.devicePixelRatio || 1);
+    if (nd !== dpr) { spriteCache.clear(); cellArtCache.clear(); bulbCache.clear(); }
     dpr = nd;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     if (view.L && !view.morphing) view.geom = computeGeom(view.L);
@@ -2065,7 +2081,6 @@
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.shadowColor = '#9fd3ff'; ctx.shadowBlur = 16;
     for (const cells of a.paths) {
       if (cells.length < 2) continue;
       ctx.beginPath();
@@ -2080,6 +2095,7 @@
         }
       }
       ctx.globalAlpha = (1 - t) * (Math.random() < 0.85 ? 1 : 0.3);
+      ctx.strokeStyle = 'rgba(120,190,255,.25)'; ctx.lineWidth = Math.max(8, s * 0.22); ctx.stroke();
       ctx.strokeStyle = 'rgba(160,215,255,.7)'; ctx.lineWidth = Math.max(3, s * 0.07); ctx.stroke();
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1.2, s * 0.025); ctx.stroke();
     }
@@ -2117,9 +2133,8 @@
       const tw = ctx.measureText(h.text).width;
       const gr = ctx.createLinearGradient(-tw / 2, 0, tw / 2, 0);
       for (let k = 0; k <= 6; k++) gr.addColorStop(k / 6, rgb(hsl((k * 50 + T * 400) % 360)));
-      ctx.shadowColor = rgb(hsl((T * 400) % 360), 0.9); ctx.shadowBlur = 30;
+      ctx.strokeStyle = rgb(hsl((T * 400) % 360), 0.35); ctx.lineWidth = size * 0.42; ctx.strokeText(h.text, 0, 0);
       ctx.strokeStyle = '#1a0024'; ctx.lineWidth = size * 0.16; ctx.strokeText(h.text, 0, 0);
-      ctx.shadowBlur = 0;
       ctx.fillStyle = gr; ctx.fillText(h.text, 0, 0);
       ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = Math.max(1, size * 0.025); ctx.strokeText(h.text, 0, -size * 0.03);
       ctx.restore();
@@ -2317,7 +2332,7 @@
   // TEKENEN
   // =====================================================
   const bgFruit = [];
-  function drawBackground(lvl) {
+  function drawBackground(lvl, ctx) {
     const th = view.theme.cur;
     const cx = W / 2, cy = H * 0.46;
     const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.8);
@@ -2401,6 +2416,26 @@
     return s;
   }
 
+  /**
+   * Gloed tekenen op een kwart van de resolutie en daarna opgeschaald neerzetten. shadowBlur op volle resolutie
+   * (×2 op retina) over de hele kast kostte per frame het meeste tijd; een vage gloed ziet er opgeschaald hetzelfde uit.
+   */
+  const glowLayers = new Map();
+  function lowGlow(key, x, y, w, h, blur, color, paint) {
+    const q = 0.25, pad = blur * 1.6;
+    let c = glowLayers.get(key);
+    if (!c) { c = document.createElement('canvas'); glowLayers.set(key, c); }
+    const cw = Math.max(1, Math.ceil((w + pad * 2) * q)), ch = Math.max(1, Math.ceil((h + pad * 2) * q));
+    if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, cw, ch);
+    g.setTransform(q, 0, 0, q, (pad - x) * q, (pad - y) * q);
+    g.shadowColor = color; g.shadowBlur = blur * q; g.fillStyle = color;
+    paint(g);
+    ctx.drawImage(c, x - pad, y - pad, cw / q, ch / q);
+  }
+
   function drawCabinet(g, lvl) {
     const th = view.theme.cur;
     const o = { x: g.x - g.frame, y: g.y - g.frame - g.title, w: g.w + g.frame * 2, h: g.h + g.frame * 2 + g.title };
@@ -2408,14 +2443,11 @@
     const rainbow = (lvl >= 10 && view.theme.to === 'base') || discoOn();
     const glowC = rainbow ? hsl((T * 60) % 360) : th.glow;
 
-    ctx.save();
-    ctx.shadowColor = rgb(glowC, 0.55 + view.heat * 0.4);
-    ctx.shadowBlur = 24 + lvl * 3 + view.heat * 40;
+    lowGlow('cab', o.x, o.y, o.w, o.h, 24 + lvl * 3 + view.heat * 40, rgb(glowC, 0.55 + view.heat * 0.4), c => { rr(c, o.x, o.y, o.w, o.h, rad); c.fill(); });
     const fr = ctx.createLinearGradient(0, o.y, 0, o.y + o.h);
     fr.addColorStop(0, rgb(th.f1)); fr.addColorStop(0.18, rgb(th.f2)); fr.addColorStop(0.55, rgb(th.f3)); fr.addColorStop(0.85, rgb(th.f2)); fr.addColorStop(1, rgb(th.f3));
     ctx.fillStyle = fr;
     rr(ctx, o.x, o.y, o.w, o.h, rad); ctx.fill();
-    ctx.restore();
     ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5;
     rr(ctx, o.x + 1, o.y + 1, o.w - 2, o.h - 2, rad); ctx.stroke();
 
@@ -2431,12 +2463,14 @@
     const word = view.theme.to === 'fs' ? 'FREE SPINS' : view.theme.to === 'hold' ? 'HOLD & WIN' : 'VISSSTICK';
     const tw = ctx.measureText(word).width;
     if (tw > tb.w * 0.9) { fs *= (tb.w * 0.9) / tw; ctx.font = `900 ${fs}px ${BIGFONT}`; }
+    const twFinal = ctx.measureText(word).width;
     const txt = ctx.createLinearGradient(0, tcy - fs / 2, 0, tcy + fs / 2);
     txt.addColorStop(0, '#fffbe6'); txt.addColorStop(0.5, rgb(th.f1)); txt.addColorStop(1, rgb(th.f2));
-    ctx.save();
-    ctx.shadowColor = rgb(glowC, 0.9); ctx.shadowBlur = 14 + Math.sin(T * 3) * 4 + view.heat * 20;
+    const font = ctx.font;
+    lowGlow('title', g.x + g.w / 2 - twFinal / 2, tcy - fs / 2, twFinal, fs, 14 + Math.sin(T * 3) * 4 + view.heat * 20, rgb(glowC, 0.9), c => {
+      c.font = font; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(word, g.x + g.w / 2, tcy);
+    });
     ctx.fillStyle = txt; ctx.fillText(word, g.x + g.w / 2, tcy);
-    ctx.restore();
     ctx.font = `800 ${Math.max(9, tb.h * 0.17)}px system-ui, sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,.7)';
     ctx.fillText(`NIVEAU ${lvl} · ${view.L.name.toUpperCase()}`, g.x + g.w / 2, tb.y + tb.h * 0.83);
@@ -2461,12 +2495,88 @@
     }
   }
 
+  // Zachte gloed per kleur, één keer getekend (64 px, wordt geschaald)
+  const glowCache = new Map();
+  function glowSprite(color) {
+    let c = glowCache.get(color);
+    if (c) return c;
+    c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const rgbC = hexRgb(color);
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32 * 1.24);
+    gr.addColorStop(0, `rgba(${rgbC},.55)`); gr.addColorStop(1, `rgba(${rgbC},0)`);
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    glowCache.set(color, c);
+    return c;
+  }
+
+  /**
+   * Symbool plus badges (munt, jackpot, wild-multiplier) als één gecachte afbeelding. Eerder werden badges met
+   * verlopen en tekst elk frame opnieuw getekend, voor elk vakje (op 20×5 = 100 vakjes per frame).
+   */
+  const cellArtCache = new Map();
+  function cellArt(cell, base) {
+    const key = keyOf(cell);
+    const plain = cell.v === undefined && !(cell.s === 'W' && cell.m > 1);
+    if (plain) return sprite(key, base);
+    const label = cell.v !== undefined ? fmtPts(cell.v * (view.bet || settings.bet)) : '';
+    const id = `${key}|${label}|${cell.j || ''}|${cell.m || ''}|${base}|${dpr}`;
+    let c = cellArtCache.get(id);
+    if (c) return c;
+    c = document.createElement('canvas');
+    const d = Math.max(8, Math.ceil(base * dpr));
+    c.width = c.height = d;
+    const g = c.getContext('2d');
+    g.scale(d / base, d / base);
+    g.translate(base / 2, base / 2);
+    const size = base;
+    g.drawImage(sprite(key, base), -size / 2, -size / 2, size, size);
+    if (cell.s === 'K') {
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineJoin = 'round';
+      if (cell.j) {
+        g.font = `900 ${size * 0.17}px ${BIGFONT}`;
+        g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = size * 0.05; g.strokeText(cell.j, 0, -size * 0.12);
+        g.fillStyle = '#fff'; g.fillText(cell.j, 0, -size * 0.12);
+      }
+      const fsz = size * (label.length > 4 ? 0.2 : 0.26);
+      g.font = `900 ${fsz}px ${BIGFONT}`;
+      g.strokeStyle = cell.j ? 'rgba(0,0,0,.6)' : 'rgba(255,248,214,.9)'; g.lineWidth = size * 0.05;
+      const yy = cell.j ? size * 0.12 : size * 0.02;
+      g.strokeText(label, 0, yy);
+      g.fillStyle = cell.j ? '#fff' : '#4a2a00'; g.fillText(label, 0, yy);
+    } else if (cell.v !== undefined) {
+      // Munt-badge op geldfruit
+      const br = size * 0.24, bx = size * 0.28, by = size * 0.28;
+      const jc = { MINI: ['#c8ffe0', '#1fd17a', '#0a5a30'], MINOR: ['#d0e6ff', '#2f86ff', '#0a2f6a'], MAJOR: ['#f2d0ff', '#b12cf0', '#4a0a6a'] }[cell.j] || ['#fff3b8', '#ffc61a', '#9a6400'];
+      g.save();
+      g.shadowColor = jc[1]; g.shadowBlur = 10 * (d / base);
+      ball(g, bx, by, br, jc[0], jc[1], jc[2]);
+      g.restore();
+      g.strokeStyle = jc[2]; g.lineWidth = Math.max(1, br * 0.1); g.beginPath(); g.arc(bx, by, br * 0.95, 0, TAU); g.stroke();
+      g.font = `900 ${br * (label.length > 3 ? 0.62 : 0.85)}px ${BIGFONT}`;
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      g.strokeStyle = cell.j ? 'rgba(0,0,0,.55)' : 'rgba(255,248,214,.9)'; g.lineWidth = br * 0.16;
+      g.strokeText(label, bx, by + 1);
+      g.fillStyle = cell.j ? '#fff' : '#4a2a00'; g.fillText(label, bx, by + 1);
+    } else {
+      const bx = size * 0.32, by = -size * 0.34, br = size * 0.17;
+      ball(g, bx, by, br, '#ffb3b3', '#e0102a', '#6a0010');
+      g.font = `900 ${br * 1.05}px ${BIGFONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#fff'; g.fillText(`×${cell.m}`, bx, by + 1);
+    }
+    cellArtCache.set(id, c);
+    if (cellArtCache.size > 500) cellArtCache.delete(cellArtCache.keys().next().value);
+    return c;
+  }
+
   function drawCell(cell, x, y, s, o) {
     if (!cell) return;
     const a = o.a === undefined ? 1 : o.a;
     if (a <= 0.01) return;
     const base = Math.round(s * 0.84);
-    const spr = sprite(keyOf(cell), base);
+    const art = o.blur ? sprite(keyOf(cell), base) : cellArt(cell, base);
     const sc = o.sc || 1;
     const size = base * sc;
     ctx.save();
@@ -2477,69 +2587,65 @@
     if (o.sq && o.sq !== 1) ctx.scale(1 + (1 - o.sq) * 0.6, o.sq);
     if (o.blur) {
       ctx.globalAlpha = a * 0.22;
-      ctx.drawImage(spr, -size / 2, -size / 2 - s * 0.16, size, size * 1.12);
+      ctx.drawImage(art, -size / 2, -size / 2 - s * 0.16, size, size * 1.12);
       ctx.globalAlpha = a;
       ctx.scale(1, 1 + o.blur * 0.1);
     }
     if (o.flip !== undefined && o.flip !== 1) ctx.scale(Math.max(0.02, o.flip), 1);
     if (o.glow) {
-      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 0.62);
-      const c = hexRgb(SYM_COLOR[cell.s] || '#ffffff');
-      gr.addColorStop(0, `rgba(${c},${0.55 * o.glow})`); gr.addColorStop(1, `rgba(${c},0)`);
-      ctx.fillStyle = gr; ctx.fillRect(-s / 2, -s / 2, s, s);
+      ctx.globalAlpha = a * Math.min(1, o.glow);
+      ctx.drawImage(glowSprite(SYM_COLOR[cell.s] || '#ffffff'), -s / 2, -s / 2, s, s);
+      ctx.globalAlpha = a;
     }
-    ctx.drawImage(spr, -size / 2, -size / 2, size, size);
+    ctx.drawImage(art, -size / 2, -size / 2, size, size);
     if (o.flash) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = a * o.flash * 0.8;
-      ctx.drawImage(spr, -size / 2, -size / 2, size, size);
+      ctx.drawImage(art, -size / 2, -size / 2, size, size);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = a;
     }
-    if (!o.blur) {
-      if (cell.s === 'K') {
-        const amount = cell.v * (view.bet || settings.bet);
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.lineJoin = 'round';
-        if (cell.j) {
-          ctx.font = `900 ${size * 0.17}px ${BIGFONT}`;
-          ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = size * 0.05; ctx.strokeText(cell.j, 0, -size * 0.12);
-          ctx.fillStyle = '#fff'; ctx.fillText(cell.j, 0, -size * 0.12);
-        }
-        const label = fmtPts(amount);
-        let fsz = size * (label.length > 4 ? 0.2 : 0.26);
-        ctx.font = `900 ${fsz}px ${BIGFONT}`;
-        ctx.strokeStyle = cell.j ? 'rgba(0,0,0,.6)' : 'rgba(255,248,214,.9)'; ctx.lineWidth = size * 0.05;
-        const yy = cell.j ? size * 0.12 : size * 0.02;
-        ctx.strokeText(label, 0, yy);
-        ctx.fillStyle = cell.j ? '#fff' : '#4a2a00'; ctx.fillText(label, 0, yy);
-      } else if (cell.v !== undefined) {
-        // Munt-badge op geldfruit
-        const br = size * 0.24, bx = size * 0.28, by = size * 0.28;
-        const jc = { MINI: ['#c8ffe0', '#1fd17a', '#0a5a30'], MINOR: ['#d0e6ff', '#2f86ff', '#0a2f6a'], MAJOR: ['#f2d0ff', '#b12cf0', '#4a0a6a'] }[cell.j] || ['#fff3b8', '#ffc61a', '#9a6400'];
-        ctx.save();
-        ctx.shadowColor = jc[1]; ctx.shadowBlur = 10;
-        ball(ctx, bx, by, br, jc[0], jc[1], jc[2]);
-        ctx.restore();
-        ctx.strokeStyle = jc[2]; ctx.lineWidth = Math.max(1, br * 0.1); ctx.beginPath(); ctx.arc(bx, by, br * 0.95, 0, TAU); ctx.stroke();
-        const label = fmtPts(cell.v * (view.bet || settings.bet));
-        ctx.font = `900 ${br * (label.length > 3 ? 0.62 : 0.85)}px ${BIGFONT}`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-        ctx.strokeStyle = cell.j ? 'rgba(0,0,0,.55)' : 'rgba(255,248,214,.9)'; ctx.lineWidth = br * 0.16;
-        ctx.strokeText(label, bx, by + 1);
-        ctx.fillStyle = cell.j ? '#fff' : '#4a2a00'; ctx.fillText(label, bx, by + 1);
-      } else if (cell.s === 'W' && cell.m > 1) {
-        const bx = size * 0.32, by = -size * 0.34, br = size * 0.17;
-        ball(ctx, bx, by, br, '#ffb3b3', '#e0102a', '#6a0010');
-        ctx.font = `900 ${br * 1.05}px ${BIGFONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#fff'; ctx.fillText(`×${cell.m}`, bx, by + 1);
-      }
-      if (cell.st) {
-        ctx.strokeStyle = `rgba(255,224,102,${0.65 + Math.sin(T * 5) * 0.3})`; ctx.lineWidth = Math.max(2, s * 0.035);
-        rr(ctx, -s * 0.46, -s * 0.46, s * 0.92, s * 0.92, s * 0.12); ctx.stroke();
-      }
+    if (!o.blur && cell.st) {
+      ctx.strokeStyle = `rgba(255,224,102,${0.65 + Math.sin(T * 5) * 0.3})`; ctx.lineWidth = Math.max(2, s * 0.035);
+      rr(ctx, -s * 0.46, -s * 0.46, s * 0.92, s * 0.92, s * 0.12); ctx.stroke();
     }
     ctx.restore();
+  }
+
+  /**
+   * Vaste lagen van het rolvenster (achtergrond, rolstroken, schaduw boven/onder) één keer per formaat tekenen.
+   */
+  const winLayers = { under: null, over: null };
+  function windowLayer(g, which) {
+    const key = `${g.x | 0},${g.y | 0},${g.w | 0},${g.h | 0},${g.s | 0},${view.L.reels},${dpr}`;
+    const cached = winLayers[which];
+    if (cached && cached.key === key) return cached.c;
+    const c = cached && cached.c || document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(g.w * dpr)); c.height = Math.max(1, Math.ceil(g.h * dpr));
+    const k = c.getContext('2d');
+    k.setTransform(dpr, 0, 0, dpr, -g.x * dpr, -g.y * dpr);
+    paintWindowLayer(k, g, which);
+    winLayers[which] = { key, c };
+    return c;
+  }
+  function paintWindowLayer(k, g, which) {
+    const s = g.s;
+    if (which === 'under') {
+      const bg = k.createLinearGradient(0, g.y, 0, g.y + g.h);
+      bg.addColorStop(0, '#1b1026'); bg.addColorStop(0.5, '#0e0816'); bg.addColorStop(1, '#1b1026');
+      k.fillStyle = bg; k.fillRect(g.x, g.y, g.w, g.h);
+      const strip = k.createLinearGradient(0, 0, s, 0);
+      strip.addColorStop(0, 'rgba(255,255,255,.015)'); strip.addColorStop(0.5, 'rgba(255,255,255,.06)'); strip.addColorStop(1, 'rgba(255,255,255,.015)');
+      for (let r = 0; r < view.L.reels; r++) {
+        const x = g.x + r * s;
+        k.save(); k.translate(x, 0); k.fillStyle = strip; k.fillRect(0, g.y, s, g.h); k.restore();
+        if (r) { k.fillStyle = 'rgba(0,0,0,.5)'; k.fillRect(x - 1, g.y, 2, g.h); }
+      }
+    } else {
+      const sh = k.createLinearGradient(0, g.y, 0, g.y + g.h);
+      sh.addColorStop(0, 'rgba(0,0,0,.6)'); sh.addColorStop(0.14, 'rgba(0,0,0,0)'); sh.addColorStop(0.86, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.6)');
+      k.fillStyle = sh; k.fillRect(g.x, g.y, g.w, g.h);
+    }
   }
 
   function drawWindow(g, lvl) {
@@ -2548,17 +2654,9 @@
     ctx.save();
     rr(ctx, g.x, g.y, g.w, g.h, rad);
     ctx.clip();
-    const bg = ctx.createLinearGradient(0, g.y, 0, g.y + g.h);
-    bg.addColorStop(0, '#1b1026'); bg.addColorStop(0.5, '#0e0816'); bg.addColorStop(1, '#1b1026');
-    ctx.fillStyle = bg; ctx.fillRect(g.x, g.y, g.w, g.h);
-    // Rolstroken
-    for (let r = 0; r < L.reels; r++) {
-      const x = g.x + r * s;
-      const strip = ctx.createLinearGradient(x, 0, x + s, 0);
-      strip.addColorStop(0, 'rgba(255,255,255,.015)'); strip.addColorStop(0.5, 'rgba(255,255,255,.06)'); strip.addColorStop(1, 'rgba(255,255,255,.015)');
-      ctx.fillStyle = strip; ctx.fillRect(x, g.y, s, g.h);
-      if (r) { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(x - 1, g.y, 2, g.h); }
-    }
+    // Achtergrond en rolstroken (gecacht; tijdens het groeien van de machine direct getekend)
+    if (view.morphing) paintWindowLayer(ctx, g, 'under');
+    else ctx.drawImage(windowLayer(g, 'under'), g.x, g.y, g.w, g.h);
     if (!view.morphing && view.grid && view.grid.length === L.reels) {
       if (view.hold) drawHold(g);
       else drawReels(g);
@@ -2566,9 +2664,8 @@
     drawLines(g);
     drawBolts(g);
     // Diepte: schaduw boven en onder
-    const sh = ctx.createLinearGradient(0, g.y, 0, g.y + g.h);
-    sh.addColorStop(0, 'rgba(0,0,0,.6)'); sh.addColorStop(0.14, 'rgba(0,0,0,0)'); sh.addColorStop(0.86, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.6)');
-    ctx.fillStyle = sh; ctx.fillRect(g.x, g.y, g.w, g.h);
+    if (view.morphing) paintWindowLayer(ctx, g, 'over');
+    else ctx.drawImage(windowLayer(g, 'over'), g.x, g.y, g.w, g.h);
     ctx.restore();
     // Rand en spanning-gloed per rol
     ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 3; rr(ctx, g.x, g.y, g.w, g.h, rad); ctx.stroke();
@@ -2697,7 +2794,9 @@
         if (i <= upto) ctx.lineTo(pts[i][0], pts[i][1]);
         else { const f = upto - (i - 1); if (f > 0) ctx.lineTo(lerp(pts[i - 1][0], pts[i][0], f), lerp(pts[i - 1][1], pts[i][1], f)); break; }
       }
-      ctx.shadowColor = ln.color; ctx.shadowBlur = 12;
+      ctx.globalAlpha = 0.28;
+      ctx.strokeStyle = ln.color; ctx.lineWidth = Math.max(10, s * 0.2); ctx.stroke();
+      ctx.globalAlpha = 1;
       ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = Math.max(4, s * 0.075); ctx.stroke();
       ctx.strokeStyle = ln.color; ctx.lineWidth = Math.max(2.5, s * 0.045); ctx.stroke();
       if (prog >= 1) drawComet(pts, age - 0.25, ln.color, s);
@@ -2730,7 +2829,11 @@
     if (head > len + s) return;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.shadowColor = color; ctx.shadowBlur = s * 0.3;
+    {
+      const [hx, hy] = at(head);
+      ctx.globalAlpha = 0.35; ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(hx, hy, Math.max(4, s * 0.2), 0, TAU); ctx.fill();
+    }
     for (let k = 6; k >= 0; k--) {
       const [x, y] = at(head - k * s * 0.09);
       ctx.globalAlpha = (1 - k / 7) * 0.9;
@@ -2872,12 +2975,16 @@
     view.idleNext = T + Math.max(0.4, 2.2 - view.L.reels * 0.09) + Math.random() * 1.2;
   }
 
+  const bgCanvas = document.createElement('canvas');
+  const bgCtx = bgCanvas.getContext('2d');
+
   let last = performance.now();
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(50, now - last);
     last = now;
     T = now / 1000;
+    adaptResolution(dt);
     runTweens(dt);
     updateCam(dt);
     updateReels(dt);
@@ -2893,7 +3000,12 @@
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const lvl = view.L ? view.L.level : 1;
-    drawBackground(lvl);
+    // Achtergrond op halve resolutie tekenen en opgeschaald neerzetten
+    const bw = Math.max(1, Math.round(W * 0.5)), bh = Math.max(1, Math.round(H * 0.5));
+    if (bgCanvas.width !== bw || bgCanvas.height !== bh) { bgCanvas.width = bw; bgCanvas.height = bh; }
+    bgCtx.setTransform(0.5, 0, 0, 0.5, 0, 0);
+    drawBackground(lvl, bgCtx);
+    ctx.drawImage(bgCanvas, 0, 0, W, H);
     const g = view.geom;
     if (g) {
       ctx.save();
