@@ -1039,7 +1039,7 @@
   }
   new ResizeObserver(() => layout()).observe(main);
 
-  const freshFx = () => ({ dy: 0, sc: 1, a: 1, flip: 1, flash: 0, rot: 0 });
+  const freshFx = () => ({ dy: 0, sc: 1, a: 1, flip: 1, flash: 0, rot: 0, sq: 1 });
   function resetFx() {
     view.fx = view.grid.map(col => col.map(() => freshFx()));
   }
@@ -1378,8 +1378,24 @@
         if (t >= 1) {
           reel.off = 0; reel.spinning = false; reel.phase = null; reel.glow = 0;
           view.grid[r] = reel.final;
-          view.fx[r] = reel.final.map(() => freshFx());
+          const fxs = reel.final.map(() => freshFx());
+          view.fx[r] = fxs;
+          // Landing: de hele rol veert even in en weer terug
+          fxs.forEach(fx => { fx.sq = 0.8; });
+          tween(320, t => fxs.forEach(fx => { fx.sq = 0.8 + 0.2 * t; }), easeBack);
+          reel.final.forEach((c, row) => {
+            if (c.s !== 'W' && c.s !== '7' && c.s !== 'S') return;
+            const [x, y] = cellCenter(r, row);
+            sparks(x, y, 8, SYM_COLOR[c.s] || '#ffe066', s * 0.04);
+          });
           sfx.stop(r);
+          if (r === view.L.reels - 1) {
+            // Laatste rol: klap, de machine zakt even in
+            punch(-0.035);
+            shake(2.5);
+            for (let i = 0; i < 14; i++) sparks(g.x + Math.random() * g.w, g.y + g.h, 1, '#ffe7a0', s * 0.05);
+          }
+          reel.final.forEach((c, row) => { if (c.s === 'S') { const [x, y] = cellCenter(r, row); ring(x, y, '#ffd54f', s * 1.4, 0.6, 5); } });
           const scat = reel.final.filter(c => c.s === 'S').length;
           const coins = reel.final.filter(c => c.v !== undefined).length;
           if (scat) sfx.scatter(view.scatSeen = (view.scatSeen || 0) + scat);
@@ -1418,7 +1434,7 @@
     }
     await Promise.all(promises);
     view.grid = grid.map(col => col.slice());
-    resetFx();
+    if (!view.fx || view.fx.length !== view.grid.length || view.fx.some((col, r) => col.length !== view.grid[r].length)) resetFx();
   }
 
   // =====================================================
@@ -1483,14 +1499,19 @@
         if (st.mult > 1) setBadge(st.mult);
         sfx.win(st.win / o.bet, i);
         addWin(st.win);
+        const prevWon = won;
         won += st.win;
         const [cx, cy] = [view.geom.x + view.geom.w / 2, view.geom.y + view.geom.h / 2];
         const x = st.win / o.bet;
+        crazyWin(st, x, won / o.bet, prevWon / o.bet);
         floater(`+${fmtPts(st.win)}`, cx, cy, x >= 5 ? 1.5 : x >= 1 ? 1.15 : 0.9, '#ffe066');
         if (st.mult > 1 && o.L.features.cascade && o.mode === 'base') floater(`CASCADE ×${st.mult}`, cx, cy + view.geom.s * 0.55, 0.8, '#ff9cf5');
         const longest = st.wins.reduce((a, w) => (!a || w.n > a.n ? w : a), null);
         if (longest && longest.n >= 5) burstCells(longest.cells, Math.min(30, 10 + (longest.n - 5) * 2));
         if (longest && longest.n >= 6) floater(`${longest.n} OP EEN RIJ!`, cx, cy - view.geom.s * 0.6, 1.1, '#69f0ae');
+        const winCells = [...new Set(st.wins.flatMap(w => w.cells.map(([r, row]) => r * 10 + row)))].map(k => [Math.floor(k / 10), k % 10]);
+        flyCoins(winCells, x >= 5 ? 40 : x >= 1 ? 24 : 10);
+        if (st.wins.length >= 5 && x >= 0.5) view.wave = { start: T };
         if (st.wins.length >= 5 && x >= 0.5) floater(`${st.wins.length} LIJNEN!`, cx, cy + view.geom.s * (st.mult > 1 ? 1.1 : 0.6), st.wins.length >= 15 ? 1.3 : 1, '#40c4ff');
         view.heat = Math.min(1, view.heat + 0.12 + Math.min(0.5, x * 0.05));
         await sleep(settings.turbo ? 420 : 820);
@@ -1612,7 +1633,8 @@
   async function scatterCelebrate(sc, bet) {
     view.hl = { cells: new Set(sc.cells.map(([r, row]) => r * 10 + row)), start: T };
     view.lines = [];
-    sc.cells.forEach(([r, row]) => { const [x, y] = cellCenter(r, row); sparks(x, y, 24, '#ffd54f', view.geom.s * 0.07); });
+    sc.cells.forEach(([r, row]) => { const [x, y] = cellCenter(r, row); sparks(x, y, 24, '#ffd54f', view.geom.s * 0.07); ring(x, y, '#ffd54f', view.geom.s * 2.5, 0.8, 6); });
+    punch(0.1, 0.03); fireworks(6); disco(3);
     sfx.feature();
     flash('#ffd54f', 0.5); shake(8);
     addWin(sc.pay);
@@ -1833,6 +1855,7 @@
     const L = levelCfg(level);
     const prevTop = level - 1;
     sfx.levelUp();
+    fireworks(10); jumpFish(8); disco(4); punch(0.12);
     coinShower(90);
     confetti(140);
     restart($('lvlPill'), 'lvup');
@@ -1956,6 +1979,10 @@
         restart(tierEl, 'pop');
         sfx.big(i);
         shake(4 + i * 3);
+        punch(0.08 + i * 0.03, (Math.random() - 0.5) * 0.08);
+        fireworks(4 + i * 3);
+        jumpFish(3 + i * 3);
+        disco(4 + i);
         flash(BIG_TIERS[i][2], 0.35 + i * 0.08);
         if (i >= 2) restart(main, i >= 3 ? 'hard' : 'shake');
       };
@@ -1995,12 +2022,252 @@
   // =====================================================
   const particles = [];
   const floaters = [];
+
+  // =====================================================
+  // GEKTE: camera, schokgolven, bliksem, hype-woorden, vuurwerk, springende vissen, disco
+  // =====================================================
+  const cam = { z: 1, vz: 0, rot: 0, vrot: 0 };
+  /** Camera-punch: de machine schiet even naar voren (z > 0) of zakt in (z < 0), met wat kanteling */
+  function punch(z, rot = 0) {
+    if (reduceMotion) return;
+    cam.vz += z; cam.vrot += rot;
+  }
+  function updateCam(dt) {
+    const k = dt / 16.67;
+    cam.vz += (1 - cam.z) * 0.2 * k; cam.vz *= Math.pow(0.76, k); cam.z += cam.vz * k;
+    cam.vrot += -cam.rot * 0.2 * k; cam.vrot *= Math.pow(0.76, k); cam.rot += cam.vrot * k;
+  }
+
+  const rings = [];
+  function ring(x, y, color, max, dur = 0.6, width = 4) {
+    if (rings.length < 120) rings.push({ x, y, rgb: hexRgb(color), max, dur, width, start: T });
+  }
+  function drawRings() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const r = rings[i];
+      const t = (T - r.start) / r.dur;
+      if (t >= 1) { rings.splice(i, 1); continue; }
+      const e = easeOut(t);
+      ctx.strokeStyle = `rgba(${r.rgb},${(1 - t) * 0.9})`;
+      ctx.lineWidth = Math.max(1, r.width * (1 - t));
+      ctx.beginPath(); ctx.arc(r.x, r.y, 4 + r.max * e, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Bliksem die van vakje naar vakje over de winnende lijnen springt
+  function zapLines(wins) {
+    view.arcs = { paths: wins.slice(0, 14).map(w => w.cells), start: T, dur: 0.55 };
+  }
+  function drawArcs() {
+    const a = view.arcs;
+    if (!a) return;
+    const t = (T - a.start) / a.dur;
+    if (t >= 1) { view.arcs = null; return; }
+    const s = view.geom.s;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.shadowColor = '#9fd3ff'; ctx.shadowBlur = 16;
+    for (const cells of a.paths) {
+      if (cells.length < 2) continue;
+      ctx.beginPath();
+      const [x0, y0] = cellCenter(cells[0][0], cells[0][1]);
+      ctx.moveTo(x0, y0);
+      for (let i = 1; i < cells.length; i++) {
+        const [xa, ya] = cellCenter(cells[i - 1][0], cells[i - 1][1]);
+        const [xb, yb] = cellCenter(cells[i][0], cells[i][1]);
+        for (let k = 1; k <= 4; k++) {
+          const f = k / 4, j = k < 4 ? (Math.random() - 0.5) * s * 0.35 : 0;
+          ctx.lineTo(lerp(xa, xb, f) + j * 0.4, lerp(ya, yb, f) + j);
+        }
+      }
+      ctx.globalAlpha = (1 - t) * (Math.random() < 0.85 ? 1 : 0.3);
+      ctx.strokeStyle = 'rgba(160,215,255,.7)'; ctx.lineWidth = Math.max(3, s * 0.07); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1.2, s * 0.025); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Hype-woorden: steeds gekker naarmate de winst van deze spin oploopt (× inzet)
+  const HYPE = [[1, 'NICE!'], [3, 'LEKKER!'], [6, 'HEERLIJK!'], [12, 'MEGA!'], [25, 'BIZAR!!'], [60, 'VISSSTICK!!!']];
+  const hypes = [];
+  function hypeTier(x) { return HYPE.filter(h => x >= h[0]).length; }
+  function hype(tier) {
+    if (!tier) return;
+    hypes.length = 0;
+    hypes.push({ text: HYPE[tier - 1][1], tier, start: T, dur: 1.15 + tier * 0.1, tilt: (Math.random() - 0.5) * 0.3 });
+    punch(0.04 + tier * 0.015, (Math.random() - 0.5) * 0.03 * tier);
+    if (tier >= 3) shake(3 + tier * 1.5);
+    boom(0, 0.12 + tier * 0.03);
+  }
+  function drawHypes() {
+    const g = view.geom;
+    if (!g) return;
+    for (let i = hypes.length - 1; i >= 0; i--) {
+      const h = hypes[i];
+      const t = (T - h.start) / h.dur;
+      if (t >= 1) { hypes.splice(i, 1); continue; }
+      const pop = t < 0.18 ? easeBack(t / 0.18) : 1;
+      const out = t > 0.75 ? (t - 0.75) / 0.25 : 0;
+      const size = clamp(Math.min(W / (h.text.length * 0.62), g.s * (1.1 + h.tier * 0.12)), 28, 150) * pop * (1 + out * 0.6);
+      ctx.save();
+      ctx.translate(W / 2, g.y + g.h * 0.5 - g.s * 0.2);
+      ctx.rotate(h.tilt + Math.sin((T - h.start) * 14) * 0.04 * h.tier);
+      ctx.globalAlpha = 1 - out;
+      ctx.font = `italic 900 ${size}px ${BIGFONT}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      const tw = ctx.measureText(h.text).width;
+      const gr = ctx.createLinearGradient(-tw / 2, 0, tw / 2, 0);
+      for (let k = 0; k <= 6; k++) gr.addColorStop(k / 6, rgb(hsl((k * 50 + T * 400) % 360)));
+      ctx.shadowColor = rgb(hsl((T * 400) % 360), 0.9); ctx.shadowBlur = 30;
+      ctx.strokeStyle = '#1a0024'; ctx.lineWidth = size * 0.16; ctx.strokeText(h.text, 0, 0);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = gr; ctx.fillText(h.text, 0, 0);
+      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = Math.max(1, size * 0.025); ctx.strokeText(h.text, 0, -size * 0.03);
+      ctx.restore();
+    }
+  }
+
+  // Vuurwerk: pijlen schieten omhoog en knallen uit elkaar
+  const FW_COLORS = ['#ff5252', '#ffd54f', '#69f0ae', '#40c4ff', '#e040fb', '#ff9100', '#ffffff'];
+  function fireworks(n) {
+    for (let i = 0; i < n && particles.length < 880; i++) {
+      particles.push({
+        k: 'k', x: W * (0.12 + Math.random() * 0.76), y: H + 10, vx: (Math.random() - 0.5) * 2.5, vy: -(H * 0.016 + 4 + Math.random() * H * 0.006),
+        life: 1, decay: 0, delay: i * (0.12 + Math.random() * 0.15), color: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)]
+      });
+    }
+  }
+  function explodeFirework(p) {
+    const n = 46, rgbA = hexRgb(p.color), rgbB = hexRgb(FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)]);
+    const spd = 3 + Math.random() * 3;
+    for (let i = 0; i < n && particles.length < 900; i++) {
+      const a = (i / n) * TAU, v = spd * (0.85 + Math.random() * 0.3);
+      particles.push({ k: 's', x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, decay: 0.012 + Math.random() * 0.01, size: 2 + Math.random() * 2.5, rgb: i % 3 ? rgbA : rgbB });
+    }
+    ring(p.x, p.y, p.color, 70 + Math.random() * 50, 0.5, 5);
+    flash(p.color, 0.12);
+    boom(0, 0.18);
+  }
+
+  // Springende vissen (het is tenslotte Vissstick)
+  const fishes = [];
+  function jumpFish(n) {
+    if (reduceMotion) return;
+    for (let i = 0; i < n && fishes.length < 24; i++) {
+      const fromLeft = Math.random() < 0.5;
+      fishes.push({
+        x: fromLeft ? W * (0.05 + Math.random() * 0.4) : W * (0.55 + Math.random() * 0.4), y: H + 30,
+        vx: (fromLeft ? 1 : -1) * (2 + Math.random() * 4), vy: -(H * 0.017 + 3 + Math.random() * 4),
+        size: 22 + Math.random() * 26, hue: [20, 200, 45, 330, 160][Math.floor(Math.random() * 5)], delay: i * 0.13, wag: Math.random() * TAU
+      });
+    }
+  }
+  function drawFish(dt) {
+    const k = dt / 16.67;
+    for (let i = fishes.length - 1; i >= 0; i--) {
+      const f = fishes[i];
+      if (f.delay > 0) { f.delay -= dt / 1000; continue; }
+      f.vy += 0.32 * k; f.x += f.vx * k; f.y += f.vy * k;
+      if (f.vy > 0 && f.y > H + 40) {
+        fishes.splice(i, 1);
+        continue;
+      }
+      // Spetters bij uit het "water" springen en weer terugvallen
+      if (f.y > H - 8 && Math.random() < 0.5) sparks(f.x, H - 4, 2, '#7fd8ff', 3);
+      const ang = Math.atan2(f.vy, f.vx);
+      const sz = f.size;
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.rotate(ang);
+      if (f.vx < 0) ctx.scale(1, -1);
+      const wag = Math.sin(T * 22 + f.wag) * 0.35;
+      // Staart
+      ctx.save(); ctx.translate(-sz * 0.55, 0); ctx.rotate(wag);
+      ctx.fillStyle = `hsl(${f.hue},90%,45%)`;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-sz * 0.45, -sz * 0.32); ctx.lineTo(-sz * 0.35, 0); ctx.lineTo(-sz * 0.45, sz * 0.32); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      // Lijf
+      const gr = ctx.createLinearGradient(0, -sz * 0.35, 0, sz * 0.35);
+      gr.addColorStop(0, `hsl(${f.hue},95%,68%)`); gr.addColorStop(0.6, `hsl(${f.hue},90%,50%)`); gr.addColorStop(1, `hsl(${f.hue},80%,82%)`);
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.62, sz * 0.32, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = `hsl(${f.hue},90%,40%)`;
+      ctx.beginPath(); ctx.moveTo(-sz * 0.1, -sz * 0.28); ctx.quadraticCurveTo(sz * 0.05, -sz * 0.6, sz * 0.25, -sz * 0.26); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.45)';
+      ctx.beginPath(); ctx.ellipse(sz * 0.05, -sz * 0.12, sz * 0.3, sz * 0.07, -0.15, 0, TAU); ctx.fill();
+      // Oog
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sz * 0.36, -sz * 0.06, sz * 0.09, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(sz * 0.38, -sz * 0.06, sz * 0.05, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Disco: regenboogstralen, alle lampjes in regenboog en een strobe
+  function disco(seconds) {
+    if (reduceMotion) return;
+    view.disco = Math.max(view.disco || 0, T + seconds);
+  }
+  const discoOn = () => view.disco && T < view.disco;
+  function drawStrobe() {
+    if (!discoOn()) return;
+    const left = view.disco - T;
+    const a = (Math.floor(T * 12) % 2 ? 0.07 : 0.02) * Math.min(1, left);
+    ctx.fillStyle = rgb(hsl((T * 300) % 360), a);
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /** Lage knal (vuurwerk, hype) */
+  function boom(at, vol) {
+    noise(at, 0.35, vol, 380, 0.7, 'lowpass', 90);
+    tone(70, at, 0.25, vol * 0.9, 'sine', 40);
+  }
+
+  /** Alle gekte voor één winnende stap */
+  function crazyWin(st, x, totalX, prevTotalX) {
+    const s = view.geom.s;
+    punch(0.025 + Math.min(0.09, x * 0.012), (Math.random() - 0.5) * Math.min(0.06, x * 0.006));
+    const seen = new Set();
+    for (const w of st.wins) {
+      const col = LINE_COLORS[w.line % LINE_COLORS.length];
+      for (const [r, row] of w.cells) {
+        const key = r * 10 + row;
+        if (seen.has(key) || seen.size >= 40) continue;
+        seen.add(key);
+        const [cx, cy] = cellCenter(r, row);
+        ring(cx, cy, col, s * (0.6 + Math.min(1.2, x * 0.1)), 0.55, 3);
+      }
+    }
+    if (x >= 1 || st.wins.some(w => w.n >= 4)) zapLines(st.wins);
+    const before = hypeTier(prevTotalX), after = hypeTier(totalX);
+    if (after > before) hype(after);
+    if (x >= 2) jumpFish(Math.min(10, 1 + Math.floor(x / 2)));
+    if (x >= 3) fireworks(Math.min(12, 2 + Math.floor(x / 3)));
+    if (x >= 6) disco(2.5 + Math.min(4, x * 0.1));
+  }
   function sparks(x, y, n, color, spd) {
     const rgb = hexRgb(color);
     for (let i = 0; i < n && particles.length < 900; i++) {
       const a = Math.random() * TAU, v = spd * (0.4 + Math.random());
       particles.push({ k: 's', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - spd * 0.4, life: 1, decay: 0.018 + Math.random() * 0.02, size: 1.5 + Math.random() * 3, rgb: Math.random() < 0.3 ? '255,250,230' : rgb });
     }
+  }
+  /** Munten vliegen van de vakjes naar de WINST-box */
+  function flyCoins(cells, max = 28) {
+    const cr = canvas.getBoundingClientRect(), wb = $('winbox').getBoundingClientRect();
+    const tx = wb.left + wb.width / 2 - cr.left, ty = wb.top + wb.height / 2 - cr.top;
+    const pick = cells.length > max ? cells.filter((_, i) => i % Math.ceil(cells.length / max) === 0) : cells;
+    pick.forEach(([r, row], i) => {
+      if (particles.length >= 900) return;
+      const [x, y] = cellCenter(r, row);
+      particles.push({
+        k: 'm', x0: x, y0: y, x1: tx, y1: ty, cx: (x + tx) / 2 + (Math.random() - 0.5) * 160, cy: Math.min(y, ty) - 80 - Math.random() * 120,
+        t: -i * 0.035, dur: 0.55 + Math.random() * 0.2, size: clamp(view.geom.s * 0.16, 7, 14), rot: Math.random() * TAU, x, y, life: 1, decay: 0
+      });
+    });
   }
   function burstCells(cells, n) {
     cells.forEach(([r, row]) => { const [x, y] = cellCenter(r, row); sparks(x, y, n, '#ffe066', view.geom.s * 0.06); });
@@ -2066,12 +2333,12 @@
     ctx.fillRect(0, 0, W, H);
 
     // Lichtstralen: meer en sneller op hogere niveaus
-    if (lvl >= 2 || view.theme.to !== 'base') {
+    if (lvl >= 2 || view.theme.to !== 'base' || discoOn()) {
       const n = 10 + lvl * 2;
       const alpha = 0.018 + lvl * 0.005 + heat * 0.05 + (view.theme.to !== 'base' ? 0.04 : 0);
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(T * (0.04 + lvl * 0.025 + heat * 0.3));
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(T * (0.04 + lvl * 0.025 + heat * 0.3) + (discoOn() ? T * 0.8 : 0));
       const R = Math.max(W, H);
-      ctx.fillStyle = rgb(lvl >= 10 && view.theme.to === 'base' ? hsl((T * 50) % 360) : th.ray, alpha);
+      ctx.fillStyle = rgb(discoOn() ? hsl((T * 220) % 360) : lvl >= 10 && view.theme.to === 'base' ? hsl((T * 50) % 360) : th.ray, discoOn() ? alpha + 0.06 : alpha);
       for (let i = 0; i < n; i++) {
         const a = (i / n) * TAU;
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, a, a + TAU / n / 2.4); ctx.closePath(); ctx.fill();
@@ -2143,7 +2410,7 @@
     const th = view.theme.cur;
     const o = { x: g.x - g.frame, y: g.y - g.frame - g.title, w: g.w + g.frame * 2, h: g.h + g.frame * 2 + g.title };
     const rad = g.frame * 1.3;
-    const rainbow = lvl >= 10 && view.theme.to === 'base';
+    const rainbow = (lvl >= 10 && view.theme.to === 'base') || discoOn();
     const glowC = rainbow ? hsl((T * 60) % 360) : th.glow;
 
     ctx.save();
@@ -2188,7 +2455,7 @@
     const px = clamp(g.frame * 0.36, 3, 7);
     const chase = 2 + lvl * 1.4 + view.heat * 10;
     const phase = Math.floor(T * chase);
-    const allOn = view.hl && Math.floor(T * 8) % 2 === 0;
+    const allOn = (view.hl || discoOn()) && Math.floor(T * (discoOn() ? 14 : 8)) % 2 === 0;
     const colA = rainbow ? null : th.f1, colB = view.theme.to === 'base' ? [255, 70, 70] : th.ray;
     for (let i = 0; i < pts.length; i++) {
       const on = allOn || (i + phase) % 4 < (lvl >= 6 ? 2 : 1);
@@ -2210,6 +2477,9 @@
     ctx.save();
     ctx.globalAlpha = a;
     ctx.translate(x, y);
+    if (o.rot) ctx.rotate(o.rot);
+    // Squash & stretch: platter = breder (volume blijft ongeveer gelijk)
+    if (o.sq && o.sq !== 1) ctx.scale(1 + (1 - o.sq) * 0.6, o.sq);
     if (o.blur) {
       ctx.globalAlpha = a * 0.22;
       ctx.drawImage(spr, -size / 2, -size / 2 - s * 0.16, size, size * 1.12);
@@ -2322,6 +2592,12 @@
     const s = g.s, L = view.L;
     const hl = view.hl;
     const pulse = hl ? 1 + Math.sin((T - hl.start) * 11) * 0.07 : 1;
+    // Golf over de machine (bij veel lijnen tegelijk)
+    let wave = -1;
+    if (view.wave) {
+      wave = (T - view.wave.start) * 13;
+      if (wave > L.reels * 0.9 + L.rows * 0.15 + Math.PI) { view.wave = null; wave = -1; }
+    }
     for (let r = 0; r < L.reels; r++) {
       const x = g.x + r * s + s / 2;
       const reel = view.reels[r];
@@ -2346,8 +2622,25 @@
         const key = r * 10 + row;
         const lit = hl && hl.cells.has(key);
         const dim = hl && !lit ? 0.32 : 1;
-        drawCell(cell, x, g.y + row * s + s / 2 + fx.dy, s, {
-          a: fx.a * view.cellAlpha * dim, sc: fx.sc * (lit ? pulse : 1), flip: fx.flip, flash: fx.flash, glow: lit ? 0.9 : 0
+        let dy = fx.dy, rot = fx.rot || 0, sq = fx.sq || 1, flash = fx.flash;
+        if (lit) {
+          // Winnende symbolen dansen: huppen (iets na elkaar per rol), wiebelen en rekken
+          const k = T - hl.start, ph = k * 7 - r * 0.55;
+          const hop = Math.max(0, Math.sin(ph));
+          dy -= hop * s * 0.09;
+          sq *= 1 + hop * 0.07 - (1 - hop) * 0.03;
+          rot += Math.sin(k * 8 + r * 1.3 + row) * 0.07;
+        }
+        if (wave >= 0) {
+          const w = wave - r * 0.9 - row * 0.15;
+          if (w > 0 && w < Math.PI) { dy -= Math.sin(w) * s * 0.16; flash = Math.max(flash, Math.sin(w) * 0.35); }
+        }
+        if (view.idle && !hl && view.idle.key === key) {
+          const k = (T - view.idle.start) / 0.8;
+          if (k < 1) { rot += Math.sin(k * TAU * 2) * 0.16 * (1 - k); flash = Math.max(flash, Math.sin(k * Math.PI) * 0.5); sq *= 1 + Math.sin(k * Math.PI) * 0.06; }
+        }
+        drawCell(cell, x, g.y + row * s + s / 2 + dy, s, {
+          a: fx.a * view.cellAlpha * dim, sc: fx.sc * (lit ? pulse : 1), flip: fx.flip, flash, glow: lit ? 0.9 : 0, rot, sq
         });
         if (lit) {
           ctx.save();
@@ -2412,6 +2705,42 @@
       ctx.shadowColor = ln.color; ctx.shadowBlur = 12;
       ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = Math.max(4, s * 0.075); ctx.stroke();
       ctx.strokeStyle = ln.color; ctx.lineWidth = Math.max(2.5, s * 0.045); ctx.stroke();
+      if (prog >= 1) drawComet(pts, age - 0.25, ln.color, s);
+    }
+    ctx.restore();
+  }
+
+  /** Lichtbolletje met staart dat steeds over een lijn loopt */
+  function drawComet(pts, t, color, s) {
+    const segs = [];
+    let len = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      segs.push(d); len += d;
+    }
+    if (len < 1) return;
+    const speed = s * 7;
+    const at = d => {
+      d = clamp(d, 0, len);
+      for (let i = 0; i < segs.length; i++) {
+        if (d <= segs[i] || i === segs.length - 1) {
+          const f = segs[i] ? d / segs[i] : 0;
+          return [lerp(pts[i][0], pts[i + 1][0], f), lerp(pts[i][1], pts[i + 1][1], f)];
+        }
+        d -= segs[i];
+      }
+      return pts[pts.length - 1];
+    };
+    const head = (t * speed) % (len + s * 2);
+    if (head > len + s) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.shadowColor = color; ctx.shadowBlur = s * 0.3;
+    for (let k = 6; k >= 0; k--) {
+      const [x, y] = at(head - k * s * 0.09);
+      ctx.globalAlpha = (1 - k / 7) * 0.9;
+      ctx.fillStyle = k ? color : '#ffffff';
+      ctx.beginPath(); ctx.arc(x, y, Math.max(1.5, s * (0.075 - k * 0.008)), 0, TAU); ctx.fill();
     }
     ctx.restore();
   }
@@ -2463,6 +2792,37 @@
     const k = dt / 16.67;
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
+      if (p.k === 'm') {
+        // Vliegende munt (kwadratische bezier naar de winstbox)
+        p.t += dt / 1000 / p.dur;
+        if (p.t < 0) continue;
+        if (p.t >= 1) {
+          particles.splice(i, 1);
+          if (T - (drawParticles.pulse || 0) > 0.09) { drawParticles.pulse = T; restart($('winbox'), 'hot'); }
+          continue;
+        }
+        const t = easeInOut(p.t), u = 1 - t;
+        p.x = u * u * p.x0 + 2 * u * t * p.cx + t * t * p.x1;
+        p.y = u * u * p.y0 + 2 * u * t * p.cy + t * t * p.y1;
+        p.rot += 0.3 * k;
+        const w = Math.abs(Math.cos(p.rot)) * p.size;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = Math.cos(p.rot) > 0 ? '#ffd23f' : '#c98a00';
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, Math.max(1, w), p.size, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(255,250,210,.85)';
+        ctx.beginPath(); ctx.ellipse(p.x - w * 0.25, p.y - p.size * 0.3, Math.max(0.5, w * 0.3), p.size * 0.3, 0, 0, TAU); ctx.fill();
+        continue;
+      }
+      if (p.k === 'k') {
+        if (p.delay > 0) { p.delay -= dt / 1000; continue; }
+        p.vy += 0.2 * k; p.x += p.vx * k; p.y += p.vy * k;
+        if (particles.length < 900 && Math.random() < 0.7) particles.push({ k: 's', x: p.x, y: p.y, vx: (Math.random() - 0.5), vy: 1 + Math.random(), life: 0.7, decay: 0.04, size: 1.5 + Math.random() * 1.5, rgb: '255,230,180' });
+        if (p.vy >= -1) { particles.splice(i, 1); explodeFirework(p); continue; }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, TAU); ctx.fill();
+        continue;
+      }
       if (p.k === 'c') { p.vy += 0.22 * k; p.rot += p.vr * k; }
       else if (p.k === 'f') { p.vy += 0.25 * k; p.vx *= 0.99; p.rot += p.vr * k; }
       else { p.vy += 0.18 * k; p.vx *= 0.98; }
@@ -2507,6 +2867,16 @@
     ctx.globalAlpha = 1;
   }
 
+  // Als er niets gebeurt, wiebelt en glimt af en toe een willekeurig symbool
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function updateIdle() {
+    if (reduceMotion || busy || auto || view.hl || view.hold || view.morphing || !view.L || !view.grid) return;
+    if (T < (view.idleNext || 0)) return;
+    const r = Math.floor(Math.random() * view.L.reels), row = Math.floor(Math.random() * view.L.rows);
+    view.idle = { key: r * 10 + row, start: T };
+    view.idleNext = T + Math.max(0.4, 2.2 - view.L.reels * 0.09) + Math.random() * 1.2;
+  }
+
   let last = performance.now();
   function frame(now) {
     requestAnimationFrame(frame);
@@ -2514,9 +2884,11 @@
     last = now;
     T = now / 1000;
     runTweens(dt);
+    updateCam(dt);
     updateReels(dt);
     updateTheme(dt);
     updateCycle();
+    updateIdle();
     if (Math.abs(winTarget - winShown) > 0.01) {
       winShown += (winTarget - winShown) * Math.min(1, dt / 160);
       if (Math.abs(winTarget - winShown) < 0.05) winShown = winTarget;
@@ -2534,13 +2906,23 @@
         ctx.translate((Math.random() - 0.5) * view.shake, (Math.random() - 0.5) * view.shake);
         view.shake *= Math.pow(0.9, dt / 16.67);
       } else view.shake = 0;
+      // Camera-punch rond het midden van de machine
+      if (Math.abs(cam.z - 1) > 0.0005 || Math.abs(cam.rot) > 0.0005) {
+        const mx = g.x + g.w / 2, my = g.y + g.h / 2;
+        ctx.translate(mx, my); ctx.scale(cam.z, cam.z); ctx.rotate(cam.rot); ctx.translate(-mx, -my);
+      }
       drawCabinet(g, lvl);
       drawWindow(g, lvl);
+      drawArcs();
       drawBadge(g);
+      drawRings();
       ctx.restore();
     }
+    drawFish(dt);
     drawParticles(dt);
     drawFloaters();
+    drawHypes();
+    drawStrobe();
     if (view.flashA > 0.01) {
       ctx.fillStyle = `rgba(${view.flashColor},${view.flashA * 0.55})`;
       ctx.fillRect(0, 0, W, H);
