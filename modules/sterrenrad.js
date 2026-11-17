@@ -21,7 +21,7 @@
  *   WORMGAT      — door het portaal naar een reuzenrad met drie wijzers (groen, blauw, geel). Elke speler kiest
  *                  een wijzer. DUBBEL/TRIPEL op jouw wijzer: alles ×2/×3 en het rad draait opnieuw. Tot 20.000×.
  *
- * De verdeling is met een simulatie zo gekozen dat elk vak ongeveer 97% terugbetaalt (zie rtpReport()).
+ * De verdeling is met een simulatie zo gekozen dat elk vak ongeveer 100% terugbetaalt (zie rtpReport()): het huis wint niet.
  */
 
 const crypto = require('crypto');
@@ -118,10 +118,10 @@ const COMET_COUNT = [[1, 40], [2, 40], [3, 20]];
 const COMET_SPOT_WEIGHT = { 1: 3, 2: 2.5, 5: 0.8, 10: 0.5, coin: 1.3, meteor: 1, hunt: 1, worm: 0.8 };
 const BONUS_COMET = [[2, 54], [3, 26], [5, 13], [10, 7]];
 const COMET_MULTS = {
-  1: [[2, 68], [3, 20], [5, 9], [10, 3]],
-  2: [[2, 66], [3, 21], [5, 9], [7, 2], [10, 2]],
-  5: [[2, 40], [3, 24], [5, 18], [10, 12], [20, 6]],
-  10: [[2, 62], [3, 21], [5, 10], [10, 5], [25, 1.5], [50, 0.5]],
+  1: [[2, 60], [3, 24], [5, 12], [10, 4]],
+  2: [[2, 62], [3, 22], [5, 9], [7, 4], [10, 3]],
+  5: [[2, 40], [3, 24], [5, 18], [10, 12], [20, 5], [50, 1]],
+  10: [[2, 62], [3, 21], [5, 9], [10, 5], [25, 2.2], [50, 0.8]],
   coin: BONUS_COMET, meteor: BONUS_COMET, hunt: BONUS_COMET, worm: BONUS_COMET
 };
 
@@ -129,17 +129,17 @@ const COMET_MULTS = {
 // BONUSSEN
 // =====================================================
 
-const COIN_MULTS = [[2, 22], [3, 18], [4, 15], [5, 13], [6, 8], [7, 6], [8, 5], [10, 7], [12, 3], [15, 2.5], [20, 2], [25, 1.2], [50, 0.6], [100, 0.45]];
+const COIN_MULTS = [[2, 22], [3, 18], [4, 15], [5, 13], [6, 8], [7, 6], [8, 5], [10, 7], [12, 3], [15, 2.5], [20, 2], [25, 1.2], [50, 0.7], [100, 0.6]];
 
 const METEOR_SLOTS = 16;
 const METEOR_ROWS = 12;
 const METEOR_DOUBLES = 2;
 const METEOR_MAX_DROPS = 6;
-const METEOR_VALUES = [[2, 18], [3, 14], [4, 18], [5, 14], [7, 10], [10, 8], [15, 8], [25, 4], [35, 3], [75, 2.3], [150, 0.6]];
+const METEOR_VALUES = [[2, 18], [3, 14], [4, 18], [5, 14], [7, 10], [10, 8], [15, 8], [25, 4], [35, 3], [75, 2.3], [150, 0.9]];
 
 const HUNT_COLS = 12;
 const HUNT_ROWS = 9;
-const HUNT_VALUES = [[3, 26], [5, 15], [7, 19], [10, 14], [15, 10], [20, 7], [30, 6], [50, 2], [75, 1.6], [150, 0.4], [300, 0.1], [750, 0.02]];
+const HUNT_VALUES = [[3, 24], [5, 15], [7, 19], [10, 14], [15, 10], [20, 7], [30, 6], [50, 2], [75, 1.6], [150, 0.4], [300, 0.1], [750, 0.02]];
 const HUNT_SYMBOLS = ['planet', 'star', 'moon', 'ufo', 'rocket', 'comet'];
 
 // Wormgat-rad: 64 vakken, waarvan 4× DUBBEL en 2× TRIPEL
@@ -149,8 +149,8 @@ const WORM_POINTER_NAMES = ['Groen', 'Blauw', 'Geel'];
 const WORM_MAX_SPINS = 6;
 function buildWormWheel() {
   const values = [
-    ...Array(14).fill(5), ...Array(8).fill(7), ...Array(10).fill(10), ...Array(8).fill(15), ...Array(8).fill(25),
-    ...Array(4).fill(30), ...Array(2).fill(40), ...Array(4).fill(50)
+    ...Array(14).fill(5), ...Array(8).fill(7), ...Array(10).fill(10), ...Array(8).fill(15), ...Array(7).fill(25),
+    ...Array(4).fill(30), ...Array(2).fill(40), ...Array(5).fill(50)
   ];
   const wheel = new Array(WORM_SEGMENTS).fill(null);
   [4, 20, 36, 52].forEach(i => { wheel[i] = 'D'; });
