@@ -204,8 +204,8 @@
   /* Vilt met textuur, licht van boven en een houten rand bovenaan */
   .tablearea {
     --line-c: rgba(238, 224, 180, .78);
-    --serif: Georgia, "Times New Roman", "DejaVu Serif", serif;
-    position: relative; flex: none; padding: 26px 18px 14px; overflow-x: auto;
+    --tfont: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    position: relative; flex: none; padding: 24px 14px 12px; overflow-x: auto;
     background:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .22 0 0 0 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
       radial-gradient(ellipse 70% 120% at 50% 0%, #1f8a54 0%, #136a3e 38%, #0b4528 75%, #072f1b 100%);
@@ -221,9 +221,9 @@
     border-top: 1px dashed rgba(255, 220, 160, .28);
   }
   .rtable {
-    --cell: 50px;
-    position: relative; margin: 0 auto; max-width: 940px; min-width: 620px; user-select: none; -webkit-user-select: none;
-    display: grid; grid-template-columns: 7.5% minmax(0, 1fr) 7%; grid-template-rows: calc(var(--cell) * 3) 40px 40px;
+    --cell: clamp(52px, 7.4vh, 70px);
+    position: relative; margin: 0 auto; max-width: 1180px; min-width: 640px; user-select: none; -webkit-user-select: none;
+    display: grid; grid-template-columns: 7.5% minmax(0, 1fr) 7%; grid-template-rows: calc(var(--cell) * 3) calc(var(--cell) * .8) calc(var(--cell) * .8);
     overflow: visible;
   }
   .rtable.locked { cursor: default; }
@@ -231,14 +231,14 @@
   .cell {
     position: relative; display: grid; place-items: center; cursor: pointer;
     border-right: 1.5px solid var(--line-c); border-bottom: 1.5px solid var(--line-c);
-    font-family: var(--serif); font-weight: 700; font-size: 14px; letter-spacing: .06em; color: #f4ead0;
-    text-shadow: 0 1px 1px rgba(0,0,0,.5); transition: background-color .15s, box-shadow .15s, filter .15s;
+    font-family: var(--tfont); font-weight: 800; font-size: 15px; letter-spacing: .02em; color: #f6eedb;
+    text-shadow: 0 1px 2px rgba(0,0,0,.55); transition: background-color .15s, box-shadow .15s, filter .15s;
   }
   .cell .lbl { pointer-events: none; position: relative; z-index: 1; }
   /* Getallen: gevuld rood/zwart met een zachte glans */
   .cell.num.red { background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,0) 45%, rgba(0,0,0,.18)), #b8241c; }
   .cell.num.black { background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 45%, rgba(0,0,0,.25)), #18191c; }
-  .cell.num .lbl { font-size: 19px; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; letter-spacing: 0; }
+  .cell.num .lbl { font-size: clamp(18px, 2.9vh, 25px); font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
   /* Nul: groene punt aan de linkerkant */
   .zero { grid-row: 1; grid-column: 1; border: 0; }
   .zero::before {
@@ -249,19 +249,19 @@
     content: ''; position: absolute; inset: 2px 0 2px 3px; pointer-events: none; clip-path: polygon(42% 0, 100% 0, 100% 100%, 42% 100%, 0 50%);
     background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(0,0,0,.2)), #12804a;
   }
-  .zero .lbl { font-size: 22px; transform: translateX(14%); }
+  .zero .lbl { font-size: clamp(20px, 3.2vh, 28px); font-weight: 800; color: #fff; transform: translateX(14%); }
   .nums { grid-row: 1; grid-column: 2; border-top: 2px solid var(--line-c); border-left: 1.5px solid var(--line-c); position: relative; display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(3, 1fr); }
   .cols { grid-row: 1; grid-column: 3; border-top: 2px solid var(--line-c); border-right: 2px solid var(--line-c); border-radius: 0 8px 0 0; display: grid; grid-template-rows: repeat(3, 1fr); }
-  .cols .cell { border-right: 0; font-size: 13px; }
+  .cols .cell { border-right: 0; font-size: 15px; }
   .cols .cell:first-child { border-radius: 0 6px 0 0; }
   .dozens { grid-row: 2; grid-column: 2; display: grid; grid-template-columns: repeat(3, 1fr); border-right: 1.5px solid var(--line-c); }
   .outside { grid-row: 3; grid-column: 2; display: grid; grid-template-columns: repeat(6, 1fr); border-right: 1.5px solid var(--line-c); border-bottom: 2px solid var(--line-c); border-radius: 0 0 0 8px; }
-  .outside .cell, .dozens .cell { font-size: 13px; text-transform: uppercase; letter-spacing: .14em; }
+  .outside .cell, .dozens .cell { font-size: clamp(14px, 2vh, 17px); letter-spacing: .04em; }
   .outside .cell:last-child, .dozens .cell:last-child { border-right: 0; }
   .outside .cell { border-bottom: 0; }
   .dozens .cell:first-child, .outside .cell:first-child { border-left: 1.5px solid var(--line-c); }
   /* Ruiten voor rood/zwart met een gouden rand */
-  .diamond { width: 46px; height: 25px; display: grid; place-items: center; pointer-events: none; background: var(--line-c);
+  .diamond { width: 58px; height: 32px; display: grid; place-items: center; pointer-events: none; background: var(--line-c);
     clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
   .diamond i { width: calc(100% - 6px); height: calc(100% - 4px); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
   .diamond.red i { background: linear-gradient(180deg, #d8392f, #9a1b14); }
@@ -278,7 +278,7 @@
 
   /* Hotspots tussen de getallen (split, street, carré, sixline) */
   .hs {
-    position: absolute; z-index: 2; width: 20px; height: 20px; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer;
+    position: absolute; z-index: 2; width: 24px; height: 24px; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer;
   }
   .hs::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: rgba(255,214,110,0); transition: background .12s, box-shadow .12s; }
   .hs:hover::before, .hs.hl::before { background: #ffd76a; box-shadow: 0 0 10px rgba(255,214,110,.9); }
@@ -286,15 +286,15 @@
 
   /* Fiches op de tafel: dikte, glans en een stapel bij grote bedragen */
   .bchip {
-    position: absolute; left: 50%; top: 50%; z-index: 3; width: 30px; height: 30px; margin: -15px 0 0 -15px;
-    font-size: 10px; pointer-events: none; animation: chipDrop .22s cubic-bezier(.3,1.5,.5,1);
+    position: absolute; left: 50%; top: 50%; z-index: 3; width: 36px; height: 36px; margin: -18px 0 0 -18px;
+    font-size: 12px; pointer-events: none; animation: chipDrop .22s cubic-bezier(.3,1.5,.5,1);
     box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 2px 0 var(--edge, rgba(0,0,0,.5)), 0 3px 0 rgba(0,0,0,.35), 0 5px 8px rgba(0,0,0,.5);
   }
   .bchip > span { background: radial-gradient(circle at 35% 28%, rgba(255,255,255,.38), rgba(255,255,255,0) 55%), var(--c); }
   .bchip.tall { transform: translateY(-4px);
     box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 2px 0 var(--edge), 0 3px 0 rgba(0,0,0,.35), 0 5px 0 var(--edge), 0 6px 0 rgba(0,0,0,.35),
       0 8px 0 var(--edge), 0 9px 0 rgba(0,0,0,.35), 0 11px 10px rgba(0,0,0,.5); }
-  .hs .bchip { width: 26px; height: 26px; margin: -13px 0 0 -13px; font-size: 9px; }
+  .hs .bchip { width: 30px; height: 30px; margin: -15px 0 0 -15px; font-size: 10px; }
   .bchip.won { animation: chipWin .7s ease-in-out infinite alternate; }
   .bchip.lost { animation: chipLose .6s ease forwards; }
   .c1 { --edge: #9aa1ab; } .c5 { --edge: #8f231c; } .c10 { --edge: #1d4c98; } .c25 { --edge: #176b38; } .c100 { --edge: #0c0d0f; }
@@ -302,7 +302,7 @@
   @keyframes chipLose { to { transform: translateY(6px) scale(.5); opacity: 0; } }
   @keyframes chipWin { from { filter: drop-shadow(0 0 2px #ffd76a); } to { filter: drop-shadow(0 0 10px #ffd76a) brightness(1.15); } }
 
-  .hoverinfo { min-height: 18px; margin: 9px auto 0; max-width: 940px; font-size: 12px; font-weight: 700; color: rgba(244,234,208,.8); text-shadow: 0 1px 1px rgba(0,0,0,.5); display: flex; justify-content: space-between; gap: 12px; }
+  .hoverinfo { min-height: 18px; margin: 9px auto 0; max-width: 1180px; font-size: 13px; font-weight: 700; color: rgba(244,234,208,.85); text-shadow: 0 1px 1px rgba(0,0,0,.5); display: flex; justify-content: space-between; gap: 12px; }
   .hoverinfo b { color: var(--gold); }
 
   .toast {
@@ -321,7 +321,7 @@
   @media (max-width: 860px) {
     .game { grid-template-columns: minmax(0, 1fr); height: auto; }
     .main { order: -1; border-bottom: 1px solid var(--line); }
-    .wheelarea { flex: none; height: min(62vw, 380px); min-height: 260px; }
+    .wheelarea { flex: none; height: min(92vw, 440px); min-height: 300px; }
     .sidebar { border-right: 0; overflow: visible; }
     .hist { top: 12px; right: 12px; transform: none; flex-direction: row-reverse; width: auto; }
     .hchip { width: 34px; height: 28px; font-size: 12px; }
@@ -339,9 +339,12 @@
   }
   /* =========================== MULTIPLAYER =========================== */
   .status {
-    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 3; min-width: 230px; max-width: calc(100% - 140px);
-    background: rgba(22,24,27,.88); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px 9px; text-align: center;
+    position: absolute; top: 12px; left: 58px; z-index: 3; width: 236px;
+    background: rgba(22,24,27,.88); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px 9px; text-align: left;
     box-shadow: 0 8px 24px rgba(0,0,0,.4); backdrop-filter: blur(4px);
+  }
+  @media (max-width: 860px) {
+    .status { left: 50%; transform: translateX(-50%); width: auto; min-width: 230px; max-width: calc(100% - 140px); text-align: center; }
   }
   .status b { display: block; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .status small { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 2px; }
@@ -1364,9 +1367,23 @@
     if (!W || !H || !cfg) return;
     dpr = Math.min(3, window.devicePixelRatio || 1);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    const narrow = W < 640;
-    R = Math.max(60, Math.min(W - (narrow ? 24 : 150), H - (narrow ? 70 : 90)) / 2);
-    cx = Math.round(W / 2); cy = Math.round(H / 2 + (narrow ? 22 : 26));
+    // Smal: status staat boven het wiel. Breed: status staat linksboven in de hoek, het wiel mag de hele hoogte gebruiken
+    const narrow = matchMedia('(max-width: 860px)').matches;
+    if (narrow) {
+      // Wiel onder het statusblok
+      const st = $('status').getBoundingClientRect();
+      const top = st.bottom - rect.top + 8;
+      R = Math.max(60, Math.min(W - 24, H - top - 10) / 2);
+      cx = Math.round(W / 2); cy = Math.round(top + (H - top) / 2);
+    } else {
+      R = Math.max(60, Math.min(W - 150, H - 20) / 2);
+      cx = Math.round(W / 2); cy = Math.round(H / 2);
+      // Niet over het statusblok heen
+      const st = $('status').getBoundingClientRect();
+      const left = st.left - rect.left, top = st.top - rect.top;
+      const px = Math.min(Math.max(cx, left), left + st.width), py = Math.min(Math.max(cy, top), top + st.height);
+      R = Math.max(60, Math.min(R, Math.hypot(cx - px, cy - py) - 8));
+    }
     drawBowl();
     // Kleurverlopen van de vakjes één keer maken (rond het middelpunt, dus draaien mag)
     const colors = { red: ['#d33a2f', '#9e241c'], black: ['#2a2c31', '#141518'], green: ['#26a157', '#17733c'] };
