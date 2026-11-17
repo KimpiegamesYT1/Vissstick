@@ -1,0 +1,1335 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vissstick Roulette</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%23f2c14e'/%3E%3Ccircle cx='20' cy='20' r='13' fill='%2316181b'/%3E%3Ccircle cx='20' cy='20' r='8.5' fill='none' stroke='%23e04a3c' stroke-width='5' stroke-dasharray='4.45 4.45'/%3E%3Ccircle cx='20' cy='20' r='3' fill='%23f2c14e'/%3E%3Ccircle cx='27.5' cy='12.5' r='2.4' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --panel: #16181b;
+    --side: #1b1d21;
+    --field: #111315;
+    --raise: #262a2f;
+    --line: rgba(255, 255, 255, 0.07);
+    --text: #eceae6;
+    --muted: #8d9299;
+    --gold: #f2c14e;
+    --green: #4cd47b;
+    --red: #ef5b4c;
+    --felt: #0f5132;
+    --felt-dark: #0b3d26;
+    --rred: #c8332a;
+    --rblack: #1d1f23;
+    --rgreen: #1f8a4c;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; min-height: 100vh; overflow-x: hidden; }
+  button, input { font: inherit; color: inherit; }
+  .app { max-width: 1280px; margin: 0 auto; padding: 14px 16px 24px; }
+
+  /* Kopregel (zelfde als Rocket) */
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand svg { width: 36px; height: 36px; flex: none; }
+  .brand .word { display: flex; flex-direction: column; line-height: 1; }
+  .brand .word small { font-size: 10px; font-weight: 800; letter-spacing: 3px; color: var(--muted); }
+  .brand .word b { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin-top: 3px; }
+  .nav { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; margin-right: auto; margin-left: 18px; }
+  .nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
+  .nav a:hover { color: var(--text); }
+  .nav a.active { background: var(--raise); color: var(--text); }
+  .user { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; }
+  .user[hidden] { display: none; }
+  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--raise); }
+  .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
+  .user .balance { color: var(--gold); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; transition: color .2s; }
+  .user .balance.up { color: var(--green); }
+  .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
+  .user button:hover { background: var(--raise); color: var(--text); }
+
+  /* Spelvlak: zijbalk + wiel + tafel */
+  .game {
+    display: grid; grid-template-columns: 310px minmax(0, 1fr);
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden; height: clamp(600px, calc(100vh - 90px), 840px);
+  }
+  .sidebar { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+  .betbox { padding: 16px; border-bottom: 1px solid var(--line); }
+  .main { position: relative; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .wheelarea { position: relative; flex: 1; min-height: 0; }
+  .wheelarea::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, rgba(242,193,78,.07), transparent 60%);
+  }
+  .wheel { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* Fiches kiezen */
+  .field { margin-bottom: 14px; }
+  .field[hidden] { display: none; }
+  .field label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+  .field label span { font-weight: 600; }
+  .field label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .chips { display: flex; justify-content: space-between; gap: 6px; background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; }
+  .chipbtn { width: 44px; height: 44px; border: 0; padding: 0; border-radius: 50%; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+  .chipbtn:hover:not(:disabled) { transform: translateY(-2px); }
+  .chipbtn.active { transform: translateY(-3px); box-shadow: 0 0 0 3px var(--side), 0 0 0 5px var(--gold), 0 6px 14px rgba(0,0,0,.5); }
+  .chipbtn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* Fiche (knop + op de tafel) */
+  .chip {
+    display: grid; place-items: center; border-radius: 50%; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1;
+    color: var(--ct); background: repeating-conic-gradient(from 7deg, var(--s) 0 16deg, var(--c) 16deg 45deg);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.3), 0 2px 4px rgba(0,0,0,.45);
+  }
+  .chip > span { display: grid; place-items: center; width: 70%; height: 70%; border-radius: 50%; background: var(--c); border: 1.5px dashed var(--s); }
+  .chipbtn.chip { font-size: 13px; }
+  .c1 { --c: #e3e5e9; --s: #8e98a5; --ct: #16181b; }
+  .c5 { --c: #d9443a; --s: #fff; --ct: #fff; }
+  .c10 { --c: #2f74e0; --s: #fff; --ct: #fff; }
+  .c25 { --c: #26a157; --s: #fff; --ct: #fff; }
+  .c100 { --c: #24262b; --s: var(--gold); --ct: var(--gold); }
+
+  .totals { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 2px 12px; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .totals b { color: var(--text); font-size: 18px; font-variant-numeric: tabular-nums; }
+  .totals small { font-weight: 600; }
+
+  .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+  .tools button {
+    border: 1px solid var(--line); background: var(--raise); border-radius: 9px; padding: 8px 0; font-size: 12px; font-weight: 700; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .tools button svg { width: 16px; height: 16px; }
+  .tools button:hover:not(:disabled) { filter: brightness(1.2); }
+  .tools button:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* Grote knop */
+  .play {
+    width: 100%; border: 0; border-radius: 10px; padding: 15px; font-size: 16px; font-weight: 800;
+    cursor: pointer; background: var(--green); color: #062612; transition: transform .06s ease, filter .15s ease;
+    font-variant-numeric: tabular-nums; user-select: none;
+  }
+  .play:hover:not(:disabled) { filter: brightness(1.06); }
+  .play:active:not(:disabled) { transform: scale(.98); }
+  .play:disabled { background: var(--raise); color: var(--muted); cursor: not-allowed; }
+  .keyhint { margin-top: 8px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.6; }
+  .keyhint kbd { background: var(--raise); border-radius: 5px; padding: 1px 6px; font: inherit; font-weight: 700; color: var(--text); }
+
+  .notice {
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; line-height: 1.45;
+    background: rgba(239,91,76,.12); border: 1px solid rgba(239,91,76,.55); color: #fbd8d3;
+  }
+  .notice[hidden] { display: none; }
+
+  .login { text-align: center; padding: 10px 4px; }
+  .login[hidden] { display: none; }
+  .login h3 { margin: 0 0 8px; font-size: 16px; }
+  .login p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .login code { background: var(--raise); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+
+  /* Statistieken */
+  .stats { padding: 14px 16px 16px; }
+  .stats[hidden] { display: none; }
+  .stats h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 800; display: flex; justify-content: space-between; }
+  .stats h2 button { background: none; border: 0; color: var(--muted); font-size: 11px; letter-spacing: 0; cursor: pointer; padding: 0; }
+  .stats h2 button:hover { color: var(--text); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
+  .stat small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
+  .stat b { display: block; font-size: 16px; margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .win { color: var(--green); }
+  .loss { color: var(--red); }
+  .alltime { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .alltime b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .odds { margin-top: 16px; }
+  .odds table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .odds td { padding: 4px 0; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .odds td:last-child { text-align: right; color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* Geluid */
+  .sound-btns { position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; gap: 6px; }
+  .snd {
+    width: 36px; height: 36px; display: grid; place-items: center; background: var(--raise); border: 1px solid var(--line);
+    border-radius: 999px; padding: 0; color: var(--gold); cursor: pointer;
+  }
+  .snd svg { width: 18px; height: 18px; }
+  .snd.off { color: var(--muted); }
+  .snd:hover { filter: brightness(1.2); }
+
+  /* Laatste uitslagen (rechts naast het wiel, nieuwste bovenaan) */
+  .hist {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%); z-index: 2; width: 44px;
+    display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+  }
+  .hchip {
+    height: 34px; display: grid; place-items: center; border-radius: 8px; font-weight: 900; font-size: 14px; color: #fff;
+    font-variant-numeric: tabular-nums; box-shadow: inset 0 -3px 0 rgba(0,0,0,.3);
+    animation: chipIn .28s cubic-bezier(.2, 1.4, .4, 1);
+  }
+  .hchip:first-child { outline: 2px solid rgba(255,255,255,.7); outline-offset: 2px; }
+  .hchip.red { background: var(--rred); }
+  .hchip.black { background: #2c2f35; }
+  .hchip.green { background: var(--rgreen); }
+  .hchip.out { animation: chipOut .25s ease forwards; }
+  @keyframes chipIn { from { transform: translateY(-40px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes chipOut { to { transform: translateY(20px) scale(.8); opacity: 0; } }
+
+  /* Uitslag in het midden van het wiel */
+  .resultpop {
+    position: absolute; z-index: 5; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; text-align: center;
+    padding: 14px 24px 16px; border-radius: 18px; background: rgba(22,24,27,.9); border: 1px solid var(--line);
+    box-shadow: 0 20px 50px rgba(0,0,0,.55); backdrop-filter: blur(4px); min-width: 170px;
+  }
+  .resultpop[hidden] { display: none; }
+  .resultpop.go { animation: popIn .45s cubic-bezier(.2, 1.5, .4, 1); }
+  .resultpop.bye { animation: popOut .35s ease forwards; }
+  .resultpop.big { border-color: rgba(242,193,78,.6); box-shadow: 0 0 60px rgba(242,193,78,.3), 0 20px 50px rgba(0,0,0,.55); }
+  @keyframes popIn { from { transform: translate(-50%, -50%) scale(.4); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+  @keyframes popOut { to { transform: translate(-50%, -50%) scale(.9); opacity: 0; } }
+  .resultpop .num {
+    width: 74px; height: 74px; margin: 0 auto 8px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 36px; font-weight: 900; color: #fff; box-shadow: inset 0 -4px 0 rgba(0,0,0,.3), 0 0 0 3px rgba(255,255,255,.12);
+  }
+  .resultpop .num.red { background: var(--rred); }
+  .resultpop .num.black { background: #2c2f35; }
+  .resultpop .num.green { background: var(--rgreen); }
+  .resultpop small { display: block; font-size: 11px; letter-spacing: 3px; font-weight: 800; color: var(--muted); }
+  .resultpop .amt { margin-top: 4px; font-size: 20px; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .resultpop.big .amt { font-size: 26px; background: linear-gradient(180deg, #fff1b8, #f2c14e 60%, #c98f1d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  .flash { position: absolute; inset: 0; pointer-events: none; z-index: 4; background: radial-gradient(circle at 50% 50%, rgba(255,226,140,.4), rgba(242,193,78,0) 65%); opacity: 0; }
+  .flash.go { animation: flash 900ms ease-out; }
+  @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* =========================== TAFEL =========================== */
+  .tablearea { flex: none; padding: 10px 16px 14px; border-top: 1px solid var(--line); background: linear-gradient(180deg, #0f4a2f, #0b3a24); overflow-x: auto; }
+  .rtable {
+    --cell: 46px;
+    position: relative; margin: 0 auto; max-width: 920px; min-width: 600px; user-select: none; -webkit-user-select: none;
+    display: grid; grid-template-columns: 7% minmax(0, 1fr) 7%; grid-template-rows: calc(var(--cell) * 3) 38px 38px;
+    border: 2px solid rgba(255,255,255,.55); border-radius: 10px; overflow: visible;
+  }
+  .rtable.locked { cursor: default; }
+  .rtable.locked .hs, .rtable.locked .cell { cursor: default; }
+  .cell {
+    position: relative; display: grid; place-items: center; cursor: pointer;
+    border-right: 1px solid rgba(255,255,255,.45); border-bottom: 1px solid rgba(255,255,255,.45);
+    font-weight: 800; font-size: 15px; color: #fff; transition: background-color .15s, box-shadow .15s;
+  }
+  .cell .lbl { pointer-events: none; }
+  .cell.num .lbl { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+  .cell.num.red .lbl { background: var(--rred); }
+  .cell.num.black .lbl { background: var(--rblack); }
+  .zero { grid-row: 1; grid-column: 1; border-radius: 8px 0 0 0; }
+  .zero .lbl { background: var(--rgreen) !important; width: 30px !important; height: 52px !important; border-radius: 15px !important; }
+  .nums { grid-row: 1; grid-column: 2; position: relative; display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(3, 1fr); }
+  .cols { grid-row: 1; grid-column: 3; display: grid; grid-template-rows: repeat(3, 1fr); }
+  .cols .cell { border-right: 0; font-size: 13px; }
+  .dozens { grid-row: 2; grid-column: 2; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .outside { grid-row: 3; grid-column: 2; display: grid; grid-template-columns: repeat(6, 1fr); }
+  .outside .cell, .dozens .cell { font-size: 13px; }
+  .outside .cell:last-child, .dozens .cell:last-child { border-right: 0; }
+  .outside .cell { border-bottom: 0; }
+  .dozens { border-right: 1px solid rgba(255,255,255,.45); }
+  .outside { border-right: 1px solid rgba(255,255,255,.45); }
+  .diamond { width: 26px; height: 16px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); pointer-events: none; }
+  .diamond.red { background: var(--rred); }
+  .diamond.black { background: #08090a; box-shadow: none; }
+  .cell:hover:not(.lockedcell), .cell.hl { background-color: rgba(255,255,255,.14); }
+  .cell.hl { box-shadow: inset 0 0 0 2px rgba(242,193,78,.75); }
+  .cell.winner { background-color: rgba(242,193,78,.35); box-shadow: inset 0 0 0 3px var(--gold); animation: winPulse 1s ease-in-out infinite alternate; }
+  @keyframes winPulse { from { background-color: rgba(242,193,78,.2); } to { background-color: rgba(242,193,78,.5); } }
+
+  /* Hotspots tussen de getallen (split, street, carré, sixline) */
+  .hs {
+    position: absolute; z-index: 2; width: 20px; height: 20px; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer;
+  }
+  .hs::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: rgba(242,193,78,0); transition: background .12s; }
+  .hs:hover::before, .hs.hl::before { background: rgba(242,193,78,.85); }
+  .rtable.locked .hs:hover::before { background: transparent; }
+
+  /* Fiches op de tafel */
+  .bchip {
+    position: absolute; left: 50%; top: 50%; z-index: 3; width: 28px; height: 28px; margin: -14px 0 0 -14px;
+    font-size: 10px; pointer-events: none; animation: chipDrop .18s ease-out;
+  }
+  .hs .bchip { width: 24px; height: 24px; margin: -12px 0 0 -12px; font-size: 9px; }
+  .bchip.won { box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(242,193,78,.9); }
+  .bchip.lost { animation: chipLose .6s ease forwards; }
+  @keyframes chipDrop { from { transform: translateY(-10px) scale(1.25); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes chipLose { to { transform: scale(.6); opacity: 0; } }
+
+  .hoverinfo { min-height: 18px; margin: 8px auto 0; max-width: 920px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,.75); display: flex; justify-content: space-between; gap: 12px; }
+  .hoverinfo b { color: var(--gold); }
+
+  .toast {
+    position: fixed; left: 50%; top: 18px; transform: translateX(-50%) translateY(-12px); opacity: 0; z-index: 40;
+    display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px;
+    font-size: 15px; font-weight: 700; transition: all .2s ease; pointer-events: none; max-width: calc(100% - 32px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  .toast::before { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok { background: #16301f; border: 1px solid var(--green); color: #cdeed8; }
+  .toast.ok::before { content: '✓'; background: var(--green); color: #062612; }
+  .toast.err { background: #3a1a17; border: 1px solid var(--red); color: #fbd8d3; }
+  .toast.err::before { content: '✕'; background: var(--red); color: #fff; }
+
+  @media (max-width: 860px) {
+    .game { grid-template-columns: minmax(0, 1fr); height: auto; }
+    .main { order: -1; border-bottom: 1px solid var(--line); }
+    .wheelarea { flex: none; height: min(62vw, 380px); min-height: 260px; }
+    .sidebar { border-right: 0; overflow: visible; }
+    .hist { top: 12px; right: 12px; transform: none; flex-direction: row-reverse; width: auto; }
+    .hchip { width: 34px; height: 28px; font-size: 12px; }
+    .hchip:nth-child(n+7) { display: none; }
+    .keyhint { display: none; }
+  }
+  @media (max-width: 520px) {
+    .app { padding: 10px; }
+    header { flex-wrap: wrap; }
+    .brand .word { display: none; }
+    .user { margin-left: auto; }
+    .nav { order: 3; width: 100%; margin: 0; }
+    .nav a { flex: 1; text-align: center; padding: 7px 2px; font-size: 12px; white-space: nowrap; }
+    .hchip:nth-child(n+5) { display: none; }
+    .tablearea { padding: 10px 8px 12px; }
+  }
+</style>
+<script src="/connection.js?v=4"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <a class="brand" href="/roulette" aria-label="Vissstick Roulette">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="#f2c14e"/>
+        <circle cx="20" cy="20" r="13" fill="#16181b"/>
+        <circle cx="20" cy="20" r="8.5" fill="none" stroke="#e04a3c" stroke-width="5" stroke-dasharray="4.45 4.45"/>
+        <circle cx="20" cy="20" r="3" fill="#f2c14e"/>
+        <circle cx="27.5" cy="12.5" r="2.4" fill="#fff"/>
+      </svg>
+      <span class="word"><small>VISSSTICK</small><b>Roulette</b></span>
+    </a>
+    <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack">Blackjack</a><a href="/plinko">Plinko</a><a href="/slots">Slots</a><a href="/roulette" class="active">Roulette</a><a href="/spin">Daily spin</a><a href="/afwas" class="wash-link locked">Afwassen</a></nav>
+    <div class="user" id="user" hidden></div>
+  </header>
+
+  <div class="game">
+    <aside class="sidebar">
+      <div class="betbox">
+        <div class="login" id="login" hidden>
+          <h3>Niet ingelogd</h3>
+          <p>Wil je spelen? Typ <code>/roulette</code> in Discord en klik op de link. Dit hoef je maar één keer te doen.</p>
+        </div>
+        <div id="controls" hidden>
+          <div class="field">
+            <label>Fiche <span>klik op de tafel om in te zetten</span></label>
+            <div class="chips" id="chips"></div>
+          </div>
+          <div class="totals"><span>Inzet op tafel</span><span><b id="total">0</b> <small id="maxTotal"></small></span></div>
+          <div class="tools">
+            <button type="button" id="undo" title="Laatste fiche terug (Ctrl+Z)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Terug</button>
+            <button type="button" id="clear" title="Alle fiches van de tafel">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Wissen</button>
+            <button type="button" id="double" title="Alle inzetten verdubbelen">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>2×</button>
+            <button type="button" id="rebet" title="Inzetten van de vorige spin terugleggen">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Herhaal</button>
+          </div>
+          <button class="play" id="play" type="button">Draaien</button>
+          <div class="keyhint"><kbd>spatie</kbd> draaien · <kbd>rechtsklik</kbd> fiche weghalen</div>
+          <div class="notice" id="notice" hidden></div>
+        </div>
+      </div>
+      <div class="stats" id="statsBox" hidden>
+        <h2>DEZE SESSIE <button type="button" id="resetSession">wissen</button></h2>
+        <div class="grid">
+          <div class="stat"><small>Spins</small><b id="sSpins">0</b></div>
+          <div class="stat"><small>Ingezet</small><b id="sWagered">0</b></div>
+          <div class="stat"><small>Winst</small><b id="sProfit">0</b></div>
+          <div class="stat"><small>Beste</small><b id="sBest">–</b></div>
+        </div>
+        <div class="alltime" id="allTime"></div>
+        <div class="odds">
+          <h2>UITBETALINGEN</h2>
+          <table>
+            <tr><td>Getal (1 vak)</td><td>35 : 1</td></tr>
+            <tr><td>Split (2)</td><td>17 : 1</td></tr>
+            <tr><td>Street / trio (3)</td><td>11 : 1</td></tr>
+            <tr><td>Carré / eerste vier (4)</td><td>8 : 1</td></tr>
+            <tr><td>Sixline (6)</td><td>5 : 1</td></tr>
+            <tr><td>Dozijn / kolom (12)</td><td>2 : 1</td></tr>
+            <tr><td>Rood · Zwart · Even · Oneven · 1–18 · 19–36</td><td>1 : 1</td></tr>
+          </table>
+        </div>
+      </div>
+    </aside>
+    <section class="main" id="main">
+      <div class="wheelarea" id="wheelarea">
+        <div class="sound-btns"><button class="snd" id="mute" type="button"></button></div>
+        <canvas class="wheel" id="wheel"></canvas>
+        <div class="hist" id="hist"></div>
+        <div class="flash" id="flash"></div>
+        <div class="resultpop" id="resultpop" hidden><div class="num" id="rpNum"></div><small id="rpKicker"></small><div class="amt" id="rpAmt"></div></div>
+      </div>
+      <div class="tablearea">
+        <div class="rtable" id="rtable">
+          <div class="cell zero num" data-key="0"><span class="lbl">0</span></div>
+          <div class="nums" id="nums"></div>
+          <div class="cols" id="cols"></div>
+          <div class="dozens" id="dozens"></div>
+          <div class="outside" id="outside"></div>
+        </div>
+        <div class="hoverinfo" id="hoverinfo"></div>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('nl-NL');
+  const TAU = Math.PI * 2;
+  const SPIN_MS = 7600;      // hele spin (wiel remt af)
+  const LAND_MS = 5600;      // daarna ligt de bal stil in een vakje
+  const RESULT_MS = 2600;    // zo lang blijven winnende fiches liggen
+  const IDLE_SPEED = 0.18;   // rad/s, het wiel draait altijd een beetje
+
+  // =====================================================
+  // STATE
+  // =====================================================
+  let me = null;             // antwoord van /api/roulette/status
+  let cfg = null;
+  let RED = new Set();
+  let serverBalance = 0;
+  let pending = 0;           // uitbetaling van de spin die nog draait
+  let phase = 'idle';        // idle | request | spin | result
+  const bets = new Map();    // sleutel -> bedrag
+  let undoStack = [];        // [{ key, amount }] (negatief = weggehaald)
+  let lastBets = [];
+  let spin = null;           // lopende animatie
+  let resultTimer = null;
+  const session = { spins: 0, wagered: 0, won: 0, best: 0 };
+
+  const settings = { chip: 5 };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem('roulette_settings') || '{}')); } catch (error) { /* geen opslag */ }
+  try { lastBets = JSON.parse(localStorage.getItem('roulette_last') || '[]'); } catch (error) { /* geen opslag */ }
+  if (!Array.isArray(lastBets)) lastBets = [];
+  function save() {
+    try {
+      localStorage.setItem('roulette_settings', JSON.stringify(settings));
+      localStorage.setItem('roulette_last', JSON.stringify(lastBets));
+    } catch (error) { /* geen opslag */ }
+  }
+
+  const colorOf = n => (n === 0 ? 'green' : RED.has(n) ? 'red' : 'black');
+  const colorName = { red: 'Rood', black: 'Zwart', green: 'Groen' };
+
+  // =====================================================
+  // SERVER
+  // =====================================================
+  async function loadStatus() {
+    try {
+      const res = await fetch('/api/roulette/status', { credentials: 'same-origin' });
+      me = await res.json();
+    } catch (error) {
+      toast('Geen verbinding met de server.', false);
+      return;
+    }
+    const first = !cfg;
+    cfg = me.config;
+    RED = new Set(cfg.red);
+    if (me.linked) serverBalance = me.balance;
+    if (!cfg.chips.includes(settings.chip)) settings.chip = cfg.chips[1] || cfg.chips[0];
+    if (first) {
+      buildTable();
+      buildChips();
+      layout();
+      if (me.history && me.history.length) {
+        me.history.slice().reverse().forEach(n => addHistory(n));
+        ball.pocket = me.history[0];
+        ball.visible = true;
+      }
+    }
+    renderAll();
+  }
+
+  async function post(path, body = {}) {
+    try {
+      const res = await fetch(path, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      return await res.json();
+    } catch (error) {
+      return { ok: false, message: 'Geen verbinding met de server.' };
+    }
+  }
+
+  addEventListener('focus', () => { if (me && phase === 'idle') loadStatus(); });
+
+  // =====================================================
+  // UI
+  // =====================================================
+  let toastTimer = null;
+  function toast(message, ok) {
+    if (!message) return;
+    const box = $('toast');
+    box.textContent = message;
+    box.className = `toast show ${ok ? 'ok' : 'err'}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { box.className = 'toast'; }, ok ? 2800 : 4500);
+  }
+  function setNotice(message) {
+    $('notice').hidden = !message;
+    $('notice').textContent = message || '';
+  }
+
+  function el(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    Object.entries(props).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === false) return;
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = value;
+      else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? '' : value);
+    });
+    children.forEach(child => node.append(child));
+    return node;
+  }
+
+  const tableTotal = () => [...bets.values()].reduce((a, b) => a + b, 0);
+  // Fiches op tafel zijn nog niet afgeschreven, maar tellen wel als "weg"
+  const shownBalance = () => serverBalance - pending - (phase === 'idle' || phase === 'request' ? tableTotal() : 0);
+
+  function renderUser() {
+    const box = $('user');
+    box.replaceChildren();
+    if (!me || !me.linked) { box.hidden = true; return; }
+    box.hidden = false;
+    const img = el('img', { alt: '' });
+    if (me.user.avatar) img.src = me.user.avatar;
+    box.append(img,
+      el('div', {}, [el('div', { class: 'name', text: me.user.username }), el('div', { class: 'balance', id: 'balance' })]),
+      el('button', { text: 'Uitloggen', onclick: async () => { await post('/api/logout'); clearTable(); loadStatus(); } }));
+    renderBalance();
+  }
+
+  let balanceTimer = null;
+  function renderBalance(up) {
+    const node = $('balance');
+    if (!node) return;
+    node.textContent = `${fmt(shownBalance())} punten`;
+    if (up) {
+      node.classList.add('up');
+      clearTimeout(balanceTimer);
+      balanceTimer = setTimeout(() => node.classList.remove('up'), 450);
+    }
+  }
+
+  function chipClass(amount) {
+    const denoms = cfg ? cfg.chips : [1, 5, 10, 25, 100];
+    let best = denoms[0];
+    for (const d of denoms) if (amount >= d) best = d;
+    return `c${best}`;
+  }
+
+  function buildChips() {
+    const box = $('chips');
+    box.replaceChildren(...cfg.chips.map(value => el('button', {
+      type: 'button', class: `chipbtn chip ${chipClass(value)}`, 'data-chip': value, title: `Fiche van ${value}`,
+      onclick: () => { settings.chip = value; save(); renderControls(); sfx.click(); }
+    }, [el('span', { text: String(value) })])));
+  }
+
+  function renderControls() {
+    const linked = me && me.linked;
+    $('login').hidden = !me || linked;
+    $('controls').hidden = !linked;
+    $('statsBox').hidden = !linked;
+    if (!linked) return;
+
+    const idle = phase === 'idle';
+    const total = tableTotal();
+    $('chips').querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', Number(b.dataset.chip) === settings.chip);
+    });
+    $('total').textContent = fmt(total);
+    $('maxTotal').textContent = `/ ${fmt(cfg.maxTotalBet)}`;
+    $('undo').disabled = !idle || !undoStack.length;
+    $('clear').disabled = !idle || !bets.size;
+    $('double').disabled = !idle || !bets.size;
+    $('rebet').disabled = !idle || !lastBets.length;
+    $('rtable').classList.toggle('locked', !idle);
+
+    const play = $('play');
+    if (phase === 'request' || phase === 'spin') { play.textContent = 'Draait…'; play.disabled = true; }
+    else if (phase === 'result') { play.textContent = 'Draaien'; play.disabled = true; }
+    else if (!bets.size && lastBets.length) {
+      play.textContent = `Herhaal & draai · ${fmt(lastBets.reduce((a, b) => a + b.amount, 0))}`;
+      play.disabled = false;
+    } else {
+      play.textContent = total ? `Draaien · ${fmt(total)}` : 'Draaien';
+      play.disabled = !total;
+    }
+  }
+
+  function renderStats() {
+    $('sSpins').textContent = fmt(session.spins);
+    $('sWagered').textContent = fmt(session.wagered);
+    const profit = session.won - session.wagered;
+    const p = $('sProfit');
+    p.textContent = `${profit > 0 ? '+' : ''}${fmt(profit)}`;
+    p.className = profit > 0 ? 'win' : profit < 0 ? 'loss' : '';
+    $('sBest').textContent = session.best ? `+${fmt(session.best)}` : '–';
+    const s = me && me.stats;
+    const all = $('allTime');
+    all.replaceChildren();
+    if (s && s.games_played > 0) {
+      const net = s.total_payout - s.total_bet;
+      all.append('Totaal ', el('b', { text: fmt(s.games_played) }), ' spins · resultaat ',
+        el('b', { class: net > 0 ? 'win' : net < 0 ? 'loss' : '', text: `${net > 0 ? '+' : ''}${fmt(net)}` }),
+        ' · grootste winst ', el('b', { text: `+${fmt(s.biggest_win)}` }));
+    }
+  }
+
+  function renderAll() {
+    renderUser();
+    renderControls();
+    renderStats();
+    renderChips();
+  }
+
+  // =====================================================
+  // TAFEL
+  // =====================================================
+  const spots = new Map();   // sleutel -> element
+  const numCells = new Map();// getal -> element
+  const keyOf = numbers => [...numbers].sort((a, b) => a - b).join('-');
+
+  function addHotspot(numbers, x, y) {
+    const key = keyOf(numbers);
+    if (!cfg.bets[key]) return;
+    const hs = el('div', { class: 'hs', 'data-key': key, style: `left:${x * 100}%;top:${y * 100}%` });
+    $('nums').append(hs);
+    spots.set(key, hs);
+  }
+
+  function buildTable() {
+    const nums = $('nums');
+    // Getallen: 3 rijen (boven 3,6,..36 · onder 1,4,..34), 12 kolommen
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 12; c++) {
+        const n = c * 3 + (3 - r);
+        const cell = el('div', { class: `cell num ${colorOf(n)}`, 'data-key': String(n) }, [el('span', { class: 'lbl', text: String(n) })]);
+        nums.append(cell);
+        spots.set(String(n), cell);
+        numCells.set(n, cell);
+      }
+    }
+    const zero = document.querySelector('.zero');
+    spots.set('0', zero);
+    numCells.set(0, zero);
+
+    // Hotspots tussen de vakken
+    const pos = n => ({ c: Math.floor((n - 1) / 3), r: 2 - ((n - 1) % 3) });
+    for (let n = 1; n <= 36; n++) {
+      const { c, r } = pos(n);
+      if (n % 3 !== 0) addHotspot([n, n + 1], (c + 0.5) / 12, r / 3);
+      if (n <= 33) addHotspot([n, n + 3], (c + 1) / 12, (r + 0.5) / 3);
+      if (n % 3 !== 0 && n <= 32) addHotspot([n, n + 1, n + 3, n + 4], (c + 1) / 12, r / 3);
+      if (n % 3 === 1) addHotspot([n, n + 1, n + 2], (c + 0.5) / 12, 1);
+      if (n % 3 === 1 && n <= 31) addHotspot([n, n + 1, n + 2, n + 3, n + 4, n + 5], (c + 1) / 12, 1);
+    }
+    addHotspot([0, 3], 0, 0.5 / 3);
+    addHotspot([0, 2], 0, 1.5 / 3);
+    addHotspot([0, 1], 0, 2.5 / 3);
+    addHotspot([0, 2, 3], 0, 1 / 3);
+    addHotspot([0, 1, 2], 0, 2 / 3);
+    addHotspot([0, 1, 2, 3], 0, 1);
+
+    const outsideCell = (parent, key, children) => {
+      const cell = el('div', { class: 'cell', 'data-key': key }, children);
+      parent.append(cell);
+      spots.set(key, cell);
+    };
+    ['col3', 'col2', 'col1'].forEach(key => outsideCell($('cols'), key, [el('span', { class: 'lbl', text: '2:1' })]));
+    ['1e 12', '2e 12', '3e 12'].forEach((text, i) => outsideCell($('dozens'), `dozen${i + 1}`, [el('span', { class: 'lbl', text })]));
+    outsideCell($('outside'), 'low', [el('span', { class: 'lbl', text: '1–18' })]);
+    outsideCell($('outside'), 'even', [el('span', { class: 'lbl', text: 'Even' })]);
+    outsideCell($('outside'), 'red', [el('div', { class: 'diamond red', title: 'Rood' })]);
+    outsideCell($('outside'), 'black', [el('div', { class: 'diamond black', title: 'Zwart' })]);
+    outsideCell($('outside'), 'odd', [el('span', { class: 'lbl', text: 'Oneven' })]);
+    outsideCell($('outside'), 'high', [el('span', { class: 'lbl', text: '19–36' })]);
+  }
+
+  function betName(key) {
+    const named = { red: 'Rood', black: 'Zwart', even: 'Even', odd: 'Oneven', low: '1–18', high: '19–36',
+      dozen1: '1e dozijn (1–12)', dozen2: '2e dozijn (13–24)', dozen3: '3e dozijn (25–36)',
+      col1: 'Kolom 1 (1, 4 … 34)', col2: 'Kolom 2 (2, 5 … 35)', col3: 'Kolom 3 (3, 6 … 36)' };
+    if (named[key]) return named[key];
+    const n = cfg.bets[key];
+    if (n.length === 1) return `Getal ${n[0]}`;
+    if (n.length === 2) return `Split ${n.join(' / ')}`;
+    if (n.length === 3) return n[0] === 0 ? `Trio ${n.join(' / ')}` : `Street ${n[0]}–${n[2]}`;
+    if (n.length === 4) return n[0] === 0 ? 'Eerste vier (0–3)' : `Carré ${n.join(' / ')}`;
+    return `Sixline ${n[0]}–${n[5]}`;
+  }
+
+  function renderChips() {
+    for (const [key, node] of spots) {
+      const amount = bets.get(key) || 0;
+      let chip = node.querySelector(':scope > .bchip');
+      if (!amount) { if (chip && !chip.classList.contains('lost')) chip.remove(); continue; }
+      if (!chip) { chip = el('div', { class: 'bchip chip' }, [el('span')]); node.append(chip); }
+      chip.className = `bchip chip ${chipClass(amount)}`;
+      chip.firstChild.textContent = amount >= 1000 ? `${Math.floor(amount / 100) / 10}k` : String(amount);
+    }
+    renderControls();
+    renderBalance();
+    renderHoverInfo();
+  }
+
+  // Hover: gedekte getallen oplichten + uitleg onder de tafel
+  let hoverKey = null;
+  function setHover(key) {
+    if (key === hoverKey) return;
+    hoverKey = key;
+    document.querySelectorAll('.cell.hl, .hs.hl').forEach(n => n.classList.remove('hl'));
+    if (key && cfg.bets[key]) {
+      cfg.bets[key].forEach(n => numCells.get(n).classList.add('hl'));
+      if (spots.get(key) && spots.get(key).classList.contains('hs')) spots.get(key).classList.add('hl');
+    }
+    renderHoverInfo();
+  }
+  function renderHoverInfo() {
+    const box = $('hoverinfo');
+    box.replaceChildren();
+    if (!hoverKey || !cfg) {
+      if (bets.size) box.append(el('span', { text: `${bets.size} ${bets.size === 1 ? 'inzet' : 'inzetten'} op tafel` }));
+      return;
+    }
+    const k = cfg.bets[hoverKey].length;
+    const amount = bets.get(hoverKey) || 0;
+    box.append(el('span', {}, [`${betName(hoverKey)} · `, el('b', { text: `${36 / k - 1} : 1` })]));
+    box.append(el('span', { text: amount ? `Jouw inzet ${fmt(amount)} → wint ${fmt(amount * 36 / k)}` : '' }));
+  }
+
+  const rtable = $('rtable');
+  rtable.addEventListener('pointerover', e => {
+    const spot = e.target.closest('[data-key]');
+    setHover(spot ? spot.dataset.key : null);
+  });
+  rtable.addEventListener('pointerleave', () => setHover(null));
+  rtable.addEventListener('click', e => {
+    const spot = e.target.closest('[data-key]');
+    if (!spot) return;
+    if (e.shiftKey) removeChip(spot.dataset.key);
+    else placeChip(spot.dataset.key, settings.chip);
+  });
+  rtable.addEventListener('contextmenu', e => {
+    const spot = e.target.closest('[data-key]');
+    if (!spot) return;
+    e.preventDefault();
+    removeChip(spot.dataset.key);
+  });
+
+  function canPlace(amount, extraKeys = 0) {
+    const total = tableTotal();
+    if (total + amount > cfg.maxTotalBet) return `Je mag maximaal ${fmt(cfg.maxTotalBet)} punten per spin inzetten.`;
+    if (amount > shownBalance()) return `Niet genoeg punten: je hebt nog ${fmt(Math.max(0, shownBalance()))} over.`;
+    if (bets.size + extraKeys > cfg.maxBets) return `Maximaal ${cfg.maxBets} verschillende inzetten per spin.`;
+    return null;
+  }
+
+  function startPlacing() {
+    // Eerste fiche na een uitslag: oude winnende fiches + markering weg
+    if (phase === 'result') finishResult();
+    document.querySelectorAll('.cell.winner').forEach(n => n.classList.remove('winner'));
+  }
+
+  function placeChip(key, amount) {
+    if (!me || !me.linked || !cfg.bets[key]) return;
+    if (phase !== 'idle' && phase !== 'result') return;
+    startPlacing();
+    const problem = canPlace(amount, bets.has(key) ? 0 : 1);
+    if (problem) { toast(problem, false); return; }
+    setNotice(null);
+    bets.set(key, (bets.get(key) || 0) + amount);
+    undoStack.push({ key, amount });
+    sfx.chip();
+    renderChips();
+  }
+
+  function removeChip(key) {
+    if (phase !== 'idle' || !bets.has(key)) return;
+    const current = bets.get(key);
+    const amount = Math.min(current, settings.chip);
+    if (current - amount > 0) bets.set(key, current - amount); else bets.delete(key);
+    undoStack.push({ key, amount: -amount });
+    sfx.click();
+    renderChips();
+  }
+
+  function clearTable() {
+    bets.clear();
+    undoStack = [];
+    renderChips();
+  }
+
+  $('undo').addEventListener('click', undo);
+  function undo() {
+    if (phase !== 'idle') return;
+    const last = undoStack.pop();
+    if (!last) return;
+    const value = (bets.get(last.key) || 0) - last.amount;
+    if (value > 0) bets.set(last.key, value); else bets.delete(last.key);
+    sfx.click();
+    renderChips();
+  }
+  $('clear').addEventListener('click', () => { if (phase === 'idle') { clearTable(); sfx.click(); } });
+  $('double').addEventListener('click', () => {
+    if (phase !== 'idle' || !bets.size) return;
+    const problem = canPlace(tableTotal());
+    if (problem) { toast(problem, false); return; }
+    for (const [key, amount] of bets) { bets.set(key, amount * 2); undoStack.push({ key, amount }); }
+    sfx.chip();
+    renderChips();
+  });
+  $('rebet').addEventListener('click', () => rebet());
+  function rebet() {
+    if (phase === 'result') finishResult();
+    if (phase !== 'idle' || !lastBets.length) return false;
+    startPlacing();
+    const total = lastBets.reduce((a, b) => a + b.amount, 0);
+    const fresh = lastBets.filter(b => !bets.has(b.key)).length;
+    const problem = canPlace(total, fresh);
+    if (problem) { toast(problem, false); return false; }
+    for (const { key, amount } of lastBets) {
+      if (!cfg.bets[key]) continue;
+      bets.set(key, (bets.get(key) || 0) + amount);
+      undoStack.push({ key, amount });
+    }
+    sfx.chip();
+    renderChips();
+    return true;
+  }
+
+  $('play').addEventListener('click', () => doSpin());
+  const typing = t => t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT');
+  addEventListener('keydown', e => {
+    if (typing(e.target) || !me || !me.linked) return;
+    if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) doSpin(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+  });
+  addEventListener('keyup', e => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault(); });
+
+  // =====================================================
+  // SPELEN
+  // =====================================================
+  async function doSpin() {
+    if (!me || !me.linked) return;
+    if (phase === 'result') finishResult();
+    if (phase !== 'idle') return;
+    if (!bets.size && lastBets.length && !rebet()) return;
+    if (!bets.size) { toast('Leg eerst fiches op de tafel.', false); return; }
+
+    setNotice(null);
+    setHover(null);
+    document.querySelectorAll('.cell.winner').forEach(n => n.classList.remove('winner'));
+    phase = 'request';
+    renderControls();
+    const placed = [...bets].map(([key, amount]) => ({ key, amount }));
+    const res = await post('/api/roulette/spin', { bets: placed });
+    if (typeof res.balance === 'number') serverBalance = res.balance;
+    if (!res.ok) {
+      phase = 'idle';
+      toast(res.message, false);
+      setNotice(res.message);
+      renderChips();
+      return;
+    }
+    lastBets = placed;
+    save();
+    pending = res.payout;
+    phase = 'spin';
+    session.spins++; session.wagered += res.totalBet;
+    renderBalance(); renderStats(); renderControls();
+    hideResult();
+    startWheel(res);
+  }
+
+  function land(res) {
+    pending = 0;
+    phase = 'result';
+    const net = res.payout - res.totalBet;
+    session.won += res.payout;
+    if (net > session.best) session.best = net;
+    if (me) {
+      me.stats = me.stats || { games_played: 0, total_bet: 0, total_payout: 0, biggest_win: 0 };
+      me.stats.games_played++;
+      me.stats.total_bet += res.totalBet;
+      me.stats.total_payout += res.payout;
+      me.stats.biggest_win = Math.max(me.stats.biggest_win, net);
+    }
+    renderBalance(res.payout > 0);
+    renderStats();
+    renderControls();
+    addHistory(res.result);
+
+    // Tafel: winnend getal + fiches
+    numCells.get(res.result).classList.add('winner');
+    for (const bet of res.bets) {
+      const chip = spots.get(bet.key) && spots.get(bet.key).querySelector(':scope > .bchip');
+      if (!chip) continue;
+      if (bet.win > 0) chip.classList.add('won'); else chip.classList.add('lost');
+    }
+    for (const bet of res.bets) if (!bet.win) bets.delete(bet.key);
+    renderHoverInfo();
+
+    showResult(res);
+    sfx.land();
+    if (res.payout > 0) {
+      setTimeout(() => sfx.win(res.payout / res.totalBet), 180);
+      if (res.payout / res.totalBet >= 10 || net >= 200) {
+        const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+        burst(30 + Math.min(60, res.payout / res.totalBet * 2));
+      }
+    }
+    clearTimeout(resultTimer);
+    resultTimer = setTimeout(finishResult, RESULT_MS);
+  }
+
+  // Na de uitslag: winnende fiches gaan van tafel (uitbetaald), klaar voor de volgende ronde
+  function finishResult() {
+    clearTimeout(resultTimer);
+    if (phase !== 'result') return;
+    phase = 'idle';
+    bets.clear();
+    undoStack = [];
+    document.querySelectorAll('.bchip').forEach(n => n.remove());
+    renderChips();
+  }
+
+  function showResult(res) {
+    const box = $('resultpop');
+    const color = res.color;
+    const num = $('rpNum');
+    num.textContent = res.result;
+    num.className = `num ${color}`;
+    const net = res.payout - res.totalBet;
+    $('rpKicker').textContent = `${colorName[color].toUpperCase()}${res.result ? ` · ${res.result % 2 ? 'ONEVEN' : 'EVEN'}` : ''}`;
+    const amt = $('rpAmt');
+    if (res.payout > 0) {
+      amt.textContent = `+${fmt(res.payout)}`;
+      amt.className = `amt ${net >= 0 ? 'win' : ''}`;
+    } else {
+      amt.textContent = `−${fmt(res.totalBet)}`;
+      amt.className = 'amt loss';
+    }
+    box.classList.toggle('big', res.payout / res.totalBet >= 10);
+    box.hidden = false;
+    box.classList.remove('go', 'bye'); void box.offsetWidth; box.classList.add('go');
+    clearTimeout(showResult.timer);
+    showResult.timer = setTimeout(hideResult, 3200);
+  }
+  function hideResult() {
+    const box = $('resultpop');
+    if (box.hidden) return;
+    clearTimeout(showResult.timer);
+    box.classList.add('bye');
+    setTimeout(() => { if (box.classList.contains('bye')) box.hidden = true; }, 350);
+  }
+
+  function addHistory(n) {
+    const hist = $('hist');
+    hist.prepend(el('div', { class: `hchip ${colorOf(n)}`, text: String(n) }));
+    const chips = [...hist.children].filter(c => !c.classList.contains('out'));
+    chips.slice(10).forEach(c => { c.classList.add('out'); setTimeout(() => c.remove(), 260); });
+  }
+
+  // =====================================================
+  // WIEL
+  // =====================================================
+  const canvas = $('wheel');
+  const ctx = canvas.getContext('2d');
+  const area = $('wheelarea');
+  let W = 0, H = 0, dpr = 1, R = 100, cx = 0, cy = 0;
+  const bowl = document.createElement('canvas');
+  const rotor = document.createElement('canvas');
+  let wheelAngle = Math.random() * TAU;
+  const ball = { visible: false, pocket: 0, rel: 0, r: 0 };
+  const particles = [];
+  const STEP = TAU / 37;
+  // Straal-verhoudingen
+  const RIM = 1, TRACK_OUT = 0.94, TRACK_IN = 0.80, NUM_IN = 0.68, POCKET_IN = 0.55;
+  const BALL_TRACK = 0.87, BALL_POCKET = 0.615;
+
+  const pocketAngle = n => cfg.wheel.indexOf(n) * STEP;
+
+  function layout() {
+    const rect = area.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    if (!W || !H || !cfg) return;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    const narrow = W < 640;
+    R = Math.max(60, Math.min(W - (narrow ? 24 : 150), H - 24) / 2);
+    cx = W / 2; cy = H / 2;
+    drawBowl();
+    drawRotor();
+  }
+  new ResizeObserver(() => layout()).observe(area);
+
+  function drawBowl() {
+    const size = Math.ceil(R * 2 * dpr) + 4;
+    bowl.width = bowl.height = size;
+    const b = bowl.getContext('2d');
+    b.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const c = size / dpr / 2;
+    // Schaduw onder het wiel
+    b.save();
+    b.shadowColor = 'rgba(0,0,0,.6)'; b.shadowBlur = R * 0.08; b.shadowOffsetY = R * 0.03;
+    b.fillStyle = '#2b160a';
+    b.beginPath(); b.arc(c, c, R * RIM - 1, 0, TAU); b.fill();
+    b.restore();
+    // Houten rand
+    const wood = b.createRadialGradient(c, c - R * 0.3, R * 0.5, c, c, R);
+    wood.addColorStop(0, '#7a4521'); wood.addColorStop(0.7, '#5a3016'); wood.addColorStop(1, '#2e170a');
+    b.fillStyle = wood;
+    b.beginPath(); b.arc(c, c, R * RIM - 1, 0, TAU); b.fill();
+    b.strokeStyle = 'rgba(242,193,78,.55)'; b.lineWidth = Math.max(1, R * 0.008);
+    b.beginPath(); b.arc(c, c, R * 0.965, 0, TAU); b.stroke();
+    // Baan van de bal
+    const track = b.createRadialGradient(c, c, R * TRACK_IN, c, c, R * TRACK_OUT);
+    track.addColorStop(0, '#15161a'); track.addColorStop(0.6, '#2a2c31'); track.addColorStop(1, '#0d0e10');
+    b.fillStyle = track;
+    b.beginPath(); b.arc(c, c, R * TRACK_OUT, 0, TAU); b.arc(c, c, R * TRACK_IN, 0, TAU, true); b.fill();
+    // Glans
+    const shine = b.createLinearGradient(0, c - R, 0, c + R);
+    shine.addColorStop(0, 'rgba(255,255,255,.10)'); shine.addColorStop(0.5, 'rgba(255,255,255,0)');
+    b.fillStyle = shine;
+    b.beginPath(); b.arc(c, c, R * TRACK_OUT, 0, TAU); b.arc(c, c, R * TRACK_IN, 0, TAU, true); b.fill();
+    // Ruitjes (deflectors)
+    b.fillStyle = '#d9b45a';
+    for (let i = 0; i < 8; i++) {
+      const a = i * TAU / 8 + TAU / 16;
+      const x = c + Math.sin(a) * R * 0.835, y = c - Math.cos(a) * R * 0.835;
+      b.save(); b.translate(x, y); b.rotate(a);
+      const s = R * 0.022;
+      b.beginPath(); b.moveTo(0, -s * 1.8); b.lineTo(s, 0); b.lineTo(0, s * 1.8); b.lineTo(-s, 0); b.closePath(); b.fill();
+      b.restore();
+    }
+  }
+
+  function drawRotor() {
+    const size = Math.ceil(R * TRACK_IN * 2 * dpr) + 4;
+    rotor.width = rotor.height = size;
+    const r = rotor.getContext('2d');
+    r.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const c = size / dpr / 2;
+    const colors = { red: ['#d33a2f', '#9e241c'], black: ['#2a2c31', '#141518'], green: ['#26a157', '#17733c'] };
+
+    for (let i = 0; i < 37; i++) {
+      const n = cfg.wheel[i];
+      const [light, dark] = colors[colorOf(n)];
+      const a0 = i * STEP - STEP / 2 - Math.PI / 2, a1 = a0 + STEP;
+      // Getallenring
+      r.fillStyle = light;
+      r.beginPath(); r.arc(c, c, R * TRACK_IN, a0, a1); r.arc(c, c, R * NUM_IN, a1, a0, true); r.closePath(); r.fill();
+      // Vakje
+      const g = r.createRadialGradient(c, c, R * POCKET_IN, c, c, R * NUM_IN);
+      g.addColorStop(0, dark); g.addColorStop(1, light);
+      r.fillStyle = g;
+      r.beginPath(); r.arc(c, c, R * NUM_IN, a0, a1); r.arc(c, c, R * POCKET_IN, a1, a0, true); r.closePath(); r.fill();
+      // Getal
+      r.save();
+      r.translate(c, c); r.rotate(i * STEP);
+      r.fillStyle = '#fff';
+      r.font = `800 ${Math.max(7, R * 0.068)}px system-ui, sans-serif`;
+      r.textAlign = 'center'; r.textBaseline = 'middle';
+      r.fillText(String(n), 0, -R * (TRACK_IN + NUM_IN) / 2);
+      r.restore();
+    }
+    // Vakjesscheiders (goud)
+    r.strokeStyle = '#d9b45a'; r.lineWidth = Math.max(1, R * 0.007);
+    for (let i = 0; i < 37; i++) {
+      const a = i * STEP - STEP / 2 - Math.PI / 2;
+      r.beginPath();
+      r.moveTo(c + Math.cos(a) * R * POCKET_IN, c + Math.sin(a) * R * POCKET_IN);
+      r.lineTo(c + Math.cos(a) * R * TRACK_IN, c + Math.sin(a) * R * TRACK_IN);
+      r.stroke();
+    }
+    [TRACK_IN, NUM_IN, POCKET_IN].forEach(f => { r.beginPath(); r.arc(c, c, R * f, 0, TAU); r.stroke(); });
+
+    // Kegel in het midden
+    const cone = r.createRadialGradient(c - R * 0.12, c - R * 0.15, R * 0.05, c, c, R * POCKET_IN);
+    cone.addColorStop(0, '#8a5226'); cone.addColorStop(0.6, '#5b3116'); cone.addColorStop(1, '#341a0a');
+    r.fillStyle = cone;
+    r.beginPath(); r.arc(c, c, R * POCKET_IN - 1, 0, TAU); r.fill();
+    r.strokeStyle = 'rgba(217,180,90,.5)'; r.lineWidth = Math.max(1, R * 0.006);
+    r.beginPath(); r.arc(c, c, R * 0.36, 0, TAU); r.stroke();
+    // Draaikruis
+    const gold = r.createLinearGradient(c - R * 0.3, c - R * 0.3, c + R * 0.3, c + R * 0.3);
+    gold.addColorStop(0, '#fff1b8'); gold.addColorStop(0.5, '#d9b45a'); gold.addColorStop(1, '#8c6a22');
+    r.fillStyle = gold; r.strokeStyle = gold;
+    r.lineCap = 'round'; r.lineWidth = Math.max(2, R * 0.035);
+    for (let i = 0; i < 4; i++) {
+      const a = i * TAU / 4;
+      const x = c + Math.sin(a) * R * 0.3, y = c - Math.cos(a) * R * 0.3;
+      r.beginPath(); r.moveTo(c, c); r.lineTo(x, y); r.stroke();
+      r.beginPath(); r.arc(x, y, R * 0.04, 0, TAU); r.fill();
+    }
+    r.beginPath(); r.arc(c, c, R * 0.09, 0, TAU); r.fill();
+    r.fillStyle = 'rgba(255,255,255,.5)';
+    r.beginPath(); r.arc(c - R * 0.025, c - R * 0.03, R * 0.03, 0, TAU); r.fill();
+  }
+
+  // Animatie: relatieve hoek van de bal t.o.v. het wiel loopt terug naar het winnende vakje
+  const easeOut = (x, p) => 1 - (1 - x) ** p;
+  function startWheel(res) {
+    const target = pocketAngle(res.result);
+    const from = ball.visible ? pocketAngle(ball.pocket) : target + Math.random() * TAU;
+    let travel = (((from - target) % TAU) + TAU) % TAU;
+    travel += TAU * 6;   // aantal extra rondjes van de bal (tegen de draairichting in)
+    spin = { res, start: performance.now(), target, travel, fromR: ball.visible ? BALL_POCKET : BALL_TRACK, lastPocket: -1, landed: false, bounced: 0 };
+    ball.visible = true;
+    sfx.launch();
+  }
+
+  function updateSpin(now) {
+    if (!spin) return;
+    const t = now - spin.start;
+    const x = Math.min(1, t / LAND_MS);
+    ball.rel = spin.target + spin.travel * (1 - easeOut(x, 2.4));
+    // Straal: uit het vakje → baan → valt naar binnen met een paar stuiters
+    if (x < 0.04) ball.r = spin.fromR + (BALL_TRACK - spin.fromR) * (x / 0.04);
+    else if (x < 0.62) ball.r = BALL_TRACK;
+    else if (x < 0.82) {
+      const u = (x - 0.62) / 0.2;
+      ball.r = BALL_TRACK - (BALL_TRACK - BALL_POCKET) * u * u;
+    } else {
+      const u = (x - 0.82) / 0.18;
+      ball.r = BALL_POCKET + Math.abs(Math.sin(u * Math.PI * 3)) * 0.05 * (1 - u) ** 2;
+    }
+    // Tikjes als de bal over de vakjes rolt
+    if (x > 0.62 && x < 1) {
+      const p = Math.floor((((ball.rel % TAU) + TAU) % TAU) / STEP + 0.5);
+      if (p !== spin.lastPocket) { spin.lastPocket = p; sfx.tick(x); }
+    }
+    if (x >= 1 && !spin.landed) {
+      spin.landed = true;
+      ball.rel = spin.target;
+      ball.r = BALL_POCKET;
+      ball.pocket = spin.res.result;
+      land(spin.res);
+    }
+    if (t >= SPIN_MS) spin = null;
+  }
+
+  function wheelSpeed(now) {
+    if (!spin) return IDLE_SPEED;
+    const x = Math.min(1, (now - spin.start) / SPIN_MS);
+    return IDLE_SPEED + 3.2 * (1 - x) ** 2;
+  }
+
+  function burst(count) {
+    const a = wheelAngle + pocketAngle(ball.pocket);
+    const x = cx + Math.sin(a) * R * BALL_POCKET, y = cy - Math.cos(a) * R * BALL_POCKET;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * TAU;
+      const speed = 2 + Math.random() * 6;
+      particles.push({
+        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 2,
+        life: 1, decay: 0.012 + Math.random() * 0.016, size: 1.5 + Math.random() * 3,
+        color: Math.random() < 0.4 ? '255,244,214' : '242,193,78'
+      });
+    }
+  }
+
+  let lastFrame = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dtMs = Math.min(50, now - lastFrame);
+    lastFrame = now;
+    if (!cfg || !W) return;
+    wheelAngle = (wheelAngle + wheelSpeed(now) * dtMs / 1000) % TAU;
+    updateSpin(now);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const bs = bowl.width / dpr;
+    ctx.drawImage(bowl, cx - bs / 2, cy - bs / 2, bs, bs);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(wheelAngle);
+    const rs = rotor.width / dpr;
+    ctx.drawImage(rotor, -rs / 2, -rs / 2, rs, rs);
+    // Winnend vakje licht op
+    if (phase === 'result' && ball.visible) {
+      const a = pocketAngle(ball.pocket) - Math.PI / 2;
+      const pulse = 0.25 + 0.2 * Math.sin(now / 160);
+      ctx.fillStyle = `rgba(255,236,170,${pulse})`;
+      ctx.beginPath(); ctx.arc(0, 0, R * TRACK_IN, a - STEP / 2, a + STEP / 2); ctx.arc(0, 0, R * POCKET_IN, a + STEP / 2, a - STEP / 2, true); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+
+    // Bal
+    if (ball.visible) {
+      const rel = spin ? ball.rel : pocketAngle(ball.pocket);
+      const rr = spin ? ball.r : BALL_POCKET;
+      const a = wheelAngle + rel;
+      const x = cx + Math.sin(a) * R * rr, y = cy - Math.cos(a) * R * rr;
+      const br = Math.max(3, R * 0.032);
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.beginPath(); ctx.arc(x + br * 0.25, y + br * 0.45, br, 0, TAU); ctx.fill();
+      const g = ctx.createRadialGradient(x - br * 0.35, y - br * 0.4, br * 0.1, x, y, br);
+      g.addColorStop(0, '#ffffff'); g.addColorStop(0.6, '#e6e8ec'); g.addColorStop(1, '#9ca3ad');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, y, br, 0, TAU); ctx.fill();
+    }
+
+    // Vonken
+    const dt = dtMs / 16.67;
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.vy += 0.22 * dt; p.vx *= 0.985;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.life -= p.decay * dt;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.fillStyle = `rgba(${p.color},${p.life})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.5 + p.life * 0.5), 0, TAU); ctx.fill();
+    }
+  }
+
+  // =====================================================
+  // GELUID
+  // =====================================================
+  let muted = false;
+  try { muted = localStorage.getItem('roulette_muted') === '1'; } catch (error) { /* geen opslag */ }
+  let audioCtx = null, master = null;
+
+  function audio() {
+    if (muted) return null;
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      audioCtx = new Ctx();
+      const comp = audioCtx.createDynamicsCompressor();
+      comp.threshold.value = -18; comp.ratio.value = 6;
+      master = audioCtx.createGain();
+      master.gain.value = 0.9;
+      master.connect(comp).connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function tone(freq, start, length, volume, type = 'triangle', slideTo = null) {
+    const a = audio();
+    if (!a) return;
+    const t = a.currentTime + start;
+    const osc = a.createOscillator();
+    const gain = a.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + length);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(volume, t + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    osc.connect(gain).connect(master);
+    osc.start(t);
+    osc.stop(t + length + 0.05);
+  }
+
+  // Rollende bal: gefilterde ruis die langzaam zachter wordt
+  function rollNoise(seconds) {
+    const a = audio();
+    if (!a) return;
+    const buffer = a.createBuffer(1, Math.floor(a.sampleRate * seconds), a.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = a.createBufferSource();
+    src.buffer = buffer;
+    const filter = a.createBiquadFilter();
+    filter.type = 'bandpass'; filter.frequency.value = 1800; filter.Q.value = 0.8;
+    const gain = a.createGain();
+    const t = a.currentTime;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.05, t + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.02, t + seconds * 0.6);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+    filter.frequency.exponentialRampToValueAtTime(700, t + seconds);
+    src.connect(filter).connect(gain).connect(master);
+    src.start(t);
+  }
+
+  let lastTick = 0;
+  const sfx = {
+    click() { tone(1400, 0, 0.03, 0.03, 'square'); },
+    chip() { tone(2400, 0, 0.035, 0.05, 'triangle', 1500); tone(3100, 0.03, 0.03, 0.03, 'triangle', 2000); },
+    launch() { tone(300, 0, 0.25, 0.05, 'sine', 900); rollNoise(LAND_MS / 1000 * 0.66); },
+    tick(x) {
+      const now = performance.now();
+      if (now - lastTick < 28) return;
+      lastTick = now;
+      tone(2600 + Math.random() * 400, 0, 0.018, 0.05 * (1.2 - x), 'square');
+    },
+    land() { tone(900, 0, 0.05, 0.08, 'square', 500); tone(220, 0, 0.12, 0.08, 'sine', 120); },
+    win(m) {
+      if (m < 2) { tone(587, 0, 0.14, 0.07); tone(880, 0.05, 0.18, 0.06); return; }
+      if (m < 10) { [659, 880, 1319].forEach((f, i) => tone(f, i * 0.06, 0.25, 0.08)); return; }
+      [523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => tone(f, i * 0.08, 0.4, 0.09));
+      [523, 659, 784].forEach(f => tone(f, 0.6, 1.4, 0.05, 'sawtooth'));
+    }
+  };
+
+  const SPEAKER = '<path d="M4 9.5h3.2L12 5.6v12.8l-4.8-3.9H4z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>';
+  const ICONS = {
+    on: `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER}<path d="M15.2 9.2a4 4 0 0 1 0 5.6M17.8 6.6a7.6 7.6 0 0 1 0 10.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+    off: `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER}<path d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`
+  };
+  function renderMute() {
+    const b = $('mute');
+    b.innerHTML = muted ? ICONS.off : ICONS.on;
+    b.classList.toggle('off', muted);
+    b.title = muted ? 'Geluid aanzetten' : 'Geluid uitzetten';
+    b.setAttribute('aria-label', b.title);
+  }
+  $('mute').addEventListener('click', () => {
+    muted = !muted;
+    try { localStorage.setItem('roulette_muted', muted ? '1' : '0'); } catch (error) { /* geen opslag */ }
+    renderMute();
+  });
+  renderMute();
+
+  // Sessie wissen
+  $('resetSession').addEventListener('click', () => {
+    Object.assign(session, { spins: 0, wagered: 0, won: 0, best: 0 }); renderStats();
+  });
+
+  // =====================================================
+  // START
+  // =====================================================
+  const params = new URLSearchParams(location.search);
+  if (params.get('login') === 'invalid') {
+    setTimeout(() => toast('Die link is ongeldig of verlopen. Typ /roulette in Discord voor een nieuwe.', false), 300);
+    history.replaceState(null, '', location.pathname);
+  }
+
+  loadStatus();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

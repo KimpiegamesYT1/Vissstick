@@ -1,5 +1,5 @@
 /**
- * Verbindingsbewaking voor de casino-pagina's (Rocket, Blackjack, Plinko, Slots, Daily spin).
+ * Verbindingsbewaking voor de casino-pagina's (Rocket, Blackjack, Plinko, Slots, Roulette, Daily spin).
  *
  * Als de server even weg is (bot herstart, internet weg, proxy geeft 502/503/504) verschijnt er een popup die
  * zelf opnieuw verbinding probeert te maken. Is de server terug, dan wordt de pagina herladen zodat alles

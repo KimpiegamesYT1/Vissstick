@@ -6,6 +6,7 @@
  *   GET  /blackjack                 Blackjack tafel (3D)
  *   GET  /plinko                    Plinko
  *   GET  /slots                     Slots (fruitautomaat)
+ *   GET  /roulette                  Roulette (Europees)
  *   GET  /afwas                     Afwassen (alleen onder 50 punten)
  *   GET  /connection.js             verbindingspopup voor alle casino-pagina's
  *   GET  /vendor/three/*.js         three.js (uit node_modules)
@@ -27,6 +28,8 @@
  *   POST /api/plinko/drop           laat een bal vallen
  *   GET  /api/slots/status          instellingen, niveaus en eigen voortgang
  *   POST /api/slots/spin            één spin
+ *   GET  /api/roulette/status       instellingen, eigen stats en laatste uitslagen
+ *   POST /api/roulette/spin         fiches inzetten en draaien
  *   GET  /api/afwas/status          instellingen, saldo en eigen stats
  *   POST /api/afwas/{plate,clean,reject}  nieuw bord / bord schoon (+1) / bord afgekeurd
  *   POST /api/logout
@@ -39,6 +42,7 @@ const dailySpin = require('../modules/dailySpin');
 const blackjackTable = require('../modules/blackjackTable');
 const plinko = require('../modules/plinko');
 const slots = require('../modules/slots');
+const roulette = require('../modules/roulette');
 const afwas = require('../modules/afwas');
 const rocketAuth = require('../modules/rocketAuth');
 const casino = require('../modules/casino');
@@ -50,9 +54,10 @@ const COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 const MAX_STREAM_CLIENTS = 300;
 const HEARTBEAT_MS = 15000;
 const MAX_BODY_BYTES = 1024;
+const MAX_ROULETTE_BODY_BYTES = 8192; // een volle roulettetafel past niet in 1 kB
 const ONLINE_WINDOW_MS = 45000; // zo lang na de laatste ping telt iemand als online
 const MAX_ONLINE_SHOWN = 50;
-const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/afwas'];
+const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/afwas'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
   'three.core.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.core.js')
@@ -118,13 +123,13 @@ function redirect(res, location, cookie) {
   res.end();
 }
 
-function readJsonBody(req) {
+function readJsonBody(req, maxBytes = MAX_BODY_BYTES) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on('data', chunk => {
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
+      if (size > maxBytes) {
         reject(new Error('body_too_large'));
         req.destroy();
         return;
@@ -149,6 +154,7 @@ function createCasinoWebHandler() {
     blackjack: fs.readFileSync(path.join(WEB_DIR, 'blackjack.html')),
     plinko: fs.readFileSync(path.join(WEB_DIR, 'plinko.html')),
     slots: fs.readFileSync(path.join(WEB_DIR, 'slots.html')),
+    roulette: fs.readFileSync(path.join(WEB_DIR, 'roulette.html')),
     afwas: fs.readFileSync(path.join(WEB_DIR, 'afwas.html'))
   };
   const staticCache = new Map();
@@ -252,7 +258,7 @@ function createCasinoWebHandler() {
     }
     const user = getUser(req);
     if (!user) {
-      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko, /slots of /afwassen in Discord voor je persoonlijke link.' });
+      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko, /slots, /roulette of /afwassen in Discord voor je persoonlijke link.' });
       return;
     }
     const limiter = action === 'plinko/drop' ? plinkoLimiter : actionLimiter;
@@ -263,7 +269,7 @@ function createCasinoWebHandler() {
 
     let body;
     try {
-      body = await readJsonBody(req);
+      body = await readJsonBody(req, action === 'roulette/spin' ? MAX_ROULETTE_BODY_BYTES : MAX_BODY_BYTES);
     } catch (error) {
       sendJson(res, 400, { ok: false, message: 'Verkeerd verzoek.' });
       return;
@@ -282,6 +288,7 @@ function createCasinoWebHandler() {
       case 'blackjack/act': result = blackjackTable.act(user, String(body.action || '')); break;
       case 'plinko/drop': result = plinko.drop(user, body.bet, body.risk, body.rows); break;
       case 'slots/spin': result = slots.spin(user, body.bet, body.machine); break;
+      case 'roulette/spin': result = roulette.spin(user, body.bets); break;
       case 'afwas/plate': result = afwas.nextPlate(user); break;
       case 'afwas/clean': result = afwas.cleanPlate(user, body.plate); break;
       case 'afwas/reject': result = afwas.rejectPlate(user, body.plate); break;
@@ -346,6 +353,20 @@ function createCasinoWebHandler() {
           if (user) {
             casino.getOrCreateUser(user.id, user.username);
             Object.assign(payload, { user, balance: casino.getUserBalance(user.id), ...slots.getStatus(user.id) });
+          }
+          sendJson(res, 200, payload);
+          return true;
+        }
+        case '/roulette':
+        case '/roulette/':
+          sendPage(res, pages.roulette);
+          return true;
+        case '/api/roulette/status': {
+          const user = getUser(req);
+          const payload = { linked: Boolean(user), config: roulette.getConfig() };
+          if (user) {
+            casino.getOrCreateUser(user.id, user.username);
+            Object.assign(payload, { user, balance: casino.getUserBalance(user.id), stats: roulette.getStats(user.id), history: roulette.getHistory(user.id) });
           }
           sendJson(res, 200, payload);
           return true;
@@ -441,7 +462,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|afwas\/(?:plate|clean|reject)|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/spin|afwas\/(?:plate|clean|reject)|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

@@ -370,6 +370,17 @@ CREATE TABLE IF NOT EXISTS plinko_stats (
     last_played DATETIME
 );
 
+-- Roulette (website)
+CREATE TABLE IF NOT EXISTS roulette_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    last_played DATETIME
+);
+
 -- Afwassen (website): borden schoonmaken voor punten als je blut bent
 CREATE TABLE IF NOT EXISTS afwas_stats (
     user_id TEXT PRIMARY KEY,
