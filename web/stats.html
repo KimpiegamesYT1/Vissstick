@@ -60,6 +60,7 @@
   .hero h1 { margin: 0; font-size: clamp(26px, 4vw, 38px); font-weight: 900; letter-spacing: -.5px; }
   .hero h1 span { background: linear-gradient(90deg, #ffe08a, var(--gold) 50%, #f28a4e); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .hero p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  .hero-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
   .live { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--muted); }
   .live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(76,212,123,.18); }
 
@@ -248,6 +249,7 @@
     .brand .word { display: none; }
     .nav { margin-left: 0 !important; order: 3; width: 100%; }
     .hero { padding: 20px 14px 0; }
+    .hero-side { align-items: flex-start; }
     .podium { gap: 8px; }
     .pod .av { width: 56px; height: 56px; font-size: 22px; }
     .pod.p1 .av { width: 72px; height: 72px; font-size: 26px; }
@@ -293,9 +295,12 @@
     <div class="hero-top">
       <div>
         <h1><span>Leaderboard</span></h1>
-        <p>Wie is de rijkste van het HOK? <span class="live" id="updated">Laden…</span></p>
+        <p>Wie is de rijkste van het HOK?</p>
       </div>
-      <div class="seg" id="metric" role="tablist" aria-label="Sorteren op"></div>
+      <div class="hero-side">
+        <span class="live" id="updated">Laden…</span>
+        <div class="seg" id="metric" role="tablist" aria-label="Sorteren op"></div>
+      </div>
     </div>
     <div class="podium" id="podium"></div>
   </section>
