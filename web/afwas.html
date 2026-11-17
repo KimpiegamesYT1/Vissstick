@@ -275,15 +275,12 @@
     { id: 'sponge', key: '2', name: 'Spons', layer: 'grease', surface: 'rand', radius: 20, power: 0.18, foam: 0.6, color: '#e9d040',
       what: 'Vet', where: 'alleen de rand',
       icon: '<svg viewBox="0 0 40 40"><rect x="6" y="12" width="28" height="17" rx="5" fill="#f2da48"/><rect x="6" y="22" width="28" height="7" rx="3" fill="#3fa65c"/><g fill="#c9ad22"><circle cx="13" cy="16" r="1.5"/><circle cx="20" cy="18" r="1.2"/><circle cx="27" cy="15.5" r="1.6"/><circle cx="24" cy="19.5" r="1"/></g><circle cx="31" cy="8" r="3" fill="#fff" opacity=".8"/></svg>' },
-    { id: 'wool', key: '3', name: 'Staalwol', layer: 'burnt', surface: 'overal', radius: 13, power: 0.1, foam: 0.25, color: '#aab3bd',
-      what: 'Aangebrand', where: 'rand én midden, maar traag',
-      icon: '<svg viewBox="0 0 40 40" fill="none" stroke="#aab3bd" stroke-width="1.6" stroke-linecap="round"><path d="M9 22c2-8 12-11 18-6s3 13-5 13-12-5-8-10 12-4 12 2-6 6-8 2 3-5 5-2"/><path d="M8 18c4-6 16-8 22-1M10 28c6 4 16 3 21-4" opacity=".6"/></svg>' },
-    { id: 'spray', key: '4', name: 'Sproeier', layer: 'foam', surface: 'overal', radius: 32, power: 0.2, foam: 0, color: '#5ec8ff',
+    { id: 'spray', key: '3', name: 'Sproeier', layer: 'foam', surface: 'overal', radius: 32, power: 0.2, foam: 0, color: '#5ec8ff',
       what: 'Zeep (naspoelen)', where: 'overal, mag stilhouden',
       icon: '<svg viewBox="0 0 40 40"><path d="M30 2c0 10-10 8-12 16" fill="none" stroke="#59616b" stroke-width="3.2" stroke-linecap="round"/><rect x="11" y="15" width="11" height="9" rx="2.5" fill="#c9d1d9" transform="rotate(20 16 19)"/><g fill="#5ec8ff"><circle cx="10" cy="29" r="1.6"/><circle cx="15" cy="31" r="1.6"/><circle cx="7" cy="34" r="1.3"/><circle cx="13" cy="36" r="1.4"/><circle cx="19" cy="34" r="1.2"/></g></svg>' }
   ];
   const TOOL_BY_LAYER = Object.fromEntries(TOOLS.map(t => [t.layer, t]));
-  const LAYERS = ['food', 'grease', 'burnt', 'foam'];
+  const LAYERS = ['food', 'grease', 'foam'];
 
   // =====================================================
   // STATE
@@ -476,7 +473,7 @@
     if (Date.now() < firedUntil) { showFiredCard(); return; }
     showCard('', `<div class="emoji">🧽</div><h3>Afwasdienst</h3>
       <p>Blut? Was borden af. Elk <b>schoon bord</b> op de lopende band levert <b>${cfg.pointsPerPlate || 5} punten</b> op, tot je weer ${cfg.maxBalance} punten hebt.</p>
-      <p>Kies het juiste gereedschap (<b>1–4</b> of scrollen) en schrob. Niet schoon bij de keuring = afgekeurd.</p>`,
+      <p>Kies het juiste gereedschap (<b>1–3</b> of scrollen) en schrob. Niet schoon bij de keuring = afgekeurd.</p>`,
       el('button', { class: 'big', type: 'button', text: 'Begin met afwassen', onclick: startShift }));
   }
 
@@ -548,8 +545,8 @@
   }
 
   function level() { return Math.min(7, Math.floor(shift.cleaned / 4)); }
-  function travelTime() { return Math.max(20, 32 - level() * 1.2); }     // seconden van ingang tot keuring
-  function spawnGap() { return Math.max(8, 13 - level() * 0.6); }
+  function travelTime() { return Math.max(16, 26 - level() * 1.2); }     // seconden van ingang tot keuring
+  function spawnGap() { return Math.max(7, 11 - level() * 0.5); }
   function beltSpeed() { return (g.spawnX - g.inspectX) / travelTime(); }
 
   async function requestPlate() {
@@ -695,25 +692,6 @@
     ctx.restore();
   }
 
-  function paintBurnt(L, rand, spots) {
-    const ctx = L.ctx;
-    ctx.save();
-    ctx.beginPath(); ctx.arc(C, C, C * 0.97, 0, TAU); ctx.clip();
-    for (let i = 0; i < spots; i++) {
-      const [cx, cy] = polar(rand, 0.1, 0.85);
-      const r = (0.1 + rand() * 0.1) * C;
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.3);
-      grad.addColorStop(0, '#120b07'); grad.addColorStop(0.55, '#2c1a0e'); grad.addColorStop(0.85, 'rgba(70,40,18,.9)'); grad.addColorStop(1, 'rgba(90,55,25,0)');
-      ctx.fillStyle = grad;
-      blobPath(ctx, cx, cy, r * 1.3, rand, 0.5); ctx.fill();
-      ctx.fillStyle = '#0a0604';
-      for (let j = 0; j < 14; j++) {
-        ctx.beginPath(); ctx.arc(cx + (rand() - 0.5) * r * 2, cy + (rand() - 0.5) * r * 2, 0.6 + rand() * 1.6, 0, TAU); ctx.fill();
-      }
-    }
-    ctx.restore();
-  }
-
   function countLayer(L) {
     const d = L.ctx.getImageData(0, 0, D, D).data;
     let c = 0;
@@ -731,7 +709,6 @@
     const lv = level();
     paintFood(layers.food, rand, 1 + Math.min(3, Math.floor(lv / 2)) + Math.floor(rand() * 2));
     if (index >= 2 || rand() < 0.25) paintGrease(layers.grease, rand, 1 + Math.floor(rand() * (1 + Math.min(2, lv / 2))));
-    if (index >= 6 && rand() < 0.3 + lv * 0.08) paintBurnt(layers.burnt, rand, 1 + Math.floor(rand() * (1 + lv / 3)));
     for (const k of LAYERS) {
       const L = layers[k];
       L.init = L.left = countLayer(L);
@@ -863,14 +840,6 @@
         ctx.beginPath(); ctx.arc(32 + Math.cos(a) * r, 32 + Math.sin(a) * r, 1.3 + Math.random() * 1.6, 0, TAU); ctx.fill();
       }
     });
-    SPRITES.wool = mk(ctx => {
-      ctx.strokeStyle = '#000'; ctx.lineWidth = 1.4;
-      for (let i = 0; i < 70; i++) {
-        const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * 26, x = 32 + Math.cos(a) * r, y = 32 + Math.sin(a) * r;
-        ctx.globalAlpha = 0.6 + Math.random() * 0.4;
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (Math.random() - 0.5) * 12, y + (Math.random() - 0.5) * 12); ctx.stroke();
-      }
-    });
   }
 
   // Schermpositie -> positie op het bord (0..D) rekening houdend met draaien
@@ -939,8 +908,8 @@
     const x = clamp(Math.round(loc.lx), 0, D - 1), y = clamp(Math.round(loc.ly), 0, D - 1);
     const has = k => !p.layers[k].done && p.layers[k].ctx.getImageData(x, y, 1, 1).data[3] > 60;
     if (has(tool.layer)) return;
-    const dirtLeft = ['food', 'grease', 'burnt'].some(k => !p.layers[k].done);
-    const other = ['food', 'grease', 'burnt', 'foam'].find(k => k !== tool.layer && (k !== 'foam' || !dirtLeft) && has(k));
+    const dirtLeft = ['food', 'grease'].some(k => !p.layers[k].done);
+    const other = ['food', 'grease', 'foam'].find(k => k !== tool.layer && (k !== 'foam' || !dirtLeft) && has(k));
     if (other) showHint(`Hier heb je de ${TOOL_BY_LAYER[other].name.toLowerCase()} nodig (${TOOL_BY_LAYER[other].key})`);
   }
   function showHint(text) {
@@ -975,7 +944,7 @@
       // kruimels / sop vliegen eraf
       if (Math.random() < 0.35) {
         const L = p.layers[tool.layer];
-        if (!L.done) spawnCrumb(toX, toY, tool.id === 'wool' ? '#2a1a10' : tool.id === 'sponge' ? '#d6a832' : '#8a4a22');
+        if (!L.done) spawnCrumb(toX, toY, tool.id === 'sponge' ? '#d6a832' : '#8a4a22');
       }
       if (Math.random() < tool.foam * 0.25) spawnBubble(toX, toY, 0.8);
     }
@@ -1325,7 +1294,7 @@
     // vuil-lagen
     ctx.save();
     ctx.beginPath(); ctx.arc(0, 0, R * 0.99, 0, TAU); ctx.clip();
-    for (const k of ['burnt', 'food', 'grease', 'foam']) {
+    for (const k of ['food', 'grease', 'foam']) {
       const L = p.layers[k];
       if (L.fade <= 0.01) continue;
       ctx.globalAlpha = L.fade;
@@ -1501,20 +1470,6 @@
       ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-25, -30, 50, 22, 6) : ctx.rect(-25, -30, 50, 22); ctx.fill();
       ctx.fillStyle = '#c9ad22';
       [[-14, -22, 2], [-3, -16, 1.6], [9, -24, 2.2], [16, -15, 1.4], [-18, -13, 1.2]].forEach(([a, b, r]) => { ctx.beginPath(); ctx.arc(a, b, r, 0, TAU); ctx.fill(); });
-    } else if (tool.id === 'wool') {
-      ctx.rotate(pointer.angle + wig * 2);
-      ctx.scale(s, s);
-      ctx.strokeStyle = '#c3cbd3'; ctx.lineWidth = 1.3;
-      const t = performance.now() / 300;
-      for (let i = 0; i < 26; i++) {
-        const a = i * 2.4 + t * (pointer.down ? 3 : 0.2), r = 6 + (i % 5) * 3;
-        ctx.beginPath(); ctx.ellipse(Math.cos(a) * 3, Math.sin(a) * 3 - 6, r, r * 0.6, a, 0, Math.PI * 1.4); ctx.stroke();
-      }
-      ctx.strokeStyle = '#7d8790';
-      for (let i = 0; i < 10; i++) {
-        const a = i * 1.7;
-        ctx.beginPath(); ctx.ellipse(0, -6, 12 + i, 8, a, 0, Math.PI); ctx.stroke();
-      }
     }
     ctx.restore();
 
@@ -2099,7 +2054,6 @@
       const v = clamp(dist / 30, 0.2, 1);
       if (id === 'brush') noise(0, 0.07, 0.09 * v, 3200 + Math.random() * 800, 1.2);
       else if (id === 'sponge') noise(0, 0.09, 0.08 * v, 900 + Math.random() * 300, 0.8, 'lowpass');
-      else if (id === 'wool') noise(0, 0.06, 0.1 * v, 6500 + Math.random() * 1500, 2.5);
     },
     sprayOn() {
       const a = audio();
