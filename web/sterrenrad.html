@@ -738,13 +738,17 @@ function drawWheelFace(segments, colorOf, labelOf, { size = 2048, hub = '#1a1530
     else { grad.addColorStop(0, shade(col, -0.45)); grad.addColorStop(0.7, col); grad.addColorStop(1, shade(col, 0.25)); }
     g.fillStyle = grad;
     g.beginPath(); g.moveTo(cx, cx); g.arc(cx, cx, R, a0, a1); g.closePath(); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = size / 512; g.stroke();
+    g.strokeStyle = 'rgba(255,222,150,.9)'; g.lineWidth = size / 900; g.stroke();
     // Label langs de straal, leesbaar van buiten naar binnen
     g.save(); g.translate(cx, cx); g.rotate(mid + Math.PI / 2);
     labelOf(g, segments[i], R, size, font);
     g.restore();
   }
+  // Donkere rand langs de buitenkant en gouden ringen
+  g.strokeStyle = 'rgba(10,6,24,.55)'; g.lineWidth = R * 0.02; g.beginPath(); g.arc(cx, cx, R * 0.99, 0, TAU); g.stroke();
+  g.strokeStyle = '#e8c06a'; g.lineWidth = R * 0.008; g.beginPath(); g.arc(cx, cx, R * 0.965, 0, TAU); g.stroke();
   g.fillStyle = hub; g.beginPath(); g.arc(cx, cx, R * 0.24, 0, TAU); g.fill();
+  g.strokeStyle = '#e8c06a'; g.lineWidth = R * 0.012; g.beginPath(); g.arc(cx, cx, R * 0.24, 0, TAU); g.stroke();
   return c;
 }
 function shade(hex, amt) {
@@ -755,29 +759,31 @@ function shade(hex, amt) {
 function labelMain(g, s, R, size) {
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff';
   g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = size / 160;
-  if (/^\d+$/.test(s)) {
-    g.font = `1000 ${size * (s === '10' ? 0.06 : 0.075)}px system-ui, sans-serif`;
-    g.fillText(s, 0, -R * 0.84);
-  } else {
-    drawIcon(g, s, 0, -R * 0.875, size * 0.05);
-    const word = SPOT_LABEL[s];
-    g.font = `900 ${size * 0.024}px system-ui, sans-serif`;
-    [...word].forEach((ch, k) => g.fillText(ch, 0, -R * 0.74 + k * size * 0.024));
-  }
   g.shadowBlur = 0;
+  if (/^\d+$/.test(s)) {
+    g.font = `900 ${size * (s === '10' ? 0.036 : 0.044)}px system-ui, sans-serif`;
+    g.lineWidth = size / 260; g.strokeStyle = 'rgba(20,10,40,.85)'; g.lineJoin = 'round';
+    g.strokeText(s, 0, -R * 0.885); g.fillText(s, 0, -R * 0.885);
+  } else {
+    drawIcon(g, s, 0, -R * 0.885, size * 0.04);
+    const word = SPOT_LABEL[s];
+    g.font = `900 ${size * 0.0165}px system-ui, sans-serif`;
+    g.lineWidth = size / 500; g.strokeStyle = 'rgba(20,10,40,.85)';
+    [...word].forEach((ch, k) => { const y = -R * 0.8 + k * size * 0.0175; g.strokeText(ch, 0, y); g.fillText(ch, 0, y); });
+  }
 }
 
-function buildWheel({ segments, radius, colorOf, labelOf, bulbs, pointerAngles, pointerColors, logo }) {
+function buildWheel({ segments, radius, colorOf, labelOf, bulbs, pointerAngles, pointerColors, logo, size = 2048 }) {
   const group = new THREE.Group();
   const spinner = new THREE.Group();
   group.add(spinner);
-  const face = drawWheelFace(segments, colorOf, labelOf, { hub: '#140f2a' });
+  const face = drawWheelFace(segments, colorOf, labelOf, { hub: '#140f2a', size });
   // Logo op de naaf
   const g = face.getContext('2d'), cx = face.width / 2;
   g.fillStyle = '#f2c14e'; g.font = `1000 ${face.width * Math.min(0.04, 0.3 / logo.length)}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText(logo, cx, cx);
   const faceTex = canvasTex(face);
-  const disk = new THREE.Mesh(new THREE.CircleGeometry(radius, 128), new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.38, metalness: 0.15, emissive: '#ffffff', emissiveMap: faceTex, emissiveIntensity: 0.28 }));
+  const disk = new THREE.Mesh(new THREE.CircleGeometry(radius, 128), new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.45, metalness: 0.05, emissive: '#ffffff', emissiveMap: faceTex, emissiveIntensity: 0.07 }));
   disk.position.z = 0.16; disk.castShadow = true;
   spinner.add(disk);
   const goldMat = new THREE.MeshStandardMaterial({ color: '#d9a640', metalness: 1, roughness: 0.22 });
@@ -795,7 +801,7 @@ function buildWheel({ segments, radius, colorOf, labelOf, bulbs, pointerAngles, 
   spinner.add(pegs);
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.2, radius * 0.24, 0.5, 48), goldMat);
   hub.rotation.x = Math.PI / 2; hub.position.z = 0.25; spinner.add(hub);
-  const hubCap = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.19, 48), new THREE.MeshStandardMaterial({ map: faceTex, emissive: '#fff', emissiveMap: faceTex, emissiveIntensity: 0.3 }));
+  const hubCap = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.19, 48), new THREE.MeshStandardMaterial({ map: faceTex, emissive: '#fff', emissiveMap: faceTex, emissiveIntensity: 0.08 }));
   // Naafkap: laat het midden van de textuur zien
   hubCap.geometry.attributes.uv.array.forEach((v, i, arr) => { arr[i] = 0.5 + (v - 0.5) * 0.19 / 1; });
   hubCap.position.z = 0.51; spinner.add(hubCap);
@@ -812,19 +818,26 @@ function buildWheel({ segments, radius, colorOf, labelOf, bulbs, pointerAngles, 
   }
   group.add(bulbMesh);
   // Wijzers
+  // Wijzer: druppelvorm met afgeronde randen, scharnier bovenaan
+  const tear = new THREE.Shape();
+  tear.moveTo(0, -1); tear.bezierCurveTo(0.32, -0.5, 0.58, 0.05, 0.58, 0.35); tear.absarc(0, 0.35, 0.58, 0, Math.PI, false); tear.bezierCurveTo(-0.58, 0.05, -0.32, -0.5, 0, -1);
+  const tearGeo = new THREE.ExtrudeGeometry(tear, { depth: 0.22, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.07, bevelSegments: 8, curveSegments: 48 });
+  tearGeo.translate(0, -0.35, -0.11);
   const pointers = pointerAngles.map((ang, i) => {
     const pivot = new THREE.Group();
-    pivot.position.set(Math.sin(ang) * radius * 1.12, Math.cos(ang) * radius * 1.12, 0.45);
+    pivot.position.set(Math.sin(ang) * radius * 1.1, Math.cos(ang) * radius * 1.1, 0.5);
     pivot.rotation.z = -ang;
     const col = pointerColors[i];
-    const body = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.06, radius * 0.2, 4), new THREE.MeshStandardMaterial({ color: col, metalness: 0.6, roughness: 0.25, emissive: col, emissiveIntensity: 0.35 }));
-    body.rotation.z = Math.PI; body.position.y = -radius * 0.04; body.castShadow = true;
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.045, 16, 12), goldMat);
-    cap.position.y = radius * 0.06;
-    const gl = glow(col, radius * 0.35, 0.6); gl.position.y = -radius * 0.03;
-    pivot.add(body, cap, gl);
+    const arm = new THREE.Group(); pivot.add(arm);
+    const sc = radius * 0.1;
+    const body = new THREE.Mesh(tearGeo, i === 0 && pointerAngles.length === 1 ? goldMat : new THREE.MeshStandardMaterial({ color: col, metalness: 0.75, roughness: 0.22 }));
+    body.scale.setScalar(sc); body.castShadow = true;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.58 * sc, 0.06 * sc, 12, 48), goldMat); rim.position.z = 0.16 * sc;
+    const gem = new THREE.Mesh(new THREE.SphereGeometry(0.3 * sc, 32, 24), new THREE.MeshPhysicalMaterial({ color: pointerAngles.length === 1 ? '#e8243a' : col, metalness: 0, roughness: 0.05, clearcoat: 1, emissive: pointerAngles.length === 1 ? '#5a0010' : col, emissiveIntensity: 0.25 }));
+    gem.position.z = 0.2 * sc; gem.scale.z = 0.6;
+    arm.add(body, rim, gem);
     group.add(pivot);
-    return { pivot, flap: 0 };
+    return { pivot, arm, flap: 0 };
   });
   return { group, spinner, bulbMesh, bulbs, pointers, n, seg, faceTex, angle: 0 };
 }
@@ -898,8 +911,8 @@ function facing(pos, target) { return Math.atan2(target.x - pos.x, target.z - po
 const STN = {
   coin: { pos: V(-11, 0, -4.5), look: V(0, 0, 6) },
   meteor: { pos: V(11.6, 0, -5), look: V(0, 0, 6) },
-  hunt: { pos: V(-12.6, 0, 6), look: V(0, 0, 2) },
-  portal: { pos: V(12.4, 0, 6.5), look: V(0, 0, 2) }
+  hunt: { pos: V(-13.4, 0, 1.5), look: V(0, 0, 3) },
+  portal: { pos: V(13.4, 0, 2), look: V(0, 0, 4) }
 };
 for (const s of Object.values(STN)) { s.rot = facing(s.pos, s.look); s.fwd = V(Math.sin(s.rot), 0, Math.cos(s.rot)); s.right = V(Math.cos(s.rot), 0, -Math.sin(s.rot)); }
 const local = (s, x, y, z) => s.pos.clone().addScaledVector(s.right, x).add(V(0, y, 0)).addScaledVector(s.fwd, z);
@@ -983,7 +996,7 @@ const meteor = (() => {
       g.fillStyle = isD ? (lit ? '#fff3a8' : '#f2c14e') : lit ? '#fff' : i % 2 ? '#3a1d5c' : '#2a1550';
       roundRect(g, x + 6, 10, 116, 236, 18); g.fill();
       g.fillStyle = isD ? '#3a2400' : lit ? '#1a1205' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      if (isD) { g.font = '1000 34px system-ui, sans-serif'; g.fillText('DUBBEL', x + 64, 128); }
+      if (isD) { g.font = '1000 25px system-ui, sans-serif'; g.fillText('DUBBEL', x + 64, 116); g.font = '1000 44px system-ui, sans-serif'; g.fillText('×2', x + 64, 170); }
       else if (!v) { g.font = '1000 58px system-ui, sans-serif'; g.fillText('?', x + 64, 128); }
       else { const t = String(v * factor); g.font = `1000 ${t.length > 4 ? 34 : t.length > 3 ? 42 : 58}px system-ui, sans-serif`; g.fillText(t, x + 64, 110); g.font = '900 30px system-ui, sans-serif'; g.fillText('×', x + 64, 176); }
     }
@@ -1625,7 +1638,7 @@ function setBets(next) {
 // =====================================================
 function buildWorld() {
   mainWheel = buildWheel({
-    segments: cfg.wheel, radius: WHEEL_R, bulbs: 72, logo: 'STERRENRAD',
+    segments: cfg.wheel, radius: WHEEL_R, bulbs: 72, logo: 'STERRENRAD', size: 4096,
     colorOf: s => s === 'coin' ? ['#2a62d8', '#e8493a'] : SEG_COLORS[s], labelOf: labelMain,
     pointerAngles: [0], pointerColors: ['#f2c14e']
   });
@@ -1636,6 +1649,7 @@ function buildWorld() {
   sign('METEORENMUUR', 'meteor', '#ff7a2a', local(STN.meteor, 0, 11.4, 0.2), STN.meteor.rot, 6.6);
   sign('STERRENJACHT', 'hunt', '#1fae7a', local(STN.hunt, 0, 11.7, 0.1), STN.hunt.rot, 6.6);
   sign('WORMGAT', 'worm', '#8a4dff', local(STN.portal, 0, 7.8, 0), STN.portal.rot);
+  hunt.setSymbols(Array.from({ length: 108 }, (_, i) => ['planet', 'star', 'moon', 'ufo', 'rocket', 'comet'][(i * 7 + (i >> 2)) % 6]));
   marquee.mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.085, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }), marquee.pos.length);
   const mm = new THREE.Matrix4();
   marquee.pos.forEach((p, i) => { mm.makeTranslation(p.x, p.y, p.z); marquee.mesh.setMatrixAt(i, mm); marquee.mesh.setColorAt(i, new THREE.Color('#ffd27a')); });
@@ -1724,7 +1738,7 @@ function flapPointer(w, angle, key) {
     if (Math.abs(segF - last) < 3) sfx.tick();
   }
   if (key === 'main') lastSegFloat = segF; else lastWormSegFloat = segF;
-  for (const p of w.pointers) { p.flap *= 0.86; p.pivot.children[0].rotation.z = Math.PI + p.flap; }
+  for (const p of w.pointers) { p.flap *= 0.86; p.arm.rotation.z = p.flap; }
 }
 
 // =====================================================
@@ -1771,24 +1785,22 @@ function playlist(t) {
     if (pk === 'bonus' && b) return { key: `fixed-${b.type}-${inWormWorld() ? 'w' : 's'}`, list: [[fixedBonusShot(b), 99]] };
     return { key: 'fixed', list: [['wide', 99]] };
   }
-  if (pk === 'open') return { key: 'open', list: [['wide', 6], ['orbit', 9, 1], ['host', 4, 1], ['high', 6, 1], ['low', 5, 1], ['left', 5, 1], ['top', 5, 1]] };
+  if (pk === 'open') return { key: 'open', list: [['wide', 11], ['orbit', 14, 1], ['host', 7, 1], ['high', 10, 1], ['left', 9, 1]] };
   if (pk === 'betting' || pk === 'closing') {
     const left = r.bettingEndsAt - t;
-    if (left < 3500) return { key: `bet-end-${r.id}`, list: [['wheel', 99, 1]] };
-    return { key: `bet-${r.id}`, list: [['wide', 3.2], ['host', 2.8, 1], ['dolly', 3], ['comets', 2.5, 1], ['high', 3, 1], ['left', 3, 1]] };
+    if (left < 4000) return { key: `bet-end-${r.id}`, list: [['wheel', 99, 1]] };
+    return { key: `bet-${r.id}`, list: [['wide', 5.5], ['host', 5.5, 1]] };
   }
   if (pk === 'comets') return { key: `comets-${r.id}`, list: [['comets', 99, 1]] };
   if (pk === 'spinning') {
     const s = (t - r.spinStartAt) / 1000;
-    if (s < 2.2) return { key: `spin-a-${r.id}`, list: [['low', 99, 1]] };
-    if (s < 3.6) return { key: `spin-b-${r.id}`, list: [['host', 99, 1]] };
-    if (s < 5.2) return { key: `spin-c-${r.id}`, list: [['wheel', 99, 1]] };
-    return { key: `spin-d-${r.id}`, list: [['pointer', 99, 1]] };
+    if (s < 4.5) return { key: `spin-a-${r.id}`, list: [['wheel', 99]] };
+    return { key: `spin-d-${r.id}`, list: [['pointer', 99]] };
   }
-  if (pk === 'landed') return { key: `land-${r.id}`, list: [['pointer', 1.6], ['host', 99, 1]] };
+  if (pk === 'landed') return { key: `land-${r.id}`, list: [['pointer', 2.6], ['host', 99]] };
   if (pk === 'result') {
     if (inWormWorld()) return { key: `res-w-${r.id}`, list: [['wormWide', 99]] };
-    return { key: `res-${r.id}`, list: [['host', 2.2], ['wide', 3, 1], ['high', 99, 1]] };
+    return { key: `res-${r.id}`, list: [['host', 3.5], ['wide', 99]] };
   }
   if (pk === 'bonus' && b) {
     const key = `b-${r.id}-${b.type}-${b.stage}`;
@@ -1852,11 +1864,11 @@ function updateCamera(t, dt) {
   cam.shotId = shotId;
   // Harde knip (of te ver weg: ook knippen in plaats van door de ruimte te vliegen)
   if (isNew && (cut || cam.pos.distanceTo(shot.pos) > 60)) { cam.pos.copy(shot.pos); cam.look.copy(shot.look); cam.fov = shot.fov; }
-  const k = 1 - Math.exp(-dt * (name === 'meteorFollow' || name === 'coinFollow' || name === 'follow' ? 5 : 2.4));
+  const k = 1 - Math.exp(-dt * (name === 'meteorFollow' || name === 'coinFollow' || name === 'follow' ? 3.5 : 1.3));
   cam.pos.lerp(shot.pos, k); cam.look.lerp(shot.look, k); cam.fov = lerp(cam.fov, shot.fov, k);
   const ts = t / 1000;
   // Handcamera-gevoel + schudden
-  const hand = V(Math.sin(ts * 0.7) * 0.06, Math.sin(ts * 0.9 + 1) * 0.05, 0);
+  const hand = V(Math.sin(ts * 0.45) * 0.03, Math.sin(ts * 0.6 + 1) * 0.025, 0);
   const sh = shakeAmt > 0.01 ? V((Math.random() - 0.5) * shakeAmt, (Math.random() - 0.5) * shakeAmt, 0) : V(0, 0, 0);
   shakeAmt *= Math.pow(0.02, dt);
   camera.position.copy(cam.pos).add(hand).add(sh);
@@ -2199,16 +2211,29 @@ function applyState(data) {
   renderSpots(); renderPlayers(); renderHistory(); renderPicker(); renderBalance(); renderSync();
 }
 
-let bubbleHideAt = 0, typeTimer = null;
+let bubbleHideAt = 0, typeTimer = null, speechShownAt = 0, speechMinMs = 0;
+const speechQueue = [];
+// Nieuwe tekst wacht tot de vorige gelezen kan zijn
 function speak(text, mood) {
+  speechQueue.push({ text, mood });
+  if (speechQueue.length > 3) speechQueue.splice(0, speechQueue.length - 3);
+}
+function pumpSpeech() {
+  if (!speechQueue.length || performance.now() - speechShownAt < speechMinMs) return;
+  const { text, mood } = speechQueue.shift();
+  showSpeech(text, mood);
+}
+function showSpeech(text, mood) {
   const box = $('bubble'), out = $('bubbleText');
+  speechShownAt = performance.now();
+  speechMinMs = clamp(text.length * 55, 2800, 5500);
   box.className = `bubble show pop mood-${mood}`;
   void box.offsetWidth;
   clearInterval(typeTimer);
   let i = 0; out.textContent = '';
-  typeTimer = setInterval(() => { i += 2; out.textContent = text.slice(0, i); if (i >= text.length) clearInterval(typeTimer); }, 28);
-  host.talkUntil = performance.now() + text.length * 14 + 500;
-  bubbleHideAt = performance.now() + Math.max(3800, text.length * 70);
+  typeTimer = setInterval(() => { i += 1; out.textContent = text.slice(0, i); if (i >= text.length) clearInterval(typeTimer); }, 30);
+  host.talkUntil = performance.now() + text.length * 30 + 300;
+  bubbleHideAt = performance.now() + Math.max(5500, text.length * 95);
   astro.face.mood = mood;
   const options = MOOD_GESTURES[mood] || ['wave'];
   if (Math.random() < 0.85) gesture(options[Math.floor(Math.random() * options.length)], mood === 'hype' || mood === 'shock' ? 2.2 : 1.7);
@@ -2440,7 +2465,7 @@ function renderHud(t) {
   else if (pk === 'bonus' && r.bonus) {
     const b = r.bonus, mine = myEntry();
     title = BONUS_TITLE[b.type];
-    sub = BONUS_STAGE_TXT[b.stage] || '';
+    sub = (b.type === 'hunt' && b.stage === 'reveal') ? 'Vuur! De doelen gaan open' : BONUS_STAGE_TXT[b.stage] || '';
     if (b.stage === 'pick' && !(mine && mine.bets[b.type])) sub = 'Je speelt niet mee — kijk mee!';
     if (b.stageEndsAt) { const left = Math.max(0, b.stageEndsAt - t); num = Math.ceil(left / 1000); fill = left / Math.max(1, b.stageEndsAt - b.stageAt); urgent = b.stage === 'pick' && left < 4000; }
     else num = '!';
@@ -2452,8 +2477,10 @@ function renderHud(t) {
 }
 
 // Ballon boven Max's hoofd
+const bubblePos = { x: 16, y: 300, docked: true, init: false };
 function placeBubble() {
   const box = $('bubble');
+  pumpSpeech();
   if (performance.now() > bubbleHideAt) { box.classList.remove('show'); return; }
   const p = astro.headWorld().add(V(0, 0.7, 0)).project(camera);
   const W = stageEl.clientWidth, H = stageEl.clientHeight, bw = box.offsetWidth, bh = box.offsetHeight;
@@ -2461,7 +2488,10 @@ function placeBubble() {
   const visible = p.z < 1 && x > -bw * 0.3 && x < W - 40 && y > -bh && y < H - bh;
   if (!visible) { x = 16; y = H - bh - 18; }
   x = clamp(x, 10, W - bw - 10); y = clamp(y, 64, H - bh - 10);
-  box.style.transform = `translate(${x}px, ${y}px)`;
+  // Zacht meebewegen; bij wisselen tussen hoofd en hoek in één keer
+  if (!bubblePos.init || bubblePos.docked !== !visible) { bubblePos.x = x; bubblePos.y = y; bubblePos.docked = !visible; bubblePos.init = true; }
+  else { bubblePos.x = lerp(bubblePos.x, x, 0.08); bubblePos.y = lerp(bubblePos.y, y, 0.08); }
+  box.style.transform = `translate(${Math.round(bubblePos.x)}px, ${Math.round(bubblePos.y)}px)`;
 }
 
 let toastTimer = null;

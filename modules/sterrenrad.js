@@ -39,29 +39,29 @@ const CHIPS = [1, 5, 10, 25, 100];
 
 // Tijden (ms)
 const BETTING_MS = 15000;
-const COMET_LEAD_MS = 900;     // van "geen inzetten meer" tot de eerste komeet
-const COMET_STEP_MS = 1100;    // tussen twee kometen
-const COMET_TAIL_MS = 2000;    // na de laatste komeet, voor het rad draait
-const SPIN_MS = 8000;          // draai van het rad
-const LANDED_MS = 2600;        // getal: even vieren voor de uitbetaling
-const RESULT_MS = 6000;        // uitslag blijft staan
-const BONUS_TRAVEL_MS = 4000;  // camera + Max naar de bonus
-const BONUS_OUTRO_MS = 3500;
-const COIN_REVEAL_MS = 3200;
-const COIN_FLIP_MS = 4200;
-const METEOR_SETUP_MS = 3000;
-const METEOR_DROP_MS = 5200;
-const METEOR_DOUBLE_MS = 2600;
-const HUNT_SHUFFLE_MS = 3500;
-const HUNT_PICK_MS = 12000;
-const HUNT_REVEAL_MS = 6000;
-const WORM_PORTAL_MS = 3500;
-const WORM_PICK_MS = 9000;
-const WORM_SPIN_MS = 6500;
-const WORM_BETWEEN_MS = 2600;
+const COMET_LEAD_MS = 1400;     // van "geen inzetten meer" tot de eerste komeet
+const COMET_STEP_MS = 1700;    // tussen twee kometen
+const COMET_TAIL_MS = 3000;    // na de laatste komeet, voor het rad draait
+const SPIN_MS = 10000;          // draai van het rad
+const LANDED_MS = 4000;        // getal: even vieren voor de uitbetaling
+const RESULT_MS = 8000;        // uitslag blijft staan
+const BONUS_TRAVEL_MS = 5500;  // camera + Max naar de bonus
+const BONUS_OUTRO_MS = 5000;
+const COIN_REVEAL_MS = 4500;
+const COIN_FLIP_MS = 5000;
+const METEOR_SETUP_MS = 4000;
+const METEOR_DROP_MS = 6500;
+const METEOR_DOUBLE_MS = 3500;
+const HUNT_SHUFFLE_MS = 4500;
+const HUNT_PICK_MS = 14000;
+const HUNT_REVEAL_MS = 8000;
+const WORM_PORTAL_MS = 4500;
+const WORM_PICK_MS = 11000;
+const WORM_SPIN_MS = 8000;
+const WORM_BETWEEN_MS = 3500;
 const EMPTY_PICK_MS = 2500;    // niemand speelt mee: kort
-const HYPE_EVERY_MS = 4300;
-const IDLE_EVERY_MS = 12000;
+const HYPE_EVERY_MS = 7500;
+const IDLE_EVERY_MS = 16000;
 
 // =====================================================
 // RAD
@@ -293,7 +293,12 @@ const emitUpdate = () => events.emit('update');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
 const xLabel = x => `${x}×`;
 
+// Bijzaken worden overgeslagen als Max net iets zei, zodat er tijd is om te lezen
+const MINOR_LINES = new Set(['idle', 'hype', 'join', 'bonusBet', 'comet', 'spinning', 'slowing', 'nextRound', 'meteorFalling', 'huntHurry']);
+const MIN_GAP_MS = 4000;
+
 function say(category, vars, { silent = false } = {}) {
+  if (MINOR_LINES.has(category) && Date.now() - lastSpeechAt < MIN_GAP_MS) return;
   const { text, mood } = host.line(category, vars);
   if (!text) return;
   speech = { id: speech.id + 1, text, mood, at: Date.now(), category };
@@ -541,12 +546,12 @@ function startHype(r) {
   hypeTimer = setInterval(() => {
     if (round !== r || r.phase !== 'betting') return stopHype();
     const left = r.bettingEndsAt - Date.now();
-    if (left < 5500 && !r.saidLastCall) {
+    if (left < 6000 && !r.saidLastCall) {
       r.saidLastCall = true;
       say('lastCall');
       return;
     }
-    if (left > 3500 && Date.now() - lastSpeechAt > HYPE_EVERY_MS) say('hype');
+    if (left > 7000 && Date.now() - lastSpeechAt > HYPE_EVERY_MS) say('hype');
   }, 700);
 }
 
@@ -575,7 +580,7 @@ async function runRound(r) {
   for (let i = 0; i < r.comets.length; i++) {
     await sleep(r.cometsAt + i * COMET_STEP_MS + 650 - Date.now());
     const c = r.comets[i];
-    say(c.mult >= 10 ? 'cometBig' : 'comet', { x: xLabel(c.mult), vak: SPOT_NAMES[c.spot] });
+    if (i === 0 || c.mult >= 10) say(c.mult >= 10 ? 'cometBig' : 'comet', { x: xLabel(c.mult), vak: SPOT_NAMES[c.spot] });
   }
   await sleep(r.cometsAt + (r.comets.length - 1) * COMET_STEP_MS + COMET_TAIL_MS - Date.now());
 
@@ -586,7 +591,7 @@ async function runRound(r) {
   r.spinStartAt = Date.now() + 250;
   r.landAt = r.spinStartAt + SPIN_MS;
   say('spinning');
-  await sleep(r.landAt - 3000 - Date.now());
+  await sleep(r.landAt - 4000 - Date.now());
   say('slowing');
   await sleep(r.landAt - Date.now());
 
@@ -599,7 +604,7 @@ async function runRound(r) {
     r.phase = 'landed';
     say(`number${r.segment}`);
     if (comet) {
-      await sleep(1300);
+      await sleep(2200);
       say('cometHit', { x: xLabel(comet.mult) });
     }
     await sleep(r.landAt + LANDED_MS - Date.now());
@@ -671,8 +676,6 @@ async function runMeteor(r) {
   let t = b.dropStartAt;
   for (let i = 0; i < b.drops.length; i++) {
     const d = b.drops[i];
-    await sleep(t + METEOR_DROP_MS * 0.55 - Date.now());
-    say('meteorFalling');
     await sleep(t + METEOR_DROP_MS - Date.now());
     if (d.double) {
       say('meteorDouble', { n: d.factor * 2 });
@@ -733,8 +736,6 @@ async function runWorm(r) {
   say('wormSpin');
   let t = b.spinStartAt;
   for (let s = 0; s < b.spins.length; s++) {
-    await sleep(t + WORM_SPIN_MS - 2500 - Date.now());
-    say('slowing');
     await sleep(t + WORM_SPIN_MS - Date.now());
     const spin = b.spins[s];
     const boost = spin.hits.includes('T') ? 'T' : spin.hits.includes('D') ? 'D' : null;
@@ -812,7 +813,7 @@ function settle(r) {
     if (streak >= 3) say('streak', { n: streak, vak: SPOT_NAMES[history[0].seg] });
     else if (bonusDrought >= 7 && rand() < 0.6) say('drought', { n: bonusDrought });
     else say('nextRound');
-  }, 3200);
+  }, 4500);
 }
 
 // Max praat ook als er niemand speelt

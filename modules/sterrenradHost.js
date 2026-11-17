@@ -3,299 +3,244 @@
  * Teksten per moment in de show. {naam} wordt ingevuld met vars; een regel die net gezegd is wordt
  * een tijdje overgeslagen, zodat Max niet in herhaling valt.
  *
- * Stemmingen (mood) bepalen het gezicht op de website: happy, hype, tense, shock, sad, wink, cool.
+ * Stijl: een presentator die uitlegt wat er gebeurt, spelers bij naam noemt en spanning opbouwt.
+ * Korte zinnen, zodat je ze in één keer kunt lezen.
+ *
+ * Stemmingen (mood) bepalen gezicht en gebaren op de website: happy, hype, tense, shock, sad, wink, cool.
  */
 
 const crypto = require('crypto');
 
 const LINES = {
   idle: {
-    mood: 'wink',
+    mood: 'happy',
     lines: [
-      'Het is stil in de ruimte... té stil. Wie legt de eerste fiche?',
-      'Mijn rad staat te trillen van ongeduld. Eén fiche en we vliegen!',
-      'Welkom aan boord van het Sterrenrad! Leg een fiche om de ronde te starten.',
-      'Ik heb net mijn glitterjasje gestreken. Nu nog spelers...',
-      'Weet je wat het mooiste geluid van het heelal is? Een rad dat begint te draaien.',
-      'Maanmunt, meteorenmuur, sterrenjacht, wormgat... ze liggen allemaal op de loer.',
-      'Ik heb 54 vakken en nul spelers. Dat moet beter kunnen!',
-      'Hallo? Is daar iemand? Ik hoor fiches rammelen in jullie zakken.',
-      'Psst. Kometen kunnen je inzet tot wel 50 keer laten stijgen. Zeg het tegen niemand.',
-      'Ik ben Max Nova, jullie gastheer vanavond. En vannacht. En eigenlijk altijd.',
-      'Het rad is gesmeerd, de kometen zijn getankt. Waar blijven jullie?',
-      'Even een systeemcheck... rad: ja. Lampjes: ja. Spelers: nee. Probleem gevonden!',
-      'In een ver sterrenstelsel heeft iemand ooit 10.000 punten gewonnen. Misschien ben jij de volgende.',
-      'Ik loop hier gewoon een rondje over het podium. Niks aan de hand. Leg maar een fiche.',
-      'Tip van de host: de bonusvakken zijn zeldzaam, maar o zo lekker.',
-      'Ik draai op koffie en jullie enthousiasme. De koffie is op, dus nu jullie!',
-      'De sterren staan vandaag gunstig. Zegt mijn horoscoop-module tenminste.',
-      'Ik tel tot drie en dan draait er nog steeds niks, want niemand heeft ingezet. Eén... twee...',
-      'Munt gepoetst, meteoren gevangen, lasers geladen, wormgat zoemt. Jij nog?',
-      'Mijn favoriete getal? Tien. Mijn favoriete bonus? Allemaal.',
-      'Kom maar binnen, de ruimte is groot genoeg voor iedereen.',
-      'Het rad wil draaien. Ik wil praten. Jij wilt winnen. Iedereen blij!'
+      'Welkom in het Sterrenrad! Leg een fiche om de volgende ronde te starten.',
+      'Het rad staat klaar. Wie zet als eerste in?',
+      'Kies een getal of een bonus. Je hebt 15 seconden zodra de ronde begint.',
+      'De 1 valt het vaakst, de 10 betaalt het meest. Waar ga jij voor?',
+      'Vier bonusspellen wachten: Maanmunt, Meteorenmuur, Sterrenjacht en het Wormgat.',
+      'Voor elke draai vallen er kometen. Die maken je winst tot 50 keer zo groot.',
+      'Het Wormgat staat maar één keer op het rad. Maar daar ligt wel 20.000× klaar.',
+      'Leg je fiches en kijk mee. Iedereen speelt op hetzelfde rad.',
+      'Nieuwe ronde? Eén fiche is genoeg om te beginnen.',
+      'Tip: spreid je fiches over een getal en een bonus.',
+      'De Maanmunt staat vier keer op het rad, de vaakst voorkomende bonus.',
+      'Ik ben Max Nova, en dit is het Sterrenrad. Zet je in?'
     ]
   },
   open: {
     mood: 'hype',
     lines: [
-      '{naam} opent de ronde! Fiches op tafel, mensen, we hebben 15 seconden!',
-      'Daar gaan we! {naam} trapt af. Wie volgt?',
-      'Hoppa, {naam} legt de eerste fiche. De klok tikt!',
-      'Motoren aan! {naam} heeft de ronde gestart.',
-      '{naam} kon niet langer wachten. Ik ook niet! Inzetten maar!',
-      'Ronde geopend door {naam}. Kom op, de rest van de bemanning!',
-      'Eerste fiche van {naam}. De ruimte warmt op!',
-      'En {naam} is de durfal van deze ronde! Wie durft er nog meer?'
+      '{naam} opent de ronde. Iedereen heeft 15 seconden om in te zetten!',
+      'De ronde is open dankzij {naam}. Leg je fiches!',
+      '{naam} trapt af. Vijftien seconden, mensen!',
+      'Daar gaan we: {naam} zet als eerste in. Wie volgt?',
+      'Nieuwe ronde, geopend door {naam}. De klok loopt.'
     ]
   },
   join: {
     mood: 'happy',
     lines: [
-      'Welkom aan boord, {naam}!',
-      '{naam} stapt in. Gordels om!',
-      'Hé {naam}! Goed je te zien in deze sector.',
-      'Daar is {naam}! Het wordt druk op het dek.',
-      '{naam} doet ook mee. De spanning stijgt!',
-      'Ik zie het, ik zie het: {naam} heeft ingezet!',
-      'Nog een astronaut erbij: {naam}!',
-      '{naam} meldt zich. Nu wordt het pas echt leuk.',
-      'Kijk eens wie we daar hebben: {naam}!',
-      '{naam} sluit aan bij de missie. Succes!'
+      'Welkom, {naam}!',
+      '{naam} doet ook mee.',
+      'Fijn dat je er bent, {naam}.',
+      '{naam} heeft ingezet. Succes!',
+      'Daar is {naam}. Goed je te zien.'
     ]
   },
   bigBet: {
     mood: 'shock',
     lines: [
-      'Wauw, {naam} gaat all-in met {bedrag} punten!',
-      '{bedrag} punten van {naam}! Dat noem ik vertrouwen.',
-      'Mijn hart slaat over: {naam} zet {bedrag} in!',
-      '{naam} speelt niet voor de kleintjes. {bedrag} punten op tafel!',
-      'Grote vis aan de lijn! {naam} met {bedrag} punten.',
-      'Dat is een flinke stapel, {naam}. {bedrag} punten!'
+      '{naam} zet {bedrag} punten in. Dat is een flinke inzet!',
+      '{bedrag} punten van {naam}. Grote ronde!',
+      'Wauw, {naam} gaat voor {bedrag} punten.',
+      '{naam} legt {bedrag} punten op tafel. Spannend!'
     ]
   },
   bonusBet: {
     mood: 'wink',
     lines: [
-      '{naam} gokt op de {bonus}. Ambitieus!',
-      'Ah, {naam} mikt op de {bonus}. Goede smaak.',
-      '{naam} heeft een fiche op de {bonus}. Ik voel iets aankomen...',
-      'De {bonus}? Gedurfd, {naam}. Heel gedurfd.'
+      '{naam} heeft een fiche op {bonus}. Goede keuze.',
+      '{naam} mikt op {bonus}.',
+      '{naam} hoopt op {bonus}. Ik ook!',
+      'Ik zie een fiche van {naam} op {bonus}.'
     ]
   },
   hype: {
-    mood: 'hype',
+    mood: 'happy',
     lines: [
-      'Fiches op tafel! Het rad wacht op niemand!',
-      'Wie gaat er voor de tien? Vier vakken, tien keer je inzet!',
-      'Denk aan de kometen: één komeet kan alles veranderen!',
-      'Nog even tijd om in te zetten. Twijfel niet te lang!',
-      'Eén, twee, vijf of tien? Of durf je een bonus aan?',
-      'Het wormgat zoemt al zachtjes achter me...',
-      'De meteorenmuur staat te glimmen. Wie durft?',
-      'Ik ruik een bonus. Of is dat de raketbrandstof?',
-      'De één valt het vaakst, maar de tien betaalt het meest. Kiezen maar!',
-      'Spreid je fiches of ga voor één vak. Jij bent de kapitein!',
-      'Ik heb het rad net nog geijkt. Alles eerlijk, alles spannend!',
-      'Wie wordt de held van deze ronde?',
-      'Kom op, kom op! De sterren draaien niet vanzelf!',
-      'Een bonus zit eraan te komen. Zegt mijn onderbuik. En die heeft altijd gelijk. Bijna altijd.',
-      'Elke fiche is een ticket naar de sterren!',
-      'De tafel ziet er prachtig uit. Nog meer kleur graag!'
+      'Nog even tijd om in te zetten.',
+      'Twijfel je? Een fiche op de 1 wint het vaakst.',
+      'De 10 staat er maar vier keer op, maar betaalt tien keer je inzet.',
+      'Zet op een bonus en je speelt mee als het rad erop stopt.',
+      'Leg je fiches, straks komen de kometen.',
+      'Je kunt meerdere vakken tegelijk kiezen.',
+      'Rechtsklik op een vak haalt een fiche weg.',
+      'Met "Herhaal" leg je dezelfde fiches als vorige ronde.'
     ]
   },
   lastCall: {
     mood: 'tense',
     lines: [
-      'Laatste kans! Nog een paar seconden!',
-      'Snel, snel! De deuren gaan dicht!',
-      'Nu of nooit! Laatste fiches!',
-      'Vijf... vier... wie twijfelt verliest!',
-      'De lancering komt eraan. Laatste oproep!',
-      'Laatste oproep voor alle passagiers naar het Sterrenrad!',
-      'Bijna te laat! Leg je fiches nu!',
-      'Tik tak, tik tak. De klok is niet jouw vriend!'
+      'Laatste seconden! Leg je fiches nu.',
+      'Nog vijf seconden om in te zetten!',
+      'Snel, de inzet sluit bijna.',
+      'Laatste kans voor deze ronde!'
     ]
   },
   closed: {
     mood: 'cool',
     lines: [
-      'Geen inzetten meer! Daar komen de kometen...',
-      'De luiken zijn dicht. Kijk omhoog!',
-      'Inzetten gesloten. Tijd voor wat sterrenstof!',
-      'Rien ne va plus, zoals ze op Mars zeggen. Kometen, jullie zijn aan de beurt!',
-      'Klaar is Kees, of hoe die astronaut ook heette. Kometenregen!',
-      'Fiches liggen vast. En nu... het hemelgewelf beslist!',
-      'Dicht is dicht! Houd de lucht in de gaten.',
-      'Alle systemen go! Eerst de kometen, dan het rad.'
+      'De inzet is gesloten. Kijk omhoog: daar komen de kometen!',
+      'Niets gaat meer. Eerst de kometen, dan het rad.',
+      'Inzetten gesloten. Welke vakken krijgen een komeet?',
+      'Klaar! Laten we zien waar de kometen landen.'
     ]
   },
   noComets: {
     mood: 'sad',
-    lines: [
-      'Hmm, de kometen zijn vandaag verlegen.'
-    ]
+    lines: ['Geen kometen deze keer.']
   },
   comet: {
     mood: 'happy',
     lines: [
-      'Inslag! {x} op {vak}!',
-      'Een komeet landt op {vak}: {x}!',
-      'Boem! {vak} krijgt {x}!',
-      '{vak} is geraakt! {x} erbovenop!',
-      'Daar is hij: {x} op {vak}!',
-      'Kijk die staart! {x} op {vak}.',
-      'Sterrenstof op {vak}: {x}!',
-      '{vak} glimt nu met {x}.'
+      'Een komeet op {vak}: {x}!',
+      '{vak} krijgt {x}.',
+      'Raak! {x} op {vak}.',
+      'Komeet op {vak}. Dat vak is nu {x} waard.'
     ]
   },
   cometBig: {
     mood: 'shock',
     lines: [
-      'WAT?! {x} op {vak}!! Dit is geen komeet, dit is een meteoor!',
-      'Hou je vast: {x} op {vak}!',
-      'Ik val bijna van het podium: {vak} met {x}!',
-      '{x}!! Op {vak}! Wie heeft daar een fiche liggen?!',
-      'Een reuzenkomeet! {vak} is nu {x} waard!',
-      'Dit gebeurt maar zelden: {x} op {vak}!'
+      'Een grote komeet! {x} op {vak}!',
+      'Kijk dat: {vak} krijgt {x}!',
+      '{x} op {vak}! Wie heeft daar een fiche liggen?',
+      'Wat een inslag: {x} op {vak}!'
     ]
   },
   spinning: {
     mood: 'hype',
     lines: [
       'Daar gaat het rad!',
-      'Draaien maar! Kom op, Sterrenrad!',
-      'Iedereen vasthouden, hier komt de draai!',
-      'Wiiiiieeee! Kijk hem gaan!',
-      'Het rad zoeft door de ruimte!',
-      'De lampjes knipperen, het rad draait. Dit is mijn favoriete moment!',
-      'Ronde en ronde en ronde... waar stopt hij?',
-      'Ik heb er een goed gevoel over. Echt waar. Dit keer wel.',
-      'Volle kracht vooruit!',
-      'Spinnen maar! Niet kijken als je zenuwachtig bent. Of juist wel!',
-      'En... GO!',
-      'Kijk die vaart! Het rad heeft er zin in.'
+      'Het rad draait. Duimen maar!',
+      'En... draaien!',
+      'Het rad is los. Waar stopt hij?'
     ]
   },
   slowing: {
     mood: 'tense',
     lines: [
-      'Hij gaat langzamer... langzamer...',
-      'Bijna... bijna...',
-      'Spannend, spannend!',
-      'Komt hij op een bonus? Nee? Ja? Nee?',
-      'Ik durf niet te kijken. Vertel me straks maar hoe het afliep.',
-      'Tik... tik... tik...',
-      'Nog één vakje? Of twee?',
-      'Hou je adem in!'
+      'Hij gaat langzamer...',
+      'Bijna stil...',
+      'Nog een paar vakjes...',
+      'Wordt het een bonus?'
     ]
   },
   number1: {
     mood: 'happy',
     lines: [
-      'Het is een 1! De betrouwbare oude 1.',
-      'Eén! Niet spectaculair, wel winst voor de 1-spelers.',
-      'Uno! Een! One! De 1 valt weer.',
-      'Daar is de 1. Klein maar fijn.',
-      'De 1! Wie daar op stond: verdubbeld!',
-      'Eenvoudig maar effectief: de 1.'
+      'Het is een 1! Twee keer je inzet terug.',
+      'De 1 valt. Winst voor iedereen op de 1.',
+      'Een 1! Kleine winst, maar winst.',
+      'Daar is de 1 weer.'
     ]
   },
   number2: {
     mood: 'happy',
     lines: [
-      'Twee! Driedubbel terug voor de 2-spelers!',
-      'Het is een 2! Niet slecht, helemaal niet slecht.',
-      'De 2 valt! Twee keer winst plus je inzet terug.',
-      'Twee! Twee vrolijke sterren op een rij.',
-      'Daar staat de 2. Gefeliciteerd, 2-fans!'
+      'Een 2! Drie keer je inzet terug.',
+      'De 2 valt. Mooi voor de 2-spelers!',
+      'Het rad kiest de 2.',
+      'Twee! Goed gespeeld als je daar stond.'
     ]
   },
   number5: {
     mood: 'hype',
     lines: [
-      'VIJF! Dat begint ergens op te lijken!',
-      'De 5! Vijf keer winst, high five!',
-      'Hoppa, de 5! Geef me een high five door het scherm!',
-      'Het is een 5! Mooie draai!',
-      'Vijf! De 5-spelers mogen dansen!'
+      'Een 5! Zes keer je inzet terug.',
+      'De 5 valt. Dat telt lekker op!',
+      'Vijf! Mooie winst voor wie erop stond.',
+      'Het rad stopt op de 5.'
     ]
   },
   number10: {
     mood: 'shock',
     lines: [
-      'TIEN!! Het zeldzame tiental!',
-      'De 10! Tien keer winst! Hoe dan!',
-      'Het rad stopt op de 10! Jackpot-gevoel!',
-      'TIEN! Ik moet even zitten. Iemand een stoel?',
-      'Daar is de 10! Wie heeft die gepakt?!'
+      'De 10! Elf keer je inzet terug!',
+      'Tien! De zeldzaamste van de getallen.',
+      'Het is een 10! Wie heeft hem?',
+      'De 10 valt. Grote winst voor de 10-spelers!'
     ]
   },
   cometHit: {
     mood: 'shock',
     lines: [
-      'En er ligt een komeet op! {x} extra!',
-      'Mét komeet! Alles keer {x}!',
-      'Dubbel feest: de komeet van {x} telt mee!',
-      'Precies op het komeetvak! {x}!',
-      'De komeet betaalt uit: {x}!'
+      'En er lag een komeet op: alles keer {x}!',
+      'Met komeet! De winst gaat keer {x}.',
+      'Precies op het komeetvak: {x} extra!',
+      'De komeet telt mee: keer {x}!'
     ]
   },
   winners: {
     mood: 'happy',
     lines: [
-      '{naam} pakt {bedrag} punten!',
-      'Proficiat {naam}: {bedrag} punten erbij!',
-      '{naam} cashet {bedrag}! Lekker!',
-      'Kassa voor {naam}: {bedrag} punten!',
-      '{bedrag} punten richting {naam}. Goed gespeeld!',
-      '{naam} vliegt naar huis met {bedrag} punten.'
+      'Gefeliciteerd {naam}: {bedrag} punten!',
+      '{naam} wint {bedrag} punten.',
+      'Mooi gespeeld, {naam}. {bedrag} punten voor jou.',
+      '{bedrag} punten gaan naar {naam}.'
     ]
   },
   manyWinners: {
     mood: 'happy',
     lines: [
-      '{n} winnaars deze ronde! {naam} wint het meest: {bedrag}.',
-      'Feest voor {n} spelers! Topscoorder {naam} met {bedrag}.',
-      'Wat een ronde: {n} winnaars, met {naam} bovenaan ({bedrag}).'
+      '{n} winnaars deze ronde! {naam} pakt het meest: {bedrag}.',
+      'Feest voor {n} spelers. Topscore: {naam} met {bedrag}.',
+      'Wat een ronde: {n} winnaars, met {naam} bovenaan.'
     ]
   },
   bigWin: {
     mood: 'shock',
     lines: [
-      'MEGA-WINST! {naam} pakt {bedrag} punten!',
-      'Hou je vast aan je ruimtepak: {naam} wint {bedrag}!',
-      'Dit gaat de geschiedenisboeken in: {bedrag} voor {naam}!',
-      '{naam}, jij legende! {bedrag} punten!',
-      'Iemand moet de bank bellen: {naam} wint {bedrag}!'
+      'Grote winst! {naam} pakt {bedrag} punten!',
+      '{naam} wint {bedrag} punten. Wat een ronde!',
+      'Ongelooflijk: {bedrag} punten voor {naam}!',
+      'Dit is een topwinst: {naam} krijgt {bedrag}!'
     ]
   },
   nobody: {
     mood: 'sad',
     lines: [
-      'Niemand stond erop. Het rad is soms gemeen.',
-      'Oei, geen winnaars. Volgende keer beter!',
-      'De bank wint deze. Maar de nacht is nog jong!',
-      'Helaas pindakaas, zoals we in de Melkweg zeggen.',
-      'Geen prijs deze keer. Het rad is je niks verschuldigd... maar misschien volgende ronde wel!',
-      'Pech in de ruimte. Opnieuw proberen?'
+      'Deze keer geen winnaars.',
+      'Helaas, niemand stond op dat vak.',
+      'Geen winst deze ronde. Volgende keer beter!',
+      'Het rad was niet in een gulle bui.'
     ]
   },
   streak: {
     mood: 'wink',
     lines: [
-      'Al {n} keer op rij een {vak}! Wat is hier aan de hand?',
-      '{n} keer {vak} achter elkaar. Het rad heeft een favoriet!',
-      'Weer {vak}! Dat is {n} op rij. Toeval? Ja. Maar toch!'
+      'Al {n} keer op rij {vak}!',
+      '{vak} valt voor de {n}e keer achter elkaar.',
+      '{n} keer {vak} op rij. Opvallend!'
     ]
   },
   drought: {
     mood: 'tense',
     lines: [
-      'Al {n} rondes geen bonus... dat kan niet lang meer duren.',
-      '{n} draaien zonder bonus. De spanning loopt op!',
-      'De bonussen houden zich al {n} rondes schuil. Wie durft?'
+      'Al {n} rondes geen bonus. Die komt vast snel.',
+      '{n} draaien zonder bonus. Wie gokt erop?',
+      'De bonussen laten al {n} rondes op zich wachten.'
+    ]
+  },
+  nextRound: {
+    mood: 'happy',
+    lines: [
+      'Klaar voor de volgende ronde? Leg je fiches.',
+      'Op naar de volgende draai!',
+      'Nieuwe ronde, nieuwe kansen. Wie opent?',
+      'Zet je weer in? Eén fiche start de ronde.'
     ]
   },
 
@@ -303,34 +248,18 @@ const LINES = {
   bonusHit: {
     mood: 'shock',
     lines: [
-      'BONUS! Het is de {bonus}!',
-      'JAAAA! We gaan naar de {bonus}!',
-      'Alarm! Alarm! Bonusalarm! De {bonus}!',
-      'Het rad kiest de {bonus}! Iedereen naar de lanceerplaats!',
-      'Dit is waar we voor leven: de {bonus}!',
-      'Riemen vast, we vliegen naar de {bonus}!'
+      'Bonus! We gaan naar {bonus}!',
+      'Het rad kiest {bonus}!',
+      'Daar is hij: {bonus}! Kom mee.',
+      'Bonustijd! Op naar {bonus}.'
     ]
   },
   bonusEmpty: {
     mood: 'sad',
     lines: [
-      'Niemand zit in de {bonus}... we kijken toch even, voor de show!',
-      'Een lege {bonus}! Zonde! Laten we zien wat je had kunnen winnen.',
-      'De {bonus} zonder spelers. Dat doet pijn. Kijk mee!'
-    ]
-  },
-
-  nextRound: {
-    mood: 'wink',
-    lines: [
-      'Volgende ronde komt eraan. Fiches klaar?',
-      'Even ademhalen... en dan gaan we weer!',
-      'Wie durft de volgende ronde te openen?',
-      'Het rad koelt even af. Jij ook?',
-      'Nog een rondje? Natuurlijk nog een rondje!',
-      'Leg je fiche en we vliegen weer!',
-      'De show gaat door! Wie opent?',
-      'Mijn stem houdt het nog uren vol. Jij ook?'
+      'Niemand speelt mee in {bonus}. We kijken toch even.',
+      'Geen fiches op {bonus}. Laten we zien wat het had opgeleverd.',
+      'Jammer, niemand in {bonus}. Kijk mee voor de volgende keer.'
     ]
   },
 
@@ -338,39 +267,33 @@ const LINES = {
   coinIntro: {
     mood: 'hype',
     lines: [
-      'Welkom bij de MAANMUNT! Rood of blauw, het lot beslist!',
-      'Tijd voor de MAANMUNT! Eén worp, twee kanten, alles kan!',
-      'De MAANMUNT! Ik heb hem net gepoetst met sterrenstof.',
-      'Kop of munt? Nee: ROOD of BLAUW! Welkom bij de Maanmunt!',
-      'Gewichtloos gooien, dat is pas kunst. Hier komt de MAANMUNT!'
+      'Welkom bij de Maanmunt. Rood of blauw: één worp beslist.',
+      'De Maanmunt! Beide kanten krijgen een multiplier, daarna gooi ik.',
+      'Maanmunt! Kijk goed naar de twee kanten.'
     ]
   },
   coinReveal: {
     mood: 'happy',
     lines: [
-      'Rood is {rood}, blauw is {blauw}! Kom op, blauw! Of nee, rood!',
-      'Op tafel: rood {rood} en blauw {blauw}. Waar gaan we heen?',
-      'De kanten zijn geladen: {rood} op rood, {blauw} op blauw!',
-      'Rood {rood} tegen blauw {blauw}. Wat een duel!'
+      'Rood is {rood}, blauw is {blauw}.',
+      'De kanten staan vast: rood {rood}, blauw {blauw}.',
+      'Rood {rood} tegen blauw {blauw}. Waar valt hij?'
     ]
   },
   coinFlip: {
     mood: 'tense',
     lines: [
-      'Daar gaat hij... de lucht in!',
-      'Opgooien! Kijk hem draaien!',
-      'Hoger, hoger! Zonder zwaartekracht kan dit even duren...',
-      'Flip! Iedereen stil!',
-      'De munt tolt door de ruimte!'
+      'Daar gaat de munt!',
+      'Opgooien... en kijk hem draaien.',
+      'Hoog in de lucht. Rood of blauw?'
     ]
   },
   coinResult: {
     mood: 'shock',
     lines: [
-      'Het is {kant}! {x} voor iedereen!',
-      '{kant} wint! Dat is {x}!',
-      'De munt kiest {kant}: {x}!',
-      'En het wordt... {kant}! {x}, mensen!'
+      'Het is {kant}! Iedereen in de Maanmunt krijgt {x}.',
+      '{kant} wint: {x}!',
+      'De munt landt op {kant}. Dat is {x}!'
     ]
   },
 
@@ -378,48 +301,37 @@ const LINES = {
   meteorIntro: {
     mood: 'hype',
     lines: [
-      'De METEORENMUUR! Ik laat een gloeiende meteoor vallen. Waar komt hij uit?',
-      'Welkom bij de METEORENMUUR! Pinnen, vakken en twee DUBBEL-vakken!',
-      'Tijd voor de METEORENMUUR! Hopelijk raak ik een DUBBEL...',
-      'Ik heb een meteoor gevangen. Nu laat ik hem vallen. Klaar?'
+      'Welkom bij de Meteorenmuur. Ik laat de meteoor vallen en de pinnen bepalen de prijs.',
+      'De Meteorenmuur! Valt hij op DUBBEL, dan verdubbelt alles en gooi ik opnieuw.',
+      'Meteorenmuur! Zestien vakken. Kijk naar de twee DUBBEL-vakken.'
     ]
   },
   meteorDrop: {
     mood: 'tense',
     lines: [
-      'Loslaten in drie, twee, één... DAAR GAAT HIJ!',
-      'Meteoor los!',
-      'Kijk hem stuiteren!',
-      'Vallen maar, kleine meteoor!'
+      'Ik laat los... nu!',
+      'Daar gaat de meteoor.',
+      'Meteoor los. Volg hem!'
     ]
   },
   meteorFalling: {
     mood: 'tense',
-    lines: [
-      'Links! Nee, rechts!',
-      'Tik, tik, tik tegen de pinnen...',
-      'Waar gaat hij heen?!',
-      'Bijna beneden!',
-      'Kom op, naar de grote vakken!',
-      'Hij twijfelt! Ik ook!'
-    ]
+    lines: ['Waar gaat hij heen?']
   },
   meteorDouble: {
     mood: 'shock',
     lines: [
-      'DUBBEL! Alle vakken ×2! Nog een keer!',
-      'DUBBEL!! Alles verdubbelt en ik mag opnieuw!',
-      'Ja ja JA! DUBBEL! Nu staat alles op ×{n}!',
-      'Dubbelfeest! Weer een meteoor erin!'
+      'DUBBEL! Alle vakken keer twee, en ik gooi opnieuw!',
+      'Dubbel! Alles staat nu op ×{n}. Nog een keer!',
+      'Wat een geluk: DUBBEL! De meteoor mag nog een keer.'
     ]
   },
   meteorResult: {
     mood: 'shock',
     lines: [
       'Geland op {x}!',
-      'De meteoor kiest {x}! Lekker!',
-      'Inslag in het vak van {x}!',
-      '{x}! Wat een val!'
+      'De meteoor kiest {x}.',
+      '{x} voor iedereen in de Meteorenmuur!'
     ]
   },
 
@@ -427,52 +339,47 @@ const LINES = {
   huntIntro: {
     mood: 'hype',
     lines: [
-      'STERRENJACHT! 108 doelen, allemaal met een verborgen prijs!',
-      'Pak je laserkanon! Welkom bij de STERRENJACHT!',
-      'Richten, schieten, winnen! Dit is de STERRENJACHT!',
-      'Achter elk symbool zit een multiplier. Jij kiest welke je raakt!'
+      'Welkom bij de Sterrenjacht. Achter elk symbool zit een multiplier.',
+      'Sterrenjacht! Iedereen kiest zijn eigen doel.',
+      'Pak het kanon: 108 doelen, elk met een verborgen prijs.'
     ]
   },
   huntPick: {
     mood: 'wink',
     lines: [
-      'Richt op een doel! Klik op het symbool dat je wilt raken.',
-      'Kies je doel! Iedereen schiet op zijn eigen doel.',
-      'Gevoel of strategie? Klik een doel aan!',
-      'Mik maar! Een planeet? Een ufo? Jij kiest!'
+      'Kies je doel! Klik op een symbool.',
+      'Waar wil je op schieten? Klik een doel aan.',
+      'Je hebt even de tijd. Kies een symbool.'
     ]
   },
   huntHurry: {
     mood: 'tense',
     lines: [
-      'Nog vier seconden! Kies snel!',
-      'Wie niet kiest, schiet ik willekeurig voor!',
-      'Laatste kans om te richten!'
+      'Nog een paar seconden! Wie niet kiest, krijgt een willekeurig doel.',
+      'Snel, kies je doel!'
     ]
   },
   huntFire: {
     mood: 'hype',
     lines: [
-      'VUUR!',
-      'Schieten maar! Kijk wat erachter zat!',
-      'PIEW PIEW! Daar gaan de lasers!',
-      'Alle kanonnen tegelijk: VUUR!'
+      'Vuur!',
+      'Schieten! Kijk wat erachter zat.',
+      'Alle kanonnen tegelijk: vuur!'
     ]
   },
   huntResult: {
     mood: 'shock',
     lines: [
       'Beste schot: {naam} met {x}!',
-      '{naam} raakt de roos: {x}!',
-      'Scherpschutter {naam} pakt {x}!',
-      'Wat een schot van {naam}: {x}!'
+      '{naam} raakt {x}. Mooi gemikt!',
+      'Topscore in de Sterrenjacht: {naam} met {x}.'
     ]
   },
   huntMissed: {
     mood: 'sad',
     lines: [
-      'Er zat zelfs {x} tussen! Niemand die erop schoot...',
-      'Zonde: de grootste prijs was {x}.'
+      'Er zat zelfs {x} tussen!',
+      'De hoogste prijs was {x}. Volgende keer!'
     ]
   },
 
@@ -480,69 +387,63 @@ const LINES = {
   wormIntro: {
     mood: 'shock',
     lines: [
-      'HET WORMGAT! Kom mee door het portaal!',
-      'Dit is het moment! Het WORMGAT gaat open!',
-      'Grootste bonus van het heelal: het WORMGAT! Tot 20.000×!',
-      'Ik voel de zwaartekracht trekken... WORMGAT!'
+      'Het Wormgat! Kom mee door het portaal.',
+      'Dit is de grootste bonus: het Wormgat. Tot 20.000×!',
+      'Het portaal gaat open. We gaan naar het Wormgat!'
     ]
   },
   wormPortal: {
     mood: 'hype',
     lines: [
-      'We vliegen erdoorheen! Hou je vast!',
-      'Woooosh! Welkom aan de andere kant!',
-      'Kijk dat reuzenrad! Groter dan een planeet!',
-      'We zijn er! Het reuzenrad wacht op ons.'
+      'Welkom aan de andere kant. Kijk dat reuzenrad!',
+      'We zijn er. Drie wijzers, één enorm rad.',
+      'Dit is het reuzenrad van het Wormgat.'
     ]
   },
   wormPick: {
     mood: 'wink',
     lines: [
-      'Kies je wijzer: GROEN, BLAUW of GEEL!',
-      'Drie wijzers, drie kansen. Welke kleur is jouw geluk?',
-      'Groen, blauw of geel? Kies snel!',
-      'Elke wijzer krijgt zijn eigen prijs. Kies verstandig!'
+      'Kies je wijzer: groen, blauw of geel.',
+      'Elke wijzer krijgt zijn eigen prijs. Welke kies jij?',
+      'Groen, blauw of geel? Je hebt even de tijd.'
     ]
   },
   wormSpin: {
     mood: 'hype',
     lines: [
-      'DRAAIEN! Het reuzenrad komt in beweging!',
-      'Daar gaat hij! Kijk die vakken voorbij vliegen!',
-      'Het grootste rad van het heelal draait!',
-      'Spin it! Volle kracht!'
+      'Het reuzenrad draait!',
+      'Daar gaat hij. Kijk naar je wijzer!',
+      'Draaien maar!'
     ]
   },
   wormDouble: {
     mood: 'shock',
     lines: [
-      'DUBBEL! Alles keer twee en we draaien OPNIEUW!',
-      'DUBBEL!! Nog een draai, met dubbele prijzen!',
-      'Ja! Een DUBBEL! Het wordt alleen maar groter!'
+      'DUBBEL! Die wijzer gaat keer twee en we draaien opnieuw.',
+      'Dubbel! Nog een draai met dubbele prijzen.'
     ]
   },
   wormTriple: {
     mood: 'shock',
     lines: [
-      'TRIPEL!!! Alles keer DRIE! Ik ontplof bijna!',
-      'TRIPEL! Dit is waanzin! Nog een draai!',
-      'DRIE KEER ZOVEEL! Opnieuw draaien!'
+      'TRIPEL! Keer drie en nog een draai!',
+      'Tripel! Dit kan heel groot worden.'
     ]
   },
   wormResult: {
     mood: 'shock',
     lines: [
-      'Het wormgat sluit! Hoogste prijs: {x}!',
-      'Klaar! De beste wijzer pakt {x}!',
-      'Wat een reis! Topprijs: {x}!'
+      'Klaar! De hoogste wijzer pakt {x}.',
+      'Het rad staat stil. Topprijs: {x}!',
+      'Wat een reis. De beste wijzer: {x}.'
     ]
   },
   wormHuge: {
     mood: 'shock',
     lines: [
-      '{x}!!! DIT IS HISTORISCH!',
-      'IK GELOOF MIJN SENSOREN NIET: {x}!',
-      '{x}! Iemand moet dit filmen!'
+      '{x}! Dit is een enorme winst!',
+      'Ongelooflijk: {x}!',
+      '{x}! Dit vergeten we niet snel.'
     ]
   }
 };
@@ -568,7 +469,8 @@ function line(category, vars) {
   const choice = pool[crypto.randomInt(0, pool.length)];
   recent.push(choice.key);
   if (recent.length > RECENT_SIZE) recent.shift();
-  return { text: fill(choice.text, vars), mood: group.mood };
+  const text = fill(choice.text, vars);
+  return { text: text.charAt(0).toUpperCase() + text.slice(1), mood: group.mood };
 }
 
 module.exports = { line, LINES };
