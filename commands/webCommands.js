@@ -14,7 +14,7 @@ const PAGES = {
   tafel: { path: '/blackjack', label: 'Naar de tafel', intro: '🃏 De **blackjack tafel** staat op de website: speel met maximaal 7 spelers tegen de dealer.' },
   plinko: { path: '/plinko', label: 'Speel Plinko', intro: '🟡 **Plinko** speel je op de website: laat ballen vallen en win tot 1000x je inzet.' },
   slots: { path: '/slots', label: 'Speel Slots', intro: '🍒 **Slots** speel je op de website: een fruitautomaat met 10 niveaus, free spins, jackpots en tot 2500x je inzet.' },
-  roulette: { path: '/roulette', label: 'Speel Roulette', intro: '🎯 **Roulette** speel je op de website: Europees roulette met alle inzetten, tot 35x je inzet.' },
+  roulette: { path: '/roulette', label: 'Speel Roulette', intro: '🎯 **Roulette** speel je op de website: één gedeelde Europese roulettetafel, speel mee met de rest. Tot 35x je inzet.' },
   afwassen: { path: '/afwas', label: 'Naar de keuken', intro: '🧽 **Afwassen** doe je op de website: heb je minder dan 50 punten, dan verdien je 5 punten per schoon bord.' }
 };
 
@@ -55,7 +55,7 @@ const webCommands = [
   { name: 'tafel', description: 'Krijg je link naar de online blackjack tafel' },
   { name: 'plinko', description: 'Krijg je persoonlijke link naar Plinko op de website' },
   { name: 'slots', description: 'Krijg je persoonlijke link naar de fruitautomaat op de website' },
-  { name: 'roulette', description: 'Krijg je persoonlijke link naar Roulette op de website' },
+  { name: 'roulette', description: 'Krijg je link naar de gedeelde roulettetafel op de website' },
   { name: 'afwassen', description: 'Blut? Was borden af in de keuken voor punten (onder 50 punten)' }
 ];
 

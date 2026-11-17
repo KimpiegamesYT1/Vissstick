@@ -1,5 +1,5 @@
 /**
- * Casino website (Rocket + Dagelijkse spin + Blackjack tafel)
+ * Casino website (Rocket + Dagelijkse spin + Blackjack tafel + Roulette)
  *   GET  /                          doorsturen naar /rocket
  *   GET  /rocket                    Rocket pagina
  *   GET  /spin, /daily              Dagelijkse spin pagina
@@ -28,8 +28,9 @@
  *   POST /api/plinko/drop           laat een bal vallen
  *   GET  /api/slots/status          instellingen, niveaus en eigen voortgang
  *   POST /api/slots/spin            één spin
- *   GET  /api/roulette/status       instellingen, eigen stats en laatste uitslagen
- *   POST /api/roulette/spin         fiches inzetten en draaien
+ *   GET  /api/roulette/status       instellingen, saldo en eigen stats
+ *   GET  /api/roulette/stream       Server-Sent Events met de gedeelde roulettetafel
+ *   POST /api/roulette/bet          eigen fiches voor deze ronde vervangen (eerste fiche opent een ronde)
  *   GET  /api/afwas/status          instellingen, saldo en eigen stats
  *   POST /api/afwas/{plate,clean,reject}  nieuw bord / bord schoon (+1) / bord afgekeurd
  *   POST /api/logout
@@ -161,11 +162,14 @@ function createCasinoWebHandler() {
   const actionLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 40 });
   // Plinko: veel snelle ballen achter elkaar (auto-modus), daarom een eigen, ruimere limiet
   const plinkoLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 100 });
+  // Roulette: elke wijziging op de tafel wordt (gebundeld) naar de server gestuurd
+  const rouletteLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 80 });
 
   // Live streams per spel
   const streams = {
     rocket: { clients: new Set(), getState: rocketGame.getPublicState },
-    blackjack: { clients: new Set(), getState: blackjackTable.getPublicState }
+    blackjack: { clients: new Set(), getState: blackjackTable.getPublicState },
+    roulette: { clients: new Set(), getState: roulette.getPublicState }
   };
 
   function broadcast(stream) {
@@ -175,6 +179,7 @@ function createCasinoWebHandler() {
 
   rocketGame.events.on('update', () => broadcast(streams.rocket));
   blackjackTable.events.on('update', () => broadcast(streams.blackjack));
+  roulette.events.on('update', () => broadcast(streams.roulette));
 
   // Houdt verbindingen (en de Cloudflare tunnel) open en geeft de browser een verse server tijd
   setInterval(() => {
@@ -261,7 +266,7 @@ function createCasinoWebHandler() {
       sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko, /slots, /roulette of /afwassen in Discord voor je persoonlijke link.' });
       return;
     }
-    const limiter = action === 'plinko/drop' ? plinkoLimiter : actionLimiter;
+    const limiter = action === 'plinko/drop' ? plinkoLimiter : action === 'roulette/bet' ? rouletteLimiter : actionLimiter;
     if (!limiter.check(user.id).allowed) {
       sendJson(res, 429, { ok: false, message: 'Rustig aan! Probeer het over een paar seconden opnieuw.' });
       return;
@@ -269,7 +274,7 @@ function createCasinoWebHandler() {
 
     let body;
     try {
-      body = await readJsonBody(req, action === 'roulette/spin' ? MAX_ROULETTE_BODY_BYTES : MAX_BODY_BYTES);
+      body = await readJsonBody(req, action === 'roulette/bet' ? MAX_ROULETTE_BODY_BYTES : MAX_BODY_BYTES);
     } catch (error) {
       sendJson(res, 400, { ok: false, message: 'Verkeerd verzoek.' });
       return;
@@ -288,7 +293,7 @@ function createCasinoWebHandler() {
       case 'blackjack/act': result = blackjackTable.act(user, String(body.action || '')); break;
       case 'plinko/drop': result = plinko.drop(user, body.bet, body.risk, body.rows); break;
       case 'slots/spin': result = slots.spin(user, body.bet, body.machine); break;
-      case 'roulette/spin': result = roulette.spin(user, body.bets); break;
+      case 'roulette/bet': result = roulette.placeBets(user, body.bets); break;
       case 'afwas/plate': result = afwas.nextPlate(user); break;
       case 'afwas/clean': result = afwas.cleanPlate(user, body.plate); break;
       case 'afwas/reject': result = afwas.rejectPlate(user, body.plate); break;
@@ -366,11 +371,14 @@ function createCasinoWebHandler() {
           const payload = { linked: Boolean(user), config: roulette.getConfig() };
           if (user) {
             casino.getOrCreateUser(user.id, user.username);
-            Object.assign(payload, { user, balance: casino.getUserBalance(user.id), stats: roulette.getStats(user.id), history: roulette.getHistory(user.id) });
+            Object.assign(payload, { user, balance: casino.getUserBalance(user.id), stats: roulette.getStats(user.id) });
           }
           sendJson(res, 200, payload);
           return true;
         }
+        case '/api/roulette/stream':
+          handleStream(req, res, streams.roulette);
+          return true;
         case '/afwas':
         case '/afwas/':
           sendPage(res, pages.afwas);
@@ -462,7 +470,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/spin|afwas\/(?:plate|clean|reject)|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|afwas\/(?:plate|clean|reject)|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

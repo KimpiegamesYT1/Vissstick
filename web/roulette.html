@@ -298,6 +298,39 @@
     .hchip:nth-child(n+5) { display: none; }
     .tablearea { padding: 10px 8px 12px; }
   }
+  /* =========================== MULTIPLAYER =========================== */
+  .status {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 3; min-width: 230px; max-width: calc(100% - 140px);
+    background: rgba(22,24,27,.88); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px 9px; text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4); backdrop-filter: blur(4px);
+  }
+  .status b { display: block; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .status small { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+  .status .bar { height: 4px; border-radius: 999px; background: var(--raise); margin-top: 7px; overflow: hidden; }
+  .status .bar[hidden] { display: none; }
+  .status .bar i { display: block; height: 100%; width: 100%; background: var(--green); transform-origin: left; }
+  .status.hurry .bar i { background: var(--red); }
+  .status.hurry b { color: #ffb3a8; }
+  .syncline { min-height: 18px; margin-top: 2px; font-size: 12px; font-weight: 700; color: var(--muted); text-align: center; }
+  .syncline.ok { color: var(--green); }
+  .syncline.busy { color: var(--gold); }
+  .syncline.err { color: var(--red); }
+  .players { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .players h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 800; display: flex; justify-content: space-between; }
+  .players .empty { font-size: 13px; color: var(--muted); }
+  .prow { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
+  .prow + .prow { border-top: 1px solid var(--line); }
+  .prow .av { width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 12px; font-weight: 800;
+    background: var(--raise); color: var(--muted); object-fit: cover; box-shadow: 0 0 0 2px var(--pc, transparent); }
+  .prow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .prow .nm small { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .prow .amt { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .prow.me .nm { color: var(--gold); }
+  /* Fiches van andere spelers */
+  .ochips { position: absolute; right: 1px; top: 1px; z-index: 2; display: flex; pointer-events: none; }
+  .hs .ochips { right: -10px; top: -10px; }
+  .ochip { width: 14px; height: 14px; border-radius: 50%; background: var(--pc); border: 2px solid rgba(255,255,255,.85); box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+  .ochip + .ochip { margin-left: -6px; }
 </style>
 <script src="/connection.js?v=4"></script>
 </head>
@@ -323,33 +356,36 @@
       <div class="betbox">
         <div class="login" id="login" hidden>
           <h3>Niet ingelogd</h3>
-          <p>Wil je spelen? Typ <code>/roulette</code> in Discord en klik op de link. Dit hoef je maar één keer te doen.</p>
+          <p>Je kijkt mee. Wil je spelen? Typ <code>/roulette</code> in Discord en klik op de link. Dit hoef je maar één keer te doen.</p>
         </div>
         <div id="controls" hidden>
           <div class="field">
             <label>Fiche <span>klik op de tafel om in te zetten</span></label>
             <div class="chips" id="chips"></div>
           </div>
-          <div class="totals"><span>Inzet op tafel</span><span><b id="total">0</b> <small id="maxTotal"></small></span></div>
+          <div class="totals"><span>Jouw inzet</span><span><b id="total">0</b> <small id="maxTotal"></small></span></div>
           <div class="tools">
             <button type="button" id="undo" title="Laatste fiche terug (Ctrl+Z)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Terug</button>
-            <button type="button" id="clear" title="Alle fiches van de tafel">
+            <button type="button" id="clear" title="Al je fiches van de tafel">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Wissen</button>
-            <button type="button" id="double" title="Alle inzetten verdubbelen">
+            <button type="button" id="double" title="Al je inzetten verdubbelen">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>2×</button>
-            <button type="button" id="rebet" title="Inzetten van de vorige spin terugleggen">
+            <button type="button" id="rebet" title="Je inzetten van de vorige ronde terugleggen">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Herhaal</button>
           </div>
-          <button class="play" id="play" type="button">Draaien</button>
-          <div class="keyhint"><kbd>spatie</kbd> draaien · <kbd>rechtsklik</kbd> fiche weghalen</div>
+          <div class="syncline" id="syncline"></div>
           <div class="notice" id="notice" hidden></div>
         </div>
+      </div>
+      <div class="players">
+        <h2>AAN TAFEL <span id="playerCount"></span></h2>
+        <div id="players"></div>
       </div>
       <div class="stats" id="statsBox" hidden>
         <h2>DEZE SESSIE <button type="button" id="resetSession">wissen</button></h2>
         <div class="grid">
-          <div class="stat"><small>Spins</small><b id="sSpins">0</b></div>
+          <div class="stat"><small>Rondes</small><b id="sSpins">0</b></div>
           <div class="stat"><small>Ingezet</small><b id="sWagered">0</b></div>
           <div class="stat"><small>Winst</small><b id="sProfit">0</b></div>
           <div class="stat"><small>Beste</small><b id="sBest">–</b></div>
@@ -373,6 +409,7 @@
       <div class="wheelarea" id="wheelarea">
         <div class="sound-btns"><button class="snd" id="mute" type="button"></button></div>
         <canvas class="wheel" id="wheel"></canvas>
+        <div class="status" id="status"><b id="stTitle">Verbinden…</b><small id="stSub"></small><div class="bar" id="stBar" hidden><i id="stFill"></i></div></div>
         <div class="hist" id="hist"></div>
         <div class="flash" id="flash"></div>
         <div class="resultpop" id="resultpop" hidden><div class="num" id="rpNum"></div><small id="rpKicker"></small><div class="amt" id="rpAmt"></div></div>
@@ -399,26 +436,37 @@
   const $ = id => document.getElementById(id);
   const fmt = n => Math.round(n).toLocaleString('nl-NL');
   const TAU = Math.PI * 2;
-  const SPIN_MS = 7600;      // hele spin (wiel remt af)
-  const LAND_MS = 5600;      // daarna ligt de bal stil in een vakje
-  const RESULT_MS = 2600;    // zo lang blijven winnende fiches liggen
   const IDLE_SPEED = 0.18;   // rad/s, het wiel draait altijd een beetje
+  const SYNC_DELAY = 250;    // fiches bundelen voor ze naar de server gaan
+  const CLOSE_MARGIN = 500;  // zo lang voor het sluiten kun je niets meer veranderen
 
   // =====================================================
-  // STATE
+  // STATE + KLOK
   // =====================================================
   let me = null;             // antwoord van /api/roulette/status
   let cfg = null;
+  let table = null;          // gedeelde tafel (stream)
   let RED = new Set();
-  let serverBalance = 0;
-  let pending = 0;           // uitbetaling van de spin die nog draait
-  let phase = 'idle';        // idle | request | spin | result
-  const bets = new Map();    // sleutel -> bedrag
-  let undoStack = [];        // [{ key, amount }] (negatief = weggehaald)
+  let balance = 0;           // saldo volgens de server (bevestigde inzet al afgeschreven)
+  const myBets = new Map();  // jouw fiches zoals je ze nu ziet
+  let confirmed = new Map(); // jouw fiches zoals de server ze kent
+  let myRound = null;        // ronde waar jouw fiches bij horen
+  let undoStack = [];
   let lastBets = [];
-  let spin = null;           // lopende animatie
-  let resultTimer = null;
+  let dirty = false, syncing = false, syncTimer = null, syncError = '';
+  let animatedRound = null, landedRound = null, shownRound = null, countedRound = null;
+  let spin = null;
   const session = { spins: 0, wagered: 0, won: 0, best: 0 };
+
+  let clockOffset = 0;
+  const clockSamples = [];
+  // Verzendvertraging is altijd positief, dus de grootste meting zit het dichtst bij de echte offset
+  function addClockSample(sample) {
+    clockSamples.push(sample);
+    if (clockSamples.length > 12) clockSamples.shift();
+    clockOffset = Math.max(...clockSamples);
+  }
+  const serverNow = () => Date.now() + clockOffset;
 
   const settings = { chip: 5 };
   try { Object.assign(settings, JSON.parse(localStorage.getItem('roulette_settings') || '{}')); } catch (error) { /* geen opslag */ }
@@ -433,6 +481,32 @@
 
   const colorOf = n => (n === 0 ? 'green' : RED.has(n) ? 'red' : 'black');
   const colorName = { red: 'Rood', black: 'Zwart', green: 'Groen' };
+  const sum = map => [...map.values()].reduce((a, b) => a + b, 0);
+  const toList = map => [...map].map(([key, amount]) => ({ key, amount }));
+  const toMap = list => new Map((list || []).map(b => [b.key, b.amount]));
+  const linked = () => Boolean(me && me.linked);
+  const myId = () => (linked() ? me.user.id : null);
+  // Vaste kleur per speler (voor zijn fiches op de tafel)
+  function playerColor(id) {
+    let h = 0;
+    for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) % 360;
+    return `hsl(${h} 75% 58%)`;
+  }
+
+  // Fase zoals de speler hem ervaart
+  function phase() {
+    const r = table && table.round;
+    if (!r) return 'open';
+    if (r.phase === 'betting') return serverNow() < r.bettingEndsAt - CLOSE_MARGIN ? 'betting' : 'closing';
+    if (r.phase === 'spinning') return 'spinning';
+    if (r.phase === 'result') return serverNow() < r.nextAt ? 'result' : 'open';
+    return 'open';
+  }
+  const canEdit = () => linked() && (phase() === 'open' || phase() === 'betting');
+  const myEntry = () => {
+    const r = table && table.round;
+    return r && myId() ? r.players.find(p => p.userId === myId()) || null : null;
+  };
 
   // =====================================================
   // SERVER
@@ -448,17 +522,13 @@
     const first = !cfg;
     cfg = me.config;
     RED = new Set(cfg.red);
-    if (me.linked) serverBalance = me.balance;
+    if (me.linked && !dirty && !syncing) balance = me.balance;
     if (!cfg.chips.includes(settings.chip)) settings.chip = cfg.chips[1] || cfg.chips[0];
     if (first) {
       buildTable();
       buildChips();
       layout();
-      if (me.history && me.history.length) {
-        me.history.slice().reverse().forEach(n => addHistory(n));
-        ball.pocket = me.history[0];
-        ball.visible = true;
-      }
+      connect();
     }
     renderAll();
   }
@@ -475,7 +545,125 @@
     }
   }
 
-  addEventListener('focus', () => { if (me && phase === 'idle') loadStatus(); });
+  function connect() {
+    const es = new EventSource('/api/roulette/stream');
+    es.onmessage = event => {
+      const data = JSON.parse(event.data);
+      addClockSample(data.serverNow - Date.now());
+      applyState(data);
+    };
+    es.addEventListener('time', event => addClockSample(JSON.parse(event.data).serverNow - Date.now()));
+  }
+
+  addEventListener('focus', () => { if (me && !dirty && !syncing) loadStatus(); });
+
+  // Fiches naar de server (gebundeld)
+  function scheduleSync() {
+    dirty = true;
+    syncError = '';
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(sync, SYNC_DELAY);
+    renderSyncLine();
+  }
+
+  async function sync() {
+    clearTimeout(syncTimer);
+    if (syncing || !dirty) return;
+    syncing = true;
+    dirty = false;
+    renderSyncLine();
+    const sent = toList(myBets);
+    const res = await post('/api/roulette/bet', { bets: sent });
+    syncing = false;
+    if (typeof res.balance === 'number') balance = res.balance;
+    if (res.ok) {
+      confirmed = toMap(res.bets || []);
+      myRound = res.roundId || null;
+    } else {
+      // Terug naar wat de server kent
+      syncError = res.message || 'Inzet niet gelukt.';
+      toast(syncError, false);
+      dirty = false;
+      const entry = myEntry();
+      confirmed = entry ? toMap(entry.bets) : (table && table.round && table.round.phase === 'betting' ? confirmed : new Map());
+      myBets.clear();
+      confirmed.forEach((v, k) => myBets.set(k, v));
+      undoStack = [];
+    }
+    renderChips();
+    if (dirty) sync();
+  }
+
+  // =====================================================
+  // TAFELSTATUS VAN DE SERVER
+  // =====================================================
+  function applyState(next) {
+    table = next;
+    const r = next.round;
+    const entry = myEntry();
+    if (entry && !dirty && !syncing) balance = entry.balance;
+
+    const live = r && (r.phase === 'betting' || r.phase === 'spinning' || (r.phase === 'result' && serverNow() < r.nextAt));
+    if (live) {
+      if (r.phase !== 'betting') { dirty = false; clearTimeout(syncTimer); }
+      // Fiches van de server overnemen zolang je zelf niets aan het veranderen bent (bv. een tweede tabblad)
+      if (!dirty && !syncing) {
+        const round = entry ? r.id : null;
+        if (round !== myRound) undoStack = [];
+        myRound = round;
+        confirmed = entry ? toMap(entry.bets) : new Map();
+        myBets.clear();
+        confirmed.forEach((v, k) => myBets.set(k, v));
+      }
+    }
+
+    if (r && r.phase === 'spinning' && animatedRound !== r.id) {
+      animatedRound = r.id;
+      if (entry) { lastBets = entry.bets; save(); }
+      hideResult();
+      document.querySelectorAll('.cell.winner').forEach(n => n.classList.remove('winner'));
+      startWheel(r);
+    }
+    if (r && r.phase === 'result' && animatedRound !== r.id) {
+      // Binnengekomen na het draaien: bal direct in het vakje
+      animatedRound = r.id;
+      landedRound = r.id;
+      shownRound = r.id;
+      countedRound = r.id;
+      ball.visible = true;
+      ball.pocket = r.result;
+    }
+    if (r && r.phase === 'result') tryShowResult();
+    if (!ball.visible && next.history.length) { ball.visible = true; ball.pocket = next.history[0]; }
+
+    renderHistory();
+    renderPlayers();
+    renderChips();
+    tick();
+  }
+
+  // Ronde voorbij: tafel leeg voor de volgende
+  function clearFinishedRound() {
+    const r = table && table.round;
+    if (!myRound || dirty || syncing) return;
+    if (r && r.id === myRound && (r.phase === 'betting' || r.phase === 'spinning' || (r.phase === 'result' && serverNow() < r.nextAt))) return;
+    myRound = null;
+    myBets.clear();
+    confirmed = new Map();
+    undoStack = [];
+    renderChips();
+  }
+
+  // Elke 200 ms: aftellen + fiches op tijd versturen
+  function tick() {
+    const r = table && table.round;
+    const p = phase();
+    if (p === 'betting' && dirty && serverNow() > r.bettingEndsAt - CLOSE_MARGIN - 500) sync();
+    if (p === 'open') clearFinishedRound();
+    renderStatus();
+    renderControls();
+  }
+  setInterval(tick, 200);
 
   // =====================================================
   // UI
@@ -507,33 +695,34 @@
     return node;
   }
 
-  const tableTotal = () => [...bets.values()].reduce((a, b) => a + b, 0);
-  // Fiches op tafel zijn nog niet afgeschreven, maar tellen wel als "weg"
-  const shownBalance = () => serverBalance - pending - (phase === 'idle' || phase === 'request' ? tableTotal() : 0);
+  // Wat je nog niet naar de server hebt gestuurd telt ook al als "weg"
+  const shownBalance = () => balance - (sum(myBets) - sum(confirmed));
 
   function renderUser() {
     const box = $('user');
     box.replaceChildren();
-    if (!me || !me.linked) { box.hidden = true; return; }
+    if (!linked()) { box.hidden = true; return; }
     box.hidden = false;
     const img = el('img', { alt: '' });
     if (me.user.avatar) img.src = me.user.avatar;
     box.append(img,
       el('div', {}, [el('div', { class: 'name', text: me.user.username }), el('div', { class: 'balance', id: 'balance' })]),
-      el('button', { text: 'Uitloggen', onclick: async () => { await post('/api/logout'); clearTable(); loadStatus(); } }));
+      el('button', { text: 'Uitloggen', onclick: async () => { await post('/api/logout'); location.reload(); } }));
     renderBalance();
   }
 
-  let balanceTimer = null;
-  function renderBalance(up) {
+  let balanceTimer = null, lastShown = null;
+  function renderBalance() {
     const node = $('balance');
     if (!node) return;
-    node.textContent = `${fmt(shownBalance())} punten`;
-    if (up) {
+    const value = shownBalance();
+    node.textContent = `${fmt(value)} punten`;
+    if (lastShown !== null && value > lastShown && !dirty && !syncing) {
       node.classList.add('up');
       clearTimeout(balanceTimer);
       balanceTimer = setTimeout(() => node.classList.remove('up'), 450);
     }
+    lastShown = value;
   }
 
   function chipClass(amount) {
@@ -544,43 +733,98 @@
   }
 
   function buildChips() {
-    const box = $('chips');
-    box.replaceChildren(...cfg.chips.map(value => el('button', {
+    $('chips').replaceChildren(...cfg.chips.map(value => el('button', {
       type: 'button', class: `chipbtn chip ${chipClass(value)}`, 'data-chip': value, title: `Fiche van ${value}`,
       onclick: () => { settings.chip = value; save(); renderControls(); sfx.click(); }
     }, [el('span', { text: String(value) })])));
   }
 
   function renderControls() {
-    const linked = me && me.linked;
-    $('login').hidden = !me || linked;
-    $('controls').hidden = !linked;
-    $('statsBox').hidden = !linked;
-    if (!linked) return;
-
-    const idle = phase === 'idle';
-    const total = tableTotal();
-    $('chips').querySelectorAll('button').forEach(b => {
-      b.classList.toggle('active', Number(b.dataset.chip) === settings.chip);
-    });
-    $('total').textContent = fmt(total);
+    $('login').hidden = !me || linked();
+    $('controls').hidden = !linked();
+    $('statsBox').hidden = !linked();
+    if (!linked() || !cfg) return;
+    const edit = canEdit();
+    $('chips').querySelectorAll('button').forEach(b => b.classList.toggle('active', Number(b.dataset.chip) === settings.chip));
+    $('total').textContent = fmt(sum(myBets));
     $('maxTotal').textContent = `/ ${fmt(cfg.maxTotalBet)}`;
-    $('undo').disabled = !idle || !undoStack.length;
-    $('clear').disabled = !idle || !bets.size;
-    $('double').disabled = !idle || !bets.size;
-    $('rebet').disabled = !idle || !lastBets.length;
-    $('rtable').classList.toggle('locked', !idle);
+    $('undo').disabled = !edit || !undoStack.length;
+    $('clear').disabled = !edit || !myBets.size;
+    $('double').disabled = !edit || !myBets.size;
+    $('rebet').disabled = !edit || !lastBets.length;
+    $('rtable').classList.toggle('locked', !edit);
+  }
 
-    const play = $('play');
-    if (phase === 'request' || phase === 'spin') { play.textContent = 'Draait…'; play.disabled = true; }
-    else if (phase === 'result') { play.textContent = 'Draaien'; play.disabled = true; }
-    else if (!bets.size && lastBets.length) {
-      play.textContent = `Herhaal & draai · ${fmt(lastBets.reduce((a, b) => a + b.amount, 0))}`;
-      play.disabled = false;
-    } else {
-      play.textContent = total ? `Draaien · ${fmt(total)}` : 'Draaien';
-      play.disabled = !total;
+  function renderSyncLine() {
+    const line = $('syncline');
+    if (!line) return;
+    if (syncError) { line.textContent = syncError; line.className = 'syncline err'; return; }
+    if (dirty || syncing) { line.textContent = 'Inzet opslaan…'; line.className = 'syncline busy'; return; }
+    const p = phase();
+    if (sum(confirmed) && (p === 'betting' || p === 'closing')) { line.textContent = '✓ Je inzet staat'; line.className = 'syncline ok'; return; }
+    line.textContent = '';
+    line.className = 'syncline';
+  }
+
+  function renderStatus() {
+    const r = table && table.round;
+    const p = phase();
+    const box = $('status');
+    let title = '', sub = '', fill = null, hurry = false;
+    if (!table) { title = 'Verbinden…'; }
+    else if (p === 'open') {
+      title = 'Leg je fiches neer';
+      sub = linked() ? 'De eerste fiche start de ronde voor iedereen' : 'Wacht op een speler om de ronde te starten';
+    } else if (p === 'betting' || p === 'closing') {
+      const left = Math.max(0, r.bettingEndsAt - serverNow());
+      title = p === 'closing' ? 'Inzetten sluiten…' : `Inzetten open · ${Math.ceil(left / 1000)}s`;
+      sub = `${r.players.length} ${r.players.length === 1 ? 'speler' : 'spelers'} aan tafel`;
+      fill = left / cfg.bettingMs;
+      hurry = left < 5000;
+    } else if (p === 'spinning') {
+      title = landedRound === r.id ? `${r.result} · ${colorName[r.color]}` : 'Rien ne va plus';
+      sub = landedRound === r.id ? 'Uitbetalen…' : 'Het wiel draait';
+    } else if (p === 'result') {
+      title = `${r.result} · ${colorName[r.color]}`;
+      sub = `Volgende ronde over ${Math.max(1, Math.ceil((r.nextAt - serverNow()) / 1000))}s`;
+      fill = Math.max(0, (r.nextAt - serverNow()) / cfg.resultMs);
     }
+    $('stTitle').textContent = title;
+    $('stSub').textContent = sub;
+    $('stBar').hidden = fill === null;
+    if (fill !== null) $('stFill').style.transform = `scaleX(${Math.max(0, Math.min(1, fill))})`;
+    box.classList.toggle('hurry', hurry);
+    renderSyncLine();
+  }
+
+  function renderPlayers() {
+    const box = $('players');
+    const r = table && table.round;
+    const live = r && (r.phase === 'betting' || r.phase === 'spinning' || (r.phase === 'result' && serverNow() < r.nextAt));
+    const list = live ? [...r.players].sort((a, b) => b.total - a.total) : [];
+    $('playerCount').textContent = list.length ? String(list.length) : '';
+    if (!list.length) {
+      box.replaceChildren(el('div', { class: 'empty', text: 'Nog niemand heeft ingezet.' }));
+      return;
+    }
+    const showPay = r.phase === 'result' && landedRound === r.id;
+    box.replaceChildren(...list.map(p => {
+      const av = p.avatar
+        ? el('img', { class: 'av', alt: '', src: p.avatar, referrerpolicy: 'no-referrer', style: `--pc:${playerColor(p.userId)}` })
+        : el('span', { class: 'av', text: (p.username || '?').charAt(0).toUpperCase(), style: `--pc:${playerColor(p.userId)}` });
+      let amt;
+      if (showPay && p.payout !== null) {
+        const net = p.payout - p.total;
+        amt = el('span', { class: `amt ${net > 0 ? 'win' : net < 0 ? 'loss' : ''}`, text: `${net > 0 ? '+' : net < 0 ? '−' : ''}${fmt(Math.abs(net))}` });
+      } else {
+        amt = el('span', { class: 'amt', text: fmt(p.total) });
+      }
+      return el('div', { class: `prow${p.userId === myId() ? ' me' : ''}` }, [
+        av,
+        el('div', { class: 'nm' }, [p.username, el('small', { text: `${p.bets.length} ${p.bets.length === 1 ? 'inzet' : 'inzetten'}` })]),
+        amt
+      ]);
+    }));
   }
 
   function renderStats() {
@@ -596,7 +840,7 @@
     all.replaceChildren();
     if (s && s.games_played > 0) {
       const net = s.total_payout - s.total_bet;
-      all.append('Totaal ', el('b', { text: fmt(s.games_played) }), ' spins · resultaat ',
+      all.append('Totaal ', el('b', { text: fmt(s.games_played) }), ' rondes · resultaat ',
         el('b', { class: net > 0 ? 'win' : net < 0 ? 'loss' : '', text: `${net > 0 ? '+' : ''}${fmt(net)}` }),
         ' · grootste winst ', el('b', { text: `+${fmt(s.biggest_win)}` }));
     }
@@ -607,6 +851,8 @@
     renderControls();
     renderStats();
     renderChips();
+    renderPlayers();
+    renderStatus();
   }
 
   // =====================================================
@@ -685,18 +931,47 @@
     return `Sixline ${n[0]}–${n[5]}`;
   }
 
+  // Fiches van andere spelers per vak
+  function othersBySpot() {
+    const r = table && table.round;
+    const map = new Map();
+    if (!r || r.phase === 'cancelled' || (r.phase === 'result' && serverNow() >= r.nextAt)) return map;
+    for (const p of r.players) {
+      if (p.userId === myId()) continue;
+      for (const b of p.bets) {
+        if (!map.has(b.key)) map.set(b.key, []);
+        map.get(b.key).push({ userId: p.userId, username: p.username, amount: b.amount });
+      }
+    }
+    return map;
+  }
+
   function renderChips() {
+    if (!cfg) return;
+    const others = othersBySpot();
+    const r = table && table.round;
+    const settled = r && r.phase === 'result' && landedRound === r.id && myRound === r.id;
     for (const [key, node] of spots) {
-      const amount = bets.get(key) || 0;
+      const amount = myBets.get(key) || 0;
       let chip = node.querySelector(':scope > .bchip');
-      if (!amount) { if (chip && !chip.classList.contains('lost')) chip.remove(); continue; }
-      if (!chip) { chip = el('div', { class: 'bchip chip' }, [el('span')]); node.append(chip); }
-      chip.className = `bchip chip ${chipClass(amount)}`;
-      chip.firstChild.textContent = amount >= 1000 ? `${Math.floor(amount / 100) / 10}k` : String(amount);
+      if (!amount) { if (chip) chip.remove(); }
+      else {
+        if (!chip) { chip = el('div', { class: 'bchip chip' }, [el('span')]); node.append(chip); }
+        let state = '';
+        if (settled) state = cfg.bets[key].includes(r.result) ? ' won' : ' lost';
+        chip.className = `bchip chip ${chipClass(amount)}${state}`;
+        chip.firstChild.textContent = amount >= 1000 ? `${Math.floor(amount / 100) / 10}k` : String(amount);
+      }
+      let oc = node.querySelector(':scope > .ochips');
+      const list = others.get(key);
+      if (!list) { if (oc) oc.remove(); continue; }
+      if (!oc) { oc = el('div', { class: 'ochips' }); node.append(oc); }
+      oc.replaceChildren(...list.slice(0, 3).map(o => el('i', { class: 'ochip', style: `--pc:${playerColor(o.userId)}` })));
     }
     renderControls();
     renderBalance();
     renderHoverInfo();
+    renderSyncLine();
   }
 
   // Hover: gedekte getallen oplichten + uitleg onder de tafel
@@ -705,7 +980,7 @@
     if (key === hoverKey) return;
     hoverKey = key;
     document.querySelectorAll('.cell.hl, .hs.hl').forEach(n => n.classList.remove('hl'));
-    if (key && cfg.bets[key]) {
+    if (key && cfg && cfg.bets[key]) {
       cfg.bets[key].forEach(n => numCells.get(n).classList.add('hl'));
       if (spots.get(key) && spots.get(key).classList.contains('hs')) spots.get(key).classList.add('hl');
     }
@@ -714,14 +989,19 @@
   function renderHoverInfo() {
     const box = $('hoverinfo');
     box.replaceChildren();
-    if (!hoverKey || !cfg) {
-      if (bets.size) box.append(el('span', { text: `${bets.size} ${bets.size === 1 ? 'inzet' : 'inzetten'} op tafel` }));
+    if (!cfg) return;
+    if (!hoverKey) {
+      if (myBets.size) box.append(el('span', { text: `${myBets.size} ${myBets.size === 1 ? 'inzet' : 'inzetten'} van jou op tafel` }));
       return;
     }
     const k = cfg.bets[hoverKey].length;
-    const amount = bets.get(hoverKey) || 0;
+    const amount = myBets.get(hoverKey) || 0;
+    const others = othersBySpot().get(hoverKey) || [];
     box.append(el('span', {}, [`${betName(hoverKey)} · `, el('b', { text: `${36 / k - 1} : 1` })]));
-    box.append(el('span', { text: amount ? `Jouw inzet ${fmt(amount)} → wint ${fmt(amount * 36 / k)}` : '' }));
+    const right = [];
+    if (amount) right.push(`Jij ${fmt(amount)} → wint ${fmt(amount * 36 / k)}`);
+    if (others.length) right.push(`Ook: ${others.slice(0, 3).map(o => `${o.username} ${fmt(o.amount)}`).join(', ')}${others.length > 3 ? ` +${others.length - 3}` : ''}`);
+    box.append(el('span', { text: right.join(' · ') }));
   }
 
   const rtable = $('rtable');
@@ -743,204 +1023,160 @@
     removeChip(spot.dataset.key);
   });
 
-  function canPlace(amount, extraKeys = 0) {
-    const total = tableTotal();
-    if (total + amount > cfg.maxTotalBet) return `Je mag maximaal ${fmt(cfg.maxTotalBet)} punten per spin inzetten.`;
-    if (amount > shownBalance()) return `Niet genoeg punten: je hebt nog ${fmt(Math.max(0, shownBalance()))} over.`;
-    if (bets.size + extraKeys > cfg.maxBets) return `Maximaal ${cfg.maxBets} verschillende inzetten per spin.`;
+  function lockedMessage() {
+    if (!linked()) return 'Typ /roulette in Discord om mee te spelen.';
+    const p = phase();
+    if (p === 'closing' || p === 'spinning') return 'De inzetten zijn gesloten, wacht op de volgende ronde.';
+    if (p === 'result') return 'De volgende ronde begint zo.';
     return null;
   }
 
-  function startPlacing() {
-    // Eerste fiche na een uitslag: oude winnende fiches + markering weg
-    if (phase === 'result') finishResult();
+  function canPlace(amount, extraKeys = 0) {
+    if (sum(myBets) + amount > cfg.maxTotalBet) return `Je mag maximaal ${fmt(cfg.maxTotalBet)} punten per ronde inzetten.`;
+    if (amount > shownBalance()) return `Niet genoeg punten: je hebt nog ${fmt(Math.max(0, shownBalance()))} over.`;
+    if (myBets.size + extraKeys > cfg.maxBets) return `Maximaal ${cfg.maxBets} verschillende inzetten per ronde.`;
+    return null;
+  }
+
+  function beforeEdit() {
+    if (!canEdit()) { const m = lockedMessage(); if (m) toast(m, false); return false; }
+    clearFinishedRound();
     document.querySelectorAll('.cell.winner').forEach(n => n.classList.remove('winner'));
+    hideResult();
+    return true;
   }
 
   function placeChip(key, amount) {
-    if (!me || !me.linked || !cfg.bets[key]) return;
-    if (phase !== 'idle' && phase !== 'result') return;
-    startPlacing();
-    const problem = canPlace(amount, bets.has(key) ? 0 : 1);
+    if (!cfg || !cfg.bets[key] || !beforeEdit()) return;
+    const problem = canPlace(amount, myBets.has(key) ? 0 : 1);
     if (problem) { toast(problem, false); return; }
     setNotice(null);
-    bets.set(key, (bets.get(key) || 0) + amount);
+    myBets.set(key, (myBets.get(key) || 0) + amount);
     undoStack.push({ key, amount });
     sfx.chip();
+    scheduleSync();
     renderChips();
   }
 
   function removeChip(key) {
-    if (phase !== 'idle' || !bets.has(key)) return;
-    const current = bets.get(key);
+    if (!myBets.has(key) || !beforeEdit()) return;
+    const current = myBets.get(key);
     const amount = Math.min(current, settings.chip);
-    if (current - amount > 0) bets.set(key, current - amount); else bets.delete(key);
+    if (current - amount > 0) myBets.set(key, current - amount); else myBets.delete(key);
     undoStack.push({ key, amount: -amount });
     sfx.click();
-    renderChips();
-  }
-
-  function clearTable() {
-    bets.clear();
-    undoStack = [];
+    scheduleSync();
     renderChips();
   }
 
   $('undo').addEventListener('click', undo);
   function undo() {
-    if (phase !== 'idle') return;
+    if (!undoStack.length || !beforeEdit()) return;
     const last = undoStack.pop();
-    if (!last) return;
-    const value = (bets.get(last.key) || 0) - last.amount;
-    if (value > 0) bets.set(last.key, value); else bets.delete(last.key);
+    const value = (myBets.get(last.key) || 0) - last.amount;
+    if (value > 0) myBets.set(last.key, value); else myBets.delete(last.key);
     sfx.click();
+    scheduleSync();
     renderChips();
   }
-  $('clear').addEventListener('click', () => { if (phase === 'idle') { clearTable(); sfx.click(); } });
-  $('double').addEventListener('click', () => {
-    if (phase !== 'idle' || !bets.size) return;
-    const problem = canPlace(tableTotal());
-    if (problem) { toast(problem, false); return; }
-    for (const [key, amount] of bets) { bets.set(key, amount * 2); undoStack.push({ key, amount }); }
-    sfx.chip();
+  $('clear').addEventListener('click', () => {
+    if (!myBets.size || !beforeEdit()) return;
+    myBets.clear();
+    undoStack = [];
+    sfx.click();
+    scheduleSync();
     renderChips();
   });
-  $('rebet').addEventListener('click', () => rebet());
-  function rebet() {
-    if (phase === 'result') finishResult();
-    if (phase !== 'idle' || !lastBets.length) return false;
-    startPlacing();
+  $('double').addEventListener('click', () => {
+    if (!myBets.size || !beforeEdit()) return;
+    const problem = canPlace(sum(myBets));
+    if (problem) { toast(problem, false); return; }
+    for (const [key, amount] of myBets) { myBets.set(key, amount * 2); undoStack.push({ key, amount }); }
+    sfx.chip();
+    scheduleSync();
+    renderChips();
+  });
+  $('rebet').addEventListener('click', () => {
+    if (!lastBets.length || !beforeEdit()) return;
     const total = lastBets.reduce((a, b) => a + b.amount, 0);
-    const fresh = lastBets.filter(b => !bets.has(b.key)).length;
-    const problem = canPlace(total, fresh);
-    if (problem) { toast(problem, false); return false; }
+    const problem = canPlace(total, lastBets.filter(b => !myBets.has(b.key)).length);
+    if (problem) { toast(problem, false); return; }
     for (const { key, amount } of lastBets) {
       if (!cfg.bets[key]) continue;
-      bets.set(key, (bets.get(key) || 0) + amount);
+      myBets.set(key, (myBets.get(key) || 0) + amount);
       undoStack.push({ key, amount });
     }
     sfx.chip();
+    scheduleSync();
     renderChips();
-    return true;
-  }
+  });
 
-  $('play').addEventListener('click', () => doSpin());
   const typing = t => t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT');
   addEventListener('keydown', e => {
-    if (typing(e.target) || !me || !me.linked) return;
-    if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) doSpin(); }
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+    if (typing(e.target) || !linked()) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
   });
-  addEventListener('keyup', e => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault(); });
 
   // =====================================================
-  // SPELEN
+  // UITSLAG
   // =====================================================
-  async function doSpin() {
-    if (!me || !me.linked) return;
-    if (phase === 'result') finishResult();
-    if (phase !== 'idle') return;
-    if (!bets.size && lastBets.length && !rebet()) return;
-    if (!bets.size) { toast('Leg eerst fiches op de tafel.', false); return; }
-
-    setNotice(null);
-    setHover(null);
-    document.querySelectorAll('.cell.winner').forEach(n => n.classList.remove('winner'));
-    phase = 'request';
-    renderControls();
-    const placed = [...bets].map(([key, amount]) => ({ key, amount }));
-    const res = await post('/api/roulette/spin', { bets: placed });
-    if (typeof res.balance === 'number') serverBalance = res.balance;
-    if (!res.ok) {
-      phase = 'idle';
-      toast(res.message, false);
-      setNotice(res.message);
-      renderChips();
-      return;
-    }
-    lastBets = placed;
-    save();
-    pending = res.payout;
-    phase = 'spin';
-    session.spins++; session.wagered += res.totalBet;
-    renderBalance(); renderStats(); renderControls();
-    hideResult();
-    startWheel(res);
+  function land(r) {
+    landedRound = r.id;
+    sfx.land();
+    numCells.get(r.result).classList.add('winner');
+    renderHistory();
+    tryShowResult();
   }
 
-  function land(res) {
-    pending = 0;
-    phase = 'result';
-    const net = res.payout - res.totalBet;
-    session.won += res.payout;
-    if (net > session.best) session.best = net;
-    if (me) {
-      me.stats = me.stats || { games_played: 0, total_bet: 0, total_payout: 0, biggest_win: 0 };
-      me.stats.games_played++;
-      me.stats.total_bet += res.totalBet;
-      me.stats.total_payout += res.payout;
-      me.stats.biggest_win = Math.max(me.stats.biggest_win, net);
-    }
-    renderBalance(res.payout > 0);
-    renderStats();
-    renderControls();
-    addHistory(res.result);
-
-    // Tafel: winnend getal + fiches
-    numCells.get(res.result).classList.add('winner');
-    for (const bet of res.bets) {
-      const chip = spots.get(bet.key) && spots.get(bet.key).querySelector(':scope > .bchip');
-      if (!chip) continue;
-      if (bet.win > 0) chip.classList.add('won'); else chip.classList.add('lost');
-    }
-    for (const bet of res.bets) if (!bet.win) bets.delete(bet.key);
-    renderHoverInfo();
-
-    showResult(res);
-    sfx.land();
-    if (res.payout > 0) {
-      setTimeout(() => sfx.win(res.payout / res.totalBet), 180);
-      if (res.payout / res.totalBet >= 10 || net >= 200) {
-        const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
-        burst(30 + Math.min(60, res.payout / res.totalBet * 2));
+  // Pas als de bal ligt én de server heeft uitbetaald
+  function tryShowResult() {
+    const r = table && table.round;
+    if (!r || r.phase !== 'result' || landedRound !== r.id || shownRound === r.id) return;
+    shownRound = r.id;
+    const entry = myEntry();
+    if (entry && countedRound !== r.id) {
+      countedRound = r.id;
+      const net = entry.payout - entry.total;
+      session.spins++;
+      session.wagered += entry.total;
+      session.won += entry.payout;
+      if (net > session.best) session.best = net;
+      if (me) {
+        me.stats = me.stats || { games_played: 0, total_bet: 0, total_payout: 0, biggest_win: 0 };
+        me.stats.games_played++;
+        me.stats.total_bet += entry.total;
+        me.stats.total_payout += entry.payout;
+        me.stats.biggest_win = Math.max(me.stats.biggest_win, net);
+      }
+      renderStats();
+      if (entry.payout > 0) {
+        setTimeout(() => sfx.win(entry.payout / entry.total), 120);
+        if (entry.payout / entry.total >= 10 || net >= 200) {
+          const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+          burst(30 + Math.min(60, entry.payout / entry.total * 2));
+        }
       }
     }
-    clearTimeout(resultTimer);
-    resultTimer = setTimeout(finishResult, RESULT_MS);
-  }
-
-  // Na de uitslag: winnende fiches gaan van tafel (uitbetaald), klaar voor de volgende ronde
-  function finishResult() {
-    clearTimeout(resultTimer);
-    if (phase !== 'result') return;
-    phase = 'idle';
-    bets.clear();
-    undoStack = [];
-    document.querySelectorAll('.bchip').forEach(n => n.remove());
+    showResult(r, entry);
+    renderPlayers();
     renderChips();
   }
 
-  function showResult(res) {
+  function showResult(r, entry) {
     const box = $('resultpop');
-    const color = res.color;
     const num = $('rpNum');
-    num.textContent = res.result;
-    num.className = `num ${color}`;
-    const net = res.payout - res.totalBet;
-    $('rpKicker').textContent = `${colorName[color].toUpperCase()}${res.result ? ` · ${res.result % 2 ? 'ONEVEN' : 'EVEN'}` : ''}`;
+    num.textContent = r.result;
+    num.className = `num ${r.color}`;
+    $('rpKicker').textContent = `${colorName[r.color].toUpperCase()}${r.result ? ` · ${r.result % 2 ? 'ONEVEN' : 'EVEN'}` : ''}`;
     const amt = $('rpAmt');
-    if (res.payout > 0) {
-      amt.textContent = `+${fmt(res.payout)}`;
-      amt.className = `amt ${net >= 0 ? 'win' : ''}`;
-    } else {
-      amt.textContent = `−${fmt(res.totalBet)}`;
-      amt.className = 'amt loss';
-    }
-    box.classList.toggle('big', res.payout / res.totalBet >= 10);
+    if (!entry) { amt.textContent = ''; amt.className = 'amt'; }
+    else if (entry.payout > 0) { amt.textContent = `+${fmt(entry.payout)}`; amt.className = `amt ${entry.payout >= entry.total ? 'win' : ''}`; }
+    else { amt.textContent = `−${fmt(entry.total)}`; amt.className = 'amt loss'; }
+    box.classList.toggle('big', Boolean(entry && entry.payout / entry.total >= 10));
     box.hidden = false;
     box.classList.remove('go', 'bye'); void box.offsetWidth; box.classList.add('go');
     clearTimeout(showResult.timer);
-    showResult.timer = setTimeout(hideResult, 3200);
+    showResult.timer = setTimeout(hideResult, 3600);
   }
   function hideResult() {
     const box = $('resultpop');
@@ -950,29 +1186,40 @@
     setTimeout(() => { if (box.classList.contains('bye')) box.hidden = true; }, 350);
   }
 
-  function addHistory(n) {
-    const hist = $('hist');
-    hist.prepend(el('div', { class: `hchip ${colorOf(n)}`, text: String(n) }));
-    const chips = [...hist.children].filter(c => !c.classList.contains('out'));
-    chips.slice(10).forEach(c => { c.classList.add('out'); setTimeout(() => c.remove(), 260); });
+  // Laatste uitslagen; de nieuwste pas tonen als de bal ook bij jou ligt
+  let histKey = '';
+  function renderHistory() {
+    if (!table) return;
+    const r = table.round;
+    let list = table.history;
+    if (r && r.phase === 'result' && landedRound !== r.id && list[0] === r.result) list = list.slice(1);
+    list = list.slice(0, 10);
+    const key = list.join(',');
+    if (key === histKey) return;
+    const fresh = histKey !== '';
+    histKey = key;
+    $('hist').replaceChildren(...list.map((n, i) => {
+      const chip = el('div', { class: `hchip ${colorOf(n)}`, text: String(n) });
+      if (!(fresh && i === 0)) chip.style.animation = 'none';
+      return chip;
+    }));
   }
 
   // =====================================================
-  // WIEL
+  // WIEL (elk frame scherp getekend, niet als gedraaid plaatje)
   // =====================================================
   const canvas = $('wheel');
   const ctx = canvas.getContext('2d');
   const area = $('wheelarea');
   let W = 0, H = 0, dpr = 1, R = 100, cx = 0, cy = 0;
   const bowl = document.createElement('canvas');
-  const rotor = document.createElement('canvas');
   let wheelAngle = Math.random() * TAU;
   const ball = { visible: false, pocket: 0, rel: 0, r: 0 };
   const particles = [];
   const STEP = TAU / 37;
-  // Straal-verhoudingen
   const RIM = 1, TRACK_OUT = 0.94, TRACK_IN = 0.80, NUM_IN = 0.68, POCKET_IN = 0.55;
   const BALL_TRACK = 0.87, BALL_POCKET = 0.615;
+  let pocketFills = [];
 
   const pocketAngle = n => cfg.wheel.indexOf(n) * STEP;
 
@@ -980,15 +1227,23 @@
     const rect = area.getBoundingClientRect();
     W = rect.width; H = rect.height;
     if (!W || !H || !cfg) return;
-    dpr = Math.min(2, window.devicePixelRatio || 1);
+    dpr = Math.min(3, window.devicePixelRatio || 1);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     const narrow = W < 640;
-    R = Math.max(60, Math.min(W - (narrow ? 24 : 150), H - 24) / 2);
-    cx = W / 2; cy = H / 2;
+    R = Math.max(60, Math.min(W - (narrow ? 24 : 150), H - (narrow ? 70 : 90)) / 2);
+    cx = Math.round(W / 2); cy = Math.round(H / 2 + (narrow ? 22 : 26));
     drawBowl();
-    drawRotor();
+    // Kleurverlopen van de vakjes één keer maken (rond het middelpunt, dus draaien mag)
+    const colors = { red: ['#d33a2f', '#9e241c'], black: ['#2a2c31', '#141518'], green: ['#26a157', '#17733c'] };
+    pocketFills = {};
+    for (const [name, [light, dark]] of Object.entries(colors)) {
+      const g = ctx.createRadialGradient(0, 0, R * POCKET_IN, 0, 0, R * NUM_IN);
+      g.addColorStop(0, dark); g.addColorStop(1, light);
+      pocketFills[name] = { light, grad: g };
+    }
   }
   new ResizeObserver(() => layout()).observe(area);
+  matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`).addEventListener('change', () => layout());
 
   function drawBowl() {
     const size = Math.ceil(R * 2 * dpr) + 4;
@@ -996,30 +1251,25 @@
     const b = bowl.getContext('2d');
     b.setTransform(dpr, 0, 0, dpr, 0, 0);
     const c = size / dpr / 2;
-    // Schaduw onder het wiel
     b.save();
     b.shadowColor = 'rgba(0,0,0,.6)'; b.shadowBlur = R * 0.08; b.shadowOffsetY = R * 0.03;
     b.fillStyle = '#2b160a';
     b.beginPath(); b.arc(c, c, R * RIM - 1, 0, TAU); b.fill();
     b.restore();
-    // Houten rand
     const wood = b.createRadialGradient(c, c - R * 0.3, R * 0.5, c, c, R);
     wood.addColorStop(0, '#7a4521'); wood.addColorStop(0.7, '#5a3016'); wood.addColorStop(1, '#2e170a');
     b.fillStyle = wood;
     b.beginPath(); b.arc(c, c, R * RIM - 1, 0, TAU); b.fill();
     b.strokeStyle = 'rgba(242,193,78,.55)'; b.lineWidth = Math.max(1, R * 0.008);
     b.beginPath(); b.arc(c, c, R * 0.965, 0, TAU); b.stroke();
-    // Baan van de bal
     const track = b.createRadialGradient(c, c, R * TRACK_IN, c, c, R * TRACK_OUT);
     track.addColorStop(0, '#15161a'); track.addColorStop(0.6, '#2a2c31'); track.addColorStop(1, '#0d0e10');
     b.fillStyle = track;
     b.beginPath(); b.arc(c, c, R * TRACK_OUT, 0, TAU); b.arc(c, c, R * TRACK_IN, 0, TAU, true); b.fill();
-    // Glans
     const shine = b.createLinearGradient(0, c - R, 0, c + R);
     shine.addColorStop(0, 'rgba(255,255,255,.10)'); shine.addColorStop(0.5, 'rgba(255,255,255,0)');
     b.fillStyle = shine;
     b.beginPath(); b.arc(c, c, R * TRACK_OUT, 0, TAU); b.arc(c, c, R * TRACK_IN, 0, TAU, true); b.fill();
-    // Ruitjes (deflectors)
     b.fillStyle = '#d9b45a';
     for (let i = 0; i < 8; i++) {
       const a = i * TAU / 8 + TAU / 16;
@@ -1031,87 +1281,74 @@
     }
   }
 
-  function drawRotor() {
-    const size = Math.ceil(R * TRACK_IN * 2 * dpr) + 4;
-    rotor.width = rotor.height = size;
-    const r = rotor.getContext('2d');
-    r.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const c = size / dpr / 2;
-    const colors = { red: ['#d33a2f', '#9e241c'], black: ['#2a2c31', '#141518'], green: ['#26a157', '#17733c'] };
-
+  // Draaiend deel, getekend rond (0,0) in een al gedraaide context
+  function drawRotor(r) {
+    const fontSize = Math.max(7, R * 0.068);
+    r.font = `800 ${fontSize}px system-ui, sans-serif`;
+    r.textAlign = 'center'; r.textBaseline = 'middle';
     for (let i = 0; i < 37; i++) {
       const n = cfg.wheel[i];
-      const [light, dark] = colors[colorOf(n)];
+      const fill = pocketFills[colorOf(n)];
       const a0 = i * STEP - STEP / 2 - Math.PI / 2, a1 = a0 + STEP;
-      // Getallenring
-      r.fillStyle = light;
-      r.beginPath(); r.arc(c, c, R * TRACK_IN, a0, a1); r.arc(c, c, R * NUM_IN, a1, a0, true); r.closePath(); r.fill();
-      // Vakje
-      const g = r.createRadialGradient(c, c, R * POCKET_IN, c, c, R * NUM_IN);
-      g.addColorStop(0, dark); g.addColorStop(1, light);
-      r.fillStyle = g;
-      r.beginPath(); r.arc(c, c, R * NUM_IN, a0, a1); r.arc(c, c, R * POCKET_IN, a1, a0, true); r.closePath(); r.fill();
-      // Getal
+      r.fillStyle = fill.light;
+      r.beginPath(); r.arc(0, 0, R * TRACK_IN, a0, a1); r.arc(0, 0, R * NUM_IN, a1, a0, true); r.closePath(); r.fill();
+      r.fillStyle = fill.grad;
+      r.beginPath(); r.arc(0, 0, R * NUM_IN, a0, a1); r.arc(0, 0, R * POCKET_IN, a1, a0, true); r.closePath(); r.fill();
       r.save();
-      r.translate(c, c); r.rotate(i * STEP);
+      r.rotate(i * STEP);
       r.fillStyle = '#fff';
-      r.font = `800 ${Math.max(7, R * 0.068)}px system-ui, sans-serif`;
-      r.textAlign = 'center'; r.textBaseline = 'middle';
       r.fillText(String(n), 0, -R * (TRACK_IN + NUM_IN) / 2);
       r.restore();
     }
-    // Vakjesscheiders (goud)
     r.strokeStyle = '#d9b45a'; r.lineWidth = Math.max(1, R * 0.007);
+    r.beginPath();
     for (let i = 0; i < 37; i++) {
       const a = i * STEP - STEP / 2 - Math.PI / 2;
-      r.beginPath();
-      r.moveTo(c + Math.cos(a) * R * POCKET_IN, c + Math.sin(a) * R * POCKET_IN);
-      r.lineTo(c + Math.cos(a) * R * TRACK_IN, c + Math.sin(a) * R * TRACK_IN);
-      r.stroke();
+      r.moveTo(Math.cos(a) * R * POCKET_IN, Math.sin(a) * R * POCKET_IN);
+      r.lineTo(Math.cos(a) * R * TRACK_IN, Math.sin(a) * R * TRACK_IN);
     }
-    [TRACK_IN, NUM_IN, POCKET_IN].forEach(f => { r.beginPath(); r.arc(c, c, R * f, 0, TAU); r.stroke(); });
+    r.stroke();
+    [TRACK_IN, NUM_IN, POCKET_IN].forEach(f => { r.beginPath(); r.arc(0, 0, R * f, 0, TAU); r.stroke(); });
 
-    // Kegel in het midden
-    const cone = r.createRadialGradient(c - R * 0.12, c - R * 0.15, R * 0.05, c, c, R * POCKET_IN);
+    // Kegel + draaikruis
+    const cone = r.createRadialGradient(-R * 0.12, -R * 0.15, R * 0.05, 0, 0, R * POCKET_IN);
     cone.addColorStop(0, '#8a5226'); cone.addColorStop(0.6, '#5b3116'); cone.addColorStop(1, '#341a0a');
     r.fillStyle = cone;
-    r.beginPath(); r.arc(c, c, R * POCKET_IN - 1, 0, TAU); r.fill();
+    r.beginPath(); r.arc(0, 0, R * POCKET_IN - 1, 0, TAU); r.fill();
     r.strokeStyle = 'rgba(217,180,90,.5)'; r.lineWidth = Math.max(1, R * 0.006);
-    r.beginPath(); r.arc(c, c, R * 0.36, 0, TAU); r.stroke();
-    // Draaikruis
-    const gold = r.createLinearGradient(c - R * 0.3, c - R * 0.3, c + R * 0.3, c + R * 0.3);
+    r.beginPath(); r.arc(0, 0, R * 0.36, 0, TAU); r.stroke();
+    const gold = r.createLinearGradient(-R * 0.3, -R * 0.3, R * 0.3, R * 0.3);
     gold.addColorStop(0, '#fff1b8'); gold.addColorStop(0.5, '#d9b45a'); gold.addColorStop(1, '#8c6a22');
     r.fillStyle = gold; r.strokeStyle = gold;
     r.lineCap = 'round'; r.lineWidth = Math.max(2, R * 0.035);
     for (let i = 0; i < 4; i++) {
       const a = i * TAU / 4;
-      const x = c + Math.sin(a) * R * 0.3, y = c - Math.cos(a) * R * 0.3;
-      r.beginPath(); r.moveTo(c, c); r.lineTo(x, y); r.stroke();
+      const x = Math.sin(a) * R * 0.3, y = -Math.cos(a) * R * 0.3;
+      r.beginPath(); r.moveTo(0, 0); r.lineTo(x, y); r.stroke();
       r.beginPath(); r.arc(x, y, R * 0.04, 0, TAU); r.fill();
     }
-    r.beginPath(); r.arc(c, c, R * 0.09, 0, TAU); r.fill();
-    r.fillStyle = 'rgba(255,255,255,.5)';
-    r.beginPath(); r.arc(c - R * 0.025, c - R * 0.03, R * 0.03, 0, TAU); r.fill();
+    r.beginPath(); r.arc(0, 0, R * 0.09, 0, TAU); r.fill();
+    r.lineCap = 'butt';
   }
 
   // Animatie: relatieve hoek van de bal t.o.v. het wiel loopt terug naar het winnende vakje
   const easeOut = (x, p) => 1 - (1 - x) ** p;
-  function startWheel(res) {
-    const target = pocketAngle(res.result);
+  function startWheel(r) {
+    const target = pocketAngle(r.result);
     const from = ball.visible ? pocketAngle(ball.pocket) : target + Math.random() * TAU;
     let travel = (((from - target) % TAU) + TAU) % TAU;
-    travel += TAU * 6;   // aantal extra rondjes van de bal (tegen de draairichting in)
-    spin = { res, start: performance.now(), target, travel, fromR: ball.visible ? BALL_POCKET : BALL_TRACK, lastPocket: -1, landed: false, bounced: 0 };
+    travel += TAU * 6;
+    const elapsed = Math.max(0, serverNow() - r.spinStartAt);
+    spin = { round: r, start: performance.now() - elapsed, target, travel, fromR: ball.visible ? BALL_POCKET : BALL_TRACK, lastPocket: -1, landed: false };
     ball.visible = true;
-    sfx.launch();
+    if (elapsed < cfg.landMs * 0.6) sfx.launch((cfg.landMs * 0.66 - elapsed) / 1000);
   }
 
   function updateSpin(now) {
     if (!spin) return;
     const t = now - spin.start;
-    const x = Math.min(1, t / LAND_MS);
+    const x = Math.min(1, t / cfg.landMs);
     ball.rel = spin.target + spin.travel * (1 - easeOut(x, 2.4));
-    // Straal: uit het vakje → baan → valt naar binnen met een paar stuiters
     if (x < 0.04) ball.r = spin.fromR + (BALL_TRACK - spin.fromR) * (x / 0.04);
     else if (x < 0.62) ball.r = BALL_TRACK;
     else if (x < 0.82) {
@@ -1121,7 +1358,6 @@
       const u = (x - 0.82) / 0.18;
       ball.r = BALL_POCKET + Math.abs(Math.sin(u * Math.PI * 3)) * 0.05 * (1 - u) ** 2;
     }
-    // Tikjes als de bal over de vakjes rolt
     if (x > 0.62 && x < 1) {
       const p = Math.floor((((ball.rel % TAU) + TAU) % TAU) / STEP + 0.5);
       if (p !== spin.lastPocket) { spin.lastPocket = p; sfx.tick(x); }
@@ -1130,15 +1366,15 @@
       spin.landed = true;
       ball.rel = spin.target;
       ball.r = BALL_POCKET;
-      ball.pocket = spin.res.result;
-      land(spin.res);
+      ball.pocket = spin.round.result;
+      land(spin.round);
     }
-    if (t >= SPIN_MS) spin = null;
+    if (t >= cfg.spinMs) spin = null;
   }
 
   function wheelSpeed(now) {
     if (!spin) return IDLE_SPEED;
-    const x = Math.min(1, (now - spin.start) / SPIN_MS);
+    const x = Math.min(1, (now - spin.start) / cfg.spinMs);
     return IDLE_SPEED + 3.2 * (1 - x) ** 2;
   }
 
@@ -1173,10 +1409,9 @@
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(wheelAngle);
-    const rs = rotor.width / dpr;
-    ctx.drawImage(rotor, -rs / 2, -rs / 2, rs, rs);
-    // Winnend vakje licht op
-    if (phase === 'result' && ball.visible) {
+    drawRotor(ctx);
+    const r = table && table.round;
+    if (r && r.phase === 'result' && landedRound === r.id && ball.visible && phase() === 'result') {
       const a = pocketAngle(ball.pocket) - Math.PI / 2;
       const pulse = 0.25 + 0.2 * Math.sin(now / 160);
       ctx.fillStyle = `rgba(255,236,170,${pulse})`;
@@ -1184,7 +1419,6 @@
     }
     ctx.restore();
 
-    // Bal
     if (ball.visible) {
       const rel = spin ? ball.rel : pocketAngle(ball.pocket);
       const rr = spin ? ball.r : BALL_POCKET;
@@ -1199,7 +1433,6 @@
       ctx.beginPath(); ctx.arc(x, y, br, 0, TAU); ctx.fill();
     }
 
-    // Vonken
     const dt = dtMs / 16.67;
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
@@ -1255,7 +1488,7 @@
   // Rollende bal: gefilterde ruis die langzaam zachter wordt
   function rollNoise(seconds) {
     const a = audio();
-    if (!a) return;
+    if (!a || seconds <= 0.2) return;
     const buffer = a.createBuffer(1, Math.floor(a.sampleRate * seconds), a.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -1278,7 +1511,7 @@
   const sfx = {
     click() { tone(1400, 0, 0.03, 0.03, 'square'); },
     chip() { tone(2400, 0, 0.035, 0.05, 'triangle', 1500); tone(3100, 0.03, 0.03, 0.03, 'triangle', 2000); },
-    launch() { tone(300, 0, 0.25, 0.05, 'sine', 900); rollNoise(LAND_MS / 1000 * 0.66); },
+    launch(seconds) { tone(300, 0, 0.25, 0.05, 'sine', 900); rollNoise(seconds); },
     tick(x) {
       const now = performance.now();
       if (now - lastTick < 28) return;
@@ -1313,7 +1546,6 @@
   });
   renderMute();
 
-  // Sessie wissen
   $('resetSession').addEventListener('click', () => {
     Object.assign(session, { spins: 0, wagered: 0, won: 0, best: 0 }); renderStats();
   });
