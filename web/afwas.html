@@ -224,7 +224,7 @@
         <h2>GEREEDSCHAP</h2>
         <ul class="legend" id="legend"></ul>
         <ul class="rules">
-          <li>Elk schoon bord = <b>5 punten</b>.</li>
+          <li>Elk schoon bord = <b>10 punten</b>.</li>
           <li>Schrob heen en weer: stilhouden doet niets.</li>
           <li>Na het schrobben zit er zeep op: <b>naspoelen</b>!</li>
           <li>Niet schoon bij de <b>keuring</b>? Afgekeurd, en dan komt de <b>chef</b> je uitschelden. Drie keer afgekeurd en je wordt naar huis gestuurd.</li>
@@ -281,7 +281,7 @@
   // STATE
   // =====================================================
   let me = null;               // antwoord van /api/afwas/status
-  let cfg = { maxBalance: 50, pointsPerPlate: 5, plateIntervalMs: 4500, minCleanMs: 6500 };
+  let cfg = { maxBalance: 50, pointsPerPlate: 10, plateIntervalMs: 4500, minCleanMs: 6500 };
   let toolIndex = 0;
   let running = false;
   let firedUntil = 0;
@@ -467,7 +467,7 @@
     }
     if (Date.now() < firedUntil) { showFiredCard(); return; }
     showCard('', `<div class="emoji">🧽</div><h3>Afwasdienst</h3>
-      <p>Blut? Was borden af. Elk <b>schoon bord</b> op de lopende band levert <b>${cfg.pointsPerPlate || 5} punten</b> op, tot je weer ${cfg.maxBalance} punten hebt.</p>
+      <p>Blut? Was borden af. Elk <b>schoon bord</b> op de lopende band levert <b>${cfg.pointsPerPlate || 10} punten</b> op, tot je weer ${cfg.maxBalance} punten hebt.</p>
       <p>Kies het juiste gereedschap (<b>1–3</b> of scrollen) en schrob. Niet schoon bij de keuring = afgekeurd.</p>`,
       el('button', { class: 'big', type: 'button', text: 'Begin met afwassen', onclick: startShift }));
   }

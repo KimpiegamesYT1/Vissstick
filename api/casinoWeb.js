@@ -217,14 +217,15 @@ function createCasinoWebHandler() {
     const users = [];
     for (const [id, entry] of online) {
       if (entry.lastSeen < cutoff) online.delete(id);
-      else users.push(entry);
+      else users.push({ id, ...entry });
     }
     users.sort((a, b) => b.lastSeen - a.lastSeen);
     return {
       count: users.length,
-      users: users.slice(0, MAX_ONLINE_SHOWN).map(({ username, avatar, game }) => ({
+      users: users.slice(0, MAX_ONLINE_SHOWN).map(({ id, username, avatar, game }) => ({
         username,
         avatar,
+        balance: casino.getUserBalance(id),
         game: game ? { name: ONLINE_GAMES[game], path: `/${game}` } : null
       }))
     };

@@ -15,7 +15,7 @@ const PAGES = {
   plinko: { path: '/plinko', label: 'Speel Plinko', intro: '🟡 **Plinko** speel je op de website: laat ballen vallen en win tot 1000x je inzet.' },
   slots: { path: '/slots', label: 'Speel Slots', intro: '🍒 **Slots** speel je op de website: een fruitautomaat met 10 niveaus, free spins, jackpots en tot 2500x je inzet.' },
   roulette: { path: '/roulette', label: 'Speel Roulette', intro: '🎯 **Roulette** speel je op de website: één gedeelde Europese roulettetafel, speel mee met de rest. Tot 35x je inzet.' },
-  afwassen: { path: '/afwas', label: 'Naar de keuken', intro: '🧽 **Afwassen** doe je op de website: heb je minder dan 50 punten, dan verdien je 5 punten per schoon bord.' }
+  afwassen: { path: '/afwas', label: 'Naar de keuken', intro: '🧽 **Afwassen** doe je op de website: heb je minder dan 50 punten, dan verdien je 10 punten per schoon bord.' }
 };
 
 async function handleWebCommands(interaction, client, config) {

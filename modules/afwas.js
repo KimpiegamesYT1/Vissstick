@@ -1,7 +1,7 @@
 /**
  * Afwassen
  * Voor spelers die (bijna) blut zijn: onder de 50 punten mag je in de keuken borden afwassen.
- * Borden komen over een lopende band binnen; elk bord dat op tijd schoon is levert POINTS_PER_PLATE (5) punten op.
+ * Borden komen over een lopende band binnen; elk bord dat op tijd schoon is levert POINTS_PER_PLATE (10) punten op.
  *
  * Het schrobben zelf gebeurt in de browser. De server deelt de borden uit en controleert alleen
  * dat het niet sneller gaat dan een mens kan: een nieuw bord pas na PLATE_INTERVAL_MS en een bord
@@ -13,7 +13,7 @@ const { getDatabase } = require('../database');
 const casino = require('./casino');
 
 const MAX_BALANCE = 50;          // alleen onder dit saldo mag je afwassen
-const POINTS_PER_PLATE = 5;
+const POINTS_PER_PLATE = 10;
 const PLATE_INTERVAL_MS = 4500;  // minimale tijd tussen twee nieuwe borden
 const MIN_CLEAN_MS = 6500;       // een bord moet minstens zo lang op de band liggen
 const MAX_PLATE_MS = 3 * 60 * 1000;

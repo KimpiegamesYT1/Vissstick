@@ -7,13 +7,13 @@
  *
  * Bouwt ook de navigatie op (Casino-menu met alle spellen + Daily spin + Afwassen), zie GAMES hieronder.
  *
- * Daarnaast regelt dit script de "Afwassen" knop in de navigatie: die is grijs, behalve als je
+ * Daarnaast regelt dit script de "Afwassen" knop in de navigatie: die is verborgen, behalve als je
  * minder dan 50 punten hebt. Het saldo komt uit /api/me en uit elke actie die een saldo teruggeeft.
  *
  * Werkt door fetch en EventSource te omwikkelen, dus de pagina's zelf hoeven niets te doen: dit script moet
  * alleen vóór het eigen script van de pagina geladen worden.
  *
- * Toont daarnaast in de menubalk hoeveel ingelogde spelers er nu actief zijn (met hun profielfoto's).
+ * Toont daarnaast in de menubalk hoeveel ingelogde spelers er nu actief zijn (met hun profielfoto's en saldo).
  * Alleen een zichtbaar tabblad meldt zich als actief, dus wie wegklikt verdwijnt vanzelf uit de lijst.
  *
  * Daarnaast krijgen Firefox-gebruikers max. 1x per week een melding linksonder dat een Chromium-browser beter presteert.
@@ -176,6 +176,8 @@
     .vso-info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .vso-game { font-size: 12px; font-weight: 600; color: var(--muted, #8d9299); }
     a.vso-row .vso-game { color: var(--green, #4cd47b); }
+    .vso-bal { margin-left: auto; padding-left: 8px; flex: none; font-size: 12px; font-weight: 800; color: var(--gold, #f2c14e);
+      font-variant-numeric: tabular-nums; white-space: nowrap; }
     .vso-more { padding: 6px 8px; font-size: 12px; color: var(--muted, #8d9299); }
     @media (max-width: 640px) {
       .vso { margin-left: auto; }
@@ -280,6 +282,13 @@
         info.append(where);
       }
       row.append(avatarEl(user), info);
+      if (Number.isFinite(user.balance)) {
+        const bal = document.createElement('span');
+        bal.className = 'vso-bal';
+        bal.textContent = `${user.balance.toLocaleString('nl-NL')} pt`;
+        bal.title = `${user.balance.toLocaleString('nl-NL')} punten`;
+        row.append(bal);
+      }
       return row;
     }));
     if (count > users.length) {
@@ -514,7 +523,7 @@
       `<a href="/${link.key}" class="${[link.cls, link.key === current ? 'active' : ''].filter(Boolean).join(' ')}">${link.name}</a>`).join('');
     nav.replaceChildren(trigger);
     nav.insertAdjacentHTML('beforeend', links);
-    // De afwas-pagina zelf is nooit grijs
+    // De afwas-pagina zelf is nooit verborgen
     const ownWash = nav.querySelector('a.wash-link.active');
     if (ownWash) ownWash.classList.remove('locked');
 
@@ -597,8 +606,7 @@
     .nav a.wash-link:not(.locked):not(.active) { color: #7fd3ff; }
     .nav a.wash-link:not(.locked):not(.active)::after { content: ''; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px;
       border-radius: 50%; background: #7fd3ff; animation: vsc-bub 1.8s ease-out infinite; }
-    .nav a.wash-link.locked { opacity: .35; cursor: not-allowed; }
-    .nav a.wash-link.locked:hover { color: inherit; }
+    .nav a.wash-link.locked { display: none; }
     @keyframes vsc-bub { 0% { box-shadow: 0 0 0 0 rgba(127,211,255,.6); } 100% { box-shadow: 0 0 0 7px rgba(127,211,255,0); } }
   `;
 
