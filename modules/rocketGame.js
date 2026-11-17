@@ -28,6 +28,8 @@ const events = new EventEmitter();
 
 let discordClient = null;
 let botConfig = {};
+// Eén vast uitslagbericht in Discord dat na elke ronde bewerkt wordt
+let resultMessage = null;
 
 /**
  * Koppel de Discord client (voor het posten van uitslagen)
@@ -309,7 +311,24 @@ async function postResults(game, players) {
       .setFooter({ text: webUrl ? `Speel mee op ${webUrl}/rocket · /rocket voor je link` : 'Typ /rocket voor je link naar de website' })
       .setTimestamp();
 
-    await channel.send({ embeds: [embed], files: [new AttachmentBuilder(image, { name: 'uitslag.png' })] });
+    const content = { embeds: [embed], files: [new AttachmentBuilder(image, { name: 'uitslag.png' })], attachments: [] };
+
+    // Na een herstart: zoek het laatste uitslagbericht van de bot terug
+    if (!resultMessage) {
+      const recent = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+      resultMessage = recent?.find(m => m.author.id === discordClient.user.id && m.embeds[0]?.title?.startsWith('💥 Rocket gecrasht')) || null;
+    }
+
+    if (resultMessage) {
+      try {
+        await resultMessage.edit(content);
+        return;
+      } catch (err) {
+        // Bericht is verwijderd of niet meer te bewerken: stuur een nieuw bericht
+        resultMessage = null;
+      }
+    }
+    resultMessage = await channel.send(content);
   } catch (error) {
     console.error('Fout bij posten Rocket uitslag:', error);
   }
