@@ -50,7 +50,7 @@
   /* ===== Podium (3D) ===== */
   .stage {
     position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line);
-    height: clamp(400px, 70vh, 860px); background: #000; isolation: isolate;
+    height: clamp(400px, 70vh, 860px); background: #000; isolation: isolate; transition: height .4s ease;
   }
   .stage canvas.gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6; }
@@ -226,6 +226,24 @@
     padding: 10px 16px; font-weight: 700; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50; }
   .toast.show { opacity: 1; transform: translateX(-50%); }
   .toast.bad { border-color: rgba(239,91,76,.6); }
+
+  /* Tijdens de show: onderkant klapt in tot een smalle balk */
+  .spot, .spot .v, .spot .spot-ico { transition: min-height .35s ease, padding .35s ease, font-size .35s ease, width .35s ease, height .35s ease; }
+  .app.show-mode .spot { min-height: 38px; padding: 4px 6px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .app.show-mode .spot .v { font-size: 18px; }
+  .app.show-mode .spot .spot-ico { width: 22px; height: 22px; }
+  .app.show-mode .spot .n, .app.show-mode .spot .others { display: none; }
+  .app.show-mode .spot .mychip { width: 24px; min-width: 24px; height: 24px; font-size: 9px; left: 3px; bottom: 7px; }
+  .app.show-mode .spot .comet { top: 50%; transform: translateY(-50%); padding: 1px 5px; font-size: 11px; }
+  .app.show-mode .betbar, .app.show-mode .syncline, .app.show-mode .mystats { display: none; }
+  .app.show-mode .betpanel { padding: 6px 8px; }
+  .app.show-mode .side { max-height: 64px; padding: 6px 10px; }
+  .app.show-mode .side h2 { display: none; }
+  .app.show-mode .players { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  .app.show-mode .pl { flex: none; padding: 4px 8px; }
+  .app.show-mode .pl .nm small { display: none; }
+  .app.show-mode .stage { height: clamp(400px, calc(100vh - 150px), 980px); }
+  .app.show-mode:fullscreen .stage, .app.show-mode.pseudo-fs .stage { height: auto; }
 
   /* Volledig scherm: podium + inzetbord vullen het scherm */
   .app:fullscreen, .app.pseudo-fs { max-width: none; width: 100%; height: 100%; margin: 0; padding: 10px; background: var(--bg);
@@ -684,7 +702,7 @@ scene.add(station);
   station.add(floor);
   station.userData.floor = floor;
   // Rand en onderkant
-  const rimMat = new THREE.MeshStandardMaterial({ color: '#2b2550', metalness: 0.9, roughness: 0.25 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: '#1e1940', metalness: 0.5, roughness: 0.6 });
   const side = new THREE.Mesh(new THREE.CylinderGeometry(PLATFORM_R, PLATFORM_R - 3, 2.2, 96, 1, true), rimMat);
   side.position.y = -1.1; station.add(side);
   const under = new THREE.Mesh(new THREE.CircleGeometry(PLATFORM_R - 3, 64), rimMat); under.rotation.x = Math.PI / 2; under.position.y = -2.2; station.add(under);
@@ -2554,6 +2572,7 @@ function renderHud(t) {
     if (b.stageEndsAt) { const left = Math.max(0, b.stageEndsAt - t); num = Math.ceil(left / 1000); fill = left / Math.max(1, b.stageEndsAt - b.stageAt); urgent = b.stage === 'pick' && left < 4000; }
     else num = '!';
   } else if (pk === 'result') { title = 'Uitslag'; const left = Math.max(0, r.nextAt - t); sub = `Volgende ronde over ${Math.ceil(left / 1000)}s`; num = Math.ceil(left / 1000); fill = left / cfg.resultMs; }
+  appEl.classList.toggle('show-mode', !['open', 'betting', 'closing'].includes(pk));
   $('phaseTitle').textContent = title; $('phaseSub').textContent = sub; $('ringNum').textContent = num;
   $('ringFg').style.strokeDashoffset = String(119.4 * (1 - clamp(fill, 0, 1)));
   $('ring').classList.toggle('urgent', urgent);
