@@ -30,10 +30,7 @@
   .brand .word { display: flex; flex-direction: column; line-height: 1; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
   .brand .word small { font-size: 10px; font-weight: 800; letter-spacing: 3px; color: var(--muted); }
   .brand .word b { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin-top: 3px; }
-  .nav { display: flex; gap: 4px; background: rgba(22,24,27,.85); border: 1px solid var(--line); border-radius: 999px; padding: 4px; margin-right: auto; margin-left: 18px; backdrop-filter: blur(6px); }
-  .nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
-  .nav a:hover { color: var(--text); }
-  .nav a.active { background: var(--raise); color: var(--text); }
+  .nav { --nav-bg: rgba(22,24,27,.85); --nav-blur: blur(6px); }
   .user { display: flex; align-items: center; gap: 10px; background: rgba(22,24,27,.85); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; backdrop-filter: blur(6px); }
   .user[hidden] { display: none; }
   .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--raise); }
@@ -196,7 +193,6 @@
     .brand .word { display: none; }
     .user { margin-left: auto; }
     .nav { order: 3; width: 100%; margin: 0; }
-    .nav a { flex: 1; text-align: center; padding: 7px 2px; font-size: 12px; white-space: nowrap; }
     .side-info { top: 112px; }
     .info-pill { display: none; }
     .big-result .amount { font-size: 48px; }
@@ -207,7 +203,7 @@
     .plate { font-size: 11px; }
   }
 </style>
-<script src="/connection.js?v=4"></script>
+<script src="/connection.js?v=5"></script>
 </head>
 <body>
 <div id="scene"></div>
@@ -226,7 +222,7 @@
     </svg>
     <span class="word"><small>VISSSTICK</small><b>Blackjack</b></span>
   </a>
-  <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack" class="active">Blackjack</a><a href="/plinko">Plinko</a><a href="/slots">Slots</a><a href="/roulette">Roulette</a><a href="/spin">Daily spin</a><a href="/afwas" class="wash-link locked">Afwassen</a></nav>
+  <nav class="nav" aria-label="Spellen"></nav>
   <button class="icon-btn snd" id="musicBtn" type="button"></button>
   <button class="icon-btn snd" id="mute" type="button"></button>
   <div class="user" id="user" hidden></div>

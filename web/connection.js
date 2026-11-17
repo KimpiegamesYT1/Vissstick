@@ -5,6 +5,8 @@
  * zelf opnieuw verbinding probeert te maken. Is de server terug, dan wordt de pagina herladen zodat alles
  * (saldo, lopende rondes) weer klopt met de server.
  *
+ * Bouwt ook de navigatie op (Casino-menu met alle spellen + Daily spin + Afwassen), zie GAMES hieronder.
+ *
  * Daarnaast regelt dit script de "Afwassen" knop in de navigatie: die is grijs, behalve als je
  * minder dan 50 punten hebt. Het saldo komt uit /api/me en uit elke actie die een saldo teruggeeft.
  *
@@ -307,6 +309,255 @@
   else pollOnline();
 
   // =====================================================
+  // NAVIGATIE (één keer opgebouwd voor alle pagina's)
+  // =====================================================
+  // Nieuwe game? Voeg hem hier toe (plus een tekening in GAME_ART), de pagina's hoeven niets te doen.
+  const GAMES = [
+    { key: 'rocket', name: 'Rocket', desc: 'Cash out voordat de raket ontploft', live: true },
+    { key: 'blackjack', name: 'Blackjack', desc: 'Versla de dealer zonder over de 21 te gaan', live: true },
+    { key: 'plinko', name: 'Plinko', desc: 'Laat ballen vallen en jaag op de randen' },
+    { key: 'slots', name: 'Slots', desc: 'Draai de rollen en mik op drie op een rij' },
+    { key: 'roulette', name: 'Roulette', desc: 'Europese roulette: zet in op je geluksgetal', live: true }
+  ];
+  const NAV_LINKS = [
+    { key: 'spin', name: 'Daily spin' },
+    { key: 'afwas', name: 'Afwassen', cls: 'wash-link locked' }
+  ];
+
+  const r2 = n => Math.round(n * 100) / 100;
+
+  // Spade/hart rond (0,0), ongeveer 14 breed
+  const HEART = 'M0 5C-8-1-7-7-3.5-7C-1.5-7 0-5.5 0-4.5C0-5.5 1.5-7 3.5-7C7-7 8-1 0 5Z';
+  const SPADE = 'M0-6C-8 0-7 6-3.5 6C-1.5 6 0 4.5 0 3.5C0 4.5 1.5 6 3.5 6C7 6 8 0 0-6ZM0 3L-2.6 9H2.6Z';
+
+  function rocketArt() {
+    const stars = [[14, 12], [38, 8], [62, 18], [90, 10], [140, 14], [150, 44], [28, 36], [70, 40], [132, 66], [104, 58]]
+      .map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 0.8 : 1.3}" fill="#fff" opacity="${i % 2 ? 0.45 : 0.8}"/>`).join('');
+    return `<svg viewBox="0 0 160 90" aria-hidden="true"><defs>
+      <linearGradient id="vn-rk-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26306a"/><stop offset="1" stop-color="#0c1022"/></linearGradient>
+      <linearGradient id="vn-rk-ln" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f2c14e" stop-opacity=".1"/><stop offset="1" stop-color="#f2c14e"/></linearGradient>
+      <radialGradient id="vn-rk-gl" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff8a3d" stop-opacity=".55"/><stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/></radialGradient></defs>
+      <rect width="160" height="90" fill="url(#vn-rk-bg)"/>${stars}
+      <path d="M0 70H160M0 50H160M0 30H160" stroke="#fff" stroke-opacity=".05"/>
+      <path d="M8 84Q78 82 116 36" fill="none" stroke="url(#vn-rk-ln)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="116" cy="38" r="16" fill="url(#vn-rk-gl)"/>
+      <g transform="translate(106 12) scale(.95) rotate(45 20 20)">
+        <path d="M16.6 28.6h6.8L20 38z" fill="#ff7a2f"/><path d="M18.2 28.6h3.6L20 34z" fill="#ffd36b"/>
+        <path d="M20 5.5c4.2 3.6 5.8 8.8 5.8 14v8H14.2v-8c0-5.2 1.6-10.4 5.8-14z" fill="#eceae6"/>
+        <path d="M14.2 20.5l-4.2 5.6v3.4l4.2-2.4zM25.8 20.5l4.2 5.6v3.4l-4.2-2.4z" fill="#ef5b4c"/>
+        <circle cx="20" cy="16.5" r="2.7" fill="#4fa3ff"/>
+      </g>
+      <text x="12" y="76" font-family="system-ui,sans-serif" font-size="15" font-weight="800" fill="#f2c14e">2.47×</text>
+    </svg>`;
+  }
+
+  function blackjackArt() {
+    const card = (x, y, rot, letter, suit, color) => `<g transform="rotate(${rot} ${x + 19} ${y + 26})">
+      <rect x="${x}" y="${y}" width="38" height="52" rx="5" fill="#f7f4ec" stroke="#000" stroke-opacity=".15"/>
+      <text x="${x + 5}" y="${y + 13}" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="${color}">${letter}</text>
+      <path d="${suit}" fill="${color}" transform="translate(${x + 19} ${y + 29}) scale(1.25)"/></g>`;
+    const chip = (cx, cy, color) => `<ellipse cx="${cx}" cy="${cy + 2}" rx="12" ry="4.5" fill="#000" opacity=".3"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="12" ry="4.5" fill="${color}"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="12" ry="4.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 3.3"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="6" ry="2.2" fill="none" stroke="#fff" stroke-opacity=".6"/>`;
+    return `<svg viewBox="0 0 160 90" aria-hidden="true"><defs>
+      <radialGradient id="vn-bj-bg" cx=".5" cy=".2" r=".9"><stop offset="0" stop-color="#2a8a58"/><stop offset="1" stop-color="#0d3a24"/></radialGradient></defs>
+      <rect width="160" height="90" fill="url(#vn-bj-bg)"/>
+      <path d="M-10 100A92 64 0 0 1 170 100" fill="none" stroke="#f2c14e" stroke-opacity=".35" stroke-width="1.2"/>
+      <path d="M-10 108A92 64 0 0 1 170 108" fill="none" stroke="#f2c14e" stroke-opacity=".2" stroke-width="1.2"/>
+      ${card(42, 16, -13, 'A', SPADE, '#16181b')}${card(74, 14, 10, 'K', HEART, '#d0342c')}
+      ${chip(132, 78, '#16181b')}${chip(132, 72, '#ef5b4c')}${chip(132, 66, '#2f6fd4')}
+      <text x="12" y="80" font-family="system-ui,sans-serif" font-size="15" font-weight="800" fill="#f2c14e">21</text>
+    </svg>`;
+  }
+
+  function plinkoArt() {
+    let pegs = '';
+    for (let row = 0; row < 6; row++) {
+      for (let i = 0; i <= row + 2; i++) {
+        pegs += `<circle cx="${r2(80 + (i - (row + 2) / 2) * 15)}" cy="${r2(12 + row * 10.5)}" r="1.9" fill="#fff" opacity=".8"/>`;
+      }
+    }
+    const colors = ['#ef5b4c', '#f28a4e', '#f2c14e', '#4cd47b', '#f2c14e', '#f28a4e', '#ef5b4c'];
+    const slots = colors.map((c, i) => `<rect x="${28.5 + i * 15}" y="77" width="13" height="9" rx="2.5" fill="${c}"/>`).join('');
+    return `<svg viewBox="0 0 160 90" aria-hidden="true"><defs>
+      <linearGradient id="vn-pl-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d2475"/><stop offset="1" stop-color="#160d2c"/></linearGradient>
+      <radialGradient id="vn-pl-gl" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff5fa2" stop-opacity=".6"/><stop offset="1" stop-color="#ff5fa2" stop-opacity="0"/></radialGradient></defs>
+      <rect width="160" height="90" fill="url(#vn-pl-bg)"/>${pegs}${slots}
+      <path d="M80 0Q80 8 76 14T84 26T88 40" fill="none" stroke="#ff5fa2" stroke-opacity=".5" stroke-width="1.4" stroke-dasharray="2 3" stroke-linecap="round"/>
+      <circle cx="88" cy="42" r="9" fill="url(#vn-pl-gl)"/>
+      <circle cx="88" cy="42" r="3.6" fill="#ff5fa2"/><circle cx="86.9" cy="40.8" r="1.2" fill="#fff" opacity=".8"/>
+    </svg>`;
+  }
+
+  function slotsArt() {
+    const reels = [0, 1, 2].map(i => {
+      const x = 39 + i * 28;
+      return `<rect x="${x}" y="26" width="25" height="36" rx="4" fill="url(#vn-sl-reel)"/>
+        <text x="${x + 12.5}" y="52" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="900" fill="#d0342c">7</text>`;
+    }).join('');
+    const bulbs = Array.from({ length: 9 }, (_, i) => `<circle cx="${40 + i * 10}" cy="19" r="1.7" fill="${i % 2 ? '#fff6d2' : '#ffb347'}"/>`).join('');
+    return `<svg viewBox="0 0 160 90" aria-hidden="true"><defs>
+      <radialGradient id="vn-sl-bg" cx=".5" cy=".4" r=".8"><stop offset="0" stop-color="#7a1e33"/><stop offset="1" stop-color="#22080f"/></radialGradient>
+      <linearGradient id="vn-sl-fr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd977"/><stop offset="1" stop-color="#c9902a"/></linearGradient>
+      <linearGradient id="vn-sl-reel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfcac0"/><stop offset=".3" stop-color="#fbf8f1"/><stop offset=".7" stop-color="#fbf8f1"/><stop offset="1" stop-color="#cfcac0"/></linearGradient></defs>
+      <rect width="160" height="90" fill="url(#vn-sl-bg)"/>
+      <path d="M140 46V24" stroke="#9aa0a8" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="21" r="4.5" fill="#ef5b4c"/>
+      <rect x="30" y="12" width="104" height="60" rx="11" fill="url(#vn-sl-fr)"/>
+      <rect x="35" y="22" width="94" height="44" rx="7" fill="#16181b"/>${bulbs}${reels}
+      <path d="M36 44H128" stroke="#ef5b4c" stroke-width="1.2" stroke-opacity=".7"/>
+      <rect x="56" y="74" width="52" height="8" rx="4" fill="#16181b" stroke="#c9902a"/>
+    </svg>`;
+  }
+
+  function rouletteArt() {
+    const cx = 80, cy = 46, r = 32, n = 19;
+    let seg = '';
+    for (let k = 0; k < n; k++) {
+      const a0 = (k / n) * Math.PI * 2 - Math.PI / 2;
+      const a1 = ((k + 1) / n) * Math.PI * 2 - Math.PI / 2;
+      const color = k === 0 ? '#2fb862' : (k % 2 ? '#d0342c' : '#16181b');
+      seg += `<path d="M${cx} ${cy}L${r2(cx + r * Math.cos(a0))} ${r2(cy + r * Math.sin(a0))}A${r} ${r} 0 0 1 ${r2(cx + r * Math.cos(a1))} ${r2(cy + r * Math.sin(a1))}Z" fill="${color}"/>`;
+    }
+    const ball = -0.7;
+    return `<svg viewBox="0 0 160 90" aria-hidden="true"><defs>
+      <radialGradient id="vn-rl-bg" cx=".5" cy=".5" r=".75"><stop offset="0" stop-color="#16603f"/><stop offset="1" stop-color="#072216"/></radialGradient>
+      <radialGradient id="vn-rl-wd" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#9a6a3a"/><stop offset="1" stop-color="#4a2c14"/></radialGradient></defs>
+      <rect width="160" height="90" fill="url(#vn-rl-bg)"/>
+      <circle cx="${cx}" cy="${cy + 3}" r="38" fill="#000" opacity=".35"/>
+      <circle cx="${cx}" cy="${cy}" r="37" fill="url(#vn-rl-wd)"/>${seg}
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e8c27a" stroke-opacity=".5" stroke-width=".6"/>
+      <circle cx="${cx}" cy="${cy}" r="19" fill="url(#vn-rl-wd)" stroke="#e8c27a" stroke-width="1.2"/>
+      <path d="M${cx - 11} ${cy}H${cx + 11}M${cx} ${cy - 11}V${cy + 11}" stroke="#e8c27a" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="${cx}" cy="${cy}" r="4" fill="#f2d48a"/>
+      <circle cx="${r2(cx + 26 * Math.cos(ball))}" cy="${r2(cy + 26 * Math.sin(ball))}" r="2.8" fill="#fff"/>
+    </svg>`;
+  }
+
+  const GAME_ART = { rocket: rocketArt, blackjack: blackjackArt, plinko: plinkoArt, slots: slotsArt, roulette: rouletteArt };
+
+  const NAV_CSS = `
+    .nav { display: flex; align-items: center; gap: 4px; background: var(--nav-bg, var(--panel, #16181b)); border: 1px solid var(--line, rgba(255,255,255,.07));
+      border-radius: 999px; padding: 4px; margin-right: auto; margin-left: 18px; backdrop-filter: var(--nav-blur, none); -webkit-backdrop-filter: var(--nav-blur, none); }
+    .nav > a, .vn-trigger { display: flex; align-items: center; justify-content: center; gap: 7px; color: var(--muted, #8d9299); text-decoration: none;
+      font: inherit; font-size: 14px; font-weight: 700; line-height: 1.2; padding: 7px 14px; border-radius: 999px; white-space: nowrap;
+      background: none; border: 0; cursor: pointer; }
+    .nav > a:hover, .vn-trigger:hover { color: var(--text, #eceae6); }
+    .nav > a.active, .vn-trigger.active, .vn-trigger[aria-expanded="true"] { background: var(--raise, #262a2f); color: var(--text, #eceae6); }
+    .vn-trigger .vn-chip { width: 15px; height: 15px; flex: none; color: #f2c14e; }
+    .vn-trigger .vn-chev { width: 10px; height: 10px; flex: none; opacity: .7; transition: transform .2s ease; }
+    .vn-trigger[aria-expanded="true"] .vn-chev { transform: rotate(180deg); }
+    .brand .word b { white-space: nowrap; }
+
+    .vn-panel { position: absolute; z-index: 2147482000; box-sizing: border-box; padding: 14px; border-radius: 18px;
+      background: var(--side, #1b1d21); border: 1px solid var(--line, rgba(255,255,255,.07)); box-shadow: 0 24px 60px rgba(0,0,0,.55);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; color: var(--text, #eceae6);
+      opacity: 0; visibility: hidden; transform: translateY(-6px) scale(.985); transform-origin: top left;
+      transition: opacity .18s ease, transform .25s cubic-bezier(.2,1,.3,1), visibility 0s linear .25s; }
+    .vn-panel.open { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+    .vn-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 4px 12px; }
+    .vn-head span { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted, #8d9299); }
+    .vn-head small { font-size: 12px; color: var(--muted, #8d9299); }
+    .vn-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+    .vn-card { display: flex; flex-direction: column; gap: 3px; padding: 6px 6px 10px; border-radius: 14px; text-decoration: none;
+      color: var(--text, #eceae6); border: 1px solid transparent; transition: background .15s ease, transform .15s ease, border-color .15s ease; }
+    .vn-card:hover, .vn-card:focus-visible { background: var(--raise, #262a2f); transform: translateY(-2px); outline: none; }
+    .vn-card.active { border-color: rgba(242,193,78,.5); background: rgba(242,193,78,.06); }
+    .vn-art { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; margin-bottom: 6px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 6px 16px rgba(0,0,0,.35); }
+    .vn-art svg { display: block; width: 100%; height: 100%; transition: transform .4s ease; }
+    .vn-card:hover .vn-art svg { transform: scale(1.07); }
+    .vn-live { position: absolute; top: 6px; right: 6px; font-size: 9px; font-weight: 800; letter-spacing: .08em; line-height: 1;
+      padding: 3px 6px 3px 13px; border-radius: 999px; background: rgba(0,0,0,.6); color: #fff; }
+    .vn-live::before { content: ''; position: absolute; left: 5px; top: 50%; width: 5px; height: 5px; margin-top: -2.5px; border-radius: 50%;
+      background: #ef5b4c; animation: vn-pulse 1.4s ease-out infinite; }
+    .vn-now { position: absolute; left: 6px; bottom: 6px; font-size: 9px; font-weight: 800; letter-spacing: .08em; line-height: 1;
+      padding: 3px 6px; border-radius: 999px; background: #f2c14e; color: #16181b; }
+    .vn-name { font-size: 14px; font-weight: 800; padding: 0 4px; }
+    .vn-desc { font-size: 12px; line-height: 1.3; color: var(--muted, #8d9299); padding: 0 4px; }
+    @keyframes vn-pulse { 0% { box-shadow: 0 0 0 0 rgba(239,91,76,.7); } 100% { box-shadow: 0 0 0 5px rgba(239,91,76,0); } }
+
+    @media (max-width: 760px) { .vn-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 640px) {
+      .nav > a, .vn-trigger { flex: 1; padding: 7px 4px; font-size: 12px; gap: 5px; }
+      .vn-trigger .vn-chip { display: none; }
+    }
+    @media (max-width: 480px) {
+      .vn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .vn-panel { padding: 10px; }
+      .vn-desc { display: none; }
+    }
+  `;
+
+  // Vóór de eigen stijl van de pagina, zodat die (bv. mobiele indeling van de kopregel) nog kan overschrijven
+  const navStyle = document.createElement('style');
+  navStyle.textContent = NAV_CSS;
+  document.head.prepend(navStyle);
+
+  function buildNav() {
+    const nav = document.querySelector('nav.nav');
+    if (!nav) return;
+    const current = location.pathname.replace(/\/+$/, '').split('/')[1] || 'rocket';
+    const activeGame = GAMES.find(game => game.key === current);
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'vn-trigger' + (activeGame ? ' active' : '');
+    trigger.setAttribute('aria-haspopup', 'true');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-controls', 'vn-casino');
+    trigger.innerHTML = `<svg class="vn-chip" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3.1 1.9"/><circle cx="8" cy="8" r="3" fill="currentColor"/></svg>`
+      + `<span>${activeGame ? activeGame.name : 'Casino'}</span>`
+      + `<svg class="vn-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+    const links = NAV_LINKS.map(link =>
+      `<a href="/${link.key}" class="${[link.cls, link.key === current ? 'active' : ''].filter(Boolean).join(' ')}">${link.name}</a>`).join('');
+    nav.replaceChildren(trigger);
+    nav.insertAdjacentHTML('beforeend', links);
+    // De afwas-pagina zelf is nooit grijs
+    const ownWash = nav.querySelector('a.wash-link.active');
+    if (ownWash) ownWash.classList.remove('locked');
+
+    const panel = document.createElement('div');
+    panel.className = 'vn-panel';
+    panel.id = 'vn-casino';
+    panel.innerHTML = `<div class="vn-head"><span>Casino</span><small>${GAMES.length} spellen</small></div><div class="vn-grid">${
+      GAMES.map(game => `<a class="vn-card${game.key === current ? ' active' : ''}" href="/${game.key}">
+        <span class="vn-art">${GAME_ART[game.key] ? GAME_ART[game.key]() : ''}${game.live ? '<span class="vn-live">LIVE</span>' : ''}${game.key === current ? '<span class="vn-now">JE SPEELT</span>' : ''}</span>
+        <span class="vn-name">${game.name}</span><span class="vn-desc">${game.desc}</span></a>`).join('')
+    }</div>`;
+    document.body.append(panel);
+
+    // Het paneel hangt aan de body (de kopregel van Blackjack heeft een blur die 'fixed' zou breken) en wordt onder de knop gezet
+    function place() {
+      const rect = nav.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const width = Math.min(820, vw - 24);
+      panel.style.width = `${width}px`;
+      panel.style.left = `${Math.max(12, Math.min(rect.left, vw - width - 12)) + window.scrollX}px`;
+      panel.style.top = `${rect.bottom + window.scrollY + 8}px`;
+    }
+    function setOpen(open) {
+      if (open) place();
+      panel.classList.toggle('open', open);
+      trigger.setAttribute('aria-expanded', String(open));
+    }
+    const isOpen = () => panel.classList.contains('open');
+
+    trigger.addEventListener('click', () => setOpen(!isOpen()));
+    document.addEventListener('click', e => {
+      if (isOpen() && !panel.contains(e.target) && !trigger.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && isOpen()) { setOpen(false); trigger.focus(); }
+    });
+    window.addEventListener('resize', () => { if (isOpen()) place(); });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', buildNav);
+  else buildNav();
+
+  // =====================================================
   // AFWASSEN-KNOP IN DE NAVIGATIE
   // =====================================================
   let washBelow = 50;
@@ -349,7 +600,6 @@
     .nav a.wash-link.locked { opacity: .35; cursor: not-allowed; }
     .nav a.wash-link.locked:hover { color: inherit; }
     @keyframes vsc-bub { 0% { box-shadow: 0 0 0 0 rgba(127,211,255,.6); } 100% { box-shadow: 0 0 0 7px rgba(127,211,255,0); } }
-    @media (max-width: 520px) { .nav a { font-size: 11px !important; } }
   `;
 
   document.addEventListener('DOMContentLoaded', () => {
