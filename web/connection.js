@@ -5,6 +5,9 @@
  * zelf opnieuw verbinding probeert te maken. Is de server terug, dan wordt de pagina herladen zodat alles
  * (saldo, lopende rondes) weer klopt met de server.
  *
+ * Daarnaast regelt dit script de "Afwassen" knop in de navigatie: die is grijs, behalve als je
+ * minder dan 50 punten hebt. Het saldo komt uit /api/me en uit elke actie die een saldo teruggeeft.
+ *
  * Werkt door fetch en EventSource te omwikkelen, dus de pagina's zelf hoeven niets te doen: dit script moet
  * alleen vóór het eigen script van de pagina geladen worden.
  *
@@ -98,6 +101,7 @@
     try {
       const res = await nativeFetch(...args);
       if (DOWN_STATUS.has(res.status)) suspect();
+      else watchBalance(args, res);
       return res;
     } catch (error) {
       // Afgebroken verzoeken (bijv. bij wegnavigeren) zijn geen storing
@@ -152,7 +156,11 @@
     .vso-stack .vso-av + .vso-av { margin-left: -9px; }
     .vso-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green, #4cd47b); box-shadow: 0 0 0 3px rgba(76,212,123,.18); flex: none; }
     .vso-stack:empty + .vso-dot { margin-left: 6px; }
-    .vso-count { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .vso-count { font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; max-width: 90px;
+      transition: max-width .35s ease, opacity .25s ease, margin .35s ease; }
+    .vso-btn { transition: padding .35s ease, gap .35s ease; }
+    .vso.collapsed:not(:hover) .vso-btn { padding-right: 8px; gap: 6px; }
+    .vso.collapsed:not(:hover) .vso-count { max-width: 0; opacity: 0; margin-left: -6px; }
     .vso-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 50; min-width: 200px; max-width: 260px; max-height: 320px; overflow: auto;
       background: var(--side, #1b1d21); border: 1px solid var(--line, rgba(255,255,255,.07)); border-radius: 12px; padding: 6px;
       box-shadow: 0 16px 40px rgba(0,0,0,.5); }
@@ -172,6 +180,7 @@
   `;
   let onlineUi = null;
   let onlineTimer = null;
+  const ONLINE_COLLAPSE_MS = 3000; // daarna klapt de tekst in en blijven alleen de foto's staan (hover toont hem weer)
 
   function avatarEl(user) {
     if (user.avatar) {
@@ -203,9 +212,10 @@
         <span class="vso-stack"></span><span class="vso-dot" aria-hidden="true"></span>
         <span class="vso-count"></span>
       </button>
-      <div class="vso-pop" hidden><h3>Nu online</h3><div class="vso-list"></div></div>`;
+      <div class="vso-pop" hidden><h3></h3><div class="vso-list"></div></div>`;
     const user = header.querySelector('#user');
     if (user) header.insertBefore(root, user); else header.append(root);
+    setTimeout(() => root.classList.add('collapsed'), ONLINE_COLLAPSE_MS);
     const ui = {
       root,
       button: root.querySelector('.vso-btn'),
@@ -241,6 +251,7 @@
     label.textContent = ' online';
     onlineUi.count.append(label);
     onlineUi.button.title = `${count} ${count === 1 ? 'speler' : 'spelers'} online`;
+    onlineUi.pop.querySelector('h3').textContent = `Nu online · ${count}`;
     onlineUi.list.replaceChildren(...users.map(user => {
       const row = document.createElement('div');
       row.className = 'vso-row';
@@ -274,6 +285,63 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pollOnline(); });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pollOnline);
   else pollOnline();
+
+  // =====================================================
+  // AFWASSEN-KNOP IN DE NAVIGATIE
+  // =====================================================
+  let washBelow = 50;
+
+  function setWashLink(open) {
+    document.querySelectorAll('.nav a.wash-link').forEach(link => {
+      link.classList.toggle('locked', !open);
+      link.title = open
+        ? 'Blut? Was borden af voor punten'
+        : `Alleen beschikbaar als je minder dan ${washBelow} punten hebt`;
+      if (open) link.removeAttribute('aria-disabled');
+      else link.setAttribute('aria-disabled', 'true');
+    });
+  }
+
+  async function refreshWashLink() {
+    try {
+      const res = await nativeFetch(`${PROBE_URL}?t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
+      const me = await res.json();
+      if (Number.isFinite(me.washBelow)) washBelow = me.washBelow;
+      setWashLink(Boolean(me.canWash));
+    } catch (error) { /* knop blijft zoals hij is */ }
+  }
+
+  // Na een gewonnen/verloren spel kan de knop open of dicht gaan
+  function watchBalance(args, res) {
+    const url = String(args[0] && args[0].url ? args[0].url : args[0] || '');
+    if (!url.includes('/api/') || url.includes(PROBE_URL)) return;
+    if (!String(res.headers.get('content-type') || '').includes('application/json')) return;
+    res.clone().json().then(data => {
+      if (data && data.linked !== false && Number.isFinite(data.balance)) setWashLink(data.balance < washBelow);
+    }).catch(() => {});
+  }
+
+  const WASH_CSS = `
+    .nav a.wash-link { position: relative; }
+    .nav a.wash-link:not(.locked):not(.active) { color: #7fd3ff; }
+    .nav a.wash-link:not(.locked):not(.active)::after { content: ''; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px;
+      border-radius: 50%; background: #7fd3ff; animation: vsc-bub 1.8s ease-out infinite; }
+    .nav a.wash-link.locked { opacity: .35; cursor: not-allowed; }
+    .nav a.wash-link.locked:hover { color: inherit; }
+    @keyframes vsc-bub { 0% { box-shadow: 0 0 0 0 rgba(127,211,255,.6); } 100% { box-shadow: 0 0 0 7px rgba(127,211,255,0); } }
+    @media (max-width: 520px) { .nav a { font-size: 11px !important; } }
+  `;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const style = document.createElement('style');
+    style.textContent = WASH_CSS;
+    document.head.append(style);
+    document.addEventListener('click', e => {
+      if (e.target.closest && e.target.closest('.nav a.wash-link.locked')) e.preventDefault();
+    });
+    refreshWashLink();
+  });
+  window.addEventListener('focus', () => refreshWashLink());
 
   // =====================================================
   // POPUP

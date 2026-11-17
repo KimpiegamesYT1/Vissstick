@@ -436,7 +436,7 @@
     .spinwrap { gap: 6px; }
   }
 </style>
-<script src="/connection.js?v=3"></script>
+<script src="/connection.js?v=4"></script>
 </head>
 <body>
 <div class="intro" id="intro" aria-hidden="true">
@@ -466,7 +466,7 @@
       </svg>
       <span class="word"><small>VISSSTICK</small><b>Slots</b></span>
     </a>
-    <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack">Blackjack</a><a href="/plinko">Plinko</a><a href="/slots" class="active">Slots</a><a href="/spin">Daily spin</a></nav>
+    <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack">Blackjack</a><a href="/plinko">Plinko</a><a href="/slots" class="active">Slots</a><a href="/spin">Daily spin</a><a href="/afwas" class="wash-link locked">Afwassen</a></nav>
     <div class="user" id="user" hidden></div>
   </header>
 
@@ -1017,8 +1017,10 @@
     const narrow = W < 640;
     const padTop = narrow ? 106 : 80, padBot = narrow ? 92 : 104, padX = narrow ? 8 : 24;
     const availW = W - padX * 2, availH = H - padTop - padBot;
-    let s = Math.min(availW / (L.reels + 0.34), availH / (L.rows + 0.98), 150);
-    s = Math.max(24, s);
+    const fitW = availW / (L.reels + 0.34);
+    let s = Math.min(fitW, availH / (L.rows + 0.98), 150);
+    // Minimaal 24 px, behalve als de machine dan niet meer in de breedte past (20 rollen op mobiel)
+    s = Math.max(Math.min(24, fitW), s);
     const frame = clamp(s * 0.16, 8, 22), title = clamp(s * 0.62, 34, 76);
     const w = L.reels * s, h = L.rows * s;
     const totalH = h + frame * 2 + title;
@@ -1042,7 +1044,7 @@
     view.fx = view.grid.map(col => col.map(() => freshFx()));
   }
 
-  function wildReel(L, r) { return L.reels === 3 ? r === 1 : r >= 1 && r <= 3; }
+  function wildReel(L, r) { return L.reels === 3 ? r === 1 : r >= 1 && r <= L.reels - 2; }
   function randomCell(L, r, mode) {
     const table = Object.entries(COSMETIC);
     if (L.features.wild && wildReel(L, r)) table.push(['W', 5]);
@@ -1321,7 +1323,7 @@
     const L = view.L;
     view.hl = null; view.lines = []; view.cycle = null;
     view.reels = view.grid.map((col, r) => ({
-      spinning: true, phase: 'wind', t: 0, delay: r * 55, off: 0, speed: 0, queue: null, glow: 0, mode,
+      spinning: true, phase: 'wind', t: 0, delay: r * Math.min(55, 275 / L.reels), off: 0, speed: 0, queue: null, glow: 0, mode,
       cells: [randomCell(L, r, mode), ...col]
     }));
   }
@@ -1394,13 +1396,17 @@
     const L = view.L;
     view.scatSeen = 0;
     if (!view.reels.length || !view.reels[0].spinning) startReels();
-    let scat = 0, coins = 0;
+    let scat = 0, coins = 0, anticips = 0;
     const trigger = L.coinTrigger || 99;
     const promises = [];
+    // Op brede machines staan de rollen dichter op elkaar (20 rollen ≈ 1,7 s in plaats van 3,4 s)
+    const gap = (settings.turbo ? 80 : 170) * Math.min(1, 10 / L.reels);
     for (let r = 0; r < L.reels; r++) {
-      if (r > 0) await sleep(settings.turbo ? 80 : 170);
-      const anticip = !quiet && r >= 2 && ((L.features.scatter && scat >= 2) || (L.features.coins && coins >= trigger - 2 && coins < trigger + 3));
+      if (r > 0) await sleep(gap);
+      // Spanning bij 2 sterren of bijna genoeg munten; hooguit drie keer per spin, anders duurt het eeuwig
+      const anticip = !quiet && r >= 2 && anticips < 3 && ((L.features.scatter && scat === 2) || (L.features.coins && coins >= trigger - 2 && coins < trigger));
       if (anticip) {
+        anticips++;
         view.reels[r].glow = 1;
         sfx.anticipate();
         view.heat = Math.min(1, view.heat + 0.3);
@@ -1465,7 +1471,7 @@
     const cells = new Set();
     wins.forEach(w => w.cells.forEach(([r, row]) => cells.add(r * 10 + row)));
     view.hl = { cells, start: T };
-    view.lines = wins.map(w => ({ line: w.line, color: LINE_COLORS[w.line % LINE_COLORS.length], start: T, n: w.n }));
+    view.lines = wins.map(w => ({ line: w.line, color: LINE_COLORS[w.line % LINE_COLORS.length], start: T, n: w.n, cells: w.cells, dir: w.dir || 1 }));
   }
 
   async function playSteps(steps, o) {
@@ -1482,8 +1488,10 @@
         const x = st.win / o.bet;
         floater(`+${fmtPts(st.win)}`, cx, cy, x >= 5 ? 1.5 : x >= 1 ? 1.15 : 0.9, '#ffe066');
         if (st.mult > 1 && o.L.features.cascade && o.mode === 'base') floater(`CASCADE ×${st.mult}`, cx, cy + view.geom.s * 0.55, 0.8, '#ff9cf5');
-        const five = st.wins.find(w => w.n === 5);
-        if (five) burstCells(five.cells, 10);
+        const longest = st.wins.reduce((a, w) => (!a || w.n > a.n ? w : a), null);
+        if (longest && longest.n >= 5) burstCells(longest.cells, Math.min(30, 10 + (longest.n - 5) * 2));
+        if (longest && longest.n >= 6) floater(`${longest.n} OP EEN RIJ!`, cx, cy - view.geom.s * 0.6, 1.1, '#69f0ae');
+        if (st.wins.length >= 5 && x >= 0.5) floater(`${st.wins.length} LIJNEN!`, cx, cy + view.geom.s * (st.mult > 1 ? 1.1 : 0.6), st.wins.length >= 15 ? 1.3 : 1, '#40c4ff');
         view.heat = Math.min(1, view.heat + 0.12 + Math.min(0.5, x * 0.05));
         await sleep(settings.turbo ? 420 : 820);
       }
@@ -1536,7 +1544,7 @@
     if (!c || busy || T < c.next) return;
     const w = c.wins[c.i % c.wins.length];
     highlight([w]);
-    $('winLabel').textContent = `LIJN ${w.line + 1} · ${w.n}× ${w.sym === 'W' ? 'WILD' : SYM_NAME[w.sym].toUpperCase()}`;
+    $('winLabel').textContent = `LIJN ${w.line + 1}${w.dir < 0 ? ' ←' : ''} · ${w.n}× ${w.sym === 'W' ? 'WILD' : SYM_NAME[w.sym].toUpperCase()}`;
     c.i++;
     c.next = T + 1.2;
   }
@@ -1830,7 +1838,7 @@
     restart($('lvlPill'), 'lvup');
     const feats = [];
     if (L.features.wild) feats.push('Wilds');
-    if (L.reels === 5) feats.push(`${L.lines.length} lijnen`);
+    if (L.reels >= 5) feats.push(`${L.reels} rollen`, `${L.lines.length} lijnen`);
     if (L.features.scatter) feats.push('Free spins');
     if (L.features.cascade) feats.push('Cascades');
     if (L.features.coins) feats.push('Hold & Win');
@@ -2381,9 +2389,18 @@
       if (!path) continue;
       const age = T - ln.start;
       const prog = clamp(age / 0.25, 0, 1);
-      const pts = [[g.x + 3, g.y + path[0] * s + s / 2]];
-      path.forEach((row, r) => pts.push([g.x + r * s + s / 2, g.y + row * s + s / 2]));
-      pts.push([g.x + g.w - 3, g.y + path[path.length - 1] * s + s / 2]);
+      let pts;
+      if (L.bothWays && ln.cells) {
+        // Brede machine: alleen het winnende stuk, vanaf de rand waar de lijn begint
+        const [r0, row0] = ln.cells[0];
+        pts = [[ln.dir < 0 ? g.x + g.w - 3 : g.x + 3, g.y + row0 * s + s / 2]];
+        ln.cells.forEach(([r, row]) => pts.push([g.x + r * s + s / 2, g.y + row * s + s / 2]));
+        if (r0 === undefined) continue;
+      } else {
+        pts = [[g.x + 3, g.y + path[0] * s + s / 2]];
+        path.forEach((row, r) => pts.push([g.x + r * s + s / 2, g.y + row * s + s / 2]));
+        pts.push([g.x + g.w - 3, g.y + path[path.length - 1] * s + s / 2]);
+      }
       const total = pts.length - 1;
       const upto = prog * total;
       ctx.beginPath();
@@ -2539,7 +2556,7 @@
     const lines = L.lines.length;
     const perLine = (bet / lines) * L.scale;
     $('payTitle').textContent = `Niveau ${L.level} · ${L.name}`;
-    $('payIntro').textContent = `Bedragen voor je huidige inzet van ${fmt(bet)} punten op ${lines} lijnen. Lijnen betalen van links naar rechts.`;
+    $('payIntro').textContent = `Bedragen voor je huidige inzet van ${fmt(bet)} punten op ${lines} lijnen. Lijnen betalen ${L.bothWays ? 'van links én van rechts' : 'van links naar rechts'}.`;
     const syms = [...FRUITS].reverse();
     if (L.features.wild) syms.unshift('W');
     $('payTable').replaceChildren(...syms.map(sym => {
@@ -2558,8 +2575,10 @@
     }));
     const f = L.features;
     const items = [
-      [true, 'Lijnen', L.reels === 3 ? 'Drie op een lijn wint. Kersen betalen ook voor één of twee vanaf links.' : 'Drie, vier of vijf dezelfde vanaf de linker rol winnen. Twee kersen betalen ook.'],
-      [f.wild, 'Wild', `Vervangt elk fruit${L.reels === 3 ? ' (alleen op de middelste rol)' : ' (op rol 2, 3 en 4)'}.${f.wildMults ? ' Wilds kunnen ×2, ×3 of ×5 dragen; meerdere op één lijn tellen op.' : ''}`],
+      [true, 'Lijnen', L.reels === 3 ? 'Drie op een lijn wint. Kersen betalen ook voor één of twee vanaf links.'
+        : L.bothWays ? `Drie of meer dezelfde vanaf de linker óf de rechter rol winnen. Langer dan vijf op een rij: zes = 2×, zeven = 3×, … ${L.reels} = ${L.reels - 4}× de winst van vijf. Twee kersen betalen ook.`
+        : 'Drie, vier of vijf dezelfde vanaf de linker rol winnen. Twee kersen betalen ook.'],
+      [f.wild, 'Wild', `Vervangt elk fruit${L.reels === 3 ? ' (alleen op de middelste rol)' : ` (op rol 2 t/m ${L.reels - 1})`}.${f.wildMults ? ' Wilds kunnen ×2, ×3 of ×5 dragen; meerdere op één lijn tellen op.' : ''}`],
       [f.scatter, 'Free spins', `3, 4 of 5 sterren overal = ${cfg.scatterSpins[3]}, ${cfg.scatterSpins[4]} of ${cfg.scatterSpins[5]} free spins plus ${fmtPts(cfg.scatterPay[3] * bet * L.scale)}, ${fmtPts(cfg.scatterPay[4] * bet * L.scale)} of ${fmtPts(cfg.scatterPay[5] * bet * L.scale)} punten. Elke winnende free spin verhoogt de multiplier met 1${f.fsStart > 1 ? ` (start op ×${f.fsStart})` : ''}. 3 sterren in een free spin = +${cfg.retrigger} spins.`],
       [f.cascade, 'Fruitregen (cascades)', `Winnende symbolen ontploffen en er valt nieuw fruit in. Elke volgende cascade betaalt meer: ${cfg.cascadeMults.map(m => `×${m}`).join(', ')}.`],
       [f.coins, 'Hold & Win', `Geldfruit is fruit met een munt erop; het telt gewoon mee voor lijnen. ${L.coinTrigger || 6}+ geldfruit = 3 respins. Munten blijven staan; elke nieuwe munt zet de respins terug op 3. Jackpots: MINI ${cfg.jackpots.MINI}×, MINOR ${cfg.jackpots.MINOR}×, MAJOR ${cfg.jackpots.MAJOR}× je inzet. Vol scherm = GRAND (${fmt(cfg.jackpots.GRAND)}×).`],

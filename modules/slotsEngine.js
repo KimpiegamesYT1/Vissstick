@@ -38,6 +38,8 @@ const PAY5 = {
   M: [15, 50, 150], B: [20, 75, 250], R: [30, 120, 400], 7: [50, 250, 1000], W: [50, 250, 1000]
 };
 const CHERRY5_TWO = 2;
+// Brede machines (meer dan 5 rollen): 6 op een rij = 2× de winst van 5, 7 = 3×, … 20 = 16×
+const LONG_RUN_STEP = 1;
 // Scatters overal: × totale inzet, plus free spins
 const SCATTER_PAY = { 3: 2, 4: 10, 5: 50 };
 const SCATTER_SPINS = { 3: 8, 4: 12, 5: 20 };
@@ -81,24 +83,24 @@ const LEVELS = [
     reels: 5, rows: 3, base: BASE5, wild: 6, scatter: 4.2, coin: 0, cascade: true, scale: 1.009
   },
   {
-    level: 6, xp: 150, name: 'Geldfruit', unlock: 'Geldfruit: 6+ fruit met een munt = Hold & Win met MINI, MINOR, MAJOR en GRAND jackpots.',
-    reels: 5, rows: 3, base: BASE5, wild: 6, scatter: 4.2, coin: 0.118, cascade: true, scale: 0.916
+    level: 6, xp: 150, name: 'Geldfruit', unlock: 'Zes rollen en dertig lijnen. Geldfruit: genoeg fruit met een munt = Hold & Win met jackpots.',
+    reels: 6, rows: 3, lineCount: 30, base: BASE5, wild: 6, scatter: 3.6, coin: 0.135, cascade: true, scale: 0.361
   },
   {
-    level: 7, xp: 220, name: 'Gekke events', unlock: 'Willekeurige events: wildstorm, multiplier-regen, fruitsalade en muntenregen.',
-    reels: 5, rows: 3, base: BASE5, wild: 6, scatter: 4.2, coin: 0.12, cascade: true, events: true, scale: 0.503
+    level: 7, xp: 220, name: 'Gekke events', unlock: 'Zeven rollen, veertig lijnen en willekeurige events: wildstorm, multiplier-regen, fruitsalade en muntenregen.',
+    reels: 7, rows: 3, lineCount: 40, base: BASE5, wild: 6, scatter: 3.0, coin: 0.112, cascade: true, events: true, scale: 0.199
   },
   {
-    level: 8, xp: 300, name: 'Mega-rollen', unlock: 'Vier rijen hoog en veertig lijnen.',
-    reels: 5, rows: 4, base: BASE5, wild: 6, scatter: 3.1, coin: 0.115, cascade: true, events: true, scale: 0.555
+    level: 8, xp: 300, name: 'Mega-rollen', unlock: 'Acht rollen, vier rijen hoog en zestig lijnen.',
+    reels: 8, rows: 4, lineCount: 60, base: BASE5, wild: 6, scatter: 1.9, coin: 0.107, cascade: true, events: true, scale: 0.202
   },
   {
-    level: 9, xp: 400, name: 'Gouden spins', unlock: 'In free spins blijven wilds plakken en start de multiplier op ×2.',
-    reels: 5, rows: 4, base: BASE5, wild: 6, scatter: 3.1, coin: 0.115, cascade: true, events: true, sticky: true, fsStart: 2, scale: 0.448
+    level: 9, xp: 400, name: 'Gouden spins', unlock: 'Tien rollen en honderd lijnen. In free spins blijven wilds plakken en start de multiplier op ×2.',
+    reels: 10, rows: 4, lineCount: 100, base: BASE5, wild: 6, scatter: 1.5, coin: 0.116, cascade: true, events: true, sticky: true, fsStart: 2, scale: 0.125
   },
   {
-    level: 10, xp: 520, name: 'Vissstick-modus', unlock: 'Vijf bij vijf, vijftig lijnen en wilds met ×2, ×3 en ×5.',
-    reels: 5, rows: 5, base: BASE5, wild: 5, scatter: 2.5, coin: 0.11, cascade: true, events: true, sticky: true, fsStart: 2, wildMults: true, scale: 0.323
+    level: 10, xp: 520, name: 'Vissstick-modus', unlock: 'Twintig rollen breed, vijf hoog, tweehonderd lijnen en wilds met ×2, ×3 en ×5.',
+    reels: 20, rows: 5, lineCount: 200, base: BASE5, wild: 5, scatter: 0.56, coin: 0.124, cascade: true, events: true, sticky: true, fsStart: 2, wildMults: true, scale: 0.094
   }
 ];
 
@@ -109,8 +111,9 @@ const LEVELS = [
 /**
  * Lijnen voor 5 rollen: alle paden waarbij elke stap hooguit één rij verspringt. Symmetrische lijnen eerst,
  * daarna zo weinig mogelijk op en neer, en zo dicht mogelijk bij het midden.
+ * Bredere machines gebruiken dezelfde patronen, heen en weer doorgetrokken (rol 0-4, dan 3, 2, 1, 0, 1…).
  */
-function buildLines(rows, count) {
+function buildLines(rows, count, reels = 5) {
   const paths = [];
   const walk = path => {
     if (path.length === 5) { paths.push(path); return; }
@@ -133,7 +136,9 @@ function buildLines(rows, count) {
     for (let i = 0; i < 5; i++) if (a[i] !== b[i]) return a[i] - b[i];
     return 0;
   });
-  return paths.slice(0, count);
+  if (count > paths.length) throw new Error(`Maar ${paths.length} lijnen mogelijk op ${rows} rijen`);
+  const bounce = r => { const k = r % 8; return k <= 4 ? k : 8 - k; };
+  return paths.slice(0, count).map(p => Array.from({ length: reels }, (_, r) => p[bounce(r)]));
 }
 
 const LINES = {
@@ -144,7 +149,21 @@ const LINES = {
 };
 
 function linesFor(cfg) {
-  return LINES[`${cfg.reels}x${cfg.rows}`];
+  const key = `${cfg.reels}x${cfg.rows}${cfg.lineCount ? `x${cfg.lineCount}` : ''}`;
+  if (!LINES[key]) LINES[key] = buildLines(cfg.rows, cfg.lineCount, cfg.reels);
+  return LINES[key];
+}
+
+const isWildReel = (cfg, r) => (cfg.reels === 3 ? r === 1 : r >= 1 && r <= cfg.reels - 2);
+
+/** Brede machines betalen lijnen van links én van rechts */
+const bothWays = cfg => cfg.reels > 5;
+
+/** Lijnwinst voor n op een rij (× lijninzet) */
+function pay5(sym, n) {
+  if (n < 3) return 0;
+  if (n <= 5) return PAY5[sym][n - 3];
+  return PAY5[sym][2] * (1 + LONG_RUN_STEP * (n - 5));
 }
 
 // =====================================================
@@ -174,7 +193,7 @@ function drawer(cfg, mode) {
   const perReel = [];
   for (let r = 0; r < cfg.reels; r++) {
     const table = Object.entries(cfg.base).map(([s, w]) => [s, w]);
-    const wildReel = cfg.reels === 3 ? r === 1 : r >= 1 && r <= 3;
+    const wildReel = isWildReel(cfg, r);
     // In free spins meer wilds, behalve als ze blijven plakken
     if (cfg.wild && wildReel) table.push(['W', cfg.wild * (mode === 'fs' ? (cfg.sticky ? 0.55 : 1.25) : 1)]);
     if (cfg.scatter) table.push(['S', cfg.scatter]);
@@ -243,51 +262,65 @@ function evaluate(grid, cfg) {
   const lines = linesFor(cfg);
   const wins = [];
   const reels = cfg.reels;
+  const order = Array.from({ length: reels }, (_, r) => r);
+  const reverse = [...order].reverse();
   for (let li = 0; li < lines.length; li++) {
-    const line = lines[li];
-    let target = null, count = 0, wildRun = 0, leading = true;
-    for (let r = 0; r < reels; r++) {
-      const c = grid[r][line[r]];
-      if (c.s === 'W') {
-        count++;
-        if (leading) wildRun++;
-        continue;
-      }
-      leading = false;
-      if (c.s === 'S' || c.s === 'K') break;
-      if (target === null) { target = c.s; count++; continue; }
-      if (c.s === target) { count++; continue; }
-      break;
+    const left = scanLine(grid, cfg, lines[li], order);
+    if (left) wins.push({ line: li, ...left });
+    // Van rechts alleen als de linker winst niet al de hele lijn pakt
+    if (bothWays(cfg) && !(left && left.n === reels)) {
+      const right = scanLine(grid, cfg, lines[li], reverse);
+      if (right) wins.push({ line: li, dir: -1, ...right });
     }
-
-    let pay = 0, n = 0, sym = null;
-    if (target !== null) {
-      if (reels === 3) {
-        if (count === 3) pay = PAY3[target];
-        else if (target === 'C') pay = CHERRY3[count];
-      } else if (count >= 3) {
-        pay = PAY5[target][count - 3];
-      } else if (target === 'C' && count === 2) {
-        pay = CHERRY5_TWO;
-      }
-      n = count; sym = target;
-    }
-    // Alleen wilds kan meer opleveren dan het fruit erna
-    const wildPay = reels === 3 ? (wildRun === 3 ? PAY3.W : 0) : (wildRun >= 3 ? PAY5.W[wildRun - 3] : 0);
-    if (wildPay > pay) { pay = wildPay; n = wildRun; sym = 'W'; }
-    if (!pay) continue;
-
-    // Wild-multipliers tellen bij elkaar op (×2 en ×3 = ×5)
-    let wm = 0;
-    const cells = [];
-    for (let r = 0; r < n; r++) {
-      const c = grid[r][line[r]];
-      if (c.s === 'W' && c.m > 1) wm += c.m;
-      cells.push([r, line[r]]);
-    }
-    wins.push({ line: li, sym, n, cells, pay, wm: wm || 1 });
   }
   return wins;
+}
+
+/** Eén lijn aflopen in de volgorde `order` (rolnummers). Geeft { sym, n, cells, pay, wm } of null. */
+function scanLine(grid, cfg, line, order) {
+  const reels = cfg.reels;
+  let target = null, count = 0, wildRun = 0, leading = true;
+  for (const r of order) {
+    const c = grid[r][line[r]];
+    if (c.s === 'W') {
+      count++;
+      if (leading) wildRun++;
+      continue;
+    }
+    leading = false;
+    if (c.s === 'S' || c.s === 'K') break;
+    if (target === null) { target = c.s; count++; continue; }
+    if (c.s === target) { count++; continue; }
+    break;
+  }
+
+  let pay = 0, n = 0, sym = null;
+  if (target !== null) {
+    if (reels === 3) {
+      if (count === 3) pay = PAY3[target];
+      else if (target === 'C') pay = CHERRY3[count];
+    } else if (count >= 3) {
+      pay = pay5(target, count);
+    } else if (target === 'C' && count === 2) {
+      pay = CHERRY5_TWO;
+    }
+    n = count; sym = target;
+  }
+  // Alleen wilds kan meer opleveren dan het fruit erna
+  const wildPay = reels === 3 ? (wildRun === 3 ? PAY3.W : 0) : pay5('W', wildRun);
+  if (wildPay > pay) { pay = wildPay; n = wildRun; sym = 'W'; }
+  if (!pay) return null;
+
+  // Wild-multipliers tellen bij elkaar op (×2 en ×3 = ×5)
+  let wm = 0;
+  const cells = [];
+  for (let i = 0; i < n; i++) {
+    const r = order[i];
+    const c = grid[r][line[r]];
+    if (c.s === 'W' && c.m > 1) wm += c.m;
+    cells.push([r, line[r]]);
+  }
+  return { sym, n, cells, pay, wm: wm || 1 };
 }
 
 function countSymbol(grid, s) {
@@ -386,6 +419,9 @@ function randomCells(grid, count, rand, ok) {
   return out;
 }
 
+// Events op grotere machines raken meer vakjes (5×3 = 1)
+const sizeFactor = cfg => Math.sqrt((cfg.reels * cfg.rows) / 15);
+
 const EVENTS = [['wildstorm', 36], ['multiplier', 32], ['fruitsalad', 20], ['coinrain', 12]];
 
 function rollEvent(grid, cfg, rand) {
@@ -393,7 +429,7 @@ function rollEvent(grid, cfg, rand) {
   if (type === 'coinrain' && !cfg.coin) type = 'wildstorm';
   const plain = c => c.s !== 'S' && c.s !== 'W' && !isCoin(c);
   if (type === 'wildstorm') {
-    const cells = randomCells(grid, 3 + Math.floor(rand() * 4), rand, plain);
+    const cells = randomCells(grid, Math.round((3 + Math.floor(rand() * 4)) * sizeFactor(cfg)), rand, plain);
     cells.forEach(([r, row]) => { grid[r][row] = makeCell('W', cfg, rand); });
     return { type, cells: cells.map(([r, row]) => [r, row, grid[r][row]]) };
   }
@@ -408,7 +444,7 @@ function rollEvent(grid, cfg, rand) {
     grid.forEach((col, r) => col.forEach((c, row) => { if (c.s === from) { col[row] = { ...c, s: to }; cells.push([r, row]); } }));
     return { type, from, to, cells };
   }
-  const cells = randomCells(grid, 2 + Math.floor(rand() * 2), rand, c => FRUITS.includes(c.s) && !isCoin(c));
+  const cells = randomCells(grid, Math.round((2 + Math.floor(rand() * 2)) * sizeFactor(cfg)), rand, c => FRUITS.includes(c.s) && !isCoin(c));
   cells.forEach(([r, row]) => { grid[r][row] = { s: grid[r][row].s, ...coinValue(rand) }; });
   return { type: 'coinrain', cells: cells.map(([r, row]) => [r, row, grid[r][row]]) };
 }
@@ -448,9 +484,9 @@ function freeSpins(cfg, count, lineBet, scale, rand) {
   return { count, total: spins.length, spins, win, startMult: cfg.fsStart || 1, endMult: fs.mult };
 }
 
-// Aantal munten voor Hold & Win: 6 op 5×3, 7 op 5×4, 8 op 5×5
+// Aantal munten voor Hold & Win: 6 op 15 vakjes, en één extra per 5 vakjes meer (5×4 = 7, 10×4 = 11, 20×5 = 23)
 function coinTrigger(cfg) {
-  return 6 + Math.max(0, cfg.rows - 3);
+  return 6 + Math.max(0, Math.round((cfg.reels * cfg.rows - 15) / 5));
 }
 
 /** Hold & Win: munten blijven staan, 3 respins, elke nieuwe munt zet de respins terug op 3. */
@@ -554,6 +590,7 @@ function publicLevels() {
   return LEVELS.map(cfg => ({
     level: cfg.level, xp: cfg.xp, name: cfg.name, unlock: cfg.unlock, reels: cfg.reels, rows: cfg.rows,
     lines: linesFor(cfg),
+    bothWays: bothWays(cfg),
     features: {
       wild: Boolean(cfg.wild), scatter: Boolean(cfg.scatter), cascade: Boolean(cfg.cascade), coins: Boolean(cfg.coin),
       events: Boolean(cfg.events), sticky: Boolean(cfg.sticky), wildMults: Boolean(cfg.wildMults), fsStart: cfg.fsStart || 1
@@ -565,6 +602,6 @@ function publicLevels() {
 
 module.exports = {
   TARGET_RTP, MAX_WIN_X, FEVER_SPINS, FEVER_WHEEL, FEVER_EV, FEVER_RTP, CASCADE_MULTS,
-  PAY3, CHERRY3, PAY5, CHERRY5_TWO, SCATTER_PAY, SCATTER_SPINS, RETRIGGER_SPINS, JACKPOTS, FRUITS,
+  PAY3, CHERRY3, PAY5, CHERRY5_TWO, LONG_RUN_STEP, SCATTER_PAY, SCATTER_SPINS, RETRIGGER_SPINS, JACKPOTS, FRUITS,
   LEVELS, LINES, linesFor, spin, spinFever, publicLevels, coinTrigger
 };

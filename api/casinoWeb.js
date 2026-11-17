@@ -6,6 +6,7 @@
  *   GET  /blackjack                 Blackjack tafel (3D)
  *   GET  /plinko                    Plinko
  *   GET  /slots                     Slots (fruitautomaat)
+ *   GET  /afwas                     Afwassen (alleen onder 50 punten)
  *   GET  /connection.js             verbindingspopup voor alle casino-pagina's
  *   GET  /vendor/three/*.js         three.js (uit node_modules)
  *   GET  /cards/<naam>.png          kaartafbeeldingen
@@ -26,6 +27,8 @@
  *   POST /api/plinko/drop           laat een bal vallen
  *   GET  /api/slots/status          instellingen, niveaus en eigen voortgang
  *   POST /api/slots/spin            één spin
+ *   GET  /api/afwas/status          instellingen, saldo en eigen stats
+ *   POST /api/afwas/{plate,clean,reject}  nieuw bord / bord schoon (+1) / bord afgekeurd
  *   POST /api/logout
  */
 
@@ -36,6 +39,7 @@ const dailySpin = require('../modules/dailySpin');
 const blackjackTable = require('../modules/blackjackTable');
 const plinko = require('../modules/plinko');
 const slots = require('../modules/slots');
+const afwas = require('../modules/afwas');
 const rocketAuth = require('../modules/rocketAuth');
 const casino = require('../modules/casino');
 const { createRateLimiter, getClientIp } = require('./security');
@@ -48,7 +52,7 @@ const HEARTBEAT_MS = 15000;
 const MAX_BODY_BYTES = 1024;
 const ONLINE_WINDOW_MS = 45000; // zo lang na de laatste ping telt iemand als online
 const MAX_ONLINE_SHOWN = 50;
-const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots'];
+const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/afwas'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
   'three.core.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.core.js')
@@ -144,7 +148,8 @@ function createCasinoWebHandler() {
     spin: fs.readFileSync(path.join(WEB_DIR, 'spin.html')),
     blackjack: fs.readFileSync(path.join(WEB_DIR, 'blackjack.html')),
     plinko: fs.readFileSync(path.join(WEB_DIR, 'plinko.html')),
-    slots: fs.readFileSync(path.join(WEB_DIR, 'slots.html'))
+    slots: fs.readFileSync(path.join(WEB_DIR, 'slots.html')),
+    afwas: fs.readFileSync(path.join(WEB_DIR, 'afwas.html'))
   };
   const staticCache = new Map();
   const actionLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 40 });
@@ -247,7 +252,7 @@ function createCasinoWebHandler() {
     }
     const user = getUser(req);
     if (!user) {
-      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko of /slots in Discord voor je persoonlijke link.' });
+      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko, /slots of /afwassen in Discord voor je persoonlijke link.' });
       return;
     }
     const limiter = action === 'plinko/drop' ? plinkoLimiter : actionLimiter;
@@ -277,6 +282,9 @@ function createCasinoWebHandler() {
       case 'blackjack/act': result = blackjackTable.act(user, String(body.action || '')); break;
       case 'plinko/drop': result = plinko.drop(user, body.bet, body.risk, body.rows); break;
       case 'slots/spin': result = slots.spin(user, body.bet, body.machine); break;
+      case 'afwas/plate': result = afwas.nextPlate(user); break;
+      case 'afwas/clean': result = afwas.cleanPlate(user, body.plate); break;
+      case 'afwas/reject': result = afwas.rejectPlate(user, body.plate); break;
       case 'blackjack/insurance': result = blackjackTable.insurance(user, Boolean(body.take)); break;
       case 'spin/reminder':
         dailySpin.setReminder(user.id, Boolean(body.enabled));
@@ -342,6 +350,20 @@ function createCasinoWebHandler() {
           sendJson(res, 200, payload);
           return true;
         }
+        case '/afwas':
+        case '/afwas/':
+          sendPage(res, pages.afwas);
+          return true;
+        case '/api/afwas/status': {
+          const user = getUser(req);
+          const payload = { linked: Boolean(user), config: afwas.getConfig() };
+          if (user) {
+            casino.getOrCreateUser(user.id, user.username);
+            Object.assign(payload, { user, balance: casino.getUserBalance(user.id), canWash: afwas.canWash(user.id), stats: afwas.getStats(user.id) });
+          }
+          sendJson(res, 200, payload);
+          return true;
+        }
         case '/api/blackjack/stream':
           handleStream(req, res, streams.blackjack);
           return true;
@@ -365,11 +387,11 @@ function createCasinoWebHandler() {
         case '/api/rocket/me': {
           const user = getUser(req);
           if (!user) {
-            sendJson(res, 200, { linked: false });
+            sendJson(res, 200, { linked: false, washBelow: afwas.MAX_BALANCE });
             return true;
           }
           casino.getOrCreateUser(user.id, user.username);
-          sendJson(res, 200, { linked: true, user, balance: casino.getUserBalance(user.id) });
+          sendJson(res, 200, { linked: true, user, balance: casino.getUserBalance(user.id), washBelow: afwas.MAX_BALANCE, canWash: afwas.canWash(user.id) });
           return true;
         }
         case '/api/online': {
@@ -419,7 +441,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|afwas\/(?:plate|clean|reject)|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

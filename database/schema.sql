@@ -370,6 +370,16 @@ CREATE TABLE IF NOT EXISTS plinko_stats (
     last_played DATETIME
 );
 
+-- Afwassen (website): borden schoonmaken voor punten als je blut bent
+CREATE TABLE IF NOT EXISTS afwas_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    plates_cleaned INTEGER DEFAULT 0,
+    plates_rejected INTEGER DEFAULT 0,
+    points_earned INTEGER DEFAULT 0,
+    last_played DATETIME
+);
+
 -- Inzetten die nog in een lopend spel zitten (Rocket, blackjack, mines, ...).
 -- Bij het opstarten van de bot wordt alles wat hier nog staat teruggestort,
 -- zodat een herstart midden in een spel geen punten kost.
