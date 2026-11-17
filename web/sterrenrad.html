@@ -321,10 +321,125 @@
     .picker button { min-width: 64px; padding: 10px 10px; font-size: 13px; }
     .picker .lbl { display: none; }
   }
+  /* ===== Opstartscherm ===== */
+  .intro { position: fixed; inset: 0; z-index: 1000; overflow: hidden; display: grid; place-items: center; cursor: default;
+    background: radial-gradient(ellipse at 50% 120%, #3a1d7a 0%, #140b33 40%, #05040c 75%); color: #fff; }
+  .intro::before { content: ''; position: absolute; inset: -20%; pointer-events: none;
+    background: radial-gradient(circle at 22% 30%, rgba(91,42,158,.55), transparent 32%), radial-gradient(circle at 78% 26%, rgba(29,79,158,.45), transparent 30%),
+      radial-gradient(circle at 60% 78%, rgba(168,40,122,.35), transparent 34%); filter: blur(10px); animation: ineb 18s ease-in-out infinite alternate; }
+  @keyframes ineb { to { transform: rotate(8deg) scale(1.12); } }
+  .intro .istars { position: absolute; left: 50%; top: 50%; width: 2px; height: 2px; border-radius: 50%; background: transparent; animation: iwarp 3.2s linear infinite; }
+  .intro .istars.s2 { animation-delay: -1.07s; } .intro .istars.s3 { animation-delay: -2.13s; }
+  @keyframes iwarp { from { transform: scale(.35); opacity: 0; } 15% { opacity: 1; } to { transform: scale(2.6); opacity: 0; } }
+  .intro.fast .istars { animation-duration: .6s; }
+  .intro .iwheel { position: absolute; width: min(118vmin, 1100px); aspect-ratio: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: .32;
+    filter: drop-shadow(0 0 40px rgba(185,140,255,.5)); animation: ispin 46s linear infinite; }
+  @keyframes ispin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+  .intro .iwheel .ib { animation: iblink 1.2s steps(2) infinite; } .intro .iwheel .ib:nth-child(2n) { animation-delay: .6s; }
+  @keyframes iblink { 50% { opacity: .25; } }
+  .intro .icomet { position: absolute; width: 180px; height: 3px; top: 22%; left: -200px; border-radius: 3px;
+    background: linear-gradient(90deg, transparent, rgba(127,214,255,.9), #fff); filter: drop-shadow(0 0 8px #7fd6ff); animation: icomet 6s ease-in 1.4s infinite; }
+  .intro .icomet.c2 { top: 70%; width: 120px; animation-delay: 4.2s; animation-duration: 7s; }
+  @keyframes icomet { 0% { transform: translateX(0) rotate(14deg); opacity: 0; } 5% { opacity: 1; } 35% { transform: translateX(calc(100vw + 400px)) rotate(14deg); opacity: 0; } 100% { opacity: 0; } }
+  .intro .icard { position: relative; text-align: center; padding: 0 16px; z-index: 2; }
+  .intro .ikicker { font-size: clamp(11px, 1.4vw, 14px); font-weight: 900; letter-spacing: 6px; color: #c9a6ff; opacity: 0; animation: ifade .6s ease .2s forwards; }
+  .intro .ilogo { display: flex; justify-content: center; margin-top: 6px; position: relative; }
+  .intro .ilogo span { display: inline-block; font-size: clamp(42px, 10.5vw, 132px); font-weight: 1000; letter-spacing: -1px; line-height: 1;
+    background: linear-gradient(180deg, #fffbe0 0%, #ffe08a 35%, #e8a21a 62%, #9a5a08 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 6px 0 #3a1d00) drop-shadow(0 0 26px rgba(242,193,78,.45));
+    opacity: 0; transform: translateY(-80px) scale(1.6); animation: idrop .7s cubic-bezier(.2,1.6,.4,1) forwards; animation-delay: calc(.35s + var(--i) * .07s); }
+  @keyframes idrop { to { opacity: 1; transform: none; } }
+  .intro .ilogo::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
+    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.9) 50%, transparent 60%); background-size: 250% 100%; background-position: 150% 0;
+    -webkit-mask: linear-gradient(#000, #000); animation: ishine 3.4s ease-in-out 1.6s infinite; }
+  @keyframes ishine { 0% { background-position: 150% 0; } 45%, 100% { background-position: -60% 0; } }
+  .intro .isub { margin-top: 10px; font-size: clamp(13px, 2vw, 20px); font-weight: 900; letter-spacing: 8px; color: #fff; text-shadow: 0 2px 14px rgba(185,140,255,.8);
+    opacity: 0; animation: ifade .6s ease 1.2s forwards; }
+  .intro .ibonus { display: flex; justify-content: center; gap: clamp(10px, 3vw, 28px); margin-top: clamp(18px, 4vh, 34px); flex-wrap: wrap; }
+  .intro .ibonus div { display: flex; flex-direction: column; align-items: center; gap: 6px; opacity: 0; transform: scale(.3);
+    animation: ipop .5s cubic-bezier(.2,1.8,.4,1) forwards; animation-delay: calc(1.5s + var(--i) * .12s); }
+  .intro .ibonus img { width: clamp(42px, 7vw, 66px); height: clamp(42px, 7vw, 66px); filter: drop-shadow(0 4px 10px rgba(0,0,0,.5)); animation: ibob 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * .3s); }
+  .intro .ibonus small { font-size: clamp(9px, 1.1vw, 12px); font-weight: 900; letter-spacing: 1.5px; color: rgba(255,255,255,.85); }
+  @keyframes ipop { to { opacity: 1; transform: none; } }
+  @keyframes ibob { 50% { transform: translateY(-6px); } }
+  .intro .itag { margin-top: 18px; font-size: clamp(10px, 1.3vw, 13px); font-weight: 800; letter-spacing: 3px; color: rgba(255,255,255,.6); opacity: 0; animation: ifade .6s ease 2s forwards; }
+  .intro .iload { width: min(420px, 82vw); margin: clamp(22px, 5vh, 40px) auto 0; opacity: 0; animation: ifade .5s ease .6s forwards; }
+  .intro .ibar { height: 10px; border-radius: 99px; background: rgba(255,255,255,.08); border: 1px solid rgba(242,193,78,.35); overflow: hidden; position: relative; }
+  .intro .ifill { position: absolute; inset: 0; width: 0%; border-radius: 99px; transition: width .5s cubic-bezier(.2,.8,.2,1);
+    background: linear-gradient(90deg, #c77b12, #f2c14e 60%, #fff6c9); box-shadow: 0 0 18px rgba(242,193,78,.8); }
+  .intro .ifill::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255,255,255,.35) 0 10px, transparent 10px 22px);
+    animation: istripe .8s linear infinite; }
+  @keyframes istripe { to { background-position: 44px 0; } }
+  .intro .istatus { display: flex; justify-content: space-between; margin-top: 9px; font-size: 12px; font-weight: 800; letter-spacing: 1px; color: rgba(255,255,255,.7); }
+  .intro .istatus b { color: #f2c14e; font-variant-numeric: tabular-nums; }
+  .intro .igo { display: none; margin: clamp(22px, 5vh, 40px) auto 0; border: 0; cursor: pointer; padding: 16px 46px; border-radius: 999px; font-size: clamp(16px, 2.2vw, 20px);
+    font-weight: 1000; letter-spacing: 3px; color: #2a1600; background: linear-gradient(180deg, #fff3c4, #f2c14e 55%, #c77b12);
+    box-shadow: 0 6px 0 #7a4a08, 0 0 0 4px rgba(242,193,78,.25), 0 0 40px rgba(242,193,78,.6); animation: igo 1.4s ease-in-out infinite; }
+  .intro .igo:hover { filter: brightness(1.08); }
+  .intro .igo:active { transform: translateY(4px); box-shadow: 0 2px 0 #7a4a08, 0 0 40px rgba(242,193,78,.6); }
+  @keyframes igo { 50% { box-shadow: 0 6px 0 #7a4a08, 0 0 0 10px rgba(242,193,78,.12), 0 0 60px rgba(242,193,78,.9); } }
+  .intro .ihint { display: none; margin-top: 12px; font-size: 11px; font-weight: 800; letter-spacing: 3px; color: rgba(255,255,255,.45); }
+  .intro.ready { cursor: pointer; }
+  .intro.ready .iload { display: none; }
+  .intro.ready .igo { display: inline-block; animation: ipop .5s cubic-bezier(.2,1.8,.4,1), igo 1.4s ease-in-out .5s infinite; }
+  .intro.ready .ihint { display: block; }
+  .intro .iflash { position: absolute; inset: 0; background: radial-gradient(circle, #fff, #e9ddff 40%, transparent 75%); opacity: 0; pointer-events: none; z-index: 5; }
+  .intro.out { animation: iout .8s ease forwards; pointer-events: none; }
+  .intro.out .icard { animation: izoom .8s cubic-bezier(.6,0,.9,.4) forwards; }
+  .intro.out .iflash { animation: iflash .8s ease forwards; }
+  .intro.out .iwheel { animation: izoomw .8s cubic-bezier(.6,0,.9,.4) forwards; }
+  @keyframes iout { 70% { opacity: 1; } to { opacity: 0; } }
+  @keyframes izoom { to { transform: scale(2.6); opacity: 0; filter: blur(6px); } }
+  @keyframes izoomw { to { transform: translate(-50%, -50%) scale(3) rotate(90deg); opacity: 0; } }
+  @keyframes iflash { 0% { opacity: 0; } 55% { opacity: .95; } to { opacity: 0; } }
+  @keyframes ifade { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .intro *, .intro::before { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }
 </style>
 </head>
 <body>
 <script src="/connection.js?v=9"></script>
+<div class="intro" id="intro" role="dialog" aria-label="Sterrenrad wordt geladen">
+  <div class="istars"></div><div class="istars s2"></div><div class="istars s3"></div>
+  <svg class="iwheel" id="introWheel" viewBox="-110 -110 220 220" aria-hidden="true"></svg>
+  <div class="icomet"></div><div class="icomet c2"></div>
+  <div class="icard">
+    <div class="ikicker">VISSSTICK PRESENTEERT</div>
+    <div class="ilogo" id="introLogo"></div>
+    <div class="isub">DE GAMESHOW IN DE RUIMTE</div>
+    <div class="ibonus" id="introBonus"></div>
+    <div class="itag">KOMETEN TOT 50× · SPEEL MEE MET IEDEREEN · TOT 20.000×</div>
+    <div class="iload"><div class="ibar"><div class="ifill" id="introFill"></div></div>
+      <div class="istatus"><span id="introStatus">Ruimtestation opstarten…</span><b id="introPct">0%</b></div></div>
+    <button class="igo" id="introGo">SPEEL MEE</button>
+    <div class="ihint">KLIK OF DRUK OP EEN TOETS</div>
+  </div>
+  <div class="iflash"></div>
+</div>
+<script>
+  // Opstartscherm direct tekenen (nog voor het zware 3D-script): sterren, rad en letters
+  (() => {
+    const rnd = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+    document.querySelectorAll('.intro .istars').forEach(layer => {
+      const pts = [];
+      for (let i = 0; i < 160; i++) {
+        const a = rnd() * Math.PI * 2, r = 40 + rnd() * 700, sz = rnd() < 0.85 ? 1 : 2;
+        pts.push(`${Math.round(Math.cos(a) * r)}px ${Math.round(Math.sin(a) * r * 0.62)}px 0 ${sz - 1}px rgba(255,255,255,${(0.4 + rnd() * 0.6).toFixed(2)})`);
+      }
+      layer.style.boxShadow = pts.join(',');
+    });
+    const colors = ['#23b5c9', '#f0a92e', '#23b5c9', '#d9439a', '#23b5c9', '#6fcf3d', '#f0a92e', '#e8493a', '#23b5c9', '#ff7a2a', '#f0a92e', '#1fae7a', '#8a4dff'];
+    const n = 54, R = 92;
+    let svg = '<defs><radialGradient id="iwg"><stop offset=".25" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>';
+    for (let i = 0; i < n; i++) {
+      const a0 = (i / n) * Math.PI * 2 - Math.PI / 2, a1 = ((i + 1) / n) * Math.PI * 2 - Math.PI / 2, f = v => v.toFixed(2);
+      svg += `<path d="M0 0L${f(Math.cos(a0) * R)} ${f(Math.sin(a0) * R)}A${R} ${R} 0 0 1 ${f(Math.cos(a1) * R)} ${f(Math.sin(a1) * R)}Z" fill="${colors[i % colors.length]}" stroke="#ffe9a8" stroke-width=".4"/>`;
+    }
+    svg += `<circle r="${R}" fill="url(#iwg)"/><circle r="${R + 5}" fill="none" stroke="#d9a640" stroke-width="6"/><circle r="22" fill="#140f2a" stroke="#d9a640" stroke-width="3"/>`;
+    for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; svg += `<circle class="ib" cx="${(Math.cos(a) * (R + 5)).toFixed(2)}" cy="${(Math.sin(a) * (R + 5)).toFixed(2)}" r="2.2" fill="#fff3c4"/>`; }
+    document.getElementById('introWheel').innerHTML = svg;
+    document.getElementById('introLogo').innerHTML = [...'STERRENRAD'].map((ch, i) => `<span style="--i:${i}">${ch}</span>`).join('');
+  })();
+</script>
 <div class="app">
   <header>
     <a class="brand" href="/sterrenrad" aria-label="Vissstick Sterrenrad">
@@ -531,6 +646,48 @@ function iconURL(name, px = 96) {
 }
 function iconImg(name, cls = 'ico') { const img = document.createElement('img'); img.className = cls; img.alt = ''; img.src = iconURL(name); return img; }
 
+// =====================================================
+// OPSTARTSCHERM: voortgang + starten
+// =====================================================
+const introEl = document.getElementById('intro');
+let introShown = 0, introTarget = 0, introDone = false;
+function introLoad(pct, text) {
+  if (!introEl) return;
+  introTarget = Math.max(introTarget, pct);
+  document.getElementById('introFill').style.width = `${introTarget}%`;
+  document.getElementById('introPct').textContent = `${Math.round(introTarget)}%`;
+  if (text) document.getElementById('introStatus').textContent = text;
+}
+// Even ademhalen zodat de browser de voortgang kan tekenen
+const breathe = () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+if (introEl) {
+  document.getElementById('introBonus').replaceChildren(...[['coin', 'MAANMUNT'], ['meteor', 'METEORENMUUR'], ['hunt', 'STERRENJACHT'], ['worm', 'WORMGAT']].map(([k, label], i) => {
+    const d = document.createElement('div'); d.style.setProperty('--i', i);
+    d.append(iconImg(k), Object.assign(document.createElement('small'), { textContent: label }));
+    return d;
+  }));
+}
+function introReady() {
+  if (!introEl || introEl.classList.contains('ready')) return;
+  introLoad(100, 'Klaar voor de show!');
+  setTimeout(() => {
+    introEl.classList.add('ready');
+    const go = () => {
+      if (introDone) return;
+      introDone = true;
+      introEl.classList.add('fast', 'out');
+      try { sfx.whoosh(); sfx.bonus(); } catch (error) { /* geen geluid */ }
+      setTimeout(() => introEl.remove(), 850);
+      removeEventListener('keydown', onKey);
+    };
+    const onKey = e => { if (!e.ctrlKey && !e.metaKey && !e.altKey) go(); };
+    introEl.addEventListener('click', go);
+    addEventListener('keydown', onKey);
+  }, 450);
+}
+introLoad(8, 'Ruimtestation opstarten…');
+await breathe();
+
 function canvasTex(canvas) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -623,6 +780,8 @@ new ResizeObserver(resize).observe(stageEl);
 // =====================================================
 // RUIMTE: nevel, sterren, planeet, zon
 // =====================================================
+introLoad(16, 'Sterren ontsteken…');
+await breathe();
 const skyTex = (() => {
   const W = 2048, H = 1024, c = makeCanvas(W, H), g = c.getContext('2d'), rnd = seeded(7);
   const base = g.createLinearGradient(0, 0, 0, H);
@@ -689,6 +848,8 @@ sun.shadow.bias = -0.0004;
 scene.add(sun, sun.target);
 scene.add(new THREE.HemisphereLight('#7f6dd1', '#120a22', 0.55));
 
+introLoad(30, 'Planeten op hun plek zetten…');
+await breathe();
 // Planeet met wolken en atmosfeer
 const planet = (() => {
   const W = 1024, H = 512, c = makeCanvas(W, H), g = c.getContext('2d'), img = g.createImageData(W, H), n = noise2(3), n2 = noise2(9);
@@ -745,6 +906,8 @@ const dust = (() => {
 // STATION
 // =====================================================
 const PLATFORM_R = 17;
+introLoad(46, 'Studio opbouwen…');
+await breathe();
 const station = new THREE.Group();
 scene.add(station);
 {
@@ -1320,7 +1483,11 @@ function buildFloor() {
   const tex = canvasTex(c); tex.anisotropy = 16;
   const mat = station.userData.floor.material; mat.map = tex; mat.needsUpdate = true;
 }
+introLoad(58, 'Vloer poetsen…');
+await breathe();
 buildFloor();
+introLoad(66, 'Lampjes indraaien…');
+await breathe();
 
 // Verlichte borden met eigen belettering
 function sign(title, icon, color, pos, rot, w = 5.4) {
@@ -1686,7 +1853,16 @@ async function loadStatus() {
   cfg = me.config;
   if (me.linked && !dirty && !syncing) balance = me.balance;
   if (!cfg.chips.includes(settings.chip)) settings.chip = cfg.chips[1];
-  if (first) { buildWorld(); buildSpots(); buildChips(); connect(); }
+  if (first) {
+    introLoad(80, 'Rad oppoetsen…');
+    await breathe();
+    buildWorld(); buildSpots(); buildChips(); connect();
+    introLoad(92, 'Max Nova maakt zich klaar…');
+    // Na een paar getekende beelden is alles echt klaar
+    let frames = 0;
+    const waitFrames = () => { if (++frames >= 4) introReady(); else requestAnimationFrame(waitFrames); };
+    requestAnimationFrame(waitFrames);
+  }
   renderUser(); renderSpots(); renderStats();
   $('login').hidden = linked();
 }
@@ -2758,7 +2934,10 @@ function frame() {
   renderer.render(scene, camera);
 }
 resize();
+introLoad(72, 'Verbinden met de show…');
 loadStatus();
+// Vangnet: na 15 s mag je altijd door, ook als de verbinding traag is
+setTimeout(introReady, 15000);
 frame();
 </script>
 </body>
