@@ -197,7 +197,7 @@
       </svg>
       <span class="word"><small>VISSSTICK</small><b>Afwassen</b></span>
     </a>
-    <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack">Blackjack</a><a href="/plinko">Plinko</a><a href="/slots">Slots</a><a href="/spin">Daily spin</a><a href="/afwas" class="wash-link active">Afwassen</a></nav>
+    <nav class="nav"><a href="/rocket">Rocket</a><a href="/blackjack">Blackjack</a><a href="/plinko">Plinko</a><a href="/slots">Slots</a><a href="/roulette">Roulette</a><a href="/spin">Daily spin</a><a href="/afwas" class="wash-link active">Afwassen</a></nav>
     <div class="user" id="user" hidden></div>
   </header>
 
@@ -278,7 +278,7 @@
     { id: 'wool', key: '3', name: 'Staalwol', layer: 'burnt', surface: 'overal', radius: 9, power: 0.05, foam: 0.25, color: '#aab3bd',
       what: 'Aangebrand', where: 'rand én midden, maar traag',
       icon: '<svg viewBox="0 0 40 40" fill="none" stroke="#aab3bd" stroke-width="1.6" stroke-linecap="round"><path d="M9 22c2-8 12-11 18-6s3 13-5 13-12-5-8-10 12-4 12 2-6 6-8 2 3-5 5-2"/><path d="M8 18c4-6 16-8 22-1M10 28c6 4 16 3 21-4" opacity=".6"/></svg>' },
-    { id: 'spray', key: '4', name: 'Sproeier', layer: 'foam', surface: 'overal', radius: 24, power: 0.2, foam: 0, color: '#5ec8ff',
+    { id: 'spray', key: '4', name: 'Sproeier', layer: 'foam', surface: 'overal', radius: 32, power: 0.2, foam: 0, color: '#5ec8ff',
       what: 'Zeep (naspoelen)', where: 'overal, mag stilhouden',
       icon: '<svg viewBox="0 0 40 40"><path d="M30 2c0 10-10 8-12 16" fill="none" stroke="#59616b" stroke-width="3.2" stroke-linecap="round"/><rect x="11" y="15" width="11" height="9" rx="2.5" fill="#c9d1d9" transform="rotate(20 16 19)"/><g fill="#5ec8ff"><circle cx="10" cy="29" r="1.6"/><circle cx="15" cy="31" r="1.6"/><circle cx="7" cy="34" r="1.3"/><circle cx="13" cy="36" r="1.4"/><circle cx="19" cy="34" r="1.2"/></g></svg>' }
   ];
@@ -764,7 +764,7 @@
         if (k === 'foam') {
           const c = countLayer(L);
           L.left = c;
-          L.done = c < 26;
+          L.done = c < 60;
           if (L.done && c > 0) L.fadeOut = true;
           continue;
         }
@@ -908,7 +908,7 @@
     L.ctx.drawImage(sprite, -r, -r, r * 2, r * 2);
     L.ctx.restore();
     // Schrobben maakt zeepsop
-    if (tool.foam && Math.random() < tool.foam * 0.22) {
+    if (tool.foam && Math.random() < tool.foam * 0.15) {
       const F = p.layers.foam;
       F.done = false; F.fadeOut = false; F.fade = 1;
       const n = 1 + Math.floor(Math.random() * 2);
@@ -997,8 +997,8 @@
     // Stilhouden werkt, maar bewegen werkt beter
     const moved = Math.hypot(pointer.x - pointer.lastSprayX, pointer.y - pointer.lastSprayY);
     pointer.lastSprayX = pointer.x; pointer.lastSprayY = pointer.y;
-    const power = tool.power * dt * 13 * (1 + Math.min(1.5, moved * 0.08));
-    for (let i = 0; i < 2; i++) stamp(p, tool, loc.lx + (Math.random() - 0.5) * 10, loc.ly + (Math.random() - 0.5) * 10, power);
+    const power = tool.power * dt * 30 * (1 + Math.min(1.5, moved * 0.08));
+    for (let i = 0; i < 2; i++) stamp(p, tool, loc.lx + (Math.random() - 0.5) * 16, loc.ly + (Math.random() - 0.5) * 16, power);
     maybeHint(p, tool, loc);
     if (Math.random() < 0.5) particles.push({ type: 'drop', x: pointer.x, y: pointer.y, vx: (Math.random() - 0.5) * 260, vy: -80 - Math.random() * 200, life: 0.5, max: 0.5, size: 1.4 + Math.random() * 1.5, grav: 1 });
   }
