@@ -1,11 +1,11 @@
 /**
  * Afwassen
  * Voor spelers die (bijna) blut zijn: onder de 50 punten mag je in de keuken borden afwassen.
- * Borden komen over een lopende band binnen; elk bord dat op tijd schoon is levert 1 punt op.
+ * Borden komen over een lopende band binnen; elk bord dat op tijd schoon is levert POINTS_PER_PLATE (5) punten op.
  *
  * Het schrobben zelf gebeurt in de browser. De server deelt de borden uit en controleert alleen
  * dat het niet sneller gaat dan een mens kan: een nieuw bord pas na PLATE_INTERVAL_MS en een bord
- * telt pas als het minstens MIN_CLEAN_MS op de band heeft gelegen. Zo is het hooguit ~12 punten per minuut.
+ * telt pas als het minstens MIN_CLEAN_MS op de band heeft gelegen. Zo zijn het hooguit ~13 borden per minuut.
  */
 
 const crypto = require('crypto');
@@ -13,6 +13,7 @@ const { getDatabase } = require('../database');
 const casino = require('./casino');
 
 const MAX_BALANCE = 50;          // alleen onder dit saldo mag je afwassen
+const POINTS_PER_PLATE = 5;
 const PLATE_INTERVAL_MS = 4500;  // minimale tijd tussen twee nieuwe borden
 const MIN_CLEAN_MS = 6500;       // een bord moet minstens zo lang op de band liggen
 const MAX_PLATE_MS = 3 * 60 * 1000;
@@ -42,7 +43,7 @@ function canWash(userId) {
 }
 
 function getConfig() {
-  return { maxBalance: MAX_BALANCE, plateIntervalMs: PLATE_INTERVAL_MS, minCleanMs: MIN_CLEAN_MS };
+  return { maxBalance: MAX_BALANCE, pointsPerPlate: POINTS_PER_PLATE, plateIntervalMs: PLATE_INTERVAL_MS, minCleanMs: MIN_CLEAN_MS };
 }
 
 function getStats(userId) {
@@ -59,7 +60,7 @@ function bumpStats(user, cleaned, rejected) {
       plates_rejected = plates_rejected + excluded.plates_rejected,
       points_earned = points_earned + excluded.points_earned,
       last_played = excluded.last_played
-  `).run(user.id, user.username, cleaned, rejected, cleaned);
+  `).run(user.id, user.username, cleaned, rejected, cleaned * POINTS_PER_PLATE);
 }
 
 const tooRich = balance => ({
@@ -103,7 +104,7 @@ function takePlate(user, plateId) {
 }
 
 /**
- * Bord is schoon: 1 punt
+ * Bord is schoon: POINTS_PER_PLATE punten
  */
 function cleanPlate(user, plateId) {
   const issuedAt = takePlate(user, plateId);
@@ -115,9 +116,9 @@ function cleanPlate(user, plateId) {
   return getDatabase().transaction(() => {
     const balance = casino.getUserBalance(user.id);
     if (balance >= MAX_BALANCE) return tooRich(balance);
-    casino.addBalance(user.id, user.username, 1, 'Afwassen');
+    casino.addBalance(user.id, user.username, POINTS_PER_PLATE, 'Afwassen');
     bumpStats(user, 1, 0);
-    return { ok: true, message: '', points: 1 };
+    return { ok: true, message: '', points: POINTS_PER_PLATE };
   })();
 }
 

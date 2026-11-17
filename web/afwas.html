@@ -229,7 +229,7 @@
         <h2>GEREEDSCHAP</h2>
         <ul class="legend" id="legend"></ul>
         <ul class="rules">
-          <li>Elk schoon bord = <b>1 punt</b>.</li>
+          <li>Elk schoon bord = <b>5 punten</b>.</li>
           <li>Schrob heen en weer: stilhouden doet niets.</li>
           <li>Na het schrobben zit er zeep op: <b>naspoelen</b>!</li>
           <li>Niet schoon bij de <b>keuring</b>? Afgekeurd, en dan komt de <b>chef</b> je uitschelden. Drie keer afgekeurd en je wordt naar huis gestuurd.</li>
@@ -289,7 +289,7 @@
   // STATE
   // =====================================================
   let me = null;               // antwoord van /api/afwas/status
-  let cfg = { maxBalance: 50, plateIntervalMs: 4500, minCleanMs: 6500 };
+  let cfg = { maxBalance: 50, pointsPerPlate: 5, plateIntervalMs: 4500, minCleanMs: 6500 };
   let toolIndex = 0;
   let running = false;
   let firedUntil = 0;
@@ -475,7 +475,7 @@
     }
     if (Date.now() < firedUntil) { showFiredCard(); return; }
     showCard('', `<div class="emoji">🧽</div><h3>Afwasdienst</h3>
-      <p>Blut? Was borden af. Elk <b>schoon bord</b> op de lopende band levert <b>1 punt</b> op, tot je weer ${cfg.maxBalance} punten hebt.</p>
+      <p>Blut? Was borden af. Elk <b>schoon bord</b> op de lopende band levert <b>${cfg.pointsPerPlate || 5} punten</b> op, tot je weer ${cfg.maxBalance} punten hebt.</p>
       <p>Kies het juiste gereedschap (<b>1–4</b> of scrollen) en schrob. Niet schoon bij de keuring = afgekeurd.</p>`,
       el('button', { class: 'big', type: 'button', text: 'Begin met afwassen', onclick: startShift }));
   }
@@ -804,8 +804,9 @@
     const res = await post('/api/afwas/clean', { plate: p.id });
     if (Number.isFinite(res.balance)) me.balance = res.balance;
     if (res.ok) {
-      shift.earned += res.points || 1;
-      if (me.stats) { me.stats.plates_cleaned++; me.stats.points_earned++; } else me.stats = { plates_cleaned: 1, plates_rejected: 0, points_earned: 1 };
+      const pts = res.points || cfg.pointsPerPlate;
+      shift.earned += pts;
+      if (me.stats) { me.stats.plates_cleaned++; me.stats.points_earned += pts; } else me.stats = { plates_cleaned: 1, plates_rejected: 0, points_earned: pts };
       bump('sEarned', `+${fmt(shift.earned)}`);
       renderBalance(true);
       renderStats();
@@ -1952,7 +1953,7 @@
           const r = g.rack, slot = r.w / 15;
           const idx = Math.min(rackCount, 14);
           p.lift = { t: 0, sx: p.x, sy: p.y, tx: r.x + slot * idx, ty: r.y + r.h - r.h * 0.42 - 6 };
-          floatText(p.x, p.y - g.R * 0.4, '+1', '#f2c14e', 1.5);
+          floatText(p.x, p.y - g.R * 0.4, `+${cfg.pointsPerPlate}`, '#f2c14e', 1.5);
           sfx.whoosh();
           submitClean(p);
         } else if (p.state === 'reject' && p.x < g.beltStart - g.R * 0.3) {
