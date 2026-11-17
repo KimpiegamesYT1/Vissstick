@@ -487,7 +487,7 @@
     .vn-trigger[aria-expanded="true"] .vn-chev { transform: rotate(180deg); }
     .brand .word b { white-space: nowrap; }
 
-    .vn-panel { position: absolute; z-index: 2147482000; box-sizing: border-box; padding: 14px; border-radius: 18px;
+    .vn-panel { position: absolute; top: 0; left: 0; z-index: 2147482000; box-sizing: border-box; padding: 14px; border-radius: 18px;
       background: var(--side, #1b1d21); border: 1px solid var(--line, rgba(255,255,255,.07)); box-shadow: 0 24px 60px rgba(0,0,0,.55);
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; color: var(--text, #eceae6);
       opacity: 0; visibility: hidden; transform: translateY(-6px) scale(.985); transform-origin: top left;
