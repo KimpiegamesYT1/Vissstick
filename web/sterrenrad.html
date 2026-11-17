@@ -29,7 +29,9 @@
   html, body { margin: 0; background: var(--bg); color: var(--text); }
   body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; min-height: 100vh; overflow-x: hidden; }
   button, input { font: inherit; color: inherit; }
-  .app { max-width: 1440px; margin: 0 auto; padding: 14px 16px 24px; }
+  .app { max-width: 1600px; margin: 0 auto; padding: 12px 16px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+  .app > header { flex: none; }
+  .board { flex: none; }
 
   /* Kopregel (zelfde als de andere spellen) */
   header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; z-index: 5; }
@@ -50,7 +52,7 @@
   /* ===== Podium (3D) ===== */
   .stage {
     position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line);
-    height: clamp(400px, 70vh, 860px); background: #000; isolation: isolate; transition: height .4s ease;
+    flex: 1 1 auto; min-height: 300px; background: #000; isolation: isolate;
   }
   .stage canvas.gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6; }
@@ -227,23 +229,28 @@
   .toast.show { opacity: 1; transform: translateX(-50%); }
   .toast.bad { border-color: rgba(239,91,76,.6); }
 
-  /* Tijdens de show: onderkant klapt in tot een smalle balk */
-  .spot, .spot .v, .spot .spot-ico { transition: min-height .35s ease, padding .35s ease, font-size .35s ease, width .35s ease, height .35s ease; }
-  .app.show-mode .spot { min-height: 38px; padding: 4px 6px; display: flex; align-items: center; justify-content: center; gap: 6px; }
-  .app.show-mode .spot .v { font-size: 18px; }
-  .app.show-mode .spot .spot-ico { width: 22px; height: 22px; }
+  /* Tijdens de show: onderkant klapt in tot één strakke balk (beide panelen even hoog) */
+  .app.show-mode .board { align-items: stretch; margin-top: 8px; }
+  .app.show-mode .betpanel, .app.show-mode .side { height: 52px; max-height: none; padding: 7px; display: flex; align-items: center; }
+  .app.show-mode .side { flex-direction: row; justify-content: flex-start; }
+  .app.show-mode .players { justify-content: flex-start; }
+  .app.show-mode .betbar, .app.show-mode .syncline, .app.show-mode .mystats, .app.show-mode .login, .app.show-mode .side h2 { display: none; }
+  .app.show-mode .spots { width: 100%; gap: 6px; }
+  .app.show-mode .spot { height: 38px; min-height: 0; padding: 0 6px; border-radius: 9px; display: flex; align-items: center; justify-content: center; gap: 6px;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+  .app.show-mode .spot .v { font-size: 16px; line-height: 1; }
+  .app.show-mode .spot .spot-ico { width: 20px; height: 20px; }
   .app.show-mode .spot .n, .app.show-mode .spot .others { display: none; }
-  .app.show-mode .spot .mychip { width: 24px; min-width: 24px; height: 24px; font-size: 9px; left: 3px; bottom: 7px; }
-  .app.show-mode .spot .comet { top: 50%; transform: translateY(-50%); padding: 1px 5px; font-size: 11px; }
-  .app.show-mode .betbar, .app.show-mode .syncline, .app.show-mode .mystats { display: none; }
-  .app.show-mode .betpanel { padding: 6px 8px; }
-  .app.show-mode .side { max-height: 64px; padding: 6px 10px; }
-  .app.show-mode .side h2 { display: none; }
-  .app.show-mode .players { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
-  .app.show-mode .pl { flex: none; padding: 4px 8px; }
+  .app.show-mode .spot .mychip { width: 24px; min-width: 24px; height: 24px; font-size: 8px; left: 6px; top: 50%; bottom: auto; transform: translateY(-50%); }
+  .app.show-mode .spot .comet { top: 50%; right: 6px; transform: translateY(-50%); padding: 1px 6px; font-size: 10px; animation: none; }
+  .app.show-mode .players { flex: 1; flex-direction: row; align-items: center; gap: 6px; height: 38px; min-height: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .app.show-mode .players::-webkit-scrollbar { display: none; }
+  .app.show-mode .pl { flex: none; height: 38px; padding: 0 10px 0 6px; gap: 7px; border-radius: 9px; animation: none; }
+  .app.show-mode .pl img { width: 24px; height: 24px; }
+  .app.show-mode .pl .nm { font-size: 13px; }
   .app.show-mode .pl .nm small { display: none; }
-  .app.show-mode .stage { height: clamp(400px, calc(100vh - 150px), 980px); }
-  .app.show-mode:fullscreen .stage, .app.show-mode.pseudo-fs .stage { height: auto; }
+  .app.show-mode .pl .amt { font-size: 13px; }
+  .app.show-mode .empty { padding: 0 4px; font-size: 12px; }
 
   /* Volledig scherm: podium + inzetbord vullen het scherm */
   .app:fullscreen, .app.pseudo-fs { max-width: none; width: 100%; height: 100%; margin: 0; padding: 10px; background: var(--bg);
@@ -255,19 +262,64 @@
   .app:fullscreen .side, .app.pseudo-fs .side { max-height: 170px; }
 
   @media (max-width: 980px) {
-    .board { grid-template-columns: 1fr; }
-    .side { max-height: none; }
+    .board { grid-template-columns: 1fr; gap: 6px; }
+    /* Spelers als kaartjes op één regel, zonder statistieken */
+    .side { max-height: none; height: auto; padding: 6px; }
+    .side h2, .mystats { display: none; }
+    .players { flex-direction: row; overflow-x: auto; overflow-y: hidden; min-height: 0; gap: 6px; scrollbar-width: none; }
+    .players::-webkit-scrollbar { display: none; }
+    .pl { flex: none; padding: 3px 10px 3px 4px; animation: none; }
+    .pl img { width: 22px; height: 22px; }
+    .pl .nm small { display: none; }
+    .empty { padding: 2px 4px; font-size: 12px; }
+    .app.show-mode .side { height: 52px; }
   }
   @media (max-width: 640px) {
-    .app { padding: 10px 10px 20px; }
-    .stage { height: 58vh; min-height: 340px; }
-    .spots { grid-template-columns: repeat(4, 1fr); }
-    .spot { min-height: 84px; }
-    .spot .v { font-size: 26px; }
+    .app { padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); }
+    header { gap: 6px 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .brand .word small { display: none; }
+    .brand svg { width: 30px; height: 30px; }
+    .user { order: 2; margin-left: auto; padding: 3px 4px 3px 3px; gap: 7px; }
+    .user img { width: 26px; height: 26px; }
+    .user button { display: none; }
+    header .nav { order: 3; width: 100%; margin: 0; justify-content: flex-start; }
+    .stage { min-height: 260px; border-radius: 12px; }
+    .spots { grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .spot { min-height: 54px; padding: 5px 4px; }
+    .spot .v { font-size: 20px; }
+    .spot .spot-ico { width: 24px; height: 24px; }
+    .spot .n { font-size: 9px; }
+    .spot .bonusname { font-size: 9px; }
+    .spot .mychip { min-width: 24px; height: 24px; font-size: 9px; left: 3px; bottom: 3px; }
+    .spot .others { display: none !important; }
+    .betpanel { padding: 6px; }
+    .betbar { gap: 6px; margin-top: 6px; flex-wrap: nowrap; }
+    .chips { gap: 3px; }
+    .chipbtn { width: 32px; height: 32px; font-size: 10px; }
+    .tools { gap: 3px; }
+    .tools button { padding: 7px 7px; font-size: 11px; }
+    #repeatBtn, #doubleBtn { display: none; }
+    .total { font-size: 9px; flex: none; }
+    .total b { font-size: 15px; }
+    .syncline { display: none; }
     .hist { display: none; }
-    .hud-top { top: 56px; }
-    .chipbtn { width: 40px; height: 40px; }
-    .bubble { font-size: 13px; }
+    .hud-top { top: 54px; padding: 4px 12px 4px 4px; gap: 8px; }
+    .ring { width: 36px; height: 36px; }
+    .phase-txt b { font-size: 13px; }
+    .phase-txt small { font-size: 11px; }
+    .bubble { font-size: 13px; max-width: 72%; padding: 8px 11px; }
+    .banner { padding: 12px 18px 14px; }
+    .app.show-mode .spots { grid-template-columns: repeat(8, 1fr); gap: 4px; }
+    .app.show-mode .spot { height: 34px; padding: 0 2px; }
+    .app.show-mode .spot .v { font-size: 13px; }
+    .app.show-mode .spot .spot-ico { width: 16px; height: 16px; }
+    .app.show-mode .spot .mychip { display: none; }
+    .app.show-mode .spot .comet { right: 2px; font-size: 9px; padding: 0 3px; }
+    .app.show-mode .betpanel, .app.show-mode .side { height: 46px; padding: 5px; }
+    .app.show-mode .pl { height: 34px; }
+    .picker { bottom: 10px; padding: 6px; gap: 6px; }
+    .picker button { min-width: 64px; padding: 10px 10px; font-size: 13px; }
+    .picker .lbl { display: none; }
   }
 </style>
 </head>
@@ -1973,11 +2025,16 @@ function updateCamera(t, dt) {
   const hand = V(Math.sin(ts * 0.45) * 0.03, Math.sin(ts * 0.6 + 1) * 0.025, 0);
   const sh = shakeAmt > 0.01 ? V((Math.random() - 0.5) * shakeAmt, (Math.random() - 0.5) * shakeAmt, 0) : V(0, 0, 0);
   shakeAmt *= Math.pow(0.02, dt);
-  camera.position.copy(cam.pos).add(hand).add(sh);
+  // Smal/staand scherm: zelfde breedte in beeld als op een pc (ref. 16:10).
+  // Deels door achteruit te rijden (natuurlijk perspectief), de rest met een bredere lens.
+  const REF_ASPECT = camera.aspect < 1 ? 1.1 : 1.6;
+  const halfV = THREE.MathUtils.degToRad(cam.fov) / 2;
+  const ratio = Math.max(1, (Math.tan(halfV) * REF_ASPECT) / (Math.tan(halfV) * camera.aspect));
+  const dolly = 1 + (ratio - 1) * 0.55;
+  const pos = cam.look.clone().add(cam.pos.clone().sub(cam.look).multiplyScalar(dolly));
+  camera.position.copy(pos).add(hand).add(sh);
   camera.lookAt(cam.look.clone().add(hand.multiplyScalar(0.5)));
-  // Smal scherm: wat ruimer in beeld
-  const narrow = camera.aspect < 1 ? 1.35 : 1;
-  camera.fov = clamp(cam.fov * narrow, 20, 100);
+  camera.fov = clamp(THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfV) * ratio / dolly)), 20, 92);
   camera.updateProjectionMatrix();
   stageEl.classList.toggle('cinema', autoCam && ['spinning', 'bonus'].includes(phaseKey()) && camera.aspect > 1.2);
 }
@@ -2501,6 +2558,10 @@ function renderStats() {
 function renderPlayers() {
   const r = rnd(), box = $('players');
   const list = r && r.phase !== 'cancelled' && !(r.phase === 'result' && now() > r.nextAt + 20000) ? r.players : [];
+  // Alleen opnieuw opbouwen als er echt iets veranderd is (anders knippert de lijst)
+  const key = JSON.stringify(list.map(p => [p.userId, p.total, p.payout, p.bets]));
+  if (key === renderPlayers.key) return;
+  renderPlayers.key = key;
   $('plCount').textContent = list.length;
   if (!list.length) { box.replaceChildren(el('div', { class: 'empty', text: 'Nog niemand. Leg een fiche en open de ronde!' })); return; }
   box.replaceChildren(...[...list].sort((a, b) => (b.payout ?? b.total) - (a.payout ?? a.total)).map(p => {
@@ -2594,6 +2655,8 @@ function placeBubble() {
   // Zacht meebewegen; bij wisselen tussen hoofd en hoek in één keer
   if (!bubblePos.init || bubblePos.docked !== !visible) { bubblePos.x = x; bubblePos.y = y; bubblePos.docked = !visible; bubblePos.init = true; }
   else { bubblePos.x = lerp(bubblePos.x, x, 0.08); bubblePos.y = lerp(bubblePos.y, y, 0.08); }
+  // Nooit buiten het beeld (de ballon wordt breder terwijl de tekst verschijnt)
+  bubblePos.x = clamp(bubblePos.x, 10, W - bw - 10); bubblePos.y = clamp(bubblePos.y, 64, H - bh - 10);
   box.style.transform = `translate(${Math.round(bubblePos.x)}px, ${Math.round(bubblePos.y)}px)`;
 }
 
