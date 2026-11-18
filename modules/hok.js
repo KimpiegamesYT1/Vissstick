@@ -5,6 +5,7 @@
 
 const { ActivityType } = require("discord.js");
 const { getDatabase } = require('../database');
+const metrics = require('./metrics');
 
 // Check interval configuratie (in milliseconden)
 const CHECK_INTERVALS = {
@@ -619,6 +620,7 @@ async function syncFromSourceChannel(client, config, state) {
     const channel = await client.channels.fetch(sourceChannelId).catch(() => null);
     if (!channel || typeof channel.messages?.fetch !== 'function') {
       console.error('Hok bron-kanaal niet gevonden of niet leesbaar:', sourceChannelId);
+      metrics.markJobFailure('hok_sync', new Error('Bron-kanaal niet gevonden of niet leesbaar'));
       return;
     }
 
@@ -638,6 +640,7 @@ async function syncFromSourceChannel(client, config, state) {
     await applyHokStatus(parseHokStatusFromMessage(latest), client, config, state, { at: latest.createdAt });
   } catch (err) {
     console.error('Fout bij synchroniseren met hok bron-kanaal:', err);
+    metrics.markJobFailure('hok_sync', err);
   }
 }
 
@@ -649,13 +652,18 @@ async function checkStatus(client, config, state) {
 
   try {
     const res = await fetch(config.API_URL);
+    if (!res.ok) throw new Error(`API gaf status ${res.status}`);
     const data = await res.json();
 
-    if (!data || !data.payload) return;
+    if (!data || !data.payload) {
+      metrics.markJobFailure('hok_api', new Error('API antwoord zonder payload'));
+      return;
+    }
 
     await applyHokStatus(data.payload.open === 1, client, config, state);
   } catch (err) {
     console.error("Fout bij ophalen API:", err);
+    metrics.markJobFailure('hok_api', err);
   }
 }
 
@@ -671,7 +679,7 @@ function updateCheckInterval(isOpen, state) {
   }
   
   state.checkInterval = setInterval(() => {
-    checkStatus(state.client, state.config, state);
+    metrics.runJob('hok_api', () => checkStatus(state.client, state.config, state));
   }, newInterval);
   
   const intervalMinutes = newInterval / (60 * 1000);
@@ -755,16 +763,21 @@ function startHokMonitoring(client, config) {
 
     console.log(`Hok status wordt gelezen uit Discord kanaal ${getSourceChannelId(config)} (resync elke ${resyncMinutes} min)`);
 
+    // Monitoring: de resync moet minstens elke paar intervallen slagen
+    metrics.defineJob('hok_sync', { maxSilenceSeconds: Math.max(15 * 60, resyncMinutes * 60 * 5) });
+
     // Eerste sync: huidige status uit de geschiedenis van het bron-kanaal
-    syncFromSourceChannel(client, config, state);
+    metrics.runJob('hok_sync', () => syncFromSourceChannel(client, config, state));
 
     // Vangnet voor gemiste berichten tijdens downtime
     state.syncInterval = setInterval(() => {
-      syncFromSourceChannel(client, config, state);
+      metrics.runJob('hok_sync', () => syncFromSourceChannel(client, config, state));
     }, resyncMinutes * 60 * 1000);
   } else {
     console.log('Hok status wordt opgehaald via de API (HOK_USE_API = true)');
-    checkStatus(client, config, state);
+    // Interval is 1-15 minuten (open/dicht/nacht)
+    metrics.defineJob('hok_api', { maxSilenceSeconds: 45 * 60 });
+    metrics.runJob('hok_api', () => checkStatus(client, config, state));
   }
 
   return state;

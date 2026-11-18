@@ -14,6 +14,7 @@
 
 const { EmbedBuilder } = require('discord.js');
 const { getDatabase } = require('../database');
+const metrics = require('./metrics');
 
 // Standaard feed (webcal:// omgezet naar https://). Overschrijfbaar via config.
 const DEFAULT_FEED_URL =
@@ -532,6 +533,7 @@ async function checkRoosterChanges(client, config) {
     text = await fetchCalendar(config);
   } catch (err) {
     console.error('[rooster] Kon de agenda-feed niet ophalen:', err.message);
+    metrics.markJobFailure('rooster_check', err);
     return;
   }
 
@@ -540,6 +542,7 @@ async function checkRoosterChanges(client, config) {
     snapshotEvents = assignKeys(filterToSnapshotRange(parseIcs(text)));
   } catch (err) {
     console.error('[rooster] Kon de agenda-feed niet verwerken:', err);
+    metrics.markJobFailure('rooster_check', err);
     return;
   }
 
@@ -563,12 +566,14 @@ async function checkRoosterChanges(client, config) {
     const channel = await client.channels.fetch(getLogChannelId(config));
     if (!channel) {
       console.error('[rooster] Log-kanaal niet gevonden:', getLogChannelId(config));
+      metrics.markJobFailure('rooster_check', new Error('Log-kanaal niet gevonden'));
       return;
     }
     const sent = await channel.send({ embeds: [buildChangeEmbed(diff)] });
     sent.react('🔔').catch(() => {});
   } catch (err) {
     console.error('[rooster] Kon roostermelding niet sturen:', err);
+    metrics.markJobFailure('rooster_check', err);
     return; // snapshot niet opslaan zodat we het de volgende keer opnieuw proberen
   }
 
@@ -678,6 +683,7 @@ async function checkPauseReminders(client, config) {
       const channel = await client.channels.fetch(getLogChannelId(config));
       if (!channel) {
         console.error('[rooster] Log-kanaal niet gevonden voor pauze-melding');
+        metrics.markJobFailure('rooster_pause_check', new Error('Log-kanaal niet gevonden'));
         continue;
       }
       sent = await channel.send({
@@ -688,6 +694,7 @@ async function checkPauseReminders(client, config) {
       sent.react('🔔').catch(() => {});
     } catch (err) {
       console.error('[rooster] Kon pauze-melding niet sturen:', err);
+      metrics.markJobFailure('rooster_pause_check', err);
       continue; // niet markeren -> volgende minuut opnieuw proberen
     }
 

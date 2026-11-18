@@ -21,6 +21,7 @@ const { handleHangmanButton } = require('./commands/hangmanCommands.js');
 const rocketGame = require('./modules/rocketGame.js');
 const dailySpin = require('./modules/dailySpin.js');
 const { createCasinoWebHandler } = require('./api/casinoWeb');
+const metrics = require('./modules/metrics.js');
 
 // Config wordt nu geïmporteerd uit config.json
 const { TOKEN, CHANNEL_ID, QUIZ_CHANNEL_ID, SCOREBOARD_CHANNEL_ID, API_URL, ROLE_ID, CASINO_CHANNEL_ID, LOG_CHANNEL_ID, CHATBOT_CHANNEL_ID, STARBOARD_CHANNEL_ID, GROQ_API_KEY, COUNTING_CHANNEL_ID: RAW_COUNTING_CHANNEL_ID } = config;
@@ -115,6 +116,10 @@ function setupFileLogging() {
 }
 
 setupFileLogging();
+// Telt fouten/waarschuwingen voor monitoring (na setupFileLogging, zodat het logbestand blijft werken)
+metrics.instrumentConsole();
+// White-box monitoring endpoint voor Zabbix (alleen 127.0.0.1, zie modules/metrics.js)
+metrics.startMetricsServer(config);
 
 // Load active quizzes on bot startup
 async function loadActiveQuizzes() {
@@ -160,6 +165,7 @@ const client = new Client({
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
+metrics.attachDiscordClient(client);
 
 // Global error handler
 client.on('error', (error) => {
@@ -167,6 +173,7 @@ client.on('error', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
+  metrics.recordUnhandledRejection();
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
@@ -192,8 +199,10 @@ function startPublicApiServer() {
   });
 
   const casinoWebHandler = createCasinoWebHandler();
+  metrics.setCasinoStatsProvider(casinoWebHandler.getMonitoringStats);
 
   publicApiServer = http.createServer((req, res) => {
+    metrics.trackHttpRequest(req, res);
     let requestUrl;
     try {
       requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -224,16 +233,20 @@ function startPublicApiServer() {
   publicApiServer.keepAliveTimeout = 5000;
 
   publicApiServer.listen(PUBLIC_API_PORT, () => {
+    metrics.setPublicServerListening(true);
     console.log(`[PUBLIC_API] Endpoint actief op poort ${PUBLIC_API_PORT}: /api/public/hok/status`);
   });
 
   publicApiServer.on('error', (error) => {
+    metrics.setPublicServerListening(publicApiServer?.listening);
     console.error('[PUBLIC_API] Serverfout:', error);
   });
 }
 
 function closePublicApiServer() {
+  metrics.closeMetricsServer();
   if (!publicApiServer) return;
+  metrics.setPublicServerListening(false);
 
   publicApiServer.close((error) => {
     if (error) {
@@ -627,13 +640,13 @@ client.on('messageCreate', async (message) => {
         }, 8000);
 
         // Generate AI response
-        const aiResult = await generateResponse(
+        const aiResult = await metrics.runJob('chatbot', () => generateResponse(
           message.channel.id,
           cleanedMessage,
           message.author.id,
           message.author.username,
           GROQ_API_KEY
-        );
+        ));
 
         const reply = typeof aiResult === 'string' ? aiResult : aiResult.message;
         const conversationId = typeof aiResult === 'string' ? 'onbekend' : aiResult.conversationId;
@@ -814,6 +827,7 @@ client.once("clientReady", async () => {
   // Initialiseer database
   try {
     initDatabase();
+    metrics.markDatabaseReady();
     console.log('✅ Database geïnitialiseerd');
     // Inzetten van spellen die door de vorige herstart zijn afgebroken teruggeven,
     // voordat de website en de casino-commando's weer nieuwe spellen kunnen starten
@@ -853,8 +867,16 @@ client.once("clientReady", async () => {
   // Set initial bot status
   client.user.setActivity('Hok status laden...', { type: ActivityType.Watching });
 
+  // Monitoring: dagelijkse taken mogen hooguit ~26 uur stil zijn
+  const DAILY_SILENCE_SECONDS = 26 * 60 * 60;
+  ['quiz_start', 'quiz_end', 'spin_reminders', 'math_schedule', 'math_close'].forEach((name) => {
+    metrics.defineJob(name, { maxSilenceSeconds: DAILY_SILENCE_SECONDS });
+  });
+  metrics.defineJob('math_tick');
+  metrics.defineJob('monthly_reset');
+
   // Schedule daily quiz at 7:00
-  cron.schedule('0 7 * * *', () => {
+  cron.schedule('0 7 * * *', () => metrics.runJob('quiz_start', () => {
       console.log('Daily quiz cron triggered.');
       console.log(`Daily quiz channel: ${QUIZ_CHANNEL_ID}`);
     // Check if there's already an active quiz (e.g., test quiz)
@@ -866,46 +888,41 @@ client.once("clientReady", async () => {
       return;
     }
       console.log('No active quiz found. Starting daily quiz now.');
-    quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID);
-  }, {
+    return quiz.startDailyQuiz(client, QUIZ_CHANNEL_ID);
+  }), {
     timezone: "Europe/Amsterdam"
   });
 
   // Ochtend-DM voor de dagelijkse spin
-  cron.schedule('0 8 * * *', () => {
-    dailySpin.sendMorningReminders(client, config).catch(error => {
+  cron.schedule('0 8 * * *', () => metrics.runJob('spin_reminders', () => {
+    return dailySpin.sendMorningReminders(client, config).catch(error => {
+      metrics.markJobFailure('spin_reminders', error);
       console.error('Fout bij versturen spin-meldingen:', error);
     });
-  }, {
+  }), {
     timezone: 'Europe/Amsterdam'
   });
 
   // Schedule quiz results at 17:00
-  cron.schedule('0 17 * * *', () => {
+  cron.schedule('0 17 * * *', () => metrics.runJob('quiz_end', () => {
     console.log('Ending daily quiz...');
-    quiz.endDailyQuiz(client, QUIZ_CHANNEL_ID);
-  }, {
+    return quiz.endDailyQuiz(client, QUIZ_CHANNEL_ID);
+  }), {
     timezone: "Europe/Amsterdam"
   });
 
   // Plan een nieuwe dagelijkse rekensom om middernacht.
-  cron.schedule('0 0 * * *', async () => {
-    await ensureDailyMathChallengeScheduled();
-  }, {
+  cron.schedule('0 0 * * *', () => metrics.runJob('math_schedule', () => ensureDailyMathChallengeScheduled()), {
     timezone: 'Europe/Amsterdam'
   });
 
   // Check elke minuut of het random startmoment bereikt is.
-  cron.schedule('* 7-15 * * *', async () => {
-    await processDailyMathChallengeTick();
-  }, {
+  cron.schedule('* 7-15 * * *', () => metrics.runJob('math_tick', () => processDailyMathChallengeTick()), {
     timezone: 'Europe/Amsterdam'
   });
 
   // Sluit challenge om 16:00 als niemand heeft gewonnen.
-  cron.schedule('0 16 * * *', async () => {
-    await closeDailyMathChallengeAtSixteen();
-  }, {
+  cron.schedule('0 16 * * *', () => metrics.runJob('math_close', () => closeDailyMathChallengeAtSixteen()), {
     timezone: 'Europe/Amsterdam'
   });
 
@@ -918,6 +935,7 @@ client.once("clientReady", async () => {
     
     // Check if tomorrow is the first day of next month (meaning today is last day)
     if (tomorrow.getDate() === 1) {
+      await metrics.runJob('monthly_reset', async () => {
       console.log('Showing monthly scoreboard...');
       const quizTopScorers = await showMonthlyScoreboard(client, SCOREBOARD_CHANNEL_ID);
       
@@ -997,11 +1015,13 @@ client.once("clientReady", async () => {
 
         console.log('Monthly reset completed!');
       } catch (error) {
+        metrics.markJobFailure('monthly_reset', error);
         console.error('Fout bij maandelijkse reset:', error);
       }
 
       // Update casino embed opnieuw na reset zodat leaderboard direct klopt
       await updateCasinoEmbed(client, CASINO_CHANNEL_ID);
+      });
     }
   }, {
     timezone: "Europe/Amsterdam"
@@ -1010,7 +1030,7 @@ client.once("clientReady", async () => {
   // Register slash commands
   try {
     console.log('Registreer slash commands...');
-    await client.application.commands.set(allCommands);
+    await metrics.runJob('register_commands', () => client.application.commands.set(allCommands));
     console.log('Slash commands geregistreerd!');
   } catch (error) {
     console.error('Fout bij registreren commands:', error);
@@ -1020,22 +1040,24 @@ client.once("clientReady", async () => {
   hokState = hok.startHokMonitoring(client, config);
 
   // Rooster monitoring: eerste check bij opstarten + periodiek daarna
-  rooster.startRoosterMonitoring(client, config).catch((error) => {
+  metrics.runJob('rooster_check', () => rooster.startRoosterMonitoring(client, config)).catch((error) => {
     console.error('Fout bij starten rooster monitoring:', error);
   });
   const roosterCheckMinutes = Number.isFinite(Number(config.ROOSTER_CHECK_MINUTES)) && Number(config.ROOSTER_CHECK_MINUTES) > 0
     ? Number(config.ROOSTER_CHECK_MINUTES)
     : 5;
+  metrics.defineJob('rooster_check', { maxSilenceSeconds: Math.max(30 * 60, roosterCheckMinutes * 60 * 6) });
   setInterval(() => {
-    rooster.checkRoosterChanges(client, config).catch((error) => {
+    metrics.runJob('rooster_check', () => rooster.checkRoosterChanges(client, config)).catch((error) => {
       console.error('Fout bij rooster check:', error);
     });
   }, roosterCheckMinutes * 60 * 1000);
   console.log(`Rooster monitoring actief (check elke ${roosterCheckMinutes} min)`);
 
   // Pauze-meldingen: elke minuut checken of een pauze op een lesdag bijna voorbij is
+  metrics.defineJob('rooster_pause_check', { maxSilenceSeconds: 10 * 60 });
   setInterval(() => {
-    rooster.checkPauseReminders(client, config).catch((error) => {
+    metrics.runJob('rooster_pause_check', () => rooster.checkPauseReminders(client, config)).catch((error) => {
       console.error('Fout bij rooster pauze-check:', error);
     });
   }, 60 * 1000);

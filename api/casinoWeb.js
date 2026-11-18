@@ -356,7 +356,23 @@ function createCasinoWebHandler() {
   /**
    * @returns {boolean} true als het verzoek door de website is afgehandeld
    */
-  return function handleCasinoWeb(req, res, url) {
+  function getMonitoringStats() {
+    const cutoff = Date.now() - ONLINE_WINDOW_MS;
+    let onlineUsers = 0;
+    for (const entry of online.values()) if (entry.lastSeen >= cutoff) onlineUsers++;
+    const perStream = {};
+    let sseClients = 0;
+    for (const [name, stream] of Object.entries(streams)) {
+      perStream[name] = stream.clients.size;
+      sseClients += stream.clients.size;
+    }
+    return { streams: perStream, sseClients, sseLimit: MAX_STREAM_CLIENTS, onlineUsers };
+  }
+
+  handleCasinoWeb.getMonitoringStats = getMonitoringStats;
+  return handleCasinoWeb;
+
+  function handleCasinoWeb(req, res, url) {
     const { pathname } = url;
 
     if (req.method === 'GET') {
@@ -548,7 +564,7 @@ function createCasinoWebHandler() {
     }
 
     return false;
-  };
+  }
 }
 
 module.exports = {

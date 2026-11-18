@@ -112,6 +112,25 @@ Config keys:
 - `PUBLIC_API_RATE_LIMIT_MAX_REQUESTS` - max requests per IP per window (default: `60`)
 - `PUBLIC_API_CORS_ORIGIN` - `*` of CSV-lijst met toegestane origins
 
+### Monitoring (Zabbix)
+
+De bot meet zichzelf van binnenuit (white-box) en serveert dat als JSON op een aparte poort die alleen op `127.0.0.1` luistert, dus niet via de Cloudflare tunnel bereikbaar is:
+
+- `GET http://127.0.0.1:9464/metrics` - proces (geheugen, CPU, event loop lag, fouten), Discord gateway (status, ping, reconnects, rate limits), webserver (requests, 4xx/5xx, responstijd p95/p99, live SSE-verbindingen per spel, spelers online, per routegroep), SQLite (bereikbaar, querytijd, grootte, WAL), back-ups en elke periodieke taak (quiz, rekensom, spin-meldingen, hok-sync, rooster, pauze-meldingen, maandreset, chatbot): runs, fouten op rij, laatste succes, laatste fout
+- `GET http://127.0.0.1:9464/health` - `200` of `503` met de lijst problemen
+
+Config keys: `METRICS_ENABLED` (default `true`), `METRICS_HOST` (default `127.0.0.1`), `METRICS_PORT` (default `9464`), `METRICS_BACKUP_DIR` (default `/root/discord-bot-backup`).
+
+Koppelen aan Zabbix agent 2 (in dezelfde LXC):
+
+```bash
+cp zabbix/userparameter_vissstick.conf /etc/zabbix/zabbix_agent2.d/
+systemctl restart zabbix-agent2
+zabbix_agent2 -t 'vissstick.metrics[9464]'   # moet JSON teruggeven
+```
+
+Importeer daarna `zabbix/vissstick_template.yaml` in Zabbix (*Data collection → Templates → Import*) en koppel het template **Vissstick Discord Bot** aan de host, naast *Linux by Zabbix agent* voor CPU/geheugen/schijf van de LXC zelf. Drempels zijn `{$VISSSTICK.*}` macro's die je per host kunt aanpassen. Na een wijziging in het template: `node zabbix/generate-template.js` en opnieuw importeren.
+
 ## Quiz vragen toevoegen (import)
 
 De bot kan automatisch nieuwe vragen importeren uit `quiz-import.json` in de projectroot.

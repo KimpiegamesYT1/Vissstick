@@ -1,0 +1,2016 @@
+# Gegenereerd door zabbix/generate-template.js — pas dat script aan, niet dit bestand.
+zabbix_export:
+  version: '6.0'
+  groups:
+    - uuid: '0cc90412f76454fd972bf3c2d67db24b'
+      name: 'Templates/Applications'
+  templates:
+    - uuid: '2e6e6daee3a15eb39d031e5a62243702'
+      template: 'Vissstick Discord Bot'
+      name: 'Vissstick Discord Bot'
+      description: 'White-box monitoring van de Vissstick Discord bot (proces, Discord gateway, webserver/casino, SQLite, back-ups en alle periodieke taken). Vereist zabbix/userparameter_vissstick.conf op de agent. Gegenereerd door zabbix/generate-template.js.'
+      groups:
+        - name: 'Templates/Applications'
+      items:
+        - uuid: '31af51716ac65012ac621f78cb8da0da'
+          name: 'Bot: metrics snapshot (JSON)'
+          key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          history: '0'
+          trends: '0'
+          value_type: 'TEXT'
+          description: 'Master item: leest http://127.0.0.1:<poort>/metrics via de UserParameter in zabbix/userparameter_vissstick.conf. Alle "Bot/Proces/Discord/Web/Database" items zijn hiervan afgeleid.'
+          tags:
+            - tag: 'component'
+              value: 'raw'
+        - uuid: 'ba005231012a5c4ca345daf5f4b6c5ec'
+          name: 'Proces: aantal bot-processen'
+          key: 'proc.num[node,,,bot.js]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'bc8e1cec897c598995bd92264157007b'
+          name: 'Proces: geheugen volgens OS (RSS)'
+          key: 'proc.mem[node,,,bot.js,rss]'
+          units: 'B'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: '26d4308e32ad53bc8ed3855cce5aee5d'
+          name: 'Proces: CPU volgens OS'
+          key: 'proc.cpu.util[node,,,bot.js]'
+          value_type: 'FLOAT'
+          units: '%'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: '8e7a2f7d0a1b5cda814929d876828319'
+          name: 'Web: poort {$VISSSTICK.WEB.PORT} luistert'
+          key: 'net.tcp.listen[{$VISSSTICK.WEB.PORT}]'
+          valuemap:
+            name: 'Vissstick yes/no'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: 'e450f81337415f5d9fea81ddf0bbb0a4'
+          name: 'Web: laadtijd /api/public/hok/status'
+          key: 'web.page.perf[127.0.0.1,/api/public/hok/status,{$VISSSTICK.WEB.PORT}]'
+          value_type: 'FLOAT'
+          units: 's'
+          description: 'End-to-end check via de echte webserver (raakt ook de database). 0 = request mislukt.'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '2574fd171e0056b39c2aaaaae0bd87b6'
+          name: 'Tunnel: aantal cloudflared-processen'
+          key: 'proc.num[cloudflared]'
+          description: 'Zet {$VISSSTICK.CLOUDFLARED.MIN} op 0 als cloudflared niet in deze LXC draait.'
+          tags:
+            - tag: 'component'
+              value: 'tunnel'
+        - uuid: 'f761dbebe86b5440b82650728987ab5f'
+          name: 'Bot: healthy'
+          type: 'DEPENDENT'
+          key: 'vissstick.healthy'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.healthy'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          valuemap:
+            name: 'Vissstick healthy'
+          tags:
+            - tag: 'component'
+              value: 'health'
+        - uuid: '52fa0990d43e57b9b3d879a26e2a89a7'
+          name: 'Bot: aantal problemen'
+          type: 'DEPENDENT'
+          key: 'vissstick.problem_count'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.problemCount'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'health'
+        - uuid: 'b7222c4fbece55b5821edb951407e3fb'
+          name: 'Bot: problemen'
+          type: 'DEPENDENT'
+          key: 'vissstick.problems'
+          delay: '0'
+          history: '30d'
+          value_type: 'TEXT'
+          trends: '0'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.problems'
+            - type: 'DISCARD_UNCHANGED_HEARTBEAT'
+              parameters:
+                - '1h'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'health'
+        - uuid: '109946fde2d6579295a4e0b8dd7248e1'
+          name: 'Proces: uptime'
+          type: 'DEPENDENT'
+          key: 'vissstick.uptime'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'uptime'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.uptimeSeconds'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'db3b4795c8975dbeb2b03836f7ffb667'
+          name: 'Proces: Node.js versie'
+          type: 'DEPENDENT'
+          key: 'vissstick.node_version'
+          delay: '0'
+          history: '30d'
+          value_type: 'CHAR'
+          trends: '0'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.nodeVersion'
+            - type: 'DISCARD_UNCHANGED_HEARTBEAT'
+              parameters:
+                - '1h'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'b0d0906cebe05ea7af109dbdf2e6b704'
+          name: 'Proces: geheugen (RSS)'
+          type: 'DEPENDENT'
+          key: 'vissstick.rss'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'B'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.rssBytes'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: '9568b50cca2b5a3d837c7804c9c282ae'
+          name: 'Proces: heap gebruikt'
+          type: 'DEPENDENT'
+          key: 'vissstick.heap_used'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'B'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.heapUsedBytes'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'd349d25d3bae5181a1ae683bf2e39f1a'
+          name: 'Proces: heap totaal'
+          type: 'DEPENDENT'
+          key: 'vissstick.heap_total'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'B'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.heapTotalBytes'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'a60626a0cb3656e28815ce4613c382ce'
+          name: 'Proces: extern geheugen (buffers, native)'
+          type: 'DEPENDENT'
+          key: 'vissstick.external'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'B'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.externalBytes'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'ac3b90215bd9504cabdf983e2c4ff4f2'
+          name: 'Proces: CPU user'
+          type: 'DEPENDENT'
+          key: 'vissstick.cpu_user'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: '%'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.cpuUserPercent'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'cdac7add9d955a9ebfebe871d53d5c9c'
+          name: 'Proces: CPU system'
+          type: 'DEPENDENT'
+          key: 'vissstick.cpu_system'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: '%'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.cpuSystemPercent'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: '6e3b9143a43655b7b8334b480fe52f0e'
+          name: 'Proces: event loop lag gemiddeld'
+          type: 'DEPENDENT'
+          key: 'vissstick.loop.mean'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.eventLoopLagMeanMs'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'f0d7bc2ed8275e4e9724fc3f29355775'
+          name: 'Proces: event loop lag p99'
+          type: 'DEPENDENT'
+          key: 'vissstick.loop.p99'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.eventLoopLagP99Ms'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'bc8d1808db025697a92b897018dcac47'
+          name: 'Proces: event loop lag max'
+          type: 'DEPENDENT'
+          key: 'vissstick.loop.max'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.eventLoopLagMaxMs'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'db650d0a40e65274974e007114ed9c8a'
+          name: 'Proces: actieve handles'
+          type: 'DEPENDENT'
+          key: 'vissstick.handles'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.activeHandles'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'e1ade3b3d23f5ce8b920b40761756eed'
+          name: 'Proces: gelogde fouten per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.errors'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.errorsLogged'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: '7f857b4253c85971953e89bed57f70cf'
+          name: 'Proces: gelogde waarschuwingen per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.warnings'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.warningsLogged'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: '54d602488cf75033a6b72a658e1e83c9'
+          name: 'Proces: unhandled rejections per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.unhandled_rejections'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.unhandledRejections'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: 'bb06b9b086ec5fba8e09ba87f6173477'
+          name: 'Proces: laatste foutmelding'
+          type: 'DEPENDENT'
+          key: 'vissstick.last_error'
+          delay: '0'
+          history: '30d'
+          value_type: 'TEXT'
+          trends: '0'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.process.lastErrorMessage'
+            - type: 'DISCARD_UNCHANGED_HEARTBEAT'
+              parameters:
+                - '1h'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'process'
+        - uuid: '9aaf853715285fc3a2f6043f0621e4b7'
+          name: 'Discord: verbonden'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.ready'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.ready'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          valuemap:
+            name: 'Vissstick yes/no'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '4b112af04bb450a3a101c77b3efb97ad'
+          name: 'Discord: gateway status'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.ws_status'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.wsStatus'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          valuemap:
+            name: 'Discord gateway status'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: 'fbef6c0b11f657de8db9660920fcae34'
+          name: 'Discord: gateway ping'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.ping'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.pingMs'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: 'f6a8820c658d57978ea1aca5b291aa86'
+          name: 'Discord: servers'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.guilds'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.guilds'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '03117a08d24d5ae5a6329ac9b893e4e9'
+          name: 'Discord: gebruikers in cache'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.cached_users'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.cachedUsers'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '6825b5c4ec4c5bcfb38b711fa1dcabc2'
+          name: 'Discord: voice verbindingen'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.voice'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.voiceConnections'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: 'ab12cc94ca025409beff62fb6834cab6'
+          name: 'Discord: verbonden sinds'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.ready_since'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 's'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.readySinceSeconds'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '24af0e5891a65b7fbfec2649d6fcb08d'
+          name: 'Discord: disconnects per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.disconnects'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.disconnects'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: 'e0e2af90ceac54f18462a67a88935d34'
+          name: 'Discord: reconnects per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.reconnects'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.reconnects'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: 'f4c32aa060d059b896d7350a89179d45'
+          name: 'Discord: shard errors per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.shard_errors'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.shardErrors'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '07ef738cdfde5d4bbf89fcded4f853eb'
+          name: 'Discord: client errors per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.client_errors'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.clientErrors'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '2c82c000051f5614bd8ae7cba4a933a1'
+          name: 'Discord: sessie ongeldig verklaard (totaal)'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.invalidated'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.invalidated'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '0d42208c3bd850a0b092b49bebc9d536'
+          name: 'Discord: REST rate limits per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.rest_rate_limits'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.restRateLimits'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '8d23caaf48b05b6fb9c900b4ee85ba2c'
+          name: 'Discord: berichten ontvangen per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.messages'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.messagesReceived'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '32c08fa77ab35e209569711f819b30f9'
+          name: 'Discord: interacties per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.discord.interactions'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.discord.interactionsReceived'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'discord'
+        - uuid: '4dcedc1c90a5503fbb95378a7ea57ccc'
+          name: 'Web: luistert'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.listening'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.listening'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          valuemap:
+            name: 'Vissstick yes/no'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '2705acb8c9e75c4fa4f5d0e89b52c908'
+          name: 'Web: requests per seconde'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.rps'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'rps'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.requestsTotal'
+            - type: 'CHANGE_PER_SECOND'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '10419df176a458ccb7a6169818f76e4f'
+          name: 'Web: lopende requests'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.active'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.activeRequests'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: 'f7848cd049655f50bc9c130a1a02c70d'
+          name: 'Web: 2xx per seconde'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.2xx'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'rps'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.responses2xx'
+            - type: 'CHANGE_PER_SECOND'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '7df5636dd7de5323ace60c6d3bb91cab'
+          name: 'Web: 3xx per seconde'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.3xx'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'rps'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.responses3xx'
+            - type: 'CHANGE_PER_SECOND'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: 'f98ca65f1f3a571c815feb562fce37b7'
+          name: 'Web: 4xx per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.4xx'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.responses4xx'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '6b05068803055ab1b45fd7035bf401a6'
+          name: 'Web: 5xx per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.5xx'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.responses5xx'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '7cc9db4a443e5277af9755ec8240183d'
+          name: 'Web: rate limited (429) per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.429'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.rateLimited'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '5bd47017c5b050a89bcb590e97744abc'
+          name: 'Web: afgebroken requests per minuut'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.aborted'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.aborted'
+            - type: 'SIMPLE_CHANGE'
+              parameters:
+                - ''
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '3bfeae89e6ab5b6ab9152f363e7ca7d7'
+          name: 'Web: responstijd gemiddeld (5 min)'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.latency.avg'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.latencyAvgMs'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: 'ddc4a1c79286505f81d39634a79cab86'
+          name: 'Web: responstijd p95 (5 min)'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.latency.p95'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.latencyP95Ms'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: 'bba0fb0c7d1951028f0f16cbbb9549f6'
+          name: 'Web: responstijd p99 (5 min)'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.latency.p99'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.latencyP99Ms'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '0e2f80892b48531995d62b12fae573ac'
+          name: 'Web: responstijd max (5 min)'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.latency.max'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.latencyMaxMs'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '99c3478c562153558ab1883917d2a40d'
+          name: 'Web: live verbindingen (SSE) totaal'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.sse_clients'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.sseClients'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '8f08c41800505fc2a75489a7421626d2'
+          name: 'Web: live verbindingen (SSE) limiet'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.sse_limit'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.sseLimit'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '25719adcb3505bfba33022f08d7457a4'
+          name: 'Web: live verbindingen Rocket'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.sse.rocket'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.sseClientsByStream.rocket'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '14bca9baae0452fcb036cd942aa38dae'
+          name: 'Web: live verbindingen Blackjack'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.sse.blackjack'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.sseClientsByStream.blackjack'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: 'c9eb920072515ff08f4e4fe0d8a526a7'
+          name: 'Web: live verbindingen Roulette'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.sse.roulette'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.sseClientsByStream.roulette'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '868fba87742554ddbcbb427007422724'
+          name: 'Web: live verbindingen Sterrenrad'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.sse.sterrenrad'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.sseClientsByStream.sterrenrad'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '88e324981cfa546bb8cbd3bf44609253'
+          name: 'Web: spelers online'
+          type: 'DEPENDENT'
+          key: 'vissstick.http.online_users'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.onlineUsers'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'web'
+        - uuid: '6fb94a95ad7653c18868dbfda34d91e1'
+          name: 'Database: bereikbaar'
+          type: 'DEPENDENT'
+          key: 'vissstick.db.ok'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.database.ok'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          valuemap:
+            name: 'Vissstick yes/no'
+          tags:
+            - tag: 'component'
+              value: 'database'
+        - uuid: '19489d69fad854f0aad32ce59fcabd08'
+          name: 'Database: query tijd'
+          type: 'DEPENDENT'
+          key: 'vissstick.db.latency'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'ms'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.database.checkLatencyMs'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'database'
+        - uuid: '3ebf9e5aea235044b4a633f900c7df17'
+          name: 'Database: bestandsgrootte'
+          type: 'DEPENDENT'
+          key: 'vissstick.db.size'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'B'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.database.sizeBytes'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'database'
+        - uuid: '82ed9cbcf5f350dbb1c05a9b00e19f06'
+          name: 'Database: WAL grootte'
+          type: 'DEPENDENT'
+          key: 'vissstick.db.wal_size'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'B'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.database.walSizeBytes'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'database'
+        - uuid: '6bc85b288669531896de0e4f3662f5ac'
+          name: 'Database: tabellen'
+          type: 'DEPENDENT'
+          key: 'vissstick.db.tables'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.database.tables'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'database'
+        - uuid: '031fa60c7d47545093305709c1848b6c'
+          name: 'Database: laatste fout'
+          type: 'DEPENDENT'
+          key: 'vissstick.db.error'
+          delay: '0'
+          history: '30d'
+          value_type: 'TEXT'
+          trends: '0'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.database.lastError'
+            - type: 'DISCARD_UNCHANGED_HEARTBEAT'
+              parameters:
+                - '1h'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'database'
+        - uuid: '6a87695572a45247bce5672bed9b4842'
+          name: 'Back-ups: map leesbaar'
+          type: 'DEPENDENT'
+          key: 'vissstick.backup.readable'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.backups.dirReadable'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          valuemap:
+            name: 'Vissstick yes/no'
+          tags:
+            - tag: 'component'
+              value: 'backup'
+        - uuid: '07a2dc0e4b4550828ffd0fe020a2786f'
+          name: 'Back-ups: aantal'
+          type: 'DEPENDENT'
+          key: 'vissstick.backup.count'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.backups.count'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'backup'
+        - uuid: '6117bf1efbaf56d0bed868aaf50f56c9'
+          name: 'Back-ups: totale grootte'
+          type: 'DEPENDENT'
+          key: 'vissstick.backup.size'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 'B'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.backups.totalBytes'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'backup'
+        - uuid: 'aab5b702a68a55ffb456a4a69bea12ee'
+          name: 'Back-ups: leeftijd nieuwste'
+          type: 'DEPENDENT'
+          key: 'vissstick.backup.age'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 's'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.backups.newestAgeSeconds'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'backup'
+        - uuid: 'd90a32fa01f05b5ba773e2a7d7e4125e'
+          name: 'Hok: open'
+          type: 'DEPENDENT'
+          key: 'vissstick.hok.open'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.hok.isOpen'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          valuemap:
+            name: 'Vissstick yes/no'
+          tags:
+            - tag: 'component'
+              value: 'hok'
+        - uuid: '03a6b55a7c445612af92e88cb4ef32e2'
+          name: 'Hok: laatste statuswijziging geleden'
+          type: 'DEPENDENT'
+          key: 'vissstick.hok.updated_age'
+          delay: '0'
+          history: '31d'
+          value_type: 'FLOAT'
+          units: 's'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.hok.lastUpdatedAgeSeconds'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          tags:
+            - tag: 'component'
+              value: 'hok'
+      discovery_rules:
+        - uuid: 'd8cbbf729bdb5d14b9e870b3f6c6c5fe'
+          name: 'Taken discovery (cron, pollers, chatbot)'
+          type: 'DEPENDENT'
+          key: 'vissstick.jobs.discovery'
+          delay: '0'
+          lifetime: '7d'
+          description: 'Elke periodieke taak in de bot: quiz, rekensom, spin-meldingen, hok-sync, rooster-check, pauze-meldingen, maandreset, chatbot, ...'
+          item_prototypes:
+            - uuid: '90f5040e2a5459f9b5610e9119287ccc'
+              name: 'Taak {#JOB}: mislukt op rij'
+              type: 'DEPENDENT'
+              key: 'vissstick.job.consecutive_failures[{#JOB}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.jobs[?(@.name==''{#JOB}'')].consecutiveFailures.first()'
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'jobs'
+            - uuid: 'd71cf70e98675f64ac66c610c055d972'
+              name: 'Taak {#JOB}: mislukte runs per minuut'
+              type: 'DEPENDENT'
+              key: 'vissstick.job.failures[{#JOB}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.jobs[?(@.name==''{#JOB}'')].failures.first()'
+                - type: 'SIMPLE_CHANGE'
+                  parameters:
+                    - ''
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'jobs'
+            - uuid: '9d0be71f05875d0da09338135cce36ed'
+              name: 'Taak {#JOB}: runs per minuut'
+              type: 'DEPENDENT'
+              key: 'vissstick.job.runs[{#JOB}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.jobs[?(@.name==''{#JOB}'')].runs.first()'
+                - type: 'SIMPLE_CHANGE'
+                  parameters:
+                    - ''
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'jobs'
+            - uuid: '7d867bd6361759b8ba40915c84f4873d'
+              name: 'Taak {#JOB}: laatste succes geleden'
+              type: 'DEPENDENT'
+              key: 'vissstick.job.last_success[{#JOB}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              units: 's'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.jobs[?(@.name==''{#JOB}'')].lastSuccessAgeSeconds.first()'
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'jobs'
+            - uuid: '8c39d8e9c8ca537896f071b830acace6'
+              name: 'Taak {#JOB}: duur laatste run'
+              type: 'DEPENDENT'
+              key: 'vissstick.job.duration[{#JOB}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              units: 'ms'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.jobs[?(@.name==''{#JOB}'')].lastDurationMs.first()'
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'jobs'
+            - uuid: '6d72b24db85d5e8d9cdb6c4ee6da3a7a'
+              name: 'Taak {#JOB}: te lang niet geslaagd'
+              type: 'DEPENDENT'
+              key: 'vissstick.job.stale[{#JOB}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.jobs[?(@.name==''{#JOB}'')].stale.first()'
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              valuemap:
+                name: 'Vissstick yes/no'
+              tags:
+                - tag: 'component'
+                  value: 'jobs'
+            - uuid: '0be3522ba26d56748c50d647814b9e7f'
+              name: 'Taak {#JOB}: laatste fout'
+              type: 'DEPENDENT'
+              key: 'vissstick.job.last_error[{#JOB}]'
+              delay: '0'
+              history: '30d'
+              value_type: 'TEXT'
+              trends: '0'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.jobs[?(@.name==''{#JOB}'')].lastError.first()'
+                - type: 'DISCARD_UNCHANGED_HEARTBEAT'
+                  parameters:
+                    - '1h'
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'jobs'
+          trigger_prototypes:
+            - uuid: '531517acbb2b5bc0885d2330d7354029'
+              expression: 'last(/Vissstick Discord Bot/vissstick.job.consecutive_failures[{#JOB}])>={$VISSSTICK.JOB.FAILS.MAX:"{#JOB}"}'
+              name: 'Vissstick: taak {#JOB} mislukt {ITEM.LASTVALUE1}x op rij'
+              opdata: '{ITEM.LASTVALUE1}'
+              priority: 'AVERAGE'
+              description: 'Zie item "Taak {#JOB}: laatste fout".'
+              tags:
+                - tag: 'scope'
+                  value: 'jobs'
+            - uuid: '7355bdbcfda65c18bee58ba7ccef9c30'
+              expression: 'last(/Vissstick Discord Bot/vissstick.job.stale[{#JOB}])=1'
+              name: 'Vissstick: taak {#JOB} draait niet meer (te lang geen succes)'
+              priority: 'AVERAGE'
+              description: 'De taak is langer dan zijn maximale stilte (maxSilenceSeconds) niet geslaagd.'
+              tags:
+                - tag: 'scope'
+                  value: 'jobs'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          lld_macro_paths:
+            - lld_macro: '{#JOB}'
+              path: '$.name'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.jobs'
+        - uuid: '079e9155aa6b512f906517576338ac45'
+          name: 'Webroutes discovery'
+          type: 'DEPENDENT'
+          key: 'vissstick.routes.discovery'
+          delay: '0'
+          lifetime: '7d'
+          description: 'Routegroepen van de webserver: page, static, sse, hok_api, api_<spel>, other.'
+          item_prototypes:
+            - uuid: '690d4eabca685dbb928da945eab04c1d'
+              name: 'Route {#ROUTE}: requests per seconde'
+              type: 'DEPENDENT'
+              key: 'vissstick.route.rps[{#ROUTE}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              units: 'rps'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.http.routes[?(@.route==''{#ROUTE}'')].requests.first()'
+                - type: 'CHANGE_PER_SECOND'
+                  parameters:
+                    - ''
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'web'
+            - uuid: 'b4bae761265e5c3dbc4fef943186968a'
+              name: 'Route {#ROUTE}: 4xx per minuut'
+              type: 'DEPENDENT'
+              key: 'vissstick.route.4xx[{#ROUTE}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.http.routes[?(@.route==''{#ROUTE}'')].errors4xx.first()'
+                - type: 'SIMPLE_CHANGE'
+                  parameters:
+                    - ''
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'web'
+            - uuid: '1445e643f96553509feb994d138d7e3f'
+              name: 'Route {#ROUTE}: 5xx per minuut'
+              type: 'DEPENDENT'
+              key: 'vissstick.route.5xx[{#ROUTE}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.http.routes[?(@.route==''{#ROUTE}'')].errors5xx.first()'
+                - type: 'SIMPLE_CHANGE'
+                  parameters:
+                    - ''
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'web'
+            - uuid: 'c6e5bcefb5d8515ea9de6a7fbfddc89b'
+              name: 'Route {#ROUTE}: gemiddelde responstijd (sinds start)'
+              type: 'DEPENDENT'
+              key: 'vissstick.route.latency[{#ROUTE}]'
+              delay: '0'
+              history: '31d'
+              value_type: 'FLOAT'
+              units: 'ms'
+              preprocessing:
+                - type: 'JSONPATH'
+                  parameters:
+                    - '$.http.routes[?(@.route==''{#ROUTE}'')].avgLatencyMs.first()'
+              master_item:
+                key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+              tags:
+                - tag: 'component'
+                  value: 'web'
+          trigger_prototypes:
+            - uuid: 'f06c2c61277e5b529e48dc1b36e1e24d'
+              expression: 'sum(/Vissstick Discord Bot/vissstick.route.5xx[{#ROUTE}],5m)>{$VISSSTICK.HTTP.5XX.MAX}'
+              name: 'Vissstick: route {#ROUTE} geeft 5xx fouten'
+              priority: 'WARNING'
+              tags:
+                - tag: 'scope'
+                  value: 'performance'
+          master_item:
+            key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
+          lld_macro_paths:
+            - lld_macro: '{#ROUTE}'
+              path: '$.route'
+          preprocessing:
+            - type: 'JSONPATH'
+              parameters:
+                - '$.http.routes'
+      tags:
+        - tag: 'class'
+          value: 'application'
+        - tag: 'target'
+          value: 'vissstick'
+      macros:
+        - macro: '{$VISSSTICK.METRICS.PORT}'
+          value: '9464'
+          description: 'METRICS_PORT van de bot'
+        - macro: '{$VISSSTICK.WEB.PORT}'
+          value: '3000'
+          description: 'PUBLIC_API_PORT van de bot'
+        - macro: '{$VISSSTICK.CLOUDFLARED.MIN}'
+          value: '1'
+          description: 'Minimaal aantal cloudflared processen; 0 als de tunnel elders draait'
+        - macro: '{$VISSSTICK.DISCORD.PING.MAX}'
+          value: '500'
+          description: 'ms'
+        - macro: '{$VISSSTICK.DISCORD.RECONNECTS.MAX}'
+          value: '5'
+          description: 'per uur'
+        - macro: '{$VISSSTICK.DISCORD.RATELIMITS.MAX}'
+          value: '10'
+          description: 'per 15 minuten'
+        - macro: '{$VISSSTICK.WEB.LOADTIME.MAX}'
+          value: '2'
+          description: 'seconden'
+        - macro: '{$VISSSTICK.HTTP.5XX.MAX}'
+          value: '5'
+          description: 'per 5 minuten'
+        - macro: '{$VISSSTICK.HTTP.429.MAX}'
+          value: '100'
+          description: 'per 5 minuten'
+        - macro: '{$VISSSTICK.HTTP.P95.MAX}'
+          value: '500'
+          description: 'ms (exclusief SSE)'
+        - macro: '{$VISSSTICK.LOOP.P99.MAX}'
+          value: '200'
+          description: 'ms'
+        - macro: '{$VISSSTICK.RSS.MAX}'
+          value: '1G'
+          description: 'bytes'
+        - macro: '{$VISSSTICK.ERRORS.MAX}'
+          value: '20'
+          description: 'per 10 minuten'
+        - macro: '{$VISSSTICK.DB.LATENCY.MAX}'
+          value: '100'
+          description: 'ms'
+        - macro: '{$VISSSTICK.DB.WAL.MAX}'
+          value: '100M'
+          description: 'bytes'
+        - macro: '{$VISSSTICK.BACKUP.AGE.MAX}'
+          value: '14d'
+        - macro: '{$VISSSTICK.JOB.FAILS.MAX}'
+          value: '3'
+          description: 'Aantal keer op rij mislukt voor een alarm (per taak te overschrijven met context)'
+        - macro: '{$VISSSTICK.JOB.FAILS.MAX:"quiz_start"}'
+          value: '1'
+          description: 'Draait één keer per dag/maand/start'
+        - macro: '{$VISSSTICK.JOB.FAILS.MAX:"quiz_end"}'
+          value: '1'
+          description: 'Draait één keer per dag/maand/start'
+        - macro: '{$VISSSTICK.JOB.FAILS.MAX:"spin_reminders"}'
+          value: '1'
+          description: 'Draait één keer per dag/maand/start'
+        - macro: '{$VISSSTICK.JOB.FAILS.MAX:"math_schedule"}'
+          value: '1'
+          description: 'Draait één keer per dag/maand/start'
+        - macro: '{$VISSSTICK.JOB.FAILS.MAX:"math_close"}'
+          value: '1'
+          description: 'Draait één keer per dag/maand/start'
+        - macro: '{$VISSSTICK.JOB.FAILS.MAX:"monthly_reset"}'
+          value: '1'
+          description: 'Draait één keer per dag/maand/start'
+        - macro: '{$VISSSTICK.JOB.FAILS.MAX:"register_commands"}'
+          value: '1'
+          description: 'Draait één keer per dag/maand/start'
+      valuemaps:
+        - uuid: '593758c9ef3b5fd1a397b92a45616d1f'
+          name: 'Discord gateway status'
+          mappings:
+            - value: '-1'
+              newvalue: 'Onbekend'
+            - value: '0'
+              newvalue: 'Ready'
+            - value: '1'
+              newvalue: 'Connecting'
+            - value: '2'
+              newvalue: 'Reconnecting'
+            - value: '3'
+              newvalue: 'Idle'
+            - value: '4'
+              newvalue: 'Nearly'
+            - value: '5'
+              newvalue: 'Disconnected'
+            - value: '6'
+              newvalue: 'WaitingForGuilds'
+            - value: '7'
+              newvalue: 'Identifying'
+            - value: '8'
+              newvalue: 'Resuming'
+        - uuid: 'ed9ed01eebe758259970d58a4dcb1a59'
+          name: 'Vissstick healthy'
+          mappings:
+            - value: '0'
+              newvalue: 'Problemen'
+            - value: '1'
+              newvalue: 'OK'
+        - uuid: 'ff24e4571c4e5c81b83e49bb56a81780'
+          name: 'Vissstick yes/no'
+          mappings:
+            - value: '-1'
+              newvalue: 'Onbekend'
+            - value: '0'
+              newvalue: 'Nee'
+            - value: '1'
+              newvalue: 'Ja'
+  triggers:
+    - uuid: 'e37f421e932a51d496e99afae137f0b6'
+      expression: 'last(/Vissstick Discord Bot/proc.num[node,,,bot.js])=0'
+      name: 'Vissstick: bot-proces draait niet'
+      priority: 'HIGH'
+      description: 'Er draait geen "node bot.js" proces in deze container.'
+      tags:
+        - tag: 'scope'
+          value: 'availability'
+    - uuid: '8d8aa58b10d255519d09b8228833e656'
+      expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      name: 'Vissstick: geen monitoring data (bot reageert niet)'
+      priority: 'HIGH'
+      description: 'Het /metrics endpoint gaf 5 minuten geen antwoord. Het proces draait wel: waarschijnlijk hangt de event loop, of METRICS_ENABLED staat uit.'
+      dependencies:
+        - name: 'Vissstick: bot-proces draait niet'
+          expression: 'last(/Vissstick Discord Bot/proc.num[node,,,bot.js])=0'
+      tags:
+        - tag: 'scope'
+          value: 'availability'
+    - uuid: 'ac3b7d63f3c05cb4be5e28c302977b25'
+      expression: 'last(/Vissstick Discord Bot/vissstick.uptime)<600'
+      name: 'Vissstick: bot is herstart'
+      priority: 'INFO'
+      description: 'Uptime is minder dan 10 minuten.'
+      manual_close: 'YES'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '87d927bde0ea5069990e449f3abd7b5a'
+      expression: 'max(/Vissstick Discord Bot/vissstick.discord.ready,5m)=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
+      name: 'Vissstick: Discord gateway niet verbonden'
+      priority: 'HIGH'
+      description: 'De bot is al 5 minuten niet verbonden met Discord.'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'availability'
+    - uuid: 'bb10ca6013355969b45b5661bd939981'
+      expression: 'min(/Vissstick Discord Bot/vissstick.discord.ping,10m)>{$VISSSTICK.DISCORD.PING.MAX}'
+      name: 'Vissstick: hoge Discord ping (>{$VISSSTICK.DISCORD.PING.MAX} ms)'
+      priority: 'WARNING'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '6c007551b5b65219b728f0925c5d933d'
+      expression: 'sum(/Vissstick Discord Bot/vissstick.discord.reconnects,1h)>{$VISSSTICK.DISCORD.RECONNECTS.MAX}'
+      name: 'Vissstick: Discord gateway reconnect vaak (>{$VISSSTICK.DISCORD.RECONNECTS.MAX} per uur)'
+      priority: 'WARNING'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '5a688ac4fc6655528a44701fbb365850'
+      expression: 'sum(/Vissstick Discord Bot/vissstick.discord.rest_rate_limits,15m)>{$VISSSTICK.DISCORD.RATELIMITS.MAX}'
+      name: 'Vissstick: Discord REST rate limits (>{$VISSSTICK.DISCORD.RATELIMITS.MAX} per 15 min)'
+      priority: 'WARNING'
+      description: 'De bot stuurt te veel API-verzoeken naar Discord; berichten/updates kunnen vertraagd zijn.'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '2e97d532e0595c358ee970edfd220c44'
+      expression: 'last(/Vissstick Discord Bot/net.tcp.listen[{$VISSSTICK.WEB.PORT}])=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
+      name: 'Vissstick: webserver luistert niet op poort {$VISSSTICK.WEB.PORT}'
+      priority: 'HIGH'
+      dependencies:
+        - name: 'Vissstick: bot-proces draait niet'
+          expression: 'last(/Vissstick Discord Bot/proc.num[node,,,bot.js])=0'
+      tags:
+        - tag: 'scope'
+          value: 'availability'
+    - uuid: 'd7743c8fac94556a800a8fa2362ecb5f'
+      expression: 'max(/Vissstick Discord Bot/web.page.perf[127.0.0.1,/api/public/hok/status,{$VISSSTICK.WEB.PORT}],5m)=0 or nodata(/Vissstick Discord Bot/web.page.perf[127.0.0.1,/api/public/hok/status,{$VISSSTICK.WEB.PORT}],5m)=1'
+      name: 'Vissstick: hok API geeft geen antwoord'
+      priority: 'AVERAGE'
+      description: 'web.page.perf naar /api/public/hok/status mislukt al 5 minuten.'
+      dependencies:
+        - name: 'Vissstick: webserver luistert niet op poort {$VISSSTICK.WEB.PORT}'
+          expression: 'last(/Vissstick Discord Bot/net.tcp.listen[{$VISSSTICK.WEB.PORT}])=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '69c77b9b29cb515a9a25aa0e51617fd9'
+      expression: 'min(/Vissstick Discord Bot/web.page.perf[127.0.0.1,/api/public/hok/status,{$VISSSTICK.WEB.PORT}],5m)>{$VISSSTICK.WEB.LOADTIME.MAX}'
+      name: 'Vissstick: hok API traag (>{$VISSSTICK.WEB.LOADTIME.MAX}s)'
+      priority: 'WARNING'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '57f4b7b4d71d5a6ab5df9ef5a287be4c'
+      expression: 'sum(/Vissstick Discord Bot/vissstick.http.5xx,5m)>{$VISSSTICK.HTTP.5XX.MAX}'
+      name: 'Vissstick: webserver geeft 5xx fouten (>{$VISSSTICK.HTTP.5XX.MAX} in 5 min)'
+      priority: 'AVERAGE'
+      description: 'Zie de route-discovery welke route het is, en "Proces: laatste foutmelding".'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '96538c57e10a5168acf8d384cd8b6c14'
+      expression: 'min(/Vissstick Discord Bot/vissstick.http.latency.p95,5m)>{$VISSSTICK.HTTP.P95.MAX}'
+      name: 'Vissstick: webserver traag (p95 >{$VISSSTICK.HTTP.P95.MAX} ms)'
+      priority: 'WARNING'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: 'e2799e8a4d155076989987667d6494f8'
+      expression: 'sum(/Vissstick Discord Bot/vissstick.http.429,5m)>{$VISSSTICK.HTTP.429.MAX}'
+      name: 'Vissstick: veel rate-limited requests (>{$VISSSTICK.HTTP.429.MAX} in 5 min)'
+      priority: 'INFO'
+      description: 'Mogelijk misbruik of een kapotte client die te vaak pollt.'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: 'd77ad0f62dc95c92ab5444e72eed7114'
+      expression: 'last(/Vissstick Discord Bot/vissstick.http.sse_clients)>=last(/Vissstick Discord Bot/vissstick.http.sse_limit)*0.9 and last(/Vissstick Discord Bot/vissstick.http.sse_limit)>0'
+      name: 'Vissstick: live verbindingen bijna op limiet'
+      priority: 'WARNING'
+      description: 'Boven de limiet krijgen nieuwe spelers 503 too_many_clients.'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '58f61c819ada56a8a232622e3f663998'
+      expression: 'min(/Vissstick Discord Bot/vissstick.loop.p99,5m)>{$VISSSTICK.LOOP.P99.MAX}'
+      name: 'Vissstick: event loop geblokkeerd (p99 >{$VISSSTICK.LOOP.P99.MAX} ms)'
+      priority: 'WARNING'
+      description: 'Alles in de bot (Discord, web, spellen) reageert dan trager.'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '5e15689d7a2253bd91a02b6bc0a61c1a'
+      expression: 'min(/Vissstick Discord Bot/vissstick.rss,15m)>{$VISSSTICK.RSS.MAX}'
+      name: 'Vissstick: hoog geheugengebruik (>{$VISSSTICK.RSS.MAX})'
+      priority: 'WARNING'
+      description: 'Blijft dit stijgen na een herstart, dan is er waarschijnlijk een geheugenlek.'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '0c6c70d8988056c48a0c78dde355a8f3'
+      expression: 'sum(/Vissstick Discord Bot/vissstick.errors,10m)>{$VISSSTICK.ERRORS.MAX}'
+      name: 'Vissstick: veel fouten in de log (>{$VISSSTICK.ERRORS.MAX} in 10 min)'
+      priority: 'WARNING'
+      description: 'Laatste fout: zie item "Proces: laatste foutmelding" of logs/bot-<datum>.log.'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '948e1fc14f9052948e151ddeecacc902'
+      expression: 'sum(/Vissstick Discord Bot/vissstick.unhandled_rejections,1h)>0'
+      name: 'Vissstick: unhandled promise rejection'
+      priority: 'WARNING'
+      description: 'Er is een fout niet afgevangen. Zie logs/bot-<datum>.log.'
+      manual_close: 'YES'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '8c70cd7f8c0b5100bd8adf1342c9084a'
+      expression: 'max(/Vissstick Discord Bot/vissstick.db.ok,3m)=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
+      name: 'Vissstick: database niet bereikbaar'
+      priority: 'HIGH'
+      description: 'Zie item "Database: laatste fout".'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'availability'
+    - uuid: '5ca88bf18c8f59c295e5994f57b59902'
+      expression: 'min(/Vissstick Discord Bot/vissstick.db.latency,5m)>{$VISSSTICK.DB.LATENCY.MAX}'
+      name: 'Vissstick: database traag (>{$VISSSTICK.DB.LATENCY.MAX} ms)'
+      priority: 'WARNING'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '666209ed66c45ea6b2206c0face6e4bd'
+      expression: 'last(/Vissstick Discord Bot/vissstick.db.wal_size)>{$VISSSTICK.DB.WAL.MAX}'
+      name: 'Vissstick: SQLite WAL bestand groot (>{$VISSSTICK.DB.WAL.MAX})'
+      priority: 'WARNING'
+      description: 'De WAL wordt niet meer gecheckpoint; vaak een lang lopende lees-transactie.'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: 'f0355db8824b5272bedd5fe5562f6036'
+      expression: 'last(/Vissstick Discord Bot/vissstick.backup.age)>{$VISSSTICK.BACKUP.AGE.MAX}'
+      name: 'Vissstick: laatste database back-up ouder dan {$VISSSTICK.BACKUP.AGE.MAX}'
+      priority: 'WARNING'
+      description: 'startscript maakt alleen een back-up bij een (her)start van de bot.'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '93c105e12db650e388e843bf3b034f1c'
+      expression: 'last(/Vissstick Discord Bot/vissstick.backup.readable)=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
+      name: 'Vissstick: back-up map niet leesbaar'
+      priority: 'INFO'
+      description: 'Controleer METRICS_BACKUP_DIR in config.json (standaard /root/discord-bot-backup).'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '4482a8d74702577e8fd2e10dc5dc3f32'
+      expression: 'max(/Vissstick Discord Bot/vissstick.healthy,5m)=0'
+      name: 'Vissstick: bot meldt problemen'
+      priority: 'INFO'
+      description: 'Samenvatting van de bot zelf; zie item "Bot: problemen". Specifiekere triggers hierboven geven de details.'
+      dependencies:
+        - name: 'Vissstick: geen monitoring data (bot reageert niet)'
+          expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
+      tags:
+        - tag: 'scope'
+          value: 'performance'
+    - uuid: '82b63613296f5d9c927d2460265cf07c'
+      expression: 'last(/Vissstick Discord Bot/proc.num[cloudflared])<{$VISSSTICK.CLOUDFLARED.MIN}'
+      name: 'Vissstick: cloudflared tunnel draait niet'
+      priority: 'HIGH'
+      description: 'De casino-site is dan niet bereikbaar van buitenaf.'
+      tags:
+        - tag: 'scope'
+          value: 'availability'
+  graphs:
+    - uuid: '1a846f7069855fdb8586a8670df761fe'
+      name: 'Vissstick: geheugen'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.rss'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.heap_used'
+        - sortorder: '2'
+          color: '2774A4'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.heap_total'
+        - sortorder: '3'
+          color: 'A54F10'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.external'
+    - uuid: 'bbab9d9fdc9d5e5a9b48a3de42fdece6'
+      name: 'Vissstick: event loop lag'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.loop.mean'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.loop.p99'
+        - sortorder: '2'
+          color: '2774A4'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.loop.max'
+    - uuid: 'ac1753af9ab45a068239be62d0257dfe'
+      name: 'Vissstick: CPU'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.cpu_user'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.cpu_system'
+    - uuid: '54484d46b2c857db9e4bbc662a99cb2a'
+      name: 'Vissstick: webverkeer'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.rps'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.2xx'
+        - sortorder: '2'
+          color: '2774A4'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.3xx'
+    - uuid: 'ff6d652940745ccca915ca91553be899'
+      name: 'Vissstick: webfouten'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.4xx'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.5xx'
+        - sortorder: '2'
+          color: '2774A4'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.429'
+        - sortorder: '3'
+          color: 'A54F10'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.aborted'
+    - uuid: 'ab426ef82d845e88b4af84d5aa3aba22'
+      name: 'Vissstick: responstijd'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.latency.avg'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.latency.p95'
+        - sortorder: '2'
+          color: '2774A4'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.latency.p99'
+    - uuid: '315e69add51f5a769035dc53ed800344'
+      name: 'Vissstick: live spelers'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.online_users'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.sse.rocket'
+        - sortorder: '2'
+          color: '2774A4'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.sse.blackjack'
+        - sortorder: '3'
+          color: 'A54F10'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.sse.roulette'
+        - sortorder: '4'
+          color: 'FC6EA3'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.http.sse.sterrenrad'
+    - uuid: '12cca74fe8a9575b9da037f475beadb9'
+      name: 'Vissstick: Discord'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.discord.ping'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.discord.messages'
+        - sortorder: '2'
+          color: '2774A4'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.discord.interactions'
+    - uuid: 'd9c748c766b75cb8a7adbb99d6b7d440'
+      name: 'Vissstick: database'
+      graph_items:
+        - sortorder: '0'
+          color: '1A7C11'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.db.size'
+        - sortorder: '1'
+          color: 'F63100'
+          item:
+            host: 'Vissstick Discord Bot'
+            key: 'vissstick.db.wal_size'
