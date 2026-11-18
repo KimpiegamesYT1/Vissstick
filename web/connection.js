@@ -1,5 +1,5 @@
 /**
- * Verbindingsbewaking voor de casino-pagina's (Rocket, Blackjack, Plinko, Slots, Roulette, Sterrenrad, Daily spin).
+ * Verbindingsbewaking voor de casino-pagina's (Rocket, Blackjack, Plinko, Slots, Roulette, Sterrenrad, Routegok, Daily spin).
  *
  * Als de server even weg is (bot herstart, internet weg, proxy geeft 502/503/504) verschijnt er een popup die
  * zelf opnieuw verbinding probeert te maken. Is de server terug, dan wordt de pagina herladen zodat alles
@@ -327,7 +327,8 @@
     { key: 'plinko', name: 'Plinko', desc: 'Laat ballen vallen en jaag op de randen' },
     { key: 'slots', name: 'Slots', desc: 'Draai de rollen en mik op drie op een rij' },
     { key: 'roulette', name: 'Roulette', desc: 'Europese roulette: zet in op je geluksgetal', live: true },
-    { key: 'sterrenrad', name: 'Sterrenrad', desc: 'Gameshow in de ruimte met vier bonusspellen', live: true }
+    { key: 'sterrenrad', name: 'Sterrenrad', desc: 'Gameshow in de ruimte met vier bonusspellen', live: true },
+    { key: 'routegok', name: 'Routegok', desc: 'Raad de reistijd van een route ergens op aarde', live: true }
   ];
   const NAV_LINKS = [
     { key: 'spin', name: 'Daily spin' },
@@ -473,7 +474,24 @@
     </svg>`;
   }
 
-  const GAME_ART = { rocket: rocketArt, blackjack: blackjackArt, plinko: plinkoArt, slots: slotsArt, roulette: rouletteArt, sterrenrad: sterrenradArt };
+  function routegokArt() {
+    const fields = [[0, 0, 70, 40, '#3f5a2c'], [70, 0, 90, 34, '#5b6b3a'], [0, 40, 52, 50, '#4d6a34'], [52, 34, 60, 56, '#6b6a45'], [112, 34, 48, 56, '#3a5530']]
+      .map(([x, y, w, h, c]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`).join('');
+    return `<svg viewBox="0 0 160 90" aria-hidden="true"><defs>
+      <linearGradient id="vn-rg-w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d4b6e"/><stop offset="1" stop-color="#0f2c44"/></linearGradient></defs>
+      ${fields}
+      <path d="M118 0Q128 30 160 40V0Z" fill="url(#vn-rg-w)"/>
+      <path d="M0 62L160 50M44 0L58 90M96 0L104 90" stroke="#c9c2a8" stroke-opacity=".35" stroke-width="1.4"/>
+      <path d="M22 72C40 70 48 52 62 50S86 58 96 44S118 26 134 22" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="6" stroke-linecap="round"/>
+      <path d="M22 72C40 70 48 52 62 50S86 58 96 44S118 26 134 22" fill="none" stroke="#3fc6b0" stroke-width="3.4" stroke-linecap="round"/>
+      <circle cx="22" cy="72" r="6" fill="#4cd47b" stroke="#fff" stroke-width="1.6"/><text x="22" y="75.5" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="900" fill="#062612">A</text>
+      <circle cx="134" cy="22" r="6" fill="#ef5b4c" stroke="#fff" stroke-width="1.6"/><text x="134" y="25.5" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="900" fill="#fff">B</text>
+      <rect x="8" y="8" width="52" height="18" rx="9" fill="#000" opacity=".55"/>
+      <text x="34" y="21" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="800" fill="#f2c14e">37 min?</text>
+    </svg>`;
+  }
+
+  const GAME_ART = { rocket: rocketArt, blackjack: blackjackArt, plinko: plinkoArt, slots: slotsArt, roulette: rouletteArt, sterrenrad: sterrenradArt, routegok: routegokArt };
 
   const NAV_CSS = `
     .nav { display: flex; align-items: center; gap: 4px; background: var(--nav-bg, var(--panel, #16181b)); border: 1px solid var(--line, rgba(255,255,255,.07));

@@ -394,6 +394,20 @@ CREATE TABLE IF NOT EXISTS sterrenrad_stats (
     last_played DATETIME
 );
 
+-- Routegok (website)
+CREATE TABLE IF NOT EXISTS routegok_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    games_played INTEGER DEFAULT 0,
+    total_bet INTEGER DEFAULT 0,
+    total_payout INTEGER DEFAULT 0,
+    biggest_win INTEGER DEFAULT 0,
+    best_error REAL,
+    jackpots INTEGER DEFAULT 0,
+    countries_right INTEGER DEFAULT 0,
+    last_played DATETIME
+);
+
 -- Rocket (website): één rij per speler, bijgewerkt na elke ronde
 CREATE TABLE IF NOT EXISTS rocket_stats (
     user_id TEXT PRIMARY KEY,

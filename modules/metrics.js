@@ -362,11 +362,11 @@ function snapshotDiscord() {
 
 const KNOWN_API_GROUPS = new Set([
   'me', 'online', 'rocket', 'spin', 'blackjack', 'plinko', 'slots',
-  'roulette', 'sterrenrad', 'afwas', 'fuik', 'stats', 'logout'
+  'roulette', 'sterrenrad', 'routegok', 'afwas', 'fuik', 'stats', 'logout'
 ]);
 const PAGE_PATHS = new Set([
   '', 'rocket', 'spin', 'daily', 'blackjack', 'plinko', 'slots',
-  'roulette', 'sterrenrad', 'afwas', 'fuik', 'stats', 'login'
+  'roulette', 'sterrenrad', 'routegok', 'afwas', 'fuik', 'stats', 'login'
 ]);
 
 const httpStats = {

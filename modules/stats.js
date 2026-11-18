@@ -133,6 +133,7 @@ function buildOverview() {
     slots: byUser(safeAll(db, 'SELECT * FROM slots_stats')),
     roulette: byUser(safeAll(db, 'SELECT * FROM roulette_stats')),
     sterrenrad: byUser(safeAll(db, 'SELECT * FROM sterrenrad_stats')),
+    routegok: byUser(safeAll(db, 'SELECT * FROM routegok_stats')),
     mines: byUser(safeAll(db, 'SELECT * FROM mines_stats'))
   };
   const spins = byUser(safeAll(db, 'SELECT user_id, COUNT(*) AS spins, SUM(amount) AS won, MAX(amount) AS best, MAX(created_at) AS last FROM daily_spin_log GROUP BY user_id'));
@@ -190,6 +191,11 @@ function buildOverview() {
     if (sr && sr.games_played) {
       games.sterrenrad = { played: sr.games_played, bet: sr.total_bet, payout: sr.total_payout, biggest: sr.biggest_win, bestMult: sr.biggest_multiplier, bonuses: sr.bonuses };
       lastPlayed = Math.max(lastPlayed, toMs(sr.last_played));
+    }
+    const rg = tables.routegok.get(id);
+    if (rg && rg.games_played) {
+      games.routegok = { played: rg.games_played, bet: rg.total_bet, payout: rg.total_payout, biggest: rg.biggest_win, jackpots: rg.jackpots, countries: rg.countries_right };
+      lastPlayed = Math.max(lastPlayed, toMs(rg.last_played));
     }
     const m = tables.mines.get(id);
     if (m && m.games_played) {

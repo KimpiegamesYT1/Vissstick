@@ -1,5 +1,5 @@
 /**
- * Casino website (Rocket + Dagelijkse spin + Blackjack tafel + Roulette + Sterrenrad)
+ * Casino website (Rocket + Dagelijkse spin + Blackjack tafel + Roulette + Sterrenrad + Routegok)
  *   GET  /                          doorsturen naar /rocket
  *   GET  /rocket                    Rocket pagina
  *   GET  /spin, /daily              Dagelijkse spin pagina
@@ -39,6 +39,11 @@
  *   GET  /api/sterrenrad/time       servertijd, voor de klokmeting van de browser
  *   POST /api/sterrenrad/bet        eigen fiches voor deze ronde vervangen (eerste fiche opent een ronde)
  *   POST /api/sterrenrad/choose     keuze in een bonus (doel in de Sterrenjacht, wijzer in het Wormgat)
+ *   GET  /routegok                  Routegok (raad de reistijd van een willekeurige route, multiplayer)
+ *   GET  /api/routegok/status       instellingen, saldo, eigen stats en eigen (geheime) gok
+ *   GET  /api/routegok/stream       Server-Sent Events met de gedeelde ronde
+ *   GET  /api/routegok/tile/z/x/y.jpg  satelliettegel (proxy + cache, alleen rond de routes)
+ *   POST /api/routegok/{start,guess,ready}  nieuwe route zoeken / gok plaatsen / gok vastzetten
  *   GET  /api/afwas/status          instellingen, saldo en eigen stats
  *   GET  /api/stats                 leaderboard + stats per speler (iedereen, 'me' gemarkeerd als ingelogd)
  *   POST /api/afwas/{plate,clean,reject}  nieuw bord / bord schoon (+1) / bord afgekeurd
@@ -56,6 +61,7 @@ const plinko = require('../modules/plinko');
 const slots = require('../modules/slots');
 const roulette = require('../modules/roulette');
 const sterrenrad = require('../modules/sterrenrad');
+const routegok = require('../modules/routegok');
 const afwas = require('../modules/afwas');
 const fuik = require('../modules/fuik');
 const rocketAuth = require('../modules/rocketAuth');
@@ -80,12 +86,13 @@ const ONLINE_GAMES = {
   slots: 'Slots',
   roulette: 'Roulette',
   sterrenrad: 'Sterrenrad',
+  routegok: 'Routegok',
   spin: 'Daily spin',
   afwas: 'Afwassen',
   fuik: 'Fuiken',
   stats: 'Stats'
 };
-const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/sterrenrad', '/afwas', '/fuik', '/stats'];
+const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/sterrenrad', '/routegok', '/afwas', '/fuik', '/stats'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
   'three.core.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.core.js')
@@ -184,6 +191,7 @@ function createCasinoWebHandler() {
     slots: fs.readFileSync(path.join(WEB_DIR, 'slots.html')),
     roulette: fs.readFileSync(path.join(WEB_DIR, 'roulette.html')),
     sterrenrad: fs.readFileSync(path.join(WEB_DIR, 'sterrenrad.html')),
+    routegok: fs.readFileSync(path.join(WEB_DIR, 'routegok.html')),
     afwas: fs.readFileSync(path.join(WEB_DIR, 'afwas.html')),
     fuik: fs.readFileSync(path.join(WEB_DIR, 'fuik.html')),
     stats: fs.readFileSync(path.join(WEB_DIR, 'stats.html'))
@@ -194,13 +202,16 @@ function createCasinoWebHandler() {
   const plinkoLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 100 });
   // Roulette: elke wijziging op de tafel wordt (gebundeld) naar de server gestuurd
   const rouletteLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 80 });
+  // Routegok: een kaart laadt veel tegels tegelijk (per IP, want kijken mag ook zonder inloggen)
+  const tileLimiter = createRateLimiter({ windowMs: 10000, maxRequests: 600 });
 
   // Live streams per spel
   const streams = {
     rocket: { clients: new Set(), getState: rocketGame.getPublicState },
     blackjack: { clients: new Set(), getState: blackjackTable.getPublicState },
     roulette: { clients: new Set(), getState: roulette.getPublicState },
-    sterrenrad: { clients: new Set(), getState: sterrenrad.getPublicState }
+    sterrenrad: { clients: new Set(), getState: sterrenrad.getPublicState },
+    routegok: { clients: new Set(), getState: routegok.getPublicState }
   };
 
   function broadcast(stream) {
@@ -212,6 +223,7 @@ function createCasinoWebHandler() {
   blackjackTable.events.on('update', () => broadcast(streams.blackjack));
   roulette.events.on('update', () => broadcast(streams.roulette));
   sterrenrad.events.on('update', () => broadcast(streams.sterrenrad));
+  routegok.events.on('update', () => broadcast(streams.routegok));
 
   // Houdt verbindingen (en de Cloudflare tunnel) open en geeft de browser een verse server tijd
   setInterval(() => {
@@ -299,6 +311,30 @@ function createCasinoWebHandler() {
     });
   }
 
+  async function handleTile(req, res, z, x, y) {
+    if (!tileLimiter.check(`tile:${getClientIp(req)}`).allowed || !routegok.isTileAllowed(z, x, y)) {
+      setBaseHeaders(res);
+      res.statusCode = 404;
+      res.setHeader('Cache-Control', 'no-store');
+      res.end();
+      return;
+    }
+    const body = await routegok.getTile(z, x, y).catch(() => null);
+    if (!body) {
+      setBaseHeaders(res);
+      res.statusCode = 502;
+      res.setHeader('Cache-Control', 'no-store');
+      res.end();
+      return;
+    }
+    setBaseHeaders(res);
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'image/jpeg');
+    // Niet in de browser cachen buiten het gebied: daar beslist de server elke ronde opnieuw over
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.end(body);
+  }
+
   async function handleAction(req, res, action) {
     if (!String(req.headers['content-type'] || '').startsWith('application/json')) {
       sendJson(res, 415, { ok: false, message: 'Verkeerd verzoek.' });
@@ -306,10 +342,10 @@ function createCasinoWebHandler() {
     }
     const user = getUser(req);
     if (!user) {
-      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko, /slots, /roulette, /sterrenrad, /fuik of /afwassen in Discord voor je persoonlijke link.' });
+      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko, /slots, /roulette, /sterrenrad, /routegok, /fuik of /afwassen in Discord voor je persoonlijke link.' });
       return;
     }
-    const limiter = action === 'plinko/drop' ? plinkoLimiter : (action === 'roulette/bet' || action.startsWith('sterrenrad/')) ? rouletteLimiter : actionLimiter;
+    const limiter = action === 'plinko/drop' ? plinkoLimiter : (action === 'roulette/bet' || action.startsWith('sterrenrad/') || action.startsWith('routegok/')) ? rouletteLimiter : actionLimiter;
     if (!limiter.check(user.id).allowed) {
       sendJson(res, 429, { ok: false, message: 'Rustig aan! Probeer het over een paar seconden opnieuw.' });
       return;
@@ -339,6 +375,10 @@ function createCasinoWebHandler() {
       case 'roulette/bet': result = roulette.placeBets(user, body.bets); break;
       case 'sterrenrad/bet': result = sterrenrad.placeBets(user, body.bets); break;
       case 'sterrenrad/choose': result = sterrenrad.choose(user, body.choice); break;
+      case 'routegok/start': result = routegok.startRound(user); break;
+      case 'routegok/guess': result = routegok.placeGuess(user, body); break;
+      case 'routegok/ready': result = routegok.setReady(user); break;
+      case 'routegok/peek': result = routegok.peek(user); break;
       case 'afwas/plate': result = afwas.nextPlate(user); break;
       case 'afwas/clean': result = afwas.cleanPlate(user, body.plate); break;
       case 'afwas/reject': result = afwas.rejectPlate(user, body.plate); break;
@@ -463,6 +503,23 @@ function createCasinoWebHandler() {
           // Klokmeting (heen-en-terug) zodat de show in elke browser gelijk loopt met de server
           sendJson(res, 200, { serverNow: Date.now() });
           return true;
+        case '/routegok':
+        case '/routegok/':
+          sendPage(res, pages.routegok);
+          return true;
+        case '/api/routegok/status': {
+          const user = getUser(req);
+          const payload = { linked: Boolean(user), config: routegok.getConfig() };
+          if (user) {
+            casino.getOrCreateUser(user.id, user.username);
+            Object.assign(payload, { user, balance: casino.getUserBalance(user.id), stats: routegok.getStats(user.id), mine: routegok.getMyEntry(user.id) });
+          }
+          sendJson(res, 200, payload);
+          return true;
+        }
+        case '/api/routegok/stream':
+          handleStream(req, res, streams.routegok);
+          return true;
         case '/afwas':
         case '/afwas/':
           sendPage(res, pages.afwas);
@@ -564,6 +621,11 @@ function createCasinoWebHandler() {
         sendStatic(res, readStatic(VENDOR_FILES[vendorMatch[1]]), 'text/javascript; charset=utf-8');
         return true;
       }
+      const tileMatch = pathname.match(/^\/api\/routegok\/tile\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.jpg$/);
+      if (tileMatch) {
+        handleTile(req, res, Number(tileMatch[1]), Number(tileMatch[2]), Number(tileMatch[3]));
+        return true;
+      }
       const audioMatch = pathname.match(/^\/audio\/([a-z0-9-]+\.mp3)$/);
       if (audioMatch) {
         const file = path.join(WEB_DIR, 'audio', audioMatch[1]);
@@ -580,7 +642,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|routegok\/(?:start|guess|ready|peek)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

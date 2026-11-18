@@ -17,16 +17,16 @@ const SLOTS = 3;
 const READY_MS = 15 * 60 * 1000;   // zo lang moet een fuik in het water liggen
 const ESCAPE_MS = 45 * 60 * 1000;  // na zo lang (vanaf uitzetten) is de vangst weg
 
-// Gewichten tellen op tot 1000. Gemiddeld ~5 punten per fuik.
+// Gewichten tellen op tot 1000. Gemiddeld ~8 punten per fuik.
 const CATCHES = [
   { key: 'laars', name: 'Oude laars', points: 0, weight: 150, color: '#7a6a58' },
-  { key: 'voorn', name: 'Voorn', points: 2, weight: 300, color: '#b9c6cf' },
-  { key: 'baars', name: 'Baars', points: 4, weight: 240, color: '#9fb44a' },
-  { key: 'brasem', name: 'Brasem', points: 6, weight: 150, color: '#c9a86a' },
-  { key: 'snoekbaars', name: 'Snoekbaars', points: 10, weight: 90, color: '#8aa3a8' },
-  { key: 'paling', name: 'Paling', points: 15, weight: 45, color: '#5d6b3a' },
-  { key: 'snoek', name: 'Snoek', points: 25, weight: 20, color: '#6f8f4e' },
-  { key: 'goudkarper', name: 'Gouden karper', points: 75, weight: 5, color: '#f2c14e' }
+  { key: 'voorn', name: 'Voorn', points: 4, weight: 300, color: '#b9c6cf' },
+  { key: 'baars', name: 'Baars', points: 7, weight: 240, color: '#9fb44a' },
+  { key: 'brasem', name: 'Brasem', points: 10, weight: 150, color: '#c9a86a' },
+  { key: 'snoekbaars', name: 'Snoekbaars', points: 16, weight: 90, color: '#8aa3a8' },
+  { key: 'paling', name: 'Paling', points: 25, weight: 45, color: '#5d6b3a' },
+  { key: 'snoek', name: 'Snoek', points: 40, weight: 20, color: '#6f8f4e' },
+  { key: 'goudkarper', name: 'Gouden karper', points: 125, weight: 5, color: '#f2c14e' }
 ];
 const CATCH_BY_KEY = Object.fromEntries(CATCHES.map(c => [c.key, c]));
 const TOTAL_WEIGHT = CATCHES.reduce((sum, c) => sum + c.weight, 0);
