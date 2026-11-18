@@ -45,6 +45,7 @@ const COMET_TAIL_MS = 3000;    // na de laatste komeet, voor het rad draait
 const SPIN_MS = 10000;          // draai van het rad
 const LANDED_MS = 4000;        // getal: even vieren voor de uitbetaling
 const RESULT_MS = 8000;        // uitslag blijft staan
+const JACKPOT_NET = 2500;      // netto winst waarbij Stella helemaal uit haar dak gaat (dansen, schreeuwen, saltos)
 const BONUS_TRAVEL_MS = 5500;  // camera + Stella naar de bonus
 const BONUS_OUTRO_MS = 5000;
 const COIN_REVEAL_MS = 4500;
@@ -800,14 +801,21 @@ function settle(r) {
 
   winners.sort((a, b) => (b.payout - b.total) - (a.payout - a.total));
   const top = winners[0];
+  const jackpot = top && top.payout - top.total >= JACKPOT_NET;
   if (!top) say('nobody', {}, { silent: true });
-  else if (top.payout - top.total >= 1000) say('bigWin', { naam: top.username, bedrag: top.payout }, { silent: true });
+  else if (jackpot) {
+    // Drie kreten achter elkaar; de website speelt daarbij Stella's jackpot-show af
+    const vars = { naam: top.username, bedrag: top.payout };
+    say('jackpot', vars, { silent: true });
+    setTimeout(() => { if (round === r && r.phase === 'result') say('jackpotScream', vars); }, 2900);
+    setTimeout(() => { if (round === r && r.phase === 'result') say('jackpotEnd', vars); }, 5800);
+  } else if (top.payout - top.total >= 1000) say('bigWin', { naam: top.username, bedrag: top.payout }, { silent: true });
   else if (winners.length >= 3) say('manyWinners', { n: winners.length, naam: top.username, bedrag: top.payout }, { silent: true });
   else say('winners', { naam: top.username, bedrag: top.payout }, { silent: true });
   emitUpdate();
 
-  // Iets later: opmerkingen over reeksen
-  setTimeout(() => {
+  // Iets later: opmerkingen over reeksen (niet na een jackpot, dan is Stella nog aan het feesten)
+  if (!jackpot) setTimeout(() => {
     if (round !== r || r.phase !== 'result') return;
     let streak = 0;
     while (streak < history.length && history[streak].seg === history[0].seg) streak++;

@@ -6,7 +6,7 @@
  * Stijl: een presentator die uitlegt wat er gebeurt, spelers bij naam noemt en spanning opbouwt.
  * Korte zinnen, zodat je ze in één keer kunt lezen.
  *
- * Stemmingen (mood) bepalen gezicht en gebaren op de website: happy, hype, tense, shock, sad, wink, cool.
+ * Stemmingen (mood) bepalen gezicht en gebaren op de website: happy, hype, tense, shock, sad, wink, cool, jackpot.
  */
 
 const crypto = require('crypto');
@@ -207,6 +207,35 @@ const LINES = {
       '{naam} wint {bedrag} punten. Wat een ronde!',
       'Ongelooflijk: {bedrag} punten voor {naam}!',
       'Dit is een topwinst: {naam} krijgt {bedrag}!'
+    ]
+  },
+  // Jackpot: Stella gaat helemaal los (op de website: dansen, schreeuwen en saltos)
+  jackpot: {
+    mood: 'jackpot',
+    lines: [
+      'JAAAAA! JACKPOT! {naam} WINT {bedrag} PUNTEN!!!',
+      'NEE NEE NEE! {naam}! {bedrag} PUNTEN! IK WORD GEK!',
+      'AAAAH! {bedrag} PUNTEN VOOR {naam}! JACKPOOOT!',
+      'WAT GEBEURT ER?! {naam} PAKT {bedrag} PUNTEN!!!'
+    ]
+  },
+  jackpotScream: {
+    mood: 'jackpot',
+    lines: [
+      'IK KAN NIET MEER! KIJK DAN! {bedrag}!!!',
+      'DIT IS DE BESTE DAG VAN MIJN LEVEN!',
+      'IEMAND HOUD ME VAST! JACKPOOOOT!',
+      'SALTO VOOR {naam}! EN NOG EEN!',
+      'HET RUIMTESTATION TRILT ERVAN!'
+    ]
+  },
+  jackpotEnd: {
+    mood: 'hype',
+    lines: [
+      'Pfoeh... {naam}, jij bent een legende.',
+      'Oké, oké, ik ben er weer. Wat een ronde, {naam}!',
+      '{naam}, die {bedrag} punten vergeet ik nooit meer.',
+      'Ik moet even zitten. Gefeliciteerd, {naam}!'
     ]
   },
   nobody: {
