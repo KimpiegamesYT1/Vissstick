@@ -5,7 +5,7 @@
  * zelf opnieuw verbinding probeert te maken. Is de server terug, dan wordt de pagina herladen zodat alles
  * (saldo, lopende rondes) weer klopt met de server.
  *
- * Bouwt ook de navigatie op (Casino-menu met alle spellen + Daily spin + Fuiken + Stats + Afwassen), zie GAMES hieronder.
+ * Bouwt ook de navigatie op (Casino-menu met alle spellen + Daily spin + Fuiken + Afwassen + Stats), zie GAMES hieronder.
  *
  * Daarnaast regelt dit script de "Afwassen" knop in de navigatie: die is verborgen, behalve als je
  * minder dan 50 punten hebt. Het saldo komt uit /api/me en uit elke actie die een saldo teruggeeft.
@@ -332,8 +332,8 @@
   const NAV_LINKS = [
     { key: 'spin', name: 'Daily spin' },
     { key: 'fuik', name: 'Fuiken' },
-    { key: 'stats', name: 'Stats' },
-    { key: 'afwas', name: 'Afwassen', cls: 'wash-link locked' }
+    { key: 'afwas', name: 'Afwassen', cls: 'wash-link locked' },
+    { key: 'stats', name: 'Stats' }
   ];
 
   const r2 = n => Math.round(n * 100) / 100;
