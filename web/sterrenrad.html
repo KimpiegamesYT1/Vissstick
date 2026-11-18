@@ -1735,7 +1735,7 @@ const astro = (() => {
     return Math.max(0.001, 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3));
   };
   // Boezem: twee ronde koepels die in het midden in elkaar overlopen (decolleté)
-  const BUST = { x: 0.072, y: 0.5, rx: 0.094, ryT: 0.118, ryB: 0.09, A: 0.17 };
+  const BUST = { x: 0.07, y: 0.5, rx: 0.084, ryT: 0.105, ryB: 0.078, A: 0.1 };
   const bustBump = (x, y) => {
     let b = 0;
     for (const sd of [-1, 1]) {
@@ -2824,13 +2824,27 @@ function updateBonus(t, dt) {
       // Kop-over-kop flippen om de X-as: de achterkant moet dan ook om X gedraaid staan,
       // anders landt blauw ondersteboven.
       coin.back.rotation.set(Math.PI, 0, 0);
-      const turns = 9 * TAU + (b.side === 'blue' ? Math.PI : 0);
-      coin.disc.rotation.x = turns * easeOut(p);
+      // Fase 1 (lucht): snel kop-over-kop en landen op de RAND, dus nog niets te zien.
+      // Fase 2 (wiebelen): de munt balanceert, kiept eerst naar de verkeerde kant,
+      // dan terug, en valt pas op het allerlaatste moment om naar de winnende kant.
+      const AIR = 0.62, final = 9 * TAU + (b.side === 'blue' ? Math.PI : 0), edge = final - Math.PI / 2;
+      let ang, hop;
+      if (p < AIR) {
+        const u = p / AIR;
+        ang = edge * (1 - Math.pow(1 - u, 2));
+        hop = Math.sin(u * Math.PI) * 7;
+      } else {
+        const u = (p - AIR) / (1 - AIR);
+        const wob = -0.95 * Math.sin(u * 3 * Math.PI) * Math.pow(1 - u, 0.6);
+        ang = edge + wob + (Math.PI / 2) * Math.pow(u, 8);
+        hop = Math.abs(Math.sin(u * 4 * Math.PI)) * 0.35 * Math.pow(1 - u, 2);
+      }
+      coin.disc.rotation.x = ang;
       // Vanuit de draaistand soepel terug naar recht voor de camera (via de kortste weg)
       if (p < 1) { const y = ((coin.spin % TAU) + TAU) % TAU; coin.spin = y > Math.PI ? y - TAU : y; coin.spin *= Math.exp(-dt * 6); }
       else coin.spin = 0;
       coin.disc.rotation.y = coin.spin; coin.disc.rotation.z = 0;
-      coin.disc.position.y = coin.homeY + Math.sin(p * Math.PI) * 7 + (p >= 1 ? Math.abs(Math.sin(ts * 3)) * 0.05 : 0);
+      coin.disc.position.y = coin.homeY + hop + (p >= 1 ? Math.abs(Math.sin(ts * 3)) * 0.05 : 0);
     }
   }
 
