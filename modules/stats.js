@@ -137,6 +137,7 @@ function buildOverview() {
   };
   const spins = byUser(safeAll(db, 'SELECT user_id, COUNT(*) AS spins, SUM(amount) AS won, MAX(amount) AS best, MAX(created_at) AS last FROM daily_spin_log GROUP BY user_id'));
   const afwas = byUser(safeAll(db, 'SELECT * FROM afwas_stats'));
+  const fuik = byUser(safeAll(db, 'SELECT * FROM fuik_stats'));
   const quiz = byUser(safeAll(db, "SELECT user_id, correct_count, total_count FROM quiz_scores WHERE month_key = 'all-time'"));
   const bets = byUser(safeAll(db, `
     SELECT e.user_id, COUNT(*) AS played, SUM(e.amount) AS bet, SUM(e.payout) AS payout, SUM(CASE WHEN e.payout > e.amount THEN 1 ELSE 0 END) AS wins
@@ -147,7 +148,7 @@ function buildOverview() {
 
   // Alle bekende spelers: uit users plus iedereen die ergens stats heeft
   const names = new Map(users.map(u => [u.user_id, u.username]));
-  for (const map of [...Object.values(tables), spins, afwas, quiz, bets]) {
+  for (const map of [...Object.values(tables), spins, afwas, fuik, quiz, bets]) {
     for (const [id, row] of map) if (!names.has(id)) names.set(id, row.username || 'Onbekend');
   }
   const balances = byUser(users);
@@ -210,6 +211,11 @@ function buildOverview() {
     if (a && (a.plates_cleaned || a.plates_rejected)) {
       extras.afwas = { plates: a.plates_cleaned, rejected: a.plates_rejected, earned: a.points_earned };
       lastPlayed = Math.max(lastPlayed, toMs(a.last_played));
+    }
+    const f = fuik.get(id);
+    if (f && (f.hauls || f.escaped)) {
+      extras.fuik = { hauls: f.hauls, fish: f.fish_caught, escaped: f.escaped, earned: f.points_earned, best: f.best_points };
+      lastPlayed = Math.max(lastPlayed, toMs(f.last_played));
     }
     const q = quiz.get(id);
     if (q && q.total_count) extras.quiz = { correct: q.correct_count, total: q.total_count };

@@ -273,7 +273,7 @@
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
-<script src="/connection.js?v=9"></script>
+<script src="/connection.js?v=10"></script>
 </head>
 <body>
 <div class="app">
@@ -417,6 +417,7 @@
     flame: svg('<path d="M12 21.5c-4 0-6.5-2.7-6.5-6.3 0-3.2 2-5.2 3.4-7.2.6 1.6 1.6 2.6 2.6 3C11.3 7.8 12.7 4.6 15 2.5c.4 3.4 3.5 5.6 3.5 10.4 0 4.6-2.8 8.6-6.5 8.6z"/><path d="M12 21.5c-1.6 0-2.7-1.2-2.7-2.8 0-1.8 1.4-2.8 2.4-4.2 1.4 1.4 3 2.4 3 4.4 0 1.5-1.2 2.6-2.7 2.6z"/>'),
     dice: svg('<rect x="3" y="3" width="13" height="13" rx="3"/><path d="M19.5 8.5 21 10a2 2 0 0 1 0 2.8l-6.2 6.2a2 2 0 0 1-2.8 0l-1.5-1.5"/><circle cx="6.8" cy="6.8" r=".9" fill="currentColor"/><circle cx="12.2" cy="12.2" r=".9" fill="currentColor"/><circle cx="9.5" cy="9.5" r=".9" fill="currentColor"/>'),
     plate: svg('<circle cx="11" cy="13" r="8"/><circle cx="11" cy="13" r="4.5"/><circle cx="19" cy="4.5" r="2"/><circle cx="21" cy="9" r="1"/>'),
+    fish: svg('<path d="M2.5 12c3-4.5 8-6 12.5-3.6L21 5v14l-6-3.4C10.5 18 5.5 16.5 2.5 12z"/><circle cx="7.5" cy="11" r=".9" fill="currentColor"/>'),
     bulb: svg('<path d="M9 17.5h6M10 21h4"/><path d="M8.5 14.5C7 13.3 6 11.5 6 9.5a6 6 0 0 1 12 0c0 2-1 3.8-2.5 5l-.5 3H9z"/><path d="M12 6.5v3l1.5 1.5"/>'),
     wheel: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7M5.6 5.6l5 5M13.4 13.4l5 5M18.4 5.6l-5 5M10.6 13.4l-5 5"/>'),
     crown: svg('<path d="M3 8l4.5 4L12 4.5 16.5 12 21 8l-2 11H5z"/><path d="M5.5 15.5h13"/>')
@@ -611,6 +612,7 @@
     add('dice', '#ff5fa2', 'Fanatiekste speler', top(p => p.played), r => [fmt(r.v), 'rondes']);
     add('down', '#ef5b4c', 'Beste klant van het casino', top(p => -p.net), r => [signed(-r.v), 'netto']);
     add('plate', '#5ec8ff', 'Afwaskampioen', top(p => p.extras.afwas && p.extras.afwas.plates), r => [fmt(r.v), 'borden']);
+    add('fish', '#3fbf9f', 'Beste visser', top(p => p.extras.fuik && p.extras.fuik.fish), r => [fmt(r.v), 'vissen']);
     add('bulb', '#c49bff', 'Quizkoning', top(p => p.extras.quiz && p.extras.quiz.correct), r => [fmt(r.v), 'goed']);
     add('wheel', '#ffb347', 'Beste daily spin', top(p => p.extras.spin && p.extras.spin.best), r => [`+${fmt(r.v)}`, 'in één spin']);
     add('crown', '#f2c14e', 'Meeste maandtitels', top(p => p.medals.gold), r => [`${r.v}×`, 'maandwinnaar']);
@@ -765,6 +767,7 @@
     const extraCards = [];
     if (ex.spin) extraCards.push(['Daily spin', '#f2c14e', [['Spins', fmt(ex.spin.spins)], ['Gewonnen', `+${fmt(ex.spin.won)}`], ['Beste spin', `+${fmt(ex.spin.best)}`]]]);
     if (ex.afwas) extraCards.push(['Afwassen', '#5ec8ff', [['Borden schoon', fmt(ex.afwas.plates)], ['Afgekeurd', fmt(ex.afwas.rejected)], ['Verdiend', `+${fmt(ex.afwas.earned)}`]]]);
+    if (ex.fuik) extraCards.push(['Fuiken', '#3fbf9f', [['Opgehaald', fmt(ex.fuik.hauls)], ['Vissen', fmt(ex.fuik.fish)], ['Weggezwommen', fmt(ex.fuik.escaped)], ['Verdiend', `+${fmt(ex.fuik.earned)}`]]]);
     if (ex.quiz) extraCards.push(['Dagelijkse quiz', '#c49bff', [['Goed', `${fmt(ex.quiz.correct)} / ${fmt(ex.quiz.total)}`], ['Score', `${Math.round((ex.quiz.correct / ex.quiz.total) * 100)}%`]]]);
     if (p.medals.gold || p.medals.silver || p.medals.bronze) extraCards.push(['Maandtitels', '#f2c14e', [['Eerste plek', fmt(p.medals.gold)], ['Tweede plek', fmt(p.medals.silver)], ['Derde plek', fmt(p.medals.bronze)]]]);
     if (extraCards.length) {

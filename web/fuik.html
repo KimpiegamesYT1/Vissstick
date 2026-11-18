@@ -1,0 +1,1513 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vissstick Fuiken</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%233fbf9f'/%3E%3Cpath d='M7 21c4-6 11-8 17-5l8-5v19l-8-5c-6 3-13 1-17-4z' fill='%23f4f6f8'/%3E%3Ccircle cx='13' cy='19.5' r='1.6' fill='%231b3b34'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --panel: #16181b;
+    --side: #1b1d21;
+    --field: #111315;
+    --raise: #262a2f;
+    --line: rgba(255, 255, 255, 0.07);
+    --text: #eceae6;
+    --muted: #8d9299;
+    --gold: #f2c14e;
+    --green: #4cd47b;
+    --red: #ef5b4c;
+    --teal: #3fbf9f;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; min-height: 100vh; overflow-x: hidden; }
+  button { font: inherit; color: inherit; }
+  .app { max-width: 1280px; margin: 0 auto; padding: 14px 16px 24px; }
+  [hidden] { display: none !important; }
+
+  /* Kopregel (zelfde als de andere pagina's) */
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .brand svg { width: 36px; height: 36px; flex: none; }
+  .brand .word { display: flex; flex-direction: column; line-height: 1; }
+  .brand .word small { font-size: 10px; font-weight: 800; letter-spacing: 3px; color: var(--muted); }
+  .brand .word b { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin-top: 3px; }
+  .user { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 4px; }
+  .user img { width: 30px; height: 30px; border-radius: 50%; background: var(--raise); }
+  .user .name { font-weight: 700; font-size: 14px; line-height: 1.1; }
+  .user .balance { color: var(--gold); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; transition: color .2s, transform .2s; display: inline-block; }
+  .user .balance.up { color: var(--green); transform: scale(1.15); }
+  .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
+  .user button:hover { background: var(--raise); color: var(--text); }
+
+  /* Spelvlak */
+  .game {
+    display: grid; grid-template-columns: 300px minmax(0, 1fr);
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden; height: clamp(580px, calc(100vh - 90px), 820px);
+  }
+  .sidebar { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+  .block { padding: 16px; border-bottom: 1px solid var(--line); }
+  .block:last-child { border-bottom: 0; }
+  .block h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 800; display: flex; justify-content: space-between; }
+  .block h2 small { letter-spacing: 0; font-size: 12px; color: var(--muted); font-weight: 700; }
+  .main { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #0d1a22; }
+  .stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  .stage.hot { cursor: pointer; }
+
+  .login h3 { margin: 0 0 8px; font-size: 16px; }
+  .login p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  code { background: var(--raise); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+
+  /* Volgende vangst */
+  .next { display: flex; align-items: center; gap: 14px; }
+  .next .clock { position: relative; width: 62px; height: 62px; flex: none; }
+  .next .clock svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .next .clock circle { fill: none; stroke-width: 6; }
+  .next .clock .bg { stroke: var(--field); }
+  .next .clock .fg { stroke: var(--teal); stroke-linecap: round; transition: stroke .3s; }
+  .next .clock.ready .fg { stroke: var(--gold); }
+  .next .clock.warn .fg { stroke: var(--red); }
+  .next .clock b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .next .txt { min-width: 0; }
+  .next .txt b { display: block; font-size: 16px; }
+  .next .txt span { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; line-height: 1.4; }
+  .haulBtn {
+    width: 100%; margin-top: 14px; border: 0; border-radius: 11px; padding: 13px; font-size: 15px; font-weight: 800; cursor: pointer;
+    background: linear-gradient(180deg, #ffd66e, var(--gold)); color: #2b1d00; box-shadow: 0 6px 18px rgba(242,193,78,.25), inset 0 -3px 0 rgba(0,0,0,.15);
+    transition: transform .06s, filter .15s, opacity .2s;
+  }
+  .haulBtn:hover:not(:disabled) { filter: brightness(1.06); }
+  .haulBtn:active:not(:disabled) { transform: scale(.98); }
+  .haulBtn:disabled { background: var(--raise); color: var(--muted); box-shadow: none; cursor: default; }
+  .haulBtn.teal:not(:disabled) { background: linear-gradient(180deg, #62e0c0, var(--teal)); color: #052a20; box-shadow: 0 6px 18px rgba(63,191,159,.25), inset 0 -3px 0 rgba(0,0,0,.15); }
+
+  /* Statistieken */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
+  .stat small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
+  .stat b { display: block; font-size: 17px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .stat b.win { color: var(--green); }
+  .stat b.pop { animation: pop .35s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes pop { 50% { transform: scale(1.25); } }
+  .alltime { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .alltime b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+  /* Vangstboek */
+  .book { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .species { position: relative; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px 7px; overflow: hidden; }
+  .species canvas { display: block; width: 100%; height: 42px; }
+  .species .nm { font-size: 12px; font-weight: 800; display: flex; justify-content: space-between; gap: 6px; }
+  .species .nm i { font-style: normal; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .species .ct { font-size: 11px; color: var(--muted); margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .species.unknown .nm { color: var(--muted); }
+  .species.gold { border-color: rgba(242,193,78,.35); background: linear-gradient(160deg, rgba(242,193,78,.12), var(--field) 60%); }
+  .species.fresh { animation: fresh 1.2s ease; }
+  @keyframes fresh { 0% { box-shadow: 0 0 0 0 rgba(63,191,159,.8); } 100% { box-shadow: 0 0 0 12px rgba(63,191,159,0); } }
+  .rules { margin: 0; padding: 0 0 0 16px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .rules b { color: var(--text); }
+
+  /* Vangstkaart */
+  .catch-wrap { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; pointer-events: none; padding: 16px; }
+  .catch {
+    position: relative; width: min(330px, 100%); text-align: center; padding: 18px 20px 18px; border-radius: 20px;
+    background: rgba(18, 24, 28, .9); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(8px);
+    box-shadow: 0 24px 60px rgba(0,0,0,.55); animation: catchIn .5s cubic-bezier(.2,1.5,.4,1);
+  }
+  .catch.out { animation: catchOut .3s ease forwards; }
+  @keyframes catchIn { from { transform: translateY(26px) scale(.8); opacity: 0; } }
+  @keyframes catchOut { to { transform: translateY(-16px) scale(.95); opacity: 0; } }
+  .catch canvas { width: 240px; height: 110px; display: block; margin: -6px auto 2px; }
+  .catch .rar { font-size: 11px; font-weight: 800; letter-spacing: 2px; color: var(--muted); }
+  .catch h3 { margin: 3px 0 2px; font-size: 22px; }
+  .catch .pts { font-size: 30px; font-weight: 900; color: var(--green); font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(76,212,123,.35); }
+  .catch .pts.zero { color: var(--muted); text-shadow: none; font-size: 18px; }
+  .catch .new { display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 900; letter-spacing: 1.5px; padding: 4px 10px; border-radius: 999px; background: var(--teal); color: #052a20; }
+  .catch.gold { border-color: rgba(242,193,78,.55); box-shadow: 0 0 0 1px rgba(242,193,78,.25), 0 0 60px rgba(242,193,78,.35), 0 24px 60px rgba(0,0,0,.55); }
+  .catch.gold h3 { color: var(--gold); }
+  .catch.gold .pts { color: var(--gold); text-shadow: 0 0 22px rgba(242,193,78,.6); }
+  .catch.rare h3 { color: #9fe6d3; }
+
+  /* Kaart over het spelvlak (welkom, niet ingelogd) */
+  .card-wrap { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px;
+    background: radial-gradient(ellipse at 50% 45%, rgba(6,14,18,.35), rgba(6,14,18,.75)); animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from { opacity: 0; } }
+  .card { width: min(420px, 100%); background: rgba(27,29,33,.94); border: 1px solid rgba(255,255,255,.09); border-radius: 18px;
+    padding: 26px 24px 22px; text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,.55); animation: cardIn .45s cubic-bezier(.2,1.4,.4,1); backdrop-filter: blur(6px); }
+  @keyframes cardIn { from { transform: translateY(18px) scale(.94); opacity: 0; } }
+  .card .emoji { font-size: 46px; line-height: 1; margin-bottom: 10px; display: inline-block; animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-6px) rotate(-6deg); } }
+  .card h3 { margin: 0 0 8px; font-size: 22px; }
+  .card p { margin: 0 0 6px; color: #a9adb3; font-size: 14px; line-height: 1.55; }
+  .card p b { color: var(--text); }
+  .card .big { width: 100%; margin-top: 14px; border: 0; border-radius: 11px; padding: 14px; font-size: 16px; font-weight: 800; cursor: pointer;
+    background: linear-gradient(180deg, #62e0c0, var(--teal)); color: #052a20; transition: transform .06s, filter .15s; }
+  .card .big:hover { filter: brightness(1.07); }
+  .card .big:active { transform: scale(.98); }
+
+  /* Geluid */
+  .snd {
+    position: absolute; top: 12px; right: 12px; z-index: 4;
+    width: 36px; height: 36px; display: grid; place-items: center; background: rgba(10,20,26,.6); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 999px; padding: 0; color: #bff3e4; cursor: pointer; backdrop-filter: blur(4px);
+  }
+  .snd svg { width: 18px; height: 18px; }
+  .snd.off { color: var(--muted); }
+
+  .toast {
+    position: fixed; left: 50%; top: 18px; transform: translateX(-50%) translateY(-12px); opacity: 0; z-index: 40;
+    display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px;
+    font-size: 15px; font-weight: 700; transition: all .2s ease; pointer-events: none; max-width: calc(100% - 32px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  .toast::before { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok { background: #16301f; border: 1px solid var(--green); color: #cdeed8; }
+  .toast.ok::before { content: '✓'; background: var(--green); color: #062612; }
+  .toast.err { background: #3a1a17; border: 1px solid var(--red); color: #fbd8d3; }
+  .toast.err::before { content: '✕'; background: var(--red); color: #fff; }
+
+  @media (max-width: 860px) {
+    .game { grid-template-columns: minmax(0, 1fr); height: auto; }
+    .main { order: -1; height: min(72vh, 560px); min-height: 420px; border-bottom: 1px solid var(--line); }
+    .sidebar { border-right: 0; overflow: visible; }
+  }
+  @media (max-width: 520px) {
+    .app { padding: 10px; }
+    header { flex-wrap: wrap; }
+    .brand .word { display: none; }
+    .user { margin-left: auto; }
+    .nav { order: 3; width: 100%; margin: 0; }
+    .catch canvas { width: 200px; height: 92px; }
+  }
+</style>
+<script src="/connection.js?v=10"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <a class="brand" href="/fuik" aria-label="Vissstick Fuiken">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="#3fbf9f"/>
+        <path d="M7 21c4-6 11-8 17-5l8-5v19l-8-5c-6 3-13 1-17-4z" fill="#f4f6f8"/>
+        <circle cx="13" cy="19.5" r="1.6" fill="#1b3b34"/>
+      </svg>
+      <span class="word"><small>VISSSTICK</small><b>Fuiken</b></span>
+    </a>
+    <nav class="nav" aria-label="Spellen"></nav>
+    <div class="user" id="user" hidden></div>
+  </header>
+
+  <div class="game">
+    <aside class="sidebar">
+      <div class="block login" id="login" hidden>
+        <h3>Niet ingelogd</h3>
+        <p>Wil je vissen? Typ <code>/fuik</code> in Discord en klik op de link. Dit hoef je maar één keer te doen.</p>
+      </div>
+
+      <div class="block" id="nextBox" hidden>
+        <h2>JOUW FUIKEN</h2>
+        <div class="next">
+          <div class="clock" id="clock">
+            <svg viewBox="0 0 62 62"><circle class="bg" cx="31" cy="31" r="27"/><circle class="fg" id="clockFg" cx="31" cy="31" r="27" stroke-dasharray="169.6" stroke-dashoffset="169.6"/></svg>
+            <b id="clockTxt">–</b>
+          </div>
+          <div class="txt"><b id="nextTitle">…</b><span id="nextSub"></span></div>
+        </div>
+        <button class="haulBtn" id="haulAll" type="button" disabled>Alles ophalen</button>
+      </div>
+
+      <div class="block" id="statsBox" hidden>
+        <h2>VANDAAG <small id="todayNote"></small></h2>
+        <div class="grid">
+          <div class="stat"><small>Opgehaald</small><b id="sHauls">0</b></div>
+          <div class="stat"><small>Verdiend</small><b id="sEarned" class="win">+0</b></div>
+          <div class="stat"><small>Vissen</small><b id="sFish">0</b></div>
+          <div class="stat"><small>Weggezwommen</small><b id="sEscaped">0</b></div>
+        </div>
+        <div class="alltime" id="allTime"></div>
+      </div>
+
+      <div class="block" id="bookBox" hidden>
+        <h2>VANGSTBOEK <small id="bookCount"></small></h2>
+        <div class="book" id="book"></div>
+      </div>
+
+      <div class="block">
+        <h2>HOE WERKT HET</h2>
+        <ul class="rules" id="rules"></ul>
+      </div>
+    </aside>
+
+    <section class="main" id="main">
+      <canvas class="stage" id="stage"></canvas>
+      <button class="snd" id="mute" type="button"></button>
+      <div class="catch-wrap" id="catchWrap"></div>
+      <div class="card-wrap" id="overlay" hidden><div class="card" id="card"></div></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('nl-NL');
+  const TAU = Math.PI * 2;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ease = t => 1 - (1 - t) ** 3;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const WARN_MS = 5 * 60 * 1000;   // zo lang voor het wegzwemmen kleurt de fuik rood
+
+  // =====================================================
+  // STATE
+  // =====================================================
+  let me = null;               // antwoord van /api/fuik/status
+  let cfg = { slots: 3, readyMs: 15 * 60000, escapeMs: 45 * 60000, catches: [] };
+  let offset = 0;              // servertijd - eigen klok
+  let busy = false;
+  const now = () => Date.now() + offset;
+  const fmtTime = ms => {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(s / 60);
+    return m >= 60 ? `${Math.floor(m / 60)}u ${String(m % 60).padStart(2, '0')}m` : `${m}:${String(s % 60).padStart(2, '0')}`;
+  };
+  const catchByKey = key => cfg.catches.find(c => c.key === key);
+
+  // Vandaag (alleen in deze browser, per dag)
+  const TODAY_KEY = 'fuik-today';
+  const dayStamp = () => new Date().toDateString();
+  let today = { day: dayStamp(), hauls: 0, fish: 0, escaped: 0, earned: 0 };
+  try {
+    const saved = JSON.parse(localStorage.getItem(TODAY_KEY) || 'null');
+    if (saved && saved.day === today.day) today = saved;
+  } catch (error) { /* geen opslag */ }
+  function saveToday() { try { localStorage.setItem(TODAY_KEY, JSON.stringify(today)); } catch (error) { /* geen opslag */ } }
+
+  // =====================================================
+  // GELUID (alles met WebAudio, geen bestanden)
+  // =====================================================
+  let muted = false;
+  try { muted = localStorage.getItem('fuik-muted') === '1'; } catch (error) { /* */ }
+  let actx = null;
+  function audio() {
+    if (muted) return null;
+    if (!actx) {
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (error) { return null; }
+    }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function tone(freq, to, dur, type = 'sine', vol = 0.18, delay = 0) {
+    const a = audio(); if (!a) return;
+    const t = a.currentTime + delay;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function splash(vol = 0.25, dur = 0.45, delay = 0) {
+    const a = audio(); if (!a) return;
+    const t = a.currentTime + delay;
+    const buf = a.createBuffer(1, Math.floor(a.sampleRate * dur), a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2.2;
+    const src = a.createBufferSource(); src.buffer = buf;
+    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(1400, t); f.frequency.exponentialRampToValueAtTime(380, t + dur); f.Q.value = 0.8;
+    const g = a.createGain(); g.gain.value = vol;
+    src.connect(f).connect(g).connect(a.destination); src.start(t);
+  }
+  const sfx = {
+    set() { tone(520, 140, 0.18, 'sine', 0.2); splash(0.22, 0.35, 0.05); },
+    haul() { splash(0.3, 0.6); tone(180, 90, 0.3, 'triangle', 0.08); },
+    coin(points) {
+      const n = points >= 25 ? 4 : points >= 10 ? 3 : points > 0 ? 2 : 0;
+      for (let i = 0; i < n; i++) tone(880 * (1 + i * 0.25), 1320 * (1 + i * 0.25), 0.12, 'square', 0.05, 0.08 * i);
+    },
+    boot() { tone(160, 70, 0.35, 'sawtooth', 0.07); },
+    gold() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, f * 1.01, 0.4, 'triangle', 0.12, 0.09 * i)); },
+    escape() { tone(420, 180, 0.4, 'sine', 0.12); splash(0.18, 0.4, 0.25); },
+    nope() { tone(220, 200, 0.12, 'square', 0.04); }
+  };
+  function renderMute() {
+    const b = $('mute');
+    b.classList.toggle('off', muted);
+    b.title = muted ? 'Geluid aan' : 'Geluid uit';
+    b.innerHTML = muted
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+  }
+  $('mute').addEventListener('click', () => {
+    muted = !muted;
+    try { localStorage.setItem('fuik-muted', muted ? '1' : '0'); } catch (error) { /* */ }
+    renderMute();
+  });
+  renderMute();
+
+  // =====================================================
+  // SERVER
+  // =====================================================
+  async function loadStatus() {
+    try {
+      const res = await fetch('/api/fuik/status', { credentials: 'same-origin' });
+      applyStatus(await res.json());
+    } catch (error) {
+      toast('Geen verbinding met de server.', false);
+      return;
+    }
+    renderAll();
+    if (me.linked && me.traps.every(t => !t)) showWelcome();
+    else if (!me.linked) showLogin();
+    else hideCard();
+  }
+
+  function applyStatus(data) {
+    if (!data) return;
+    me = Object.assign(me || {}, data);
+    if (data.config) cfg = data.config;
+    if (Number.isFinite(data.serverNow)) offset = data.serverNow - Date.now();
+  }
+
+  async function post(path, body = {}) {
+    try {
+      const res = await fetch(path, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      return await res.json();
+    } catch (error) {
+      return { ok: false, message: 'Geen verbinding met de server.' };
+    }
+  }
+
+  addEventListener('focus', () => { if (!busy) loadStatus(); });
+  setInterval(() => { if (!busy && document.visibilityState === 'visible') loadStatus(); }, 60000);
+
+  // =====================================================
+  // UI (zijbalk)
+  // =====================================================
+  let toastTimer = null;
+  function toast(message, ok) {
+    if (!message) return;
+    const box = $('toast');
+    box.textContent = message;
+    box.className = `toast show ${ok ? 'ok' : 'err'}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { box.className = 'toast'; }, ok ? 2800 : 4500);
+  }
+
+  function el(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    Object.entries(props).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === false) return;
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = value;
+      else if (key === 'html') node.innerHTML = value;
+      else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? '' : value);
+    });
+    children.forEach(child => node.append(child));
+    return node;
+  }
+
+  function renderUser() {
+    const box = $('user');
+    box.replaceChildren();
+    if (!me || !me.linked) { box.hidden = true; return; }
+    box.hidden = false;
+    const img = el('img', { alt: '' });
+    if (me.user.avatar) img.src = me.user.avatar;
+    box.append(img,
+      el('div', {}, [el('div', { class: 'name', text: me.user.username }), el('div', {}, [el('span', { class: 'balance', id: 'balance' })])]),
+      el('button', { text: 'Uitloggen', onclick: async () => { await post('/api/logout'); me = null; loadStatus(); } }));
+    renderBalance();
+  }
+
+  let balanceTimer = null;
+  function renderBalance(up) {
+    const node = $('balance');
+    if (!node || !me) return;
+    node.textContent = `${fmt(me.balance)} punten`;
+    if (up) {
+      node.classList.add('up');
+      clearTimeout(balanceTimer);
+      balanceTimer = setTimeout(() => node.classList.remove('up'), 500);
+    }
+  }
+
+  function bump(id, text) {
+    const n = $(id);
+    if (n.textContent === text) return;
+    n.textContent = text;
+    n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop');
+  }
+
+  function renderStats() {
+    if (today.day !== dayStamp()) { today = { day: dayStamp(), hauls: 0, fish: 0, escaped: 0, earned: 0 }; saveToday(); }
+    bump('sHauls', fmt(today.hauls));
+    bump('sEarned', `+${fmt(today.earned)}`);
+    bump('sFish', fmt(today.fish));
+    bump('sEscaped', fmt(today.escaped));
+    const s = me && me.stats;
+    const all = $('allTime');
+    all.replaceChildren();
+    if (s && (s.hauls > 0 || s.escaped > 0)) {
+      const best = s.best_key && catchByKey(s.best_key);
+      all.append('Totaal ', el('b', { text: fmt(s.hauls) }), ' keer opgehaald · ', el('b', { text: `+${fmt(s.points_earned)}` }), ' punten',
+        best && best.points > 0 ? ' · beste vangst: ' : '', best && best.points > 0 ? el('b', { text: `${best.name} (+${best.points})` }) : '');
+    }
+  }
+
+  const BOOK_CANVAS = new Map();
+  function renderBook(freshKey) {
+    const book = (me && me.book) || {};
+    const box = $('book');
+    if (!box.children.length) {
+      cfg.catches.forEach(c => {
+        const canvas = el('canvas');
+        BOOK_CANVAS.set(c.key, canvas);
+        box.append(el('div', { class: 'species', 'data-key': c.key }, [canvas, el('div', { class: 'nm' }), el('div', { class: 'ct' })]));
+      });
+    }
+    let known = 0;
+    [...box.children].forEach(card => {
+      const c = catchByKey(card.dataset.key);
+      const count = book[c.key] || 0;
+      if (count) known++;
+      card.className = `species${count ? '' : ' unknown'}${c.key === 'goudkarper' && count ? ' gold' : ''}`;
+      const nm = card.querySelector('.nm');
+      nm.replaceChildren(count ? c.name : '???', el('i', { text: c.points ? `+${c.points}` : '0' }));
+      const pct = c.chance * 100;
+      card.querySelector('.ct').textContent = count ? `${fmt(count)}× gevangen` : `${pct < 1 ? pct.toFixed(1).replace('.', ',') : Math.round(pct)}% kans`;
+      const canvas = card.querySelector('canvas');
+      paintThumb(canvas, c.key, !count);
+      if (c.key === freshKey) { card.classList.add('fresh'); }
+    });
+    $('bookCount').textContent = `${known} / ${cfg.catches.length}`;
+  }
+
+  function paintThumb(canvas, key, silhouette) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth || 110, h = canvas.clientHeight || 42;
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    const c = canvas.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, w, h);
+    c.save();
+    c.translate(w / 2, h / 2 + 1);
+    drawFish(c, key, Math.min(w * 0.86, h * 2.6), 0.6, { silhouette });
+    c.restore();
+  }
+
+  function renderRules() {
+    const mins = Math.round(cfg.readyMs / 60000), gone = Math.round(cfg.escapeMs / 60000);
+    $('rules').innerHTML = `
+      <li>Tik op een fuik om hem <b>uit te zetten</b>.</li>
+      <li>Na <b>${mins} minuten</b> zit er iets in: tik nog een keer om op te halen. De fuik gaat meteen weer het water in.</li>
+      <li>Te lang weg? Na <b>${gone} minuten</b> is de vangst <b>weggezwommen</b>.</li>
+      <li>Je hebt <b>${cfg.slots} fuiken</b>. Kom elk kwartier langs voor de meeste punten.</li>`;
+  }
+
+  function trapState(trap, t) {
+    if (!trap) return 'empty';
+    if (t < trap.readyAt) return 'wait';
+    if (t < trap.escapeAt) return trap.escapeAt - t < WARN_MS ? 'warn' : 'ready';
+    return 'gone';
+  }
+
+  // Elke seconde: klok in de zijbalk, de knop en de titel van het tabblad
+  let lastSummary = '';
+  function renderNext() {
+    if (!me || !me.linked) { document.title = 'Vissstick Fuiken'; return; }
+    const t = now();
+    const states = me.traps.map(tr => trapState(tr, t));
+    const ready = states.filter(s => s === 'ready' || s === 'warn').length;
+    const empty = states.filter(s => s === 'empty' || s === 'gone').length;
+    const waiting = me.traps.filter((tr, i) => states[i] === 'wait');
+    const clock = $('clock'), fg = $('clockFg');
+    const C = 169.6;
+    let title, sub, txt, frac, mode = '';
+
+    if (ready) {
+      const soonest = Math.min(...me.traps.filter((tr, i) => states[i] === 'ready' || states[i] === 'warn').map(tr => tr.escapeAt));
+      const left = soonest - t;
+      title = ready === 1 ? 'Er zit iets in een fuik!' : `${ready} fuiken zitten vol!`;
+      sub = `Ophalen binnen ${fmtTime(left)}, anders zwemt het weg.`;
+      txt = fmtTime(left);
+      frac = clamp(left / (cfg.escapeMs - cfg.readyMs), 0, 1);
+      mode = left < WARN_MS ? 'warn' : 'ready';
+    } else if (waiting.length) {
+      const soonest = Math.min(...waiting.map(tr => tr.readyAt));
+      const left = soonest - t;
+      title = 'Even geduld…';
+      sub = `Over ${fmtTime(left)} zit er iets in je volgende fuik.`;
+      txt = fmtTime(left);
+      frac = clamp(1 - left / cfg.readyMs, 0, 1);
+    } else {
+      title = 'Je fuiken liggen op de kant';
+      sub = 'Zet ze uit om te beginnen.';
+      txt = '–';
+      frac = 0;
+    }
+    if (empty && !ready && waiting.length) sub += ` ${empty === 1 ? 'Eén fuik ligt' : `${empty} fuiken liggen`} nog op de kant.`;
+
+    clock.className = `clock ${mode}`;
+    fg.setAttribute('stroke-dashoffset', String(C * (1 - frac)));
+    $('clockTxt').textContent = txt;
+    $('nextTitle').textContent = title;
+    $('nextSub').textContent = sub;
+
+    const btn = $('haulAll');
+    btn.disabled = busy || (!ready && !empty);
+    btn.classList.toggle('teal', !ready && empty > 0);
+    btn.textContent = ready ? (empty ? `Ophalen (${ready}) en uitzetten (${empty})` : `Alles ophalen (${ready})`)
+      : empty ? (empty === cfg.slots ? 'Alle fuiken uitzetten' : `Uitzetten (${empty})`) : 'Niets op te halen';
+
+    const summary = ready ? `(${ready}) 🐟 Fuiken vol!` : waiting.length ? `${fmtTime(Math.min(...waiting.map(tr => tr.readyAt)) - t)} · Fuiken` : 'Fuiken';
+    if (summary !== lastSummary) { document.title = summary; lastSummary = summary; }
+  }
+  setInterval(renderNext, 1000);
+
+  function renderAll() {
+    const linked = me && me.linked;
+    $('login').hidden = !me || linked;
+    $('nextBox').hidden = !linked;
+    $('statsBox').hidden = !linked;
+    $('bookBox').hidden = !linked;
+    renderUser();
+    renderRules();
+    if (linked) { renderStats(); renderBook(); renderNext(); }
+  }
+
+  // =====================================================
+  // KAARTEN (welkom, niet ingelogd)
+  // =====================================================
+  function showCard(children) {
+    $('card').replaceChildren(...children);
+    $('overlay').hidden = false;
+  }
+  function hideCard() { $('overlay').hidden = true; }
+  function showLogin() {
+    showCard([el('div', { class: 'emoji', text: '🎣' }), el('h3', { text: 'De vijver' }),
+      el('p', { html: 'Zet fuiken uit en haal elk kwartier je vangst op voor punten.' }),
+      el('p', { html: 'Typ <b>/fuik</b> in Discord en klik op de link om in te loggen.' })]);
+  }
+  function showWelcome() {
+    showCard([el('div', { class: 'emoji', text: '🎣' }), el('h3', { text: 'Welkom bij de vijver' }),
+      el('p', { html: `Je hebt <b>${cfg.slots} fuiken</b>. Zet ze uit, kom over <b>${Math.round(cfg.readyMs / 60000)} minuten</b> terug en haal je vangst op.` }),
+      el('p', { html: `Wacht niet te lang: na <b>${Math.round(cfg.escapeMs / 60000)} minuten</b> zwemt alles weer weg.` }),
+      el('button', { class: 'big', type: 'button', text: 'Fuiken uitzetten', onclick: () => { hideCard(); doAll(); } })]);
+  }
+
+  // =====================================================
+  // ACTIES
+  // =====================================================
+  async function doTap(slot) {
+    if (busy || !me || !me.linked) return;
+    const state = trapState(me.traps[slot], now());
+    if (state === 'wait') {
+      sfx.nope();
+      wiggle(slot);
+      toast(`Nog ${fmtTime(me.traps[slot].readyAt - now())} geduld voor deze fuik.`, false);
+      return;
+    }
+    busy = true; renderNext();
+    audio();
+    const res = await post('/api/fuik/tap', { slot });
+    busy = false;
+    handleResult(res);
+  }
+
+  async function doAll() {
+    if (busy || !me || !me.linked) return;
+    busy = true; renderNext();
+    audio();
+    const res = await post('/api/fuik/all');
+    busy = false;
+    handleResult(res);
+  }
+  $('haulAll').addEventListener('click', doAll);
+
+  function handleResult(res) {
+    const before = Object.assign({}, (me && me.book) || {});
+    if (res.traps) applyStatus(res);
+    if (Number.isFinite(res.balance)) { const up = res.balance > me.balance; me.balance = res.balance; renderBalance(up); }
+    if (!res.ok) {
+      toast(res.message || 'Er ging iets mis.', false);
+      renderAll();
+      return;
+    }
+    hideCard();
+    let delay = 0;
+    const cards = [];
+    for (const r of res.results) {
+      if (r.kind === 'set') {
+        setTimeout(() => { animSet(r.slot); sfx.set(); }, delay);
+        delay += 180;
+      } else if (r.kind === 'escaped') {
+        today.escaped++;
+        setTimeout(() => { animEscape(r.slot); sfx.escape(); }, delay);
+        delay += 500;
+      } else if (r.kind === 'haul') {
+        today.hauls++;
+        if (r.catch.key !== 'laars') today.fish++;
+        today.earned += r.catch.points;
+        const isNew = !before[r.catch.key];
+        before[r.catch.key] = (before[r.catch.key] || 0) + 1;
+        cards.push({ ...r.catch, isNew, slot: r.slot, at: delay });
+        delay += 900;
+      }
+    }
+    saveToday();
+    cards.forEach(card => setTimeout(() => { animHaul(card); }, card.at));
+    renderStats();
+    renderNext();
+    // Vangstboek pas bijwerken als de kaarten voorbij zijn
+    setTimeout(() => renderBook(cards.length ? cards[cards.length - 1].key : null), delay + 900);
+    if (res.results.some(r => r.kind === 'escaped') && !cards.length) toast('Te laat: de vangst is weggezwommen. Fuik weer uitgezet.', false);
+  }
+
+  // Vangstkaarten één voor één
+  const cardQueue = [];
+  let cardShowing = false;
+  function queueCard(c) { cardQueue.push(c); if (!cardShowing) nextCard(); }
+  function nextCard() {
+    const c = cardQueue.shift();
+    const wrap = $('catchWrap');
+    if (!c) { cardShowing = false; return; }
+    cardShowing = true;
+    const info = catchByKey(c.key) || { chance: 1 };
+    const rarity = info.chance < 0.01 ? 'LEGENDARISCH' : info.chance < 0.05 ? 'ZELDZAAM' : info.chance < 0.12 ? 'BIJZONDER' : c.key === 'laars' ? 'TROEP' : 'GEWOON';
+    const canvas = el('canvas');
+    const card = el('div', { class: `catch${c.key === 'goudkarper' ? ' gold' : info.chance < 0.05 ? ' rare' : ''}` }, [
+      canvas,
+      el('div', { class: 'rar', text: rarity }),
+      el('h3', { text: c.name }),
+      el('div', { class: `pts${c.points ? '' : ' zero'}`, text: c.points ? `+${c.points}` : 'Geen punten…' }),
+      c.isNew ? el('div', { class: 'new', text: 'NIEUW IN JE VANGSTBOEK' }) : ''
+    ]);
+    wrap.replaceChildren(card);
+    // Vis op de kaart beweegt mee
+    const start = performance.now();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const draw = ts => {
+      if (!card.isConnected) return;
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+      const g = canvas.getContext('2d');
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, w, h);
+      const e = (ts - start) / 1000;
+      if (c.key === 'goudkarper') {
+        g.save(); g.translate(w / 2, h / 2); g.rotate(e * 0.5);
+        for (let i = 0; i < 12; i++) {
+          g.rotate(TAU / 12);
+          g.fillStyle = 'rgba(255, 214, 110, .16)';
+          g.beginPath(); g.moveTo(0, 0); g.lineTo(w, -14); g.lineTo(w, 14); g.closePath(); g.fill();
+        }
+        g.restore();
+      }
+      g.save();
+      g.translate(w / 2, h / 2 + Math.sin(e * 3) * 3);
+      g.rotate(Math.sin(e * 2.2) * 0.08);
+      drawFish(g, c.key, Math.min(w * 0.85, h * 2.2), e * 1.6, { shine: true });
+      g.restore();
+      requestAnimationFrame(draw);
+    };
+    requestAnimationFrame(draw);
+    const hold = c.key === 'goudkarper' ? 3200 : 1700;
+    setTimeout(() => {
+      card.classList.add('out');
+      setTimeout(() => { card.remove(); nextCard(); }, 280);
+    }, cardQueue.length ? Math.min(hold, 1200) : hold);
+  }
+
+  // =====================================================
+  // VISSEN TEKENEN (vooraan naar rechts, lengte len)
+  // =====================================================
+  const FISH = {
+    voorn: { h: 0.36, top: '#5d6f7c', mid: '#c4d0d8', belly: '#eef2f4', fin: '#d4583e', eye: '#c43c2a' },
+    baars: { h: 0.4, top: '#3f5a22', mid: '#9fb44a', belly: '#e6e1a8', fin: '#e2702e', stripes: 6, spiky: true },
+    brasem: { h: 0.52, top: '#5e4a2a', mid: '#b99a5e', belly: '#e9d8ae', fin: '#6f5a3a' },
+    snoekbaars: { h: 0.27, top: '#3e5257', mid: '#8fa5aa', belly: '#e1e7e5', fin: '#7d8f8f', stripes: 8, faint: true, spiky: true },
+    snoek: { h: 0.22, top: '#2f4b22', mid: '#6f8f4e', belly: '#dfe6c4', fin: '#7a6a3a', spots: true, long: true },
+    goudkarper: { h: 0.42, top: '#c27a12', mid: '#f2c14e', belly: '#fff0b8', fin: '#e89a2a', barbels: true, scales: true },
+    paling: { eel: true, top: '#2c3519', mid: '#5d6b3a', belly: '#c9c08a' },
+    laars: { boot: true }
+  };
+
+  function drawFish(c, key, len, t, opt = {}) {
+    const f = FISH[key] || FISH.voorn;
+    const sil = opt.silhouette;
+    if (f.boot) return drawBoot(c, len, t, sil);
+    if (f.eel) return drawEel(c, f, len, t, sil);
+    const L = len / 2, H = len * f.h / 2;
+    const wag = Math.sin(t * 6) * H * 0.35;
+    c.save();
+    if (sil) { c.fillStyle = 'rgba(255,255,255,.08)'; c.strokeStyle = 'rgba(255,255,255,.08)'; }
+
+    // Staart
+    c.beginPath();
+    c.moveTo(-L * 0.55, 0);
+    c.quadraticCurveTo(-L * 0.8, -H * 0.2 + wag * 0.4, -L, -H * 0.95 + wag);
+    c.quadraticCurveTo(-L * 0.82, wag * 0.5, -L, H * 0.95 + wag);
+    c.quadraticCurveTo(-L * 0.8, H * 0.2 + wag * 0.4, -L * 0.55, 0);
+    if (!sil) c.fillStyle = f.fin;
+    c.fill();
+
+    // Rugvin
+    c.beginPath();
+    if (f.spiky) {
+      c.moveTo(-L * 0.05, -H * 0.92);
+      for (let i = 0; i <= 6; i++) c.lineTo(L * 0.3 - i * L * 0.07, -H * (i % 2 ? 1.25 : 1.5) + (i ? 0 : H * 0.6));
+      c.lineTo(-L * 0.2, -H * 0.85);
+    } else {
+      c.moveTo(L * 0.2, -H * 0.95);
+      c.quadraticCurveTo(-L * 0.02, -H * 1.55, -L * 0.25, -H * 0.8);
+    }
+    c.closePath();
+    if (!sil) c.fillStyle = f.fin;
+    c.fill();
+    // Buikvin
+    c.beginPath();
+    c.moveTo(L * 0.1, H * 0.85); c.quadraticCurveTo(-L * 0.05, H * 1.35, -L * 0.15, H * 0.8); c.closePath();
+    c.fill();
+
+    // Lijf
+    c.beginPath();
+    c.moveTo(L, H * 0.05);
+    c.bezierCurveTo(L * 0.75, -H * 1.12, -L * 0.25, -H * 1.05, -L * 0.6, -H * 0.22);
+    c.lineTo(-L * 0.6, H * 0.22);
+    c.bezierCurveTo(-L * 0.25, H * 1.05, L * 0.75, H * 1.12, L, H * 0.05);
+    c.closePath();
+    if (!sil) {
+      const g = c.createLinearGradient(0, -H, 0, H);
+      g.addColorStop(0, f.top); g.addColorStop(0.45, f.mid); g.addColorStop(1, f.belly);
+      c.fillStyle = g;
+    }
+    c.fill();
+
+    if (!sil) {
+      c.save();
+      c.clip();
+      if (f.stripes) {
+        c.fillStyle = f.faint ? 'rgba(30,40,40,.22)' : 'rgba(25,40,10,.45)';
+        for (let i = 0; i < f.stripes; i++) {
+          const x = L * 0.45 - i * (L * 1.0 / f.stripes);
+          c.beginPath(); c.moveTo(x, -H * 1.1); c.lineTo(x - L * 0.08, -H * 1.1); c.lineTo(x - L * 0.12, H * 0.25); c.lineTo(x - L * 0.02, H * 0.25); c.fill();
+        }
+      }
+      if (f.spots) {
+        c.fillStyle = 'rgba(235,240,190,.55)';
+        for (let i = 0; i < 16; i++) {
+          const x = L * 0.55 - ((i * 37) % 100) / 100 * L * 1.1, y = (((i * 53) % 100) / 100 - 0.55) * H * 1.3;
+          c.beginPath(); c.ellipse(x, y, L * 0.035, H * 0.12, 0, 0, TAU); c.fill();
+        }
+      }
+      if (f.scales) {
+        c.strokeStyle = 'rgba(160,90,10,.35)'; c.lineWidth = Math.max(0.6, len / 160);
+        const s = H * 0.38;
+        for (let y = -H; y < H; y += s * 0.8) for (let x = L * 0.5; x > -L * 0.6; x -= s) {
+          c.beginPath(); c.arc(x + ((y / s) % 2 ? s / 2 : 0), y, s * 0.5, -Math.PI / 2, Math.PI / 2); c.stroke();
+        }
+      }
+      // Glans
+      const sh = c.createLinearGradient(0, -H, 0, 0);
+      sh.addColorStop(0, 'rgba(255,255,255,0)'); sh.addColorStop(0.6, `rgba(255,255,255,${opt.shine ? 0.28 : 0.15})`); sh.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = sh;
+      c.fillRect(-L, -H * 0.55, L * 2, H * 0.3);
+      // Zijlijn
+      c.strokeStyle = 'rgba(0,0,0,.18)'; c.lineWidth = Math.max(0.6, len / 120);
+      c.beginPath(); c.moveTo(L * 0.6, -H * 0.15); c.quadraticCurveTo(0, -H * 0.3, -L * 0.6, 0); c.stroke();
+      c.restore();
+
+      // Kieuw en oog
+      c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = Math.max(0.8, len / 90);
+      c.beginPath(); c.arc(L * 0.62, 0, H * 0.75, Math.PI * 0.72, Math.PI * 1.28); c.stroke();
+      const er = Math.max(1.2, H * 0.17);
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(L * 0.76, -H * 0.2, er, 0, TAU); c.fill();
+      c.fillStyle = f.eye || '#111'; c.beginPath(); c.arc(L * 0.78, -H * 0.2, er * 0.62, 0, TAU); c.fill();
+      c.fillStyle = '#000'; c.beginPath(); c.arc(L * 0.79, -H * 0.2, er * 0.32, 0, TAU); c.fill();
+      if (f.barbels) {
+        c.strokeStyle = f.fin; c.lineWidth = Math.max(0.8, len / 110);
+        c.beginPath(); c.moveTo(L * 0.95, H * 0.15); c.quadraticCurveTo(L * 1.02, H * 0.55, L * 0.9, H * 0.7); c.stroke();
+      }
+    }
+    c.restore();
+  }
+
+  function drawEel(c, f, len, t, sil) {
+    const L = len / 2, w = len * 0.09;
+    const pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const u = i / 24;
+      pts.push([L - u * len, Math.sin(u * 7 - t * 5) * w * 0.9 * u]);
+    }
+    c.save();
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    const path = () => { c.beginPath(); pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); };
+    path(); c.lineWidth = w * 1.1; c.strokeStyle = sil ? 'rgba(255,255,255,.08)' : f.top; c.stroke();
+    if (!sil) {
+      c.save(); c.translate(0, w * 0.18); path(); c.lineWidth = w * 0.45; c.strokeStyle = f.belly; c.stroke(); c.restore();
+      c.fillStyle = '#111'; c.beginPath(); c.arc(L - w * 0.5, -w * 0.15, Math.max(1, w * 0.16), 0, TAU); c.fill();
+    }
+    c.restore();
+  }
+
+  function drawBoot(c, len, t, sil) {
+    const s = len / 100;
+    c.save();
+    c.rotate(-0.12 + Math.sin(t * 2) * 0.05);
+    c.scale(s, s);
+    c.beginPath();
+    c.moveTo(-30, -38); c.lineTo(2, -38); c.lineTo(4, 2); c.quadraticCurveTo(30, 4, 44, 14);
+    c.quadraticCurveTo(48, 24, 38, 26); c.lineTo(-30, 26); c.closePath();
+    if (sil) c.fillStyle = 'rgba(255,255,255,.08)';
+    else {
+      const g = c.createLinearGradient(0, -38, 0, 26);
+      g.addColorStop(0, '#8a7458'); g.addColorStop(1, '#4e3f2e');
+      c.fillStyle = g;
+    }
+    c.fill();
+    if (!sil) {
+      c.fillStyle = '#2f261c'; c.fillRect(-32, 20, 72, 8);
+      c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(-22, -30); c.lineTo(-22, 14); c.stroke();
+      c.fillStyle = '#5e8a3a';
+      c.beginPath(); c.moveTo(-10, -38); c.quadraticCurveTo(-4, -56, 8, -60); c.quadraticCurveTo(-2, -50, -4, -38); c.fill();
+      c.fillStyle = 'rgba(140,200,230,.8)';
+      c.beginPath(); c.arc(20, 30, 2.5, 0, TAU); c.arc(-14, 31, 2, 0, TAU); c.fill();
+    }
+    c.restore();
+  }
+
+  // =====================================================
+  // DE VIJVER (canvas)
+  // =====================================================
+  const canvas = $('stage');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, DPR = 1, horizon = 0;
+  let trees = [], hills = [], pads = [], reeds = [], stars = [], clouds = [];
+  const spots = [];            // per fuik: { x, y, s }
+  const anim = [];             // per fuik: { lift, liftT, shake, tilt }
+  const ripples = [];
+  const drops = [];
+  const flyers = [];           // springende vissen
+  const floats = [];           // zwevende teksten
+  const swimmers = [];         // vissen onder water
+  const flies = [];            // vuurvliegjes / muggen
+  let hover = -1;
+
+  // Vaste "willekeur" zodat de vijver bij elk bezoek hetzelfde is
+  let seed = 7;
+  const srand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+  function layout() {
+    const rect = canvas.getBoundingClientRect();
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = rect.width; H = rect.height;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    horizon = H * 0.36;
+    seed = 7;
+    trees = [];
+    for (let x = -20; x < W + 40; x += 6 + srand() * 10) trees.push([x, 18 + srand() * 46 + Math.sin(x / 90) * 14]);
+    hills = [];
+    for (let x = -20; x < W + 60; x += 40) hills.push([x, 30 + Math.sin(x / 170) * 18 + srand() * 10]);
+    const n = cfg.slots || 3;
+    const narrow = W < 560;
+    spots.length = 0;
+    for (let i = 0; i < n; i++) {
+      const u = (i + 0.5) / n;
+      const depth = narrow ? [0.6, 0.34, 0.86][i % 3] : [0.55, 0.32, 0.62][i % 3] * 0.72 + 0.12;
+      const y = horizon + (H - horizon) * depth;
+      const s = (narrow ? 0.82 : 1) * clamp((0.75 + (y - horizon) / (H - horizon) * 0.8) * Math.min(1.45, Math.max(0.8, W / 760)), 0.7, 1.7);
+      spots.push({ x: W * (0.1 + u * 0.72) + (i === 1 ? W * 0.02 : 0), y, s });
+      if (!anim[i]) anim[i] = { lift: 0, liftT: -1, shake: 0, tilt: 0, kind: null };
+    }
+    pads = [];
+    for (let i = 0; i < 9; i++) {
+      const y = horizon + 20 + srand() * (H - horizon - 40);
+      const x = srand() * W;
+      if (spots.some(p => Math.hypot(p.x - x, (p.y - y) * 2) < 110 * p.s)) continue;
+      const sc = 0.5 + (y - horizon) / (H - horizon) * 0.9;
+      pads.push({ x, y, r: (16 + srand() * 14) * sc, a: srand() * TAU, flower: srand() < 0.35 });
+    }
+    reeds = [];
+    for (let i = 0; i < 34; i++) {
+      const left = i % 2 === 0;
+      const base = left ? srand() * W * 0.11 : W - srand() * W * 0.11;
+      reeds.push({ x: base, h: (70 + srand() * 110) * Math.min(1.2, H / 600), lean: (left ? 1 : -1) * (0.04 + srand() * 0.12), ph: srand() * TAU, cat: srand() < 0.45, w: 2 + srand() * 2.5 });
+    }
+    reeds.sort((a, b) => a.h - b.h);
+    stars = [];
+    for (let i = 0; i < 90; i++) stars.push([srand() * W, srand() * horizon * 0.95, srand() * 1.3 + 0.3, srand() * TAU]);
+    clouds = [];
+    for (let i = 0; i < 5; i++) clouds.push({ x: srand() * W, y: 20 + srand() * horizon * 0.45, s: 0.6 + srand() * 0.9, v: 4 + srand() * 6 });
+    swimmers.length = 0;
+    for (let i = 0; i < 6; i++) swimmers.push(newSwimmer());
+    flies.length = 0;
+    for (let i = 0; i < 16; i++) flies.push({ x: srand() * W, y: horizon - 30 + srand() * (H - horizon) * 0.8, ph: srand() * TAU, sp: 0.4 + srand() });
+  }
+
+  function newSwimmer() {
+    const y = horizon + 30 + Math.random() * (H - horizon - 50);
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    return { x: dir > 0 ? -60 : W + 60, y, dir, v: rand(12, 30), len: rand(22, 46) * (0.6 + (y - horizon) / (H - horizon) * 0.7), ph: Math.random() * TAU };
+  }
+
+  // ---------- Kleuren van de dag ----------
+  const SKY = [ // [uur, boven, onder, licht 0..1]
+    [0, '#070b1c', '#18213f', 0], [5, '#0d1430', '#2c3260', 0.05], [6.3, '#3a3f78', '#f0a27a', 0.45],
+    [8, '#4f9bd8', '#cfe6f2', 1], [17, '#4f9bd8', '#d8ecf4', 1], [19.2, '#41437f', '#f59a68', 0.55],
+    [20.6, '#141a3c', '#3a3064', 0.12], [22, '#070b1c', '#18213f', 0], [24, '#070b1c', '#18213f', 0]
+  ];
+  const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, t) => a.map((v, i) => Math.round(lerp(v, b[i], t)));
+  const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  function skyAt(hour) {
+    for (let i = 0; i < SKY.length - 1; i++) {
+      const [h0, t0, b0, l0] = SKY[i], [h1, t1, b1, l1] = SKY[i + 1];
+      if (hour >= h0 && hour <= h1) {
+        const u = (hour - h0) / (h1 - h0);
+        return { top: mix(hex(t0), hex(t1), u), bottom: mix(hex(b0), hex(b1), u), light: lerp(l0, l1, u) };
+      }
+    }
+    return { top: hex('#070b1c'), bottom: hex('#18213f'), light: 0 };
+  }
+
+  // ---------- Tekenen ----------
+  let last = performance.now();
+  // Eén fout in een frame mag de vijver niet stilzetten
+  function frame(ts) {
+    try { drawFrame(ts); } catch (error) { console.error(error); }
+    requestAnimationFrame(frame);
+  }
+
+  function drawFrame(ts) {
+    const dt = Math.min(0.05, (ts - last) / 1000);
+    last = ts;
+    const t = ts / 1000;
+    const d = new Date();
+    const hour = d.getHours() + d.getMinutes() / 60;
+    const sky = skyAt(hour);
+    const L = sky.light;
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    // Lucht
+    const g = ctx.createLinearGradient(0, 0, 0, horizon);
+    g.addColorStop(0, rgb(sky.top)); g.addColorStop(1, rgb(sky.bottom));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, horizon + 2);
+
+    // Sterren
+    if (L < 0.5) {
+      for (const [x, y, r, ph] of stars) {
+        ctx.fillStyle = `rgba(255,255,255,${(0.5 - L) * 1.6 * (0.55 + 0.45 * Math.sin(t * 1.5 + ph))})`;
+        ctx.fillRect(x, y, r, r);
+      }
+    }
+
+    // Zon of maan
+    const dayU = clamp((hour - 6) / 14, 0, 1);
+    const nightU = ((hour + 24 - 20) % 24) / 10;
+    const isDay = hour >= 6 && hour < 20;
+    const u = isDay ? dayU : clamp(nightU, 0, 1);
+    const bx = W * (0.1 + u * 0.8), by = horizon - Math.sin(u * Math.PI) * horizon * 0.75 + 10;
+    if (isDay) {
+      const sg = ctx.createRadialGradient(bx, by, 0, bx, by, 90);
+      sg.addColorStop(0, 'rgba(255,240,200,.9)'); sg.addColorStop(0.2, 'rgba(255,220,150,.45)'); sg.addColorStop(1, 'rgba(255,200,120,0)');
+      ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(bx, by, 90, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#fff6dc'; ctx.beginPath(); ctx.arc(bx, by, 16, 0, TAU); ctx.fill();
+    } else {
+      const mg = ctx.createRadialGradient(bx, by, 0, bx, by, 60);
+      mg.addColorStop(0, 'rgba(220,230,255,.35)'); mg.addColorStop(1, 'rgba(220,230,255,0)');
+      ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(bx, by, 60, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#e8ecf6'; ctx.beginPath(); ctx.arc(bx, by, 12, 0, TAU); ctx.fill();
+      ctx.fillStyle = rgb(sky.top); ctx.beginPath(); ctx.arc(bx + 5, by - 3, 10.5, 0, TAU); ctx.fill();
+    }
+
+    // Wolken
+    for (const cl of clouds) {
+      cl.x += cl.v * dt;
+      if (cl.x > W + 120) cl.x = -120;
+      const ca = 0.08 + L * 0.22;
+      ctx.fillStyle = L > 0.3 ? `rgba(255,255,255,${ca})` : `rgba(150,160,200,${ca * 0.5})`;
+      for (const [ox, oy, rx, ry] of [[0, 4, 34, 10], [30, -4, 30, 14], [60, 2, 36, 11], [28, 8, 52, 9], [86, 6, 22, 7]]) {
+        ctx.beginPath(); ctx.ellipse(cl.x + ox * cl.s, cl.y + oy * cl.s, rx * cl.s, ry * cl.s, 0, 0, TAU); ctx.fill();
+      }
+    }
+
+    // Heuvels en bomen (achter het water)
+    const far = mix(sky.bottom, [30, 60, 70], 0.55);
+    ctx.fillStyle = rgb(far);
+    ctx.beginPath(); ctx.moveTo(0, horizon);
+    hills.forEach(([x, h]) => ctx.lineTo(x, horizon - h));
+    ctx.lineTo(W, horizon); ctx.closePath(); ctx.fill();
+    const near = mix([16, 34, 28], [40, 80, 55], L);
+    ctx.fillStyle = rgb(near);
+    ctx.beginPath(); ctx.moveTo(0, horizon + 1);
+    trees.forEach(([x, h], i) => {
+      const nx = i < trees.length - 1 ? trees[i + 1][0] : x + 8;
+      ctx.quadraticCurveTo(x, horizon - h - 8, (x + nx) / 2, horizon - h * 0.8);
+    });
+    ctx.lineTo(W, horizon + 1); ctx.closePath(); ctx.fill();
+
+    // Water
+    const wTop = mix(sky.bottom, [20, 70, 80], 0.45);
+    const wBot = mix([8, 26, 34], [18, 70, 82], L);
+    const wg = ctx.createLinearGradient(0, horizon, 0, H);
+    wg.addColorStop(0, rgb(wTop)); wg.addColorStop(1, rgb(wBot));
+    ctx.fillStyle = wg; ctx.fillRect(0, horizon, W, H - horizon);
+
+    // Weerspiegeling van de bomen
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = rgb(mix(near, wTop, 0.35));
+    ctx.beginPath(); ctx.moveTo(0, horizon);
+    trees.forEach(([x, h]) => ctx.lineTo(x + Math.sin(t * 1.2 + x * 0.05) * 1.5, horizon + h * 0.55));
+    ctx.lineTo(W, horizon); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // Licht van zon/maan op het water
+    for (let i = 0; i < 26; i++) {
+      const yy = horizon + 6 + i * i * (H - horizon) / 760;
+      const ww = (10 + i * 3) * (0.6 + 0.4 * Math.sin(t * 2 + i * 1.7));
+      ctx.fillStyle = isDay ? `rgba(255,236,190,${0.32 * (1 - i / 26)})` : `rgba(210,220,255,${0.22 * (1 - i / 26)})`;
+      ctx.fillRect(bx - ww / 2 + Math.sin(t + i) * 4, yy, ww, 1.5 + i * 0.08);
+    }
+
+    // Golfjes
+    ctx.strokeStyle = `rgba(255,255,255,${0.05 + L * 0.06})`;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 40; i++) {
+      const yy = horizon + ((i * 47.3 + t * 6) % (H - horizon));
+      const xx = (i * 131.7 + Math.sin(t * 0.3 + i) * 30) % W;
+      const ww = 14 + (yy - horizon) / (H - horizon) * 40;
+      ctx.beginPath(); ctx.moveTo(xx - ww / 2, yy); ctx.quadraticCurveTo(xx, yy - 2, xx + ww / 2, yy); ctx.stroke();
+    }
+
+    // Vissen onder water
+    for (const sw of swimmers) {
+      sw.x += sw.dir * sw.v * dt;
+      sw.y += Math.sin(t * 0.8 + sw.ph) * 4 * dt;
+      if ((sw.dir > 0 && sw.x > W + 80) || (sw.dir < 0 && sw.x < -80)) Object.assign(sw, newSwimmer());
+      ctx.save();
+      ctx.translate(sw.x, sw.y);
+      ctx.scale(sw.dir, 0.55);
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = '#04141a';
+      ctx.beginPath(); ctx.ellipse(0, 0, sw.len / 2, sw.len / 7, 0, 0, TAU); ctx.fill();
+      const wg2 = Math.sin(t * 7 + sw.ph) * sw.len * 0.08;
+      ctx.beginPath(); ctx.moveTo(-sw.len * 0.4, 0); ctx.lineTo(-sw.len * 0.62, -sw.len * 0.14 + wg2); ctx.lineTo(-sw.len * 0.62, sw.len * 0.14 + wg2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Waterlelies
+    for (const p of pads) {
+      ctx.save();
+      ctx.translate(p.x + Math.sin(t * 0.6 + p.a) * 1.5, p.y);
+      ctx.scale(1, 0.42);
+      ctx.rotate(p.a + Math.sin(t * 0.3 + p.a) * 0.05);
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.beginPath(); ctx.arc(2, 5, p.r, 0.25, TAU - 0.25); ctx.lineTo(2, 5); ctx.fill();
+      ctx.fillStyle = rgb(mix([28, 70, 34], [70, 140, 60], L));
+      ctx.beginPath(); ctx.arc(0, 0, p.r, 0.25, TAU - 0.25); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-p.r * 0.7, 0); ctx.stroke();
+      ctx.restore();
+      if (p.flower) {
+        ctx.save(); ctx.translate(p.x - p.r * 0.2, p.y - p.r * 0.18);
+        for (let k = 0; k < 6; k++) {
+          ctx.rotate(TAU / 6);
+          ctx.fillStyle = k % 2 ? '#f7c6d9' : '#fde2ec';
+          ctx.beginPath(); ctx.ellipse(0, -p.r * 0.18, p.r * 0.1, p.r * 0.22, 0, 0, TAU); ctx.fill();
+        }
+        ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.arc(0, 0, p.r * 0.08, 0, TAU); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Fuiken
+    const tNow = now();
+    const linked = me && me.linked;
+    for (let i = 0; i < spots.length; i++) drawTrap(i, t, dt, linked ? me.traps[i] : null, linked ? trapState(me.traps[i], tNow) : 'demo', tNow, L);
+
+    // Rimpelingen
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      const r = ripples[i];
+      r.life += dt;
+      const k = r.life / r.max;
+      if (k >= 1) { ripples.splice(i, 1); continue; }
+      if (k <= 0) continue;
+      ctx.strokeStyle = `rgba(255,255,255,${(1 - k) * 0.45 * r.a})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(r.x, r.y, r.r * ease(k), r.r * ease(k) * 0.32, 0, 0, TAU); ctx.stroke();
+    }
+
+    // Springende vissen
+    for (let i = flyers.length - 1; i >= 0; i--) {
+      const f = flyers[i];
+      f.t += dt;
+      const k = clamp(f.t / f.dur, 0, 1);
+      const x = lerp(f.x0, f.x1, k), y = lerp(f.y0, f.y1, k) - Math.sin(k * Math.PI) * f.peak;
+      const dx = (f.x1 - f.x0) * 0.01 || 0.01;
+      const ang = Math.atan2((lerp(f.y0, f.y1, k + 0.01) - Math.sin((k + 0.01) * Math.PI) * f.peak) - y, dx);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ang);
+      if (dx < 0) ctx.scale(1, -1);
+      const sc = lerp(1, f.grow, ease(k));
+      if (f.glow) {
+        const gg = ctx.createRadialGradient(0, 0, 0, 0, 0, f.len * sc);
+        gg.addColorStop(0, 'rgba(255,214,110,.6)'); gg.addColorStop(1, 'rgba(255,214,110,0)');
+        ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(0, 0, f.len * sc, 0, TAU); ctx.fill();
+      }
+      drawFish(ctx, f.key, f.len * sc, t);
+      ctx.restore();
+      if (Math.random() < 0.5) drops.push({ x, y, vx: rand(-30, 30), vy: rand(-10, 30), life: 0, max: 0.6, r: rand(1, 2.4) });
+      if (k >= 1) {
+        flyers.splice(i, 1);
+        if (f.done) f.done();
+      }
+    }
+
+    // Druppels en sterretjes
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const p = drops[i];
+      p.life += dt;
+      if (p.life >= p.max) { drops.splice(i, 1); continue; }
+      p.vy += (p.spark ? 40 : 520) * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const a = 1 - p.life / p.max;
+      ctx.fillStyle = p.spark ? `rgba(255,220,120,${a})` : `rgba(210,240,255,${a * 0.85})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (p.spark ? a + 0.3 : 1), 0, TAU); ctx.fill();
+    }
+
+    // Riet vooraan
+    const reedCol = rgb(mix([12, 26, 16], [52, 92, 44], L));
+    const catCol = rgb(mix([30, 20, 12], [100, 66, 38], L));
+    for (const r of reeds) {
+      const sway = Math.sin(t * 1.1 + r.ph) * 6 + Math.sin(t * 2.3 + r.ph) * 2;
+      const tipX = r.x + r.lean * r.h + sway, tipY = H - r.h;
+      ctx.strokeStyle = reedCol; ctx.lineWidth = r.w; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(r.x, H + 4); ctx.quadraticCurveTo(r.x + r.lean * r.h * 0.4, H - r.h * 0.5, tipX, tipY); ctx.stroke();
+      if (r.cat) {
+        ctx.save(); ctx.translate(lerp(r.x, tipX, 0.86), lerp(H, tipY, 0.86)); ctx.rotate(r.lean + sway * 0.01);
+        ctx.fillStyle = catCol; ctx.beginPath(); ctx.ellipse(0, 0, r.w * 1.6, r.w * 5, 0, 0, TAU); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Vuurvliegjes ('s avonds) of muggen (overdag)
+    for (const f of flies) {
+      const x = f.x + Math.sin(t * f.sp + f.ph) * 30, y = f.y + Math.cos(t * f.sp * 1.3 + f.ph) * 16;
+      if (L < 0.4) {
+        const a = (0.4 - L) * 2.2 * (0.5 + 0.5 * Math.sin(t * 3 * f.sp + f.ph));
+        const fg = ctx.createRadialGradient(x, y, 0, x, y, 8);
+        fg.addColorStop(0, `rgba(220,255,140,${a})`); fg.addColorStop(1, 'rgba(220,255,140,0)');
+        ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(x, y, 8, 0, TAU); ctx.fill();
+      } else if (f.sp > 1.1) {
+        ctx.fillStyle = 'rgba(20,30,30,.4)'; ctx.fillRect(x, y, 1.6, 1.6);
+      }
+    }
+
+    // Zwevende teksten
+    for (let i = floats.length - 1; i >= 0; i--) {
+      const f = floats[i];
+      f.life += dt;
+      const k = f.life / f.max;
+      if (k >= 1) { floats.splice(i, 1); continue; }
+      ctx.save();
+      ctx.globalAlpha = k < 0.15 ? k / 0.15 : 1 - Math.max(0, (k - 0.6) / 0.4);
+      ctx.font = `900 ${f.size}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.55)';
+      const y = f.y - ease(k) * 50;
+      ctx.strokeText(f.text, f.x, y);
+      ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, y);
+      ctx.restore();
+    }
+
+    // Vignet
+    const vg = ctx.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.4, W / 2, H * 0.55, Math.max(W, H) * 0.8);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.35)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+
+  // ---------- Eén fuik ----------
+  function drawTrap(i, t, dt, trap, state, tNow, L) {
+    const p = spots[i], s = p.s, a = anim[i];
+    const hot = hover === i && state !== 'demo';
+    a.shake = Math.max(0, a.shake - dt * 2.5);
+    if (a.liftT >= 0) {
+      a.liftT += dt;
+      const k = a.liftT / 1.5;
+      a.lift = k < 0.35 ? ease(k / 0.35) : k < 0.7 ? 1 : 1 - ease((k - 0.7) / 0.3);
+      if (k >= 1) { a.liftT = -1; a.lift = 0; }
+    }
+    const gone = state === 'gone';
+    const active = state === 'ready' || state === 'warn';
+    const setIn = trap && (state === 'wait' || active || gone);
+    const bobAmp = active ? (state === 'warn' ? 5 : 3.2) : 1.3;
+    const bob = Math.sin(t * (active ? 4.2 : 1.6) + i * 2) * bobAmp * s;
+    const shakeX = Math.sin(t * 50) * a.shake * 6 * s;
+    a.tilt = lerp(a.tilt, gone ? 0.35 : 0, dt * 3);
+
+    const x = p.x + shakeX, y = p.y;
+
+    // Gloed rond een volle fuik
+    if (active) {
+      const pulse = 0.5 + 0.5 * Math.sin(t * 3.5);
+      const col = state === 'warn' ? '239,91,76' : '242,193,78';
+      const gg = ctx.createRadialGradient(x, y, 0, x, y, 80 * s);
+      gg.addColorStop(0, `rgba(${col},${0.18 + pulse * 0.12})`); gg.addColorStop(1, `rgba(${col},0)`);
+      ctx.save(); ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.ellipse(x, y + 6 * s, 90 * s, 34 * s, 0, 0, TAU); ctx.fill(); ctx.restore();
+      if (Math.random() < dt * (state === 'warn' ? 5 : 2.5)) ripples.push({ x: x + rand(10, 70) * s, y: y + rand(4, 14) * s, r: rand(14, 26) * s, life: 0, max: 1.2, a: 1 });
+    } else if (setIn && Math.random() < dt * 0.4) {
+      ripples.push({ x: x + 34 * s, y: y + 2 * s, r: 12 * s, life: 0, max: 1.6, a: 0.6 });
+    }
+
+    // Net onder water (of omhoog getrokken)
+    const lift = a.lift;
+    if (setIn || lift > 0) {
+      const ny = y + lerp(26, -28, lift) * s;
+      const alpha = lerp(0.35, 0.95, lift);
+      ctx.save();
+      ctx.translate(x + 8 * s, ny);
+      ctx.rotate(a.tilt * 0.4);
+      const hoops = [[0, 18], [26, 15], [50, 12], [72, 9], [90, 5]];
+      ctx.strokeStyle = `rgba(${lift > 0.3 ? '200,190,160' : '170,220,215'},${alpha})`;
+      ctx.lineWidth = 1.6 * s;
+      for (const [hx, hr] of hoops) { ctx.beginPath(); ctx.ellipse(hx * s, 0, hr * 0.38 * s, hr * s, 0, 0, TAU); ctx.stroke(); }
+      ctx.lineWidth = 0.9 * s;
+      for (const off of [-1, -0.5, 0, 0.5, 1]) {
+        ctx.beginPath(); ctx.moveTo(0, off * 18 * s);
+        hoops.forEach(([hx, hr]) => ctx.lineTo(hx * s, off * hr * s));
+        ctx.stroke();
+      }
+      // Gaas
+      ctx.globalAlpha = alpha * 0.35;
+      for (let k = 0; k < 9; k++) {
+        ctx.beginPath(); ctx.moveTo(k * 10 * s, -18 * s + k * 1.4 * s); ctx.lineTo(k * 10 * s + 10 * s, 18 * s - k * 1.4 * s); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      // Vis in het net
+      if (active && lift < 0.2) {
+        ctx.save();
+        ctx.translate(46 * s + Math.sin(t * 2.4 + i) * 16 * s, Math.sin(t * 3.1 + i) * 5 * s);
+        ctx.scale(Math.cos(t * 1.2 + i) > 0 ? 1 : -1, 0.75);
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#081c20';
+        ctx.beginPath(); ctx.ellipse(0, 0, 15 * s, 5 * s, 0, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-12 * s, 0); ctx.lineTo(-20 * s, -5 * s + Math.sin(t * 12) * 2 * s); ctx.lineTo(-20 * s, 5 * s + Math.sin(t * 12) * 2 * s); ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      // Wateroppervlak over het net heen
+      if (lift < 0.5) {
+        ctx.fillStyle = `rgba(20,70,80,${0.25 * (1 - lift * 2)})`;
+        ctx.beginPath(); ctx.ellipse(x + 50 * s, y + 26 * s, 62 * s, 22 * s, 0, 0, TAU); ctx.fill();
+      }
+    }
+
+    // Paal
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(a.tilt);
+    const poleH = 74 * s;
+    const pg = ctx.createLinearGradient(-5 * s, 0, 5 * s, 0);
+    pg.addColorStop(0, rgb(mix([40, 28, 18], [96, 70, 44], L))); pg.addColorStop(1, rgb(mix([25, 18, 10], [62, 44, 26], L)));
+    ctx.fillStyle = pg;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-5 * s, -poleH, 10 * s, poleH + 4 * s, 3 * s) : ctx.rect(-5 * s, -poleH, 10 * s, poleH + 4 * s); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    ctx.fillRect(-3 * s, -poleH + 6 * s, 1.6 * s, poleH - 10 * s);
+    // Touw
+    ctx.strokeStyle = rgb(mix([120, 100, 70], [220, 200, 150], L)); ctx.lineWidth = 1.6 * s;
+    ctx.beginPath(); ctx.moveTo(-5 * s, -poleH + 14 * s); ctx.lineTo(5 * s, -poleH + 18 * s); ctx.moveTo(-5 * s, -poleH + 20 * s); ctx.lineTo(5 * s, -poleH + 24 * s); ctx.stroke();
+    ctx.restore();
+    // Rimpel rond de paal
+    ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(x, y + 3 * s, 12 * s + Math.sin(t * 2 + i) * 1.5 * s, 3.6 * s, 0, 0, TAU); ctx.stroke();
+
+    // Dobber aan touw
+    if (setIn && !gone) {
+      const fx = x + 34 * s, fy = y - 2 * s + bob;
+      ctx.strokeStyle = 'rgba(230,220,190,.6)'; ctx.lineWidth = 1.1 * s;
+      ctx.beginPath(); ctx.moveTo(x + 5 * s, y - poleH + 18 * s); ctx.quadraticCurveTo(x + 22 * s, y - 20 * s, fx, fy - 6 * s); ctx.stroke();
+      ctx.save(); ctx.translate(fx, fy); ctx.rotate(Math.sin(t * 3 + i) * (active ? 0.25 : 0.08));
+      ctx.fillStyle = '#e8473a'; ctx.beginPath(); ctx.arc(0, -3 * s, 7 * s, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#f6f1e6'; ctx.beginPath(); ctx.arc(0, -3 * s, 7 * s, 0, Math.PI); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(-2.5 * s, -6 * s, 2 * s, 0, TAU); ctx.fill();
+      ctx.restore();
+    } else if (!setIn) {
+      // Opgerold touw met dobber op de paal
+      ctx.strokeStyle = rgb(mix([120, 100, 70], [220, 200, 150], L)); ctx.lineWidth = 2 * s;
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(x, y - poleH + (34 + k * 4) * s, 8 * s, 2.6 * s, 0, 0, TAU); ctx.stroke(); }
+      ctx.fillStyle = '#e8473a'; ctx.beginPath(); ctx.arc(x, y - poleH - 4 * s, 6 * s, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#f6f1e6'; ctx.beginPath(); ctx.arc(x, y - poleH - 4 * s, 6 * s, 0, Math.PI); ctx.fill();
+    }
+
+    if (state === 'demo') return;
+
+    // ---------- Klok + label boven de paal ----------
+    const cy = y - poleH - 34 * s - (hot ? 4 : 0);
+    const R = 20 * s;
+    let frac = 0, col = '#3fbf9f', label = '', sub = '';
+    if (state === 'empty') { label = 'Uitzetten'; sub = 'tik'; col = '#8d9299'; }
+    else if (state === 'wait') { frac = clamp(1 - (trap.readyAt - tNow) / cfg.readyMs, 0, 1); label = fmtTime(trap.readyAt - tNow); sub = 'in het water'; }
+    else if (state === 'ready') { frac = clamp((trap.escapeAt - tNow) / (cfg.escapeMs - cfg.readyMs), 0, 1); col = '#f2c14e'; label = 'Ophalen!'; sub = `nog ${fmtTime(trap.escapeAt - tNow)}`; }
+    else if (state === 'warn') { frac = clamp((trap.escapeAt - tNow) / (cfg.escapeMs - cfg.readyMs), 0, 1); col = '#ef5b4c'; label = 'Snel!'; sub = `nog ${fmtTime(trap.escapeAt - tNow)}`; }
+    else if (state === 'gone') { label = 'Weggezwommen'; sub = 'tik om opnieuw uit te zetten'; col = '#ef5b4c'; }
+
+    const pop = active ? 1 + Math.sin(t * 5) * 0.05 : 1;
+    ctx.save();
+    ctx.translate(x, cy);
+    ctx.scale(pop * (hot ? 1.08 : 1), pop * (hot ? 1.08 : 1));
+    ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+    ctx.fillStyle = 'rgba(12,20,24,.82)';
+    ctx.beginPath(); ctx.arc(0, 0, R + 5 * s, 0, TAU); ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 4.5 * s; ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,255,255,.1)';
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.stroke();
+    if (frac > 0) {
+      ctx.strokeStyle = col;
+      if (active) { ctx.shadowColor = col; ctx.shadowBlur = 12; }
+      ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI / 2, -Math.PI / 2 + TAU * frac); ctx.stroke();
+      ctx.shadowColor = 'transparent';
+    }
+    // Icoon in de klok
+    ctx.fillStyle = col;
+    if (active) {
+      ctx.save(); ctx.rotate(Math.sin(t * 6) * 0.15);
+      ctx.beginPath(); ctx.moveTo(-10 * s, 0); ctx.quadraticCurveTo(-2 * s, -9 * s, 6 * s, -2 * s); ctx.lineTo(11 * s, -7 * s); ctx.lineTo(11 * s, 7 * s); ctx.lineTo(6 * s, 2 * s); ctx.quadraticCurveTo(-2 * s, 9 * s, -10 * s, 0); ctx.fill();
+      ctx.fillStyle = 'rgba(12,20,24,.9)'; ctx.beginPath(); ctx.arc(-5 * s, -1.2 * s, 1.6 * s, 0, TAU); ctx.fill();
+      ctx.restore();
+    } else if (state === 'wait') {
+      ctx.strokeStyle = col; ctx.lineWidth = 2.2 * s;
+      ctx.beginPath(); ctx.arc(0, 0, 9 * s, 0, TAU); ctx.stroke();
+      const ang = (tNow / 1000) % 60 / 60 * TAU;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(ang) * 6.5 * s, -Math.cos(ang) * 6.5 * s); ctx.moveTo(0, 0); ctx.lineTo(0, -4.5 * s); ctx.stroke();
+    } else if (state === 'gone') {
+      ctx.strokeStyle = col; ctx.lineWidth = 2.6 * s;
+      ctx.beginPath(); ctx.moveTo(-6 * s, -6 * s); ctx.lineTo(6 * s, 6 * s); ctx.moveTo(6 * s, -6 * s); ctx.lineTo(-6 * s, 6 * s); ctx.stroke();
+    } else {
+      ctx.strokeStyle = col; ctx.lineWidth = 2.6 * s;
+      ctx.beginPath(); ctx.moveTo(-7 * s, 0); ctx.lineTo(7 * s, 0); ctx.moveTo(0, -7 * s); ctx.lineTo(0, 7 * s); ctx.stroke();
+    }
+    ctx.restore();
+
+    // Tekst onder de klok
+    const fs = Math.max(11, 14 * s);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = `800 ${fs}px system-ui, sans-serif`;
+    const tw = Math.max(ctx.measureText(label).width, (ctx.font = `600 ${fs * 0.78}px system-ui, sans-serif`, ctx.measureText(sub).width)) + 20;
+    const ly = cy + R + 12 * s;
+    ctx.fillStyle = 'rgba(12,20,24,.78)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x - tw / 2, ly, tw, fs * 2.25, 9); else ctx.rect(x - tw / 2, ly, tw, fs * 2.25);
+    ctx.fill();
+    ctx.font = `800 ${fs}px system-ui, sans-serif`;
+    ctx.fillStyle = active || state === 'gone' ? col : '#eceae6';
+    ctx.fillText(label, x, ly + fs * 1.05);
+    ctx.font = `600 ${fs * 0.78}px system-ui, sans-serif`;
+    ctx.fillStyle = state === 'warn' ? '#ffb0a6' : '#a9b3b8';
+    ctx.fillText(sub, x, ly + fs * 1.95);
+    ctx.restore();
+  }
+
+  // ---------- Animaties ----------
+  function splashAt(x, y, s, n = 18) {
+    for (let k = 0; k < n; k++) drops.push({ x: x + rand(-12, 12) * s, y, vx: rand(-70, 70) * s, vy: rand(-220, -90) * s, life: 0, max: rand(0.5, 0.9), r: rand(1.2, 3) * s });
+    for (let k = 0; k < 3; k++) ripples.push({ x, y: y + 4 * s, r: (24 + k * 16) * s, life: -k * 0.12, max: 1.3, a: 1 });
+  }
+
+  function wiggle(slot) { if (anim[slot]) anim[slot].shake = 1; }
+
+  function animSet(slot) {
+    const p = spots[slot]; if (!p) return;
+    splashAt(p.x + 34 * p.s, p.y, p.s, 14);
+    floats.push({ x: p.x, y: p.y - 140 * p.s, text: 'Uitgezet', color: '#9fe6d3', size: 16 * Math.max(0.8, p.s), life: 0, max: 1.4 });
+  }
+
+  function animEscape(slot) {
+    const p = spots[slot], a = anim[slot]; if (!p) return;
+    a.liftT = 0;
+    const key = ['voorn', 'baars', 'brasem'][Math.floor(Math.random() * 3)];
+    setTimeout(() => {
+      splashAt(p.x + 50 * p.s, p.y, p.s, 10);
+      flyers.push({ key, x0: p.x + 50 * p.s, y0: p.y - 20 * p.s, x1: p.x + 170 * p.s * (p.x > W / 2 ? -1 : 1), y1: p.y + 20 * p.s, peak: 70 * p.s, t: 0, dur: 0.9, len: 34 * p.s, grow: 1,
+        done() { splashAt(p.x + 170 * p.s * (p.x > W / 2 ? -1 : 1), p.y + 20 * p.s, p.s, 12); } });
+      floats.push({ x: p.x, y: p.y - 150 * p.s, text: 'Weggezwommen!', color: '#ff8b7e', size: 17 * Math.max(0.8, p.s), life: 0, max: 1.8 });
+    }, 350);
+  }
+
+  function animHaul(c) {
+    const p = spots[c.slot], a = anim[c.slot]; if (!p) { queueCard(c); return; }
+    a.liftT = 0;
+    sfx.haul();
+    splashAt(p.x + 50 * p.s, p.y + 10 * p.s, p.s, 26);
+    setTimeout(() => {
+      const gold = c.key === 'goudkarper';
+      flyers.push({
+        key: c.key, x0: p.x + 50 * p.s, y0: p.y - 24 * p.s, x1: W / 2, y1: H * 0.42, peak: H * 0.22, t: 0, dur: 0.75,
+        len: 44 * p.s, grow: 1.8, glow: gold,
+        done() {
+          if (c.key === 'laars') sfx.boot(); else sfx.coin(c.points);
+          if (gold) {
+            sfx.gold();
+            for (let k = 0; k < 70; k++) {
+              const an = Math.random() * TAU, v = rand(60, 260);
+              drops.push({ x: W / 2, y: H * 0.42, vx: Math.cos(an) * v, vy: Math.sin(an) * v, life: 0, max: rand(1, 1.8), r: rand(1.5, 3.5), spark: true });
+            }
+          }
+          floats.push({ x: p.x, y: p.y - 150 * p.s, text: c.points ? `+${c.points}` : 'Plof…', color: gold ? '#f2c14e' : c.points ? '#4cd47b' : '#a9b3b8', size: (c.points >= 25 ? 28 : 22) * Math.max(0.8, p.s), life: 0, max: 1.6 });
+          queueCard(c);
+        }
+      });
+    }, 380);
+  }
+
+  // ---------- Invoer ----------
+  function hitTest(px, py) {
+    for (let i = 0; i < spots.length; i++) {
+      const p = spots[i];
+      const top = p.y - 74 * p.s - 70 * p.s;
+      if (px > p.x - 50 * p.s && px < p.x + 110 * p.s && py > top && py < p.y + 50 * p.s) return i;
+    }
+    return -1;
+  }
+  canvas.addEventListener('pointermove', e => {
+    const r = canvas.getBoundingClientRect();
+    hover = me && me.linked ? hitTest(e.clientX - r.left, e.clientY - r.top) : -1;
+    canvas.classList.toggle('hot', hover >= 0);
+  });
+  canvas.addEventListener('pointerleave', () => { hover = -1; canvas.classList.remove('hot'); });
+  canvas.addEventListener('click', e => {
+    const r = canvas.getBoundingClientRect();
+    const i = hitTest(e.clientX - r.left, e.clientY - r.top);
+    if (i >= 0) doTap(i);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    if (e.key === ' ' || e.key === 'Enter') { if (!$('haulAll').disabled && document.activeElement === document.body) { e.preventDefault(); doAll(); } }
+    const n = Number(e.key);
+    if (n >= 1 && n <= spots.length) doTap(n - 1);
+  });
+
+  new ResizeObserver(() => { layout(); }).observe(canvas);
+  layout();
+  requestAnimationFrame(frame);
+  loadStatus();
+})();
+</script>
+</body>
+</html>

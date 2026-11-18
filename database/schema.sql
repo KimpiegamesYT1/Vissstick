@@ -417,6 +417,34 @@ CREATE TABLE IF NOT EXISTS afwas_stats (
     last_played DATETIME
 );
 
+-- Fuiken (website): elke 15 minuten ophalen, na 45 minuten is de vangst weggezwommen
+CREATE TABLE IF NOT EXISTS fuik_traps (
+    user_id TEXT NOT NULL,
+    slot INTEGER NOT NULL,
+    set_at INTEGER NOT NULL, -- ms sinds epoch
+    PRIMARY KEY (user_id, slot)
+);
+
+CREATE TABLE IF NOT EXISTS fuik_stats (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    hauls INTEGER DEFAULT 0,
+    fish_caught INTEGER DEFAULT 0,
+    escaped INTEGER DEFAULT 0,
+    points_earned INTEGER DEFAULT 0,
+    best_points INTEGER DEFAULT 0,
+    best_key TEXT,
+    last_played DATETIME
+);
+
+-- Vangstboek: hoe vaak iemand elke soort gevangen heeft
+CREATE TABLE IF NOT EXISTS fuik_book (
+    user_id TEXT NOT NULL,
+    species TEXT NOT NULL,
+    count INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, species)
+);
+
 -- Inzetten die nog in een lopend spel zitten (Rocket, blackjack, mines, ...).
 -- Bij het opstarten van de bot wordt alles wat hier nog staat teruggestort,
 -- zodat een herstart midden in een spel geen punten kost.

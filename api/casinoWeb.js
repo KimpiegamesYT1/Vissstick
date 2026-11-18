@@ -9,6 +9,7 @@
  *   GET  /roulette                  Roulette (Europees)
  *   GET  /sterrenrad                Sterrenrad (gameshow-rad in de ruimte, multiplayer)
  *   GET  /afwas                     Afwassen (alleen onder 50 punten)
+ *   GET  /fuik                      Fuiken (elke 15 minuten ophalen voor een paar punten)
  *   GET  /stats                     Statistieken en leaderboard van alle spelers
  *   GET  /connection.js             verbindingspopup voor alle casino-pagina's
  *   GET  /vendor/three/*.js         three.js (uit node_modules)
@@ -40,6 +41,8 @@
  *   GET  /api/afwas/status          instellingen, saldo en eigen stats
  *   GET  /api/stats                 leaderboard + stats per speler (iedereen, 'me' gemarkeerd als ingelogd)
  *   POST /api/afwas/{plate,clean,reject}  nieuw bord / bord schoon (+1) / bord afgekeurd
+ *   GET  /api/fuik/status           instellingen, eigen fuiken, stats en vangstboek
+ *   POST /api/fuik/{tap,all}        één fuik aantikken (uitzetten/ophalen) / alles ophalen
  *   POST /api/logout
  */
 
@@ -53,6 +56,7 @@ const slots = require('../modules/slots');
 const roulette = require('../modules/roulette');
 const sterrenrad = require('../modules/sterrenrad');
 const afwas = require('../modules/afwas');
+const fuik = require('../modules/fuik');
 const rocketAuth = require('../modules/rocketAuth');
 const casino = require('../modules/casino');
 const stats = require('../modules/stats');
@@ -77,9 +81,10 @@ const ONLINE_GAMES = {
   sterrenrad: 'Sterrenrad',
   spin: 'Daily spin',
   afwas: 'Afwassen',
+  fuik: 'Fuiken',
   stats: 'Stats'
 };
-const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/sterrenrad', '/afwas', '/stats'];
+const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/sterrenrad', '/afwas', '/fuik', '/stats'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
   'three.core.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.core.js')
@@ -179,6 +184,7 @@ function createCasinoWebHandler() {
     roulette: fs.readFileSync(path.join(WEB_DIR, 'roulette.html')),
     sterrenrad: fs.readFileSync(path.join(WEB_DIR, 'sterrenrad.html')),
     afwas: fs.readFileSync(path.join(WEB_DIR, 'afwas.html')),
+    fuik: fs.readFileSync(path.join(WEB_DIR, 'fuik.html')),
     stats: fs.readFileSync(path.join(WEB_DIR, 'stats.html'))
   };
   const staticCache = new Map();
@@ -299,7 +305,7 @@ function createCasinoWebHandler() {
     }
     const user = getUser(req);
     if (!user) {
-      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko, /slots, /roulette, /sterrenrad of /afwassen in Discord voor je persoonlijke link.' });
+      sendJson(res, 401, { ok: false, message: 'Je bent niet ingelogd. Typ /rocket, /spin, /tafel, /plinko, /slots, /roulette, /sterrenrad, /fuik of /afwassen in Discord voor je persoonlijke link.' });
       return;
     }
     const limiter = action === 'plinko/drop' ? plinkoLimiter : (action === 'roulette/bet' || action.startsWith('sterrenrad/')) ? rouletteLimiter : actionLimiter;
@@ -335,6 +341,8 @@ function createCasinoWebHandler() {
       case 'afwas/plate': result = afwas.nextPlate(user); break;
       case 'afwas/clean': result = afwas.cleanPlate(user, body.plate); break;
       case 'afwas/reject': result = afwas.rejectPlate(user, body.plate); break;
+      case 'fuik/tap': result = fuik.tap(user, body.slot); break;
+      case 'fuik/all': result = fuik.tapAll(user); break;
       case 'blackjack/insurance': result = blackjackTable.insurance(user, Boolean(body.take)); break;
       case 'spin/reminder':
         dailySpin.setReminder(user.id, Boolean(body.enabled));
@@ -464,6 +472,20 @@ function createCasinoWebHandler() {
           sendJson(res, 200, payload);
           return true;
         }
+        case '/fuik':
+        case '/fuik/':
+          sendPage(res, pages.fuik);
+          return true;
+        case '/api/fuik/status': {
+          const user = getUser(req);
+          const payload = { linked: Boolean(user), config: fuik.getConfig(), serverNow: Date.now() };
+          if (user) {
+            casino.getOrCreateUser(user.id, user.username);
+            Object.assign(payload, { user, balance: casino.getUserBalance(user.id), ...fuik.getStatus(user.id) });
+          }
+          sendJson(res, 200, payload);
+          return true;
+        }
         case '/stats':
         case '/stats/':
           sendPage(res, pages.stats);
@@ -553,7 +575,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|afwas\/(?:plate|clean|reject)|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {
