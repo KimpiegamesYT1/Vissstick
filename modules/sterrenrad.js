@@ -1,5 +1,5 @@
 /**
- * Sterrenrad: een multiplayer geldrad-gameshow in een ruimtestation, gepresenteerd door Max Nova (zie sterrenradHost.js).
+ * Sterrenrad: een multiplayer geldrad-gameshow in een ruimtestation, gepresenteerd door Stella Nova (zie sterrenradHost.js).
  * Eén gedeelde ronde voor iedereen op de website (live via api/casinoWeb.js, net als Roulette).
  *
  * Verloop van een ronde (tijden iets sneller dan een live show):
@@ -15,7 +15,7 @@
  *
  * Bonussen:
  *   MAANMUNT     — een munt met een rode en een blauwe kant, elk met een multiplier, wordt opgegooid. 50/50.
- *   METEORENMUUR — Max laat een meteoor langs een muur met pinnen vallen naar 16 vakken. Een DUBBEL-vak
+ *   METEORENMUUR — Stella laat een meteoor langs een muur met pinnen vallen naar 16 vakken. Een DUBBEL-vak
  *                  verdubbelt alle vakken en de meteoor valt opnieuw.
  *   STERRENJACHT — 108 doelen met elk een verborgen multiplier; iedere speler kiest zelf een doel.
  *   WORMGAT      — door het portaal naar een reuzenrad met drie wijzers (groen, blauw, geel). Elke speler kiest
@@ -45,7 +45,7 @@ const COMET_TAIL_MS = 3000;    // na de laatste komeet, voor het rad draait
 const SPIN_MS = 10000;          // draai van het rad
 const LANDED_MS = 4000;        // getal: even vieren voor de uitbetaling
 const RESULT_MS = 8000;        // uitslag blijft staan
-const BONUS_TRAVEL_MS = 5500;  // camera + Max naar de bonus
+const BONUS_TRAVEL_MS = 5500;  // camera + Stella naar de bonus
 const BONUS_OUTRO_MS = 5000;
 const COIN_REVEAL_MS = 4500;
 const COIN_FLIP_MS = 5000;
@@ -294,7 +294,7 @@ const emitUpdate = () => events.emit('update');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
 const xLabel = x => `${x}×`;
 
-// Bijzaken worden overgeslagen als Max net iets zei, zodat er tijd is om te lezen
+// Bijzaken worden overgeslagen als Stella net iets zei, zodat er tijd is om te lezen
 const MINOR_LINES = new Set(['idle', 'hype', 'join', 'bonusBet', 'comet', 'spinning', 'slowing', 'nextRound', 'meteorFalling', 'huntHurry']);
 const MIN_GAP_MS = 4000;
 
@@ -493,7 +493,7 @@ function placeBets(user, betsInput) {
       userId: user.id, username: user.username, avatar: user.avatar || null, bets, total,
       payout: null, choice: null, bonusX: null
     });
-    // Max reageert op nieuwe spelers, grote inzetten en bonusgokken
+    // Stella reageert op nieuwe spelers, grote inzetten en bonusgokken
     if (opened) say(total >= 100 ? 'bigBet' : 'open', { naam: user.username, bedrag: total }, { silent: true });
     else if (!existing) say('join', { naam: user.username }, { silent: true });
     else if (total >= 100 && existing.total < 100) say('bigBet', { naam: user.username, bedrag: total }, { silent: true });
@@ -817,7 +817,7 @@ function settle(r) {
   }, 4500);
 }
 
-// Max praat ook als er niemand speelt
+// Stella praat ook als er niemand speelt
 setInterval(() => {
   const busy = round && (['betting', 'comets', 'spinning', 'landed', 'bonus'].includes(round.phase) ||
     (round.phase === 'result' && Date.now() < round.nextAt + 3000));

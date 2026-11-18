@@ -1,7 +1,7 @@
 /**
- * Sterrenrad host: Max Nova, de presentator van de show.
+ * Sterrenrad host: Stella Nova, de presentatrice van de show.
  * Teksten per moment in de show. {naam} wordt ingevuld met vars; een regel die net gezegd is wordt
- * een tijdje overgeslagen, zodat Max niet in herhaling valt.
+ * een tijdje overgeslagen, zodat Stella niet in herhaling valt.
  *
  * Stijl: een presentator die uitlegt wat er gebeurt, spelers bij naam noemt en spanning opbouwt.
  * Korte zinnen, zodat je ze in één keer kunt lezen.
@@ -26,7 +26,7 @@ const LINES = {
       'Nieuwe ronde? Eén fiche is genoeg om te beginnen.',
       'Tip: spreid je fiches over een getal en een bonus.',
       'De Maanmunt staat vier keer op het rad, de vaakst voorkomende bonus.',
-      'Ik ben Max Nova, en dit is het Sterrenrad. Zet je in?'
+      'Ik ben Stella Nova, en dit is het Sterrenrad. Zet je in?'
     ]
   },
   open: {

@@ -96,17 +96,25 @@
   .stage-tools button svg { width: 18px; height: 18px; }
   .stage-tools button:hover { background: rgba(40,32,80,.8); }
 
-  /* Spreekballon van Max */
-  .bubble { position: absolute; z-index: 9; left: 0; top: 0; max-width: min(340px, 60%); pointer-events: none;
-    background: #fff; color: #17122e; border-radius: 16px; padding: 10px 14px; font-size: 15px; font-weight: 700; line-height: 1.35;
-    box-shadow: 0 10px 30px rgba(0,0,0,.45); transform-origin: 30px 100%; opacity: 0; transition: opacity .25s ease; will-change: transform; }
+  /* Spreekballon van Stella */
+  .bubble { --bc: rgba(185,140,255,.55); --bg1: rgba(30,20,64,.9); --bg2: rgba(12,9,30,.9); --tc: #b98cff;
+    position: absolute; z-index: 9; left: 0; top: 0; max-width: min(270px, 52%); pointer-events: none;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2)); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    color: #f3efff; border: 1px solid var(--bc); border-radius: 13px; padding: 7px 11px 8px; font-size: 13px; font-weight: 650; line-height: 1.35; letter-spacing: .1px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.45), 0 0 18px -6px var(--bc), inset 0 1px 0 rgba(255,255,255,.08);
+    transform-origin: 30px 100%; opacity: 0; transition: opacity .25s ease; will-change: transform; }
   .bubble.show { opacity: 1; }
-  .bubble::after { content: ''; position: absolute; left: 22px; bottom: -9px; border: 10px solid transparent; border-top-color: #fff; border-bottom: 0; }
-  .bubble .who { display: block; font-size: 10px; letter-spacing: 2px; font-weight: 900; color: #8a4dff; margin-bottom: 2px; }
-  .bubble.mood-shock { background: #fff3c4; } .bubble.mood-shock::after { border-top-color: #fff3c4; }
-  .bubble.mood-hype { background: #e9ddff; } .bubble.mood-hype::after { border-top-color: #e9ddff; }
+  /* Staartje: gedraaid vierkantje met dezelfde rand */
+  .bubble::after { content: ''; position: absolute; left: 18px; bottom: -6px; width: 11px; height: 11px; transform: rotate(45deg);
+    background: var(--bg2); border-right: 1px solid var(--bc); border-bottom: 1px solid var(--bc); border-bottom-right-radius: 3px; }
+  .bubble .who { display: flex; align-items: center; gap: 5px; font-size: 9px; letter-spacing: 2px; font-weight: 900; color: var(--tc); margin-bottom: 2px; }
+  .bubble .who::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #ff4fa3; box-shadow: 0 0 6px #ff4fa3; animation: onair 1.4s ease-in-out infinite; }
+  @keyframes onair { 50% { opacity: .35; } }
+  .bubble.mood-shock { --bc: rgba(242,193,78,.75); --bg1: rgba(64,44,12,.92); --tc: #f2c14e; }
+  .bubble.mood-hype { --bc: rgba(255,79,163,.7); --bg1: rgba(70,18,60,.92); --tc: #ff8ac4; }
+  .bubble.mood-sad { --bc: rgba(120,160,220,.55); --bg1: rgba(18,30,60,.9); --tc: #9fc0ff; }
   .bubble.pop { animation: pop .35s cubic-bezier(.3,1.6,.5,1); }
-  @keyframes pop { from { scale: .6; } }
+  @keyframes pop { from { scale: .7; opacity: 0; } }
 
   /* Grote uitslag */
   .banner { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); z-index: 9; text-align: center; pointer-events: none; opacity: 0;
@@ -236,7 +244,7 @@
   .app.show-mode .betpanel, .app.show-mode .side { padding: 7px; }
   .app.show-mode .side { justify-content: center; }
   .app.show-mode .betbar { max-height: 0; opacity: 0; margin-top: 0; padding-top: 0; pointer-events: none; }
-  .app.show-mode .syncline, .app.show-mode .mystats, .app.show-mode .side h2 { max-height: 0; opacity: 0; margin: 0; pointer-events: none; }
+  .app.show-mode .syncline, .app.show-mode .mystats, .app.show-mode .side h2 { max-height: 0; min-height: 0; opacity: 0; margin: 0; pointer-events: none; }
   .app.show-mode .login { display: none; }
   .app.show-mode .spots { gap: 6px; }
   .app.show-mode .spot { height: 38px; padding: 0 6px; border-radius: 9px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
@@ -307,6 +315,12 @@
     display: flex; flex-direction: column; overflow: auto; }
   .app.pseudo-fs { position: fixed; inset: 0; z-index: 100; height: 100dvh; }
   .app:fullscreen header, .app.pseudo-fs header { display: none; }
+  /* Saldo op het podium, alleen in volledig scherm (de kopregel is dan weg) */
+  .stage-bal { display: none; align-items: center; gap: 7px; height: 36px; padding: 0 13px 0 8px; border-radius: 10px; border: 1px solid var(--line);
+    background: rgba(10,8,24,.62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--gold); transition: color .2s; }
+  .stage-bal .coin { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3c4, #f2c14e 45%, #a8761a); box-shadow: inset 0 0 0 2px rgba(0,0,0,.15); }
+  .stage-bal.up { color: var(--green); }
+  .app:fullscreen .stage-bal:not([hidden]), .app.pseudo-fs .stage-bal:not([hidden]) { display: flex; }
   .app:fullscreen .stage, .app.pseudo-fs .stage { flex: 1 1 auto; height: auto; min-height: 260px; }
   .app:fullscreen .board, .app.pseudo-fs .board { flex: none; }
   .app:fullscreen .side, .app.pseudo-fs .side { max-height: 170px; }
@@ -361,7 +375,7 @@
     .ring { width: 36px; height: 36px; }
     .phase-txt b { font-size: 13px; }
     .phase-txt small { font-size: 11px; }
-    .bubble { font-size: 13px; max-width: 72%; padding: 8px 11px; }
+    .bubble { font-size: 12px; max-width: 70%; padding: 6px 10px 7px; }
     .banner { padding: 12px 18px 14px; }
     .app.show-mode .spots { grid-template-columns: repeat(8, 1fr); gap: 4px; }
     .app.show-mode .spot { height: 34px; padding: 0 2px; }
@@ -493,13 +507,14 @@
       <button id="muteBtn" title="Geluid aan/uit" aria-label="Geluid aan/uit"></button>
       <button id="camBtn" title="Camera: automatisch / vast" aria-label="Camera wisselen"></button>
       <button id="fsBtn" title="Volledig scherm (F)" aria-label="Volledig scherm"></button>
+      <div class="stage-bal" id="stageBal" hidden><span class="coin"></span><b id="stageBalNum">0</b></div>
     </div>
     <div class="hud-top" id="hudTop">
       <div class="ring" id="ring"><svg viewBox="0 0 44 44"><circle class="bgc" cx="22" cy="22" r="19"/><circle class="fgc" id="ringFg" cx="22" cy="22" r="19" stroke-dasharray="119.4" stroke-dashoffset="0"/></svg><b id="ringNum">–</b></div>
       <div class="phase-txt"><b id="phaseTitle">Sterrenrad</b><small id="phaseSub">Verbinden…</small></div>
     </div>
     <div class="hist" id="hist"></div>
-    <div class="bubble" id="bubble"><span class="who">MAX NOVA</span><span id="bubbleText"></span></div>
+    <div class="bubble" id="bubble"><span class="who">STELLA NOVA</span><span id="bubbleText"></span></div>
     <div class="banner" id="banner"><div class="big" id="bannerBig"></div><div class="sub" id="bannerSub"></div></div>
     <div class="picker" id="picker"></div>
     <div class="results" id="results"><div class="rhead"><b>UITSLAG</b><small id="resultsSeg"></small></div><div class="rlist" id="resultsList"></div></div>
@@ -786,13 +801,18 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 3000);
 camera.position.set(0, 7, 17);
 
+let glLive = false;
 function resize() {
   const w = stageEl.clientWidth, h = stageEl.clientHeight;
+  if (!w || !h) return;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  fxCanvas.width = w * Math.min(2, devicePixelRatio || 1);
-  fxCanvas.height = h * Math.min(2, devicePixelRatio || 1);
+  const dpr = Math.min(2, devicePixelRatio || 1), fw = Math.round(w * dpr), fh = Math.round(h * dpr);
+  if (fxCanvas.width !== fw || fxCanvas.height !== fh) { fxCanvas.width = fw; fxCanvas.height = fh; }
+  // setSize wist het canvas, en de ResizeObserver draait ná requestAnimationFrame maar vóór het tekenen van het scherm:
+  // zonder meteen opnieuw te renderen zie je tijdens het in-/uitklappen van de balk een zwart beeld.
+  if (glLive) renderer.render(scene, camera);
 }
 const fxCanvas = $('fx');
 const fx = fxCanvas.getContext('2d');
@@ -1223,19 +1243,72 @@ const meteor = (() => {
   const strip = new THREE.Mesh(new THREE.PlaneGeometry(W, W / 8), new THREE.MeshBasicMaterial({ map: stex, toneMapped: false }));
   const slotY = topY - rows * rowH - 0.45;
   strip.position.set(0, slotY, 0.05); group.add(strip);
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 16), new THREE.MeshBasicMaterial({ color: '#ffd9a0' }));
-  const ballGlow = glow('#ff8a3d', 1.4, 1); ball.add(ballGlow);
-  const ballLight = new THREE.PointLight('#ff8a3d', 18, 5, 2); ball.add(ballLight);
+  // Meteoor: ruwe rots met gloeiende lavascheuren, vuurkern en hitte-gloed
+  const lava = makeCanvas(256, 128), lg = lava.getContext('2d'), lrnd = seeded(41);
+  lg.fillStyle = '#1a0a04'; lg.fillRect(0, 0, 256, 128);
+  for (let k = 0; k < 26; k++) {
+    let x = lrnd() * 256, y = lrnd() * 128;
+    lg.strokeStyle = lrnd() < 0.4 ? '#ffe08a' : '#ff7a1a'; lg.lineWidth = 1.5 + lrnd() * 3.5; lg.lineCap = 'round';
+    lg.beginPath(); lg.moveTo(x, y);
+    for (let s = 0; s < 5; s++) { x += (lrnd() - 0.5) * 50; y += (lrnd() - 0.5) * 30; lg.lineTo(x, y); }
+    lg.stroke();
+  }
+  const lavaTex = canvasTex(lava);
+  const rockGeo = new THREE.IcosahedronGeometry(0.25, 2);
+  {
+    const p = rockGeo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const n = v.clone().normalize();
+      v.multiplyScalar(1 + 0.2 * Math.sin(n.x * 7.1 + n.y * 3.3) * Math.cos(n.z * 5.7 - n.x * 2.1) + 0.09 * Math.sin(n.y * 13 + n.z * 9));
+      p.setXYZ(i, v.x, v.y, v.z);
+    }
+    rockGeo.computeVertexNormals();
+  }
+  const rockMat = new THREE.MeshStandardMaterial({ color: '#5a3422', roughness: 0.9, metalness: 0.05, flatShading: true,
+    emissive: '#ffffff', emissiveMap: lavaTex, emissiveIntensity: 1.6 });
+  const ball = new THREE.Group();
+  const rock = new THREE.Mesh(rockGeo, rockMat); ball.add(rock);
+  const halo = glow('#ff3a0a', 4.2, 0.34), fire = glow('#ff7a1a', 2.1, 0.85), core = glow('#fff1c2', 1, 0.95);
+  ball.add(halo, fire, core);
+  const ballLight = new THREE.PointLight('#ff8a3d', 22, 6, 2); ball.add(ballLight);
   ball.visible = false; group.add(ball);
-  const trail = [];
-  for (let i = 0; i < 10; i++) { const t = glow('#ff6a1a', 0.9 - i * 0.07, 0.5 - i * 0.045); t.visible = false; group.add(t); trail.push(t); }
+  // Vlammenstaart: geel bij de rots, via oranje naar donkerrood
+  const TRAIL = 26, trail = [], hist = [];
+  const cHot = new THREE.Color('#ffe08a'), cMid = new THREE.Color('#ff5a10'), cCold = new THREE.Color('#7a1408');
+  for (let i = 0; i < TRAIL; i++) {
+    const f = i / (TRAIL - 1), col = f < 0.45 ? cHot.clone().lerp(cMid, f / 0.45) : cMid.clone().lerp(cCold, (f - 0.45) / 0.55);
+    const t = glow(col, 1.15 * (1 - f * 0.8), 0.8 * (1 - f) + 0.05); t.userData.base = t.scale.x; t.visible = false; group.add(t); trail.push(t);
+  }
+  // Pinnen die oplichten bij een tik, schokgolf en lichtzuil bij de inslag
+  const pegFlashes = [];
+  for (let i = 0; i < 28; i++) { const s = glow('#ffffff', 0.8, 0); s.userData.life = 0; group.add(s); pegFlashes.push(s); }
+  const cWhite = new THREE.Color('#fff4d6'), cEmber = new THREE.Color('#ff5a10');
+  // Rookpluimen achter de meteoor (gewone menging, dus donker tegen de gloed)
+  const smokeMat = () => new THREE.SpriteMaterial({ map: glowTex, color: '#2a1a14', transparent: true, opacity: 0, depthWrite: false });
+  const smoke = [];
+  for (let i = 0; i < 48; i++) { const sp = new THREE.Sprite(smokeMat()); sp.userData.life = 0; sp.visible = false; group.add(sp); smoke.push(sp); }
+  let smokeNext = 0, smokeLast = null;
+  // Felle lichtflits bij de inslag + oplichtend frame
+  const impactLight = new THREE.PointLight('#ffb347', 0, 14, 2); group.add(impactLight);
+  let framePulse = 0, hoverSlot = -1;
+  let pegNext = 0;
+  const shock = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 64), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+  shock.visible = false; group.add(shock);
+  const bc = makeCanvas(32, 256), bg = bc.getContext('2d'), bgrad = bg.createLinearGradient(0, 256, 0, 0);
+  bgrad.addColorStop(0, 'rgba(255,255,255,1)'); bgrad.addColorStop(0.35, 'rgba(255,255,255,.45)'); bgrad.addColorStop(1, 'rgba(255,255,255,0)');
+  bg.fillStyle = bgrad; bg.fillRect(0, 0, 32, 256);
+  const beam = new THREE.Mesh(new THREE.PlaneGeometry(sw * 0.95, 7), new THREE.MeshBasicMaterial({ map: canvasTex(bc), color: '#ff9a40', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  beam.visible = false; group.add(beam);
+  let impactAge = 99;
   let values = Array(slots).fill(0), flashSlot = -1, factor = 1;
   const draw = () => {
     const g = sc.getContext('2d'); g.clearRect(0, 0, 2048, 256);
     for (let i = 0; i < slots; i++) {
-      const v = values[i], x = i * 128, isD = v === 'D', lit = i === flashSlot;
-      g.fillStyle = isD ? (lit ? '#fff3a8' : '#f2c14e') : lit ? '#fff' : i % 2 ? '#3a1d5c' : '#2a1550';
+      const v = values[i], x = i * 128, isD = v === 'D', lit = i === flashSlot, hov = i === hoverSlot && !lit;
+      g.fillStyle = isD ? (lit ? '#fff3a8' : '#f2c14e') : lit ? '#fff' : hov ? '#8a2f12' : i % 2 ? '#3a1d5c' : '#2a1550';
       roundRect(g, x + 6, 10, 116, 236, 18); g.fill();
+      if (hov) { g.strokeStyle = '#ffb347'; g.lineWidth = 10; g.stroke(); }
       g.fillStyle = isD ? '#3a2400' : lit ? '#1a1205' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
       if (isD) { g.font = '1000 25px system-ui, sans-serif'; g.fillText('DUBBEL', x + 64, 116); g.font = '1000 44px system-ui, sans-serif'; g.fillText('×2', x + 64, 170); }
       else if (!v) { g.font = '1000 58px system-ui, sans-serif'; g.fillText('?', x + 64, 128); }
@@ -1249,7 +1322,76 @@ const meteor = (() => {
     setValues(v) { values = v; draw(); },
     setFactor(f) { if (f !== factor) { factor = f; draw(); } },
     flash(i) { if (i !== flashSlot) { flashSlot = i; draw(); } },
-    local: (x, y) => group.localToWorld(V(x, y, 0.3))
+    hover(i) { if (i !== hoverSlot) { hoverSlot = i; draw(); } },
+    pulseFrame(a) { framePulse = Math.max(framePulse, a); },
+    // Rook: één pluim per afgelegde afstand
+    puff(force) {
+      const p = ball.position;
+      if (!force && smokeLast && smokeLast.distanceTo(p) < 0.12) return;
+      smokeLast = p.clone();
+      const sp = smoke[smokeNext]; smokeNext = (smokeNext + 1) % smoke.length;
+      const spread = force ? 0.6 : 0.1;
+      sp.position.set(p.x + (Math.random() - 0.5) * spread, p.y + 0.05 + (force ? Math.random() * 0.3 : 0), 0.22); sp.userData.life = 1; sp.userData.drift = (Math.random() - 0.5) * 0.3; sp.visible = true;
+    },
+    local: (x, y) => group.localToWorld(V(x, y, 0.3)),
+    // Staart volgt het afgelegde pad (op afstand, dus even lang bij elke framerate)
+    trailPush() {
+      const p = ball.position;
+      if (!hist.length || hist[0].distanceTo(p) > 0.055) { hist.unshift(p.clone()); if (hist.length > TRAIL) hist.pop(); }
+      const fl = performance.now() / 1000;
+      trail.forEach((t, i) => {
+        t.visible = i < hist.length;
+        if (!t.visible) return;
+        t.position.copy(hist[i]);
+        t.scale.setScalar(t.userData.base * ball.scale.x * (0.85 + 0.3 * Math.sin(fl * 23 + i * 1.7)));
+      });
+    },
+    trailOff() { hist.length = 0; smokeLast = null; trail.forEach(t => { t.visible = false; }); },
+    pegHit(x, y) { const s = pegFlashes[pegNext]; pegNext = (pegNext + 1) % pegFlashes.length; s.position.set(x, y, 0.32); s.userData.life = 1; },
+    impact(slot, big) {
+      const x = (slot - 7.5) * sw;
+      shock.position.set(x, slotY, 0.36); shock.material.color.set(big ? '#f2c14e' : '#ffb347'); shock.userData.big = big; shock.visible = true;
+      beam.position.set(x, slotY + 3.5, 0.34); beam.material.color.set(big ? '#ffe27a' : '#ff9a40'); beam.visible = true;
+      impactAge = 0;
+      impactLight.position.set(x, slotY + 0.6, 1.2); impactLight.color.set(big ? '#ffe27a' : '#ffb347'); impactLight.intensity = big ? 160 : 110;
+      framePulse = 1;
+    },
+    tick(dt) {
+      const ts = performance.now() / 1000;
+      if (ball.visible) {
+        rock.rotation.x += dt * 2.3; rock.rotation.y += dt * 3.1;
+        const fl = 0.85 + 0.15 * Math.sin(ts * 31) * Math.sin(ts * 17.3);
+        fire.scale.setScalar(1.7 * fl); halo.scale.setScalar(3.4 * (0.9 + 0.1 * Math.sin(ts * 9)));
+        rockMat.emissiveIntensity = 1.3 + 0.5 * fl; ballLight.intensity = 22 * fl;
+      }
+      // Geraakte pinnen: eerst wit-heet, daarna nog even nagloeiend oranje
+      for (const s of pegFlashes) {
+        if (s.userData.life <= 0) continue;
+        const l = s.userData.life = Math.max(0, s.userData.life - dt * 0.7);
+        const hot = clamp((l - 0.75) / 0.25, 0, 1);
+        s.material.color.copy(cEmber).lerp(cWhite, hot);
+        s.material.opacity = hot > 0 ? 0.5 + hot * 0.5 : l / 0.75 * 0.5;
+        s.scale.setScalar(0.45 + hot * 0.9);
+      }
+      for (const sp of smoke) {
+        if (sp.userData.life <= 0) continue;
+        const l = sp.userData.life = Math.max(0, sp.userData.life - dt * 0.8);
+        sp.visible = l > 0;
+        sp.position.y += dt * 0.35; sp.position.x += dt * sp.userData.drift;
+        sp.material.opacity = Math.min(1, (1 - l) * 6) * l * 0.55;
+        sp.scale.setScalar(0.35 + (1 - l) * 1.6);
+      }
+      impactLight.intensity *= Math.exp(-dt * 3.2);
+      framePulse = Math.max(0, framePulse - dt * 1.6);
+      frameMat.emissiveIntensity = 0.7 + framePulse * 2.6 + (ball.visible ? 0.25 * Math.sin(ts * 9) : 0);
+      if (impactAge < 2) {
+        impactAge += dt;
+        const p = clamp(impactAge / 0.9, 0, 1), sc = (shock.userData.big ? 4.5 : 3) * easeOut(p) + 0.1;
+        shock.scale.set(sc, sc, 1); shock.material.opacity = (1 - p) * 0.95; shock.visible = p < 1;
+        const bp = clamp(impactAge / 1.6, 0, 1);
+        beam.material.opacity = Math.sin(Math.min(1, bp * 4) * Math.PI / 2) * (1 - bp) * 0.85; beam.scale.x = 1 + bp * 0.6; beam.visible = bp < 1;
+      }
+    }
   };
 })();
 
@@ -1541,130 +1683,296 @@ function sign(title, icon, color, pos, rot, w = 5.4) {
 }
 
 // =====================================================
-// MAX NOVA (de presentator)
+// STELLA NOVA (de presentatrice)
 // =====================================================
 const astro = (() => {
   const root = new THREE.Group();
   scene.add(root);
-  const SKIN = '#e9b48f';
-  const skin = new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.6, metalness: 0 });
-  // Glitterjasje: donkerblauw met fijne glinstering
-  const sparkC = makeCanvas(256, 256), sg = sparkC.getContext('2d');
-  sg.fillStyle = '#1b2a6b'; sg.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 1600; i++) { sg.fillStyle = Math.random() < 0.5 ? '#3a5ad8' : Math.random() < 0.5 ? '#9fb6ff' : '#14205a'; sg.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); }
-  const sparkT = canvasTex(sparkC); sparkT.wrapS = sparkT.wrapT = THREE.RepeatWrapping; sparkT.repeat.set(3, 3);
-  const jacket = new THREE.MeshStandardMaterial({ map: sparkT, metalness: 0.55, roughness: 0.35, emissive: '#0a1238', emissiveIntensity: 0.4 });
-  const gold = new THREE.MeshStandardMaterial({ color: '#e0b04a', metalness: 1, roughness: 0.25 });
-  const shirt = new THREE.MeshStandardMaterial({ color: '#f4f2ee', roughness: 0.7 });
-  const trousers = new THREE.MeshStandardMaterial({ color: '#14131c', roughness: 0.55, metalness: 0.1 });
-  const shoes = new THREE.MeshStandardMaterial({ color: '#0b0b0f', roughness: 0.2, metalness: 0.4 });
-  const hairM = new THREE.MeshStandardMaterial({ color: '#4a2c18', roughness: 0.75 });
+  const SKIN = '#efc2a2';
   const cast = m => { m.castShadow = true; return m; };
+  // Huid: zachte sheen en subtiele kleurvariatie, zodat het geen plastic lijkt
+  const skinC = makeCanvas(256, 256), skg = skinC.getContext('2d');
+  skg.fillStyle = SKIN; skg.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 1800; i++) { skg.fillStyle = `rgba(${Math.random() < 0.5 ? '205,130,110' : '255,225,205'},${0.04 + Math.random() * 0.05})`; skg.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 3, 2 + Math.random() * 3); }
+  const skinT = canvasTex(skinC); skinT.wrapS = skinT.wrapT = THREE.RepeatWrapping;
+  const skin = new THREE.MeshPhysicalMaterial({ color: '#ffffff', map: skinT, roughness: 0.48, metalness: 0, sheen: 0.7, sheenRoughness: 0.4, sheenColor: new THREE.Color('#ffb09a'), clearcoat: 0.08, clearcoatRoughness: 0.5 });
+  // Pailletten-top: diep smaragdgroen met gouden en lichtgroene glinsters
+  const sparkC = makeCanvas(256, 256), sg = sparkC.getContext('2d');
+  sg.fillStyle = '#0c4532'; sg.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2200; i++) { const r = Math.random(); sg.fillStyle = r < 0.35 ? '#1c8a5e' : r < 0.58 ? '#5fe0a8' : r < 0.68 ? '#eafff4' : r < 0.8 ? '#f2c14e' : '#05261a'; sg.beginPath(); sg.arc(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 1.4, 0, TAU); sg.fill(); }
+  const sparkT = canvasTex(sparkC); sparkT.wrapS = sparkT.wrapT = THREE.RepeatWrapping; sparkT.repeat.set(4, 4);
+  const dress = new THREE.MeshPhysicalMaterial({ map: sparkT, metalness: 0.55, roughness: 0.3, emissive: '#03160e', emissiveIntensity: 0.45, sheen: 0.6, sheenColor: new THREE.Color('#8affd0'), clearcoat: 0.3, clearcoatRoughness: 0.25, side: THREE.DoubleSide });
+  const gold = new THREE.MeshStandardMaterial({ color: '#e8b84e', metalness: 1, roughness: 0.2 });
+  // Haar: lange kastanjebruine golven met koperen lichtjes
+  const hairC = makeCanvas(256, 256), hg = hairC.getContext('2d');
+  hg.fillStyle = '#4a2213'; hg.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 1100; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256, len = 30 + Math.random() * 70;
+    const r = Math.random();
+    hg.strokeStyle = r < 0.45 ? `rgba(168,92,48,${0.35 + Math.random() * 0.4})` : r < 0.6 ? `rgba(214,140,80,${0.25 + Math.random() * 0.3})` : `rgba(28,12,6,${0.35 + Math.random() * 0.4})`;
+    hg.lineWidth = 0.7 + Math.random() * 1.3;
+    hg.beginPath(); hg.moveTo(x, y); hg.bezierCurveTo(x + 8, y + len * 0.33, x - 8, y + len * 0.66, x + (Math.random() - 0.5) * 6, y + len); hg.stroke();
+  }
+  const hairT = canvasTex(hairC); hairT.wrapS = hairT.wrapT = THREE.RepeatWrapping; hairT.repeat.set(3, 1);
+  const hairM = new THREE.MeshPhysicalMaterial({ color: '#ffffff', map: hairT, bumpMap: hairT, bumpScale: 1.2, roughness: 0.45, sheen: 1, sheenRoughness: 0.3, sheenColor: new THREE.Color('#d08a50'), side: THREE.DoubleSide });
 
   const body = new THREE.Group(); body.position.y = 1.0; root.add(body);
-  // Romp: jasje, overhemd, revers, gouden knopen
-  const torso = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.36, 8, 20), jacket)); torso.scale.set(1.3, 1, 0.78); torso.position.y = 0.42;
-  const shirtV = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 3), shirt); shirtV.rotation.set(Math.PI, 0, 0); shirtV.position.set(0, 0.6, 0.135); shirtV.scale.z = 0.3;
-  const bow = new THREE.Mesh(new THREE.TorusGeometry(0.025, 0.012, 6, 12), gold); bow.position.set(0, 0.71, 0.15); bow.scale.set(1.8, 0.8, 0.6);
-  const lapelGeo = new THREE.BoxGeometry(0.05, 0.3, 0.02);
-  const lapL = new THREE.Mesh(lapelGeo, gold); lapL.position.set(0.075, 0.57, 0.145); lapL.rotation.z = -0.32;
-  const lapR = lapL.clone(); lapR.position.x = -0.075; lapR.rotation.z = 0.32;
-  const buttons = [0.38, 0.28].map(y => { const b = new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), gold); b.position.set(0, y, 0.15); return b; });
-  const pin = new THREE.Mesh(new THREE.OctahedronGeometry(0.03), new THREE.MeshBasicMaterial({ color: '#ffe27a' })); pin.position.set(0.13, 0.6, 0.13);
-  const chestGlow = glow('#ffe27a', 0.25, 0.8); chestGlow.position.copy(pin.position).setZ(0.15);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.12, 14), skin); neck.position.y = 0.78;
-  body.add(torso, shirtV, bow, lapL, lapR, ...buttons, pin, chestGlow, neck);
-  // Hoofd
+  // Satijn voor de broek: zwart met een zachte zilveren glans
+  const satin = new THREE.MeshPhysicalMaterial({ color: '#0d0d12', roughness: 0.32, metalness: 0.1, sheen: 1, sheenRoughness: 0.4, sheenColor: new THREE.Color('#9aa4b0'), clearcoat: 0.45, clearcoatRoughness: 0.3, side: THREE.DoubleSide });
+  const lathe = (pts, mat, seg = 64) => { const m = cast(new THREE.Mesh(new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg, Math.PI, TAU), mat)); m.scale.set(1.12, 1, 0.74); return m; };
+  // Blote taille tussen crop top en broek
+  const midriff = lathe([[0.001, 0.25], [0.147, 0.26], [0.143, 0.3], [0.15, 0.35], [0.157, 0.4], [0.162, 0.425], [0.001, 0.43]], skin);
+  // Crop top: glinsterend, met een vloeiende boezem in de vorm zelf en een gouden bies langs de onderrand
+  const topProfile = [[0.16, 0.392], [0.172, 0.43], [0.181, 0.5], [0.171, 0.58], [0.168, 0.65], [0.161, 0.7], [0.128, 0.745], [0.072, 0.775], [0.001, 0.787]];
+  const topGeo = new THREE.LatheGeometry(topProfile.map(([x, y]) => new THREE.Vector2(x, y)), 64, Math.PI, TAU);
+  {
+    const p = topGeo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      if (v.z <= 0) continue;
+      const fy = Math.exp(-(((v.y - 0.5) / (v.y > 0.5 ? 0.095 : 0.068)) ** 2));
+      const fx = Math.exp(-(((v.x - 0.07) / 0.064) ** 2)) + Math.exp(-(((v.x + 0.07) / 0.064) ** 2));
+      const k = 1 + 0.9 * fy * Math.min(1, fx) * (v.z / Math.hypot(v.x, v.z));
+      p.setXYZ(i, v.x * (1 + (k - 1) * 0.12), v.y, v.z * k);
+    }
+    topGeo.computeVertexNormals();
+  }
+  const torso = cast(new THREE.Mesh(topGeo, dress)); torso.scale.set(1.12, 1, 0.74);
+  const topHem = new THREE.Mesh(new THREE.TorusGeometry(0.161, 0.005, 6, 64), gold); topHem.rotation.x = Math.PI / 2; topHem.scale.set(1.12, 0.74, 1); topHem.position.y = 0.393;
+  // Hoge broek: taille tot net onder de navel, heupen die aansluiten op de pijpen
+  const trousers = lathe([[0.149, 0.285], [0.146, 0.22], [0.156, 0.12], [0.168, 0.03], [0.166, -0.04], [0.15, -0.1], [0.12, -0.14], [0.001, -0.15]], satin); trousers.scale.set(1.04, 1, 0.78);
+  // Gouden riem met een stralende sterbroche
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.151, 0.01, 8, 56), gold); belt.rotation.x = Math.PI / 2; belt.scale.set(1.12, 0.74, 1); belt.position.y = 0.265;
+  const pin = new THREE.Mesh(new THREE.OctahedronGeometry(0.024), new THREE.MeshBasicMaterial({ color: '#ffe27a' })); pin.position.set(0, 0.265, 0.116); pin.scale.z = 0.4;
+  const chestGlow = glow('#ffe27a', 0.2, 0.8); chestGlow.position.set(0, 0.265, 0.128);
+  // Ronde halslijn met gouden bies, en een kettinkje met hangertje
+  const neckline = new THREE.Mesh(new THREE.CircleGeometry(0.05, 32, Math.PI, Math.PI), skin); neckline.position.set(0, 0.765, 0.084); neckline.rotation.x = -0.45; neckline.scale.x = 1.15;
+  const neckTrim = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.0035, 6, 32, Math.PI), gold); neckTrim.position.copy(neckline.position); neckTrim.rotation.set(-0.45, 0, Math.PI); neckTrim.scale.x = 1.15;
+  const chain = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.0022, 4, 32, Math.PI), gold); chain.rotation.set(-0.2, 0, Math.PI); chain.position.set(0, 0.79, 0.05);
+  const pendant = new THREE.Mesh(new THREE.OctahedronGeometry(0.008), new THREE.MeshBasicMaterial({ color: '#fff3b0' })); pendant.position.set(0, 0.742, 0.094);
+  // Navelpiercing met een sterretje
+  const navel = new THREE.Mesh(new THREE.OctahedronGeometry(0.006), new THREE.MeshBasicMaterial({ color: '#fff3b0' })); navel.position.set(0, 0.315, 0.108);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.043, 0.052, 0.13, 16), skin); neck.position.y = 0.79;
+  body.add(midriff, torso, topHem, trousers, belt, pin, chestGlow, neckline, neckTrim, chain, pendant, navel, neck);
+
+  // Hoofd: één vervormde bol (smalle kaak, fijne kin); de gezichtstextuur krijgt dezelfde vorm
   const headPivot = new THREE.Group(); headPivot.position.y = 0.86; body.add(headPivot);
-  const head = cast(new THREE.Mesh(new THREE.SphereGeometry(0.12, 32, 24), skin)); head.scale.set(0.9, 1.12, 0.98); head.position.y = 0.06;
-  const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16), skin); jaw.scale.set(0.85, 0.7, 0.9); jaw.position.set(0, -0.01, 0.015);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 10), skin); nose.rotation.x = Math.PI / 2; nose.position.set(0, 0.05, 0.12);
-  const earGeo = new THREE.SphereGeometry(0.028, 12, 8);
-  const earL = new THREE.Mesh(earGeo, skin); earL.position.set(0.108, 0.05, 0); earL.scale.set(0.5, 1, 0.8);
-  const earR = earL.clone(); earR.position.x = -0.108;
-  // Haar: kap + kuif
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.127, 32, 16, 0, TAU, 0, 1.25), hairM); hair.scale.set(0.93, 1.1, 1.02); hair.position.y = 0.075; hair.rotation.x = -0.25;
-  const quiff = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), hairM); quiff.scale.set(1.4, 0.6, 1); quiff.position.set(0.01, 0.19, 0.05); quiff.rotation.z = 0.2;
+  const shapeHead = geo => {
+    const p = geo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const r = v.length(), n = v.clone().divideScalar(r), low = Math.max(0, -n.y);
+      n.x *= 1 - 0.3 * Math.pow(low, 1.2);
+      n.z *= 1 - 0.06 * low;
+      if (n.z > 0) n.z += 0.04 * Math.pow(Math.max(0, low - 0.45), 1.2) * n.z;
+      n.x *= 1 + 0.035 * Math.max(0, 1 - Math.abs(n.y + 0.02) * 4);
+      p.setXYZ(i, n.x * r, n.y * r, n.z * r);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  };
+  const head = cast(new THREE.Mesh(shapeHead(new THREE.SphereGeometry(0.12, 48, 36)), skin)); head.scale.set(0.86, 1.1, 0.96); head.position.y = 0.06;
+  // Kleine, fijne neus
+  const nose = new THREE.Group(); nose.position.set(0, 0.058, 0.106);
+  const bridge = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.036, 4, 10), skin); bridge.position.set(0, 0.012, -0.003); bridge.rotation.x = -0.4;
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0088, 16, 12), skin); tip.position.set(0, -0.009, 0.011); tip.scale.set(1, 0.9, 1);
+  const wings = [-1, 1].map(sd => { const w = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 12, 8), skin); w.position.set(sd * 0.0085, -0.013, 0.001); return w; });
+  nose.add(bridge, tip, ...wings);
+  // Oren met gouden oorringen en een sterretje
+  const ear = sd => {
+    const g = new THREE.Group(); g.position.set(sd * 0.1, 0.045, -0.005); g.rotation.y = sd * 0.35;
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.026, 14, 10), skin); shell.scale.set(0.32, 1, 0.75);
+    const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.0024, 6, 24), gold); hoop.position.set(sd * 0.004, -0.04, 0.004); hoop.rotation.y = Math.PI / 2;
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.006), new THREE.MeshBasicMaterial({ color: '#fff3b0' })); star.position.set(sd * 0.004, -0.056, 0.004);
+    g.add(shell, hoop, star); return g;
+  };
+  const earL = ear(1), earR = ear(-1);
+  // Haar: kap, zijwaartse pony, lange golvende lokken over de rug en twee lokken langs het gezicht
+  // Kap: schuin gekanteld, zodat de haarlijn voor hoog en opzij/achter laag loopt
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.129, 48, 24, 0, TAU, 0, 1.5), hairM); hair.scale.set(0.92, 1.1, 1.02); hair.position.y = 0.068; hair.rotation.x = -0.5;
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 16), hairM); crown.scale.set(1.25, 0.72, 1.25); crown.position.set(0, 0.16, -0.02);
+  // Haarlagen die om het hoofd vallen (lathe-stukken met golven); onder het hoofd vallen ze achter de schouders
+  const hairSheet = (profile, phiStart, phiLength, { back = 0.03, narrow = 0.72 } = {}) => {
+    const geo = new THREE.LatheGeometry(profile.map(([x, y]) => new THREE.Vector2(x, y)), 36, phiStart, phiLength);
+    const p = geo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const phi = Math.atan2(v.x, v.z), below = clamp((-0.06 - v.y) / 0.3, 0, 1);
+      const wave = 1 + 0.05 * Math.sin(v.y * 42 + phi * 6) * clamp((0.08 - v.y) * 5, 0, 1);
+      p.setXYZ(i, v.x * wave * (1 - (1 - narrow) * below), v.y, v.z * wave - back * below);
+    }
+    geo.computeVertexNormals();
+    const m = cast(new THREE.Mesh(geo, hairM)); m.scale.set(0.92, 1, 1.02); m.position.y = 0.06; return m;
+  };
+  const backHair = hairSheet([[0.02, 0.15], [0.07, 0.135], [0.108, 0.1], [0.126, 0.045], [0.129, -0.02], [0.127, -0.06], [0.13, -0.14], [0.14, -0.24], [0.138, -0.33], [0.12, -0.4], [0.08, -0.43]], Math.PI / 2 - 0.05, Math.PI + 0.1);
+  // Zijwaartse pony over het voorhoofd (schuin, links langer dan rechts)
+  const bangs = hairSheet([[0.02, 0.152], [0.075, 0.138], [0.112, 0.108], [0.128, 0.078], [0.131, 0.06]], -0.95, 1.75);
+  bangs.rotation.z = -0.28; bangs.position.set(0.012, 0.062, 0.004);
+  // Lokken langs het gezicht, die op de schouders eindigen
+  const sideHair = [Math.PI / 2 - 0.62, Math.PI * 1.5 - 0.06].map(start => hairSheet([[0.02, 0.15], [0.07, 0.135], [0.108, 0.1], [0.126, 0.045], [0.129, -0.01], [0.126, -0.06], [0.13, -0.13], [0.12, -0.18], [0.09, -0.2]], start, 0.68, { back: 0.01, narrow: 0.9 }));
   // Gezicht (ogen, wenkbrauwen, mond) op een transparante textuur
   const faceC = makeCanvas(256, 256), faceT = canvasTex(faceC);
-  const face = new THREE.Mesh(new THREE.SphereGeometry(0.1215, 32, 24, Math.PI / 2 - 0.85, 1.7, 0.95, 1.2), new THREE.MeshStandardMaterial({ map: faceT, transparent: true, roughness: 0.6, depthWrite: false }));
+  const face = new THREE.Mesh(shapeHead(new THREE.SphereGeometry(0.1215, 48, 36, Math.PI / 2 - 0.85, 1.7, 0.95, 1.2)), new THREE.MeshStandardMaterial({ map: faceT, transparent: true, roughness: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 }));
   face.scale.copy(head.scale); face.position.copy(head.position);
-  // Headset-microfoon
-  const micArm = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.004, 6, 20, 1.3), new THREE.MeshStandardMaterial({ color: '#222', metalness: 0.6 }));
-  micArm.rotation.set(0, -Math.PI / 2, -0.35); micArm.position.set(0.105, 0.02, 0.0);
-  const mic = new THREE.Mesh(new THREE.SphereGeometry(0.013, 10, 8), new THREE.MeshBasicMaterial({ color: '#ff4fa3' })); mic.position.set(0.05, -0.04, 0.11);
-  const tipGlow = glow('#ff4fa3', 0.12, 0.8); tipGlow.position.copy(mic.position);
-  headPivot.add(head, jaw, nose, earL, earR, hair, quiff, face, micArm, mic, tipGlow);
-  // Armen (mouw, manchet, hand)
+  // Headset: dun buisje van oor naar mondhoek, met een roze lampje
+  const micCurve = new THREE.CatmullRomCurve3([V(0.095, 0.05, 0.0), V(0.095, 0.01, 0.045), V(0.074, -0.014, 0.086), V(0.04, -0.016, 0.106)]);
+  const micArm = new THREE.Mesh(new THREE.TubeGeometry(micCurve, 24, 0.0024, 6), new THREE.MeshStandardMaterial({ color: '#1c1c22', metalness: 0.7, roughness: 0.3 }));
+  const mic = new THREE.Mesh(new THREE.CapsuleGeometry(0.006, 0.01, 4, 8), new THREE.MeshStandardMaterial({ color: '#141418', roughness: 0.8 }));
+  mic.rotation.z = Math.PI / 2; mic.position.set(0.036, -0.016, 0.107);
+  const tipGlow = glow('#ff4fa3', 0.03, 0.9); tipGlow.position.set(0.096, 0.05, 0.012);
+  headPivot.add(head, nose, earL, earR, hair, crown, backHair, ...sideHair, bangs, face, micArm, mic, tipGlow);
+  // Armen: nauwsluitende pailletten-mouwen, gouden armband, slanke handen
   const arm = side => {
-    const shoulder = new THREE.Group(); shoulder.position.set(side * 0.27, 0.66, 0); body.add(shoulder);
-    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 12), jacket); pad.scale.set(1, 0.8, 0.9); shoulder.add(pad);
-    const upper = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.062, 0.24, 6, 12), jacket)); upper.position.y = -0.17; shoulder.add(upper);
+    const shoulder = new THREE.Group(); shoulder.position.set(side * 0.215, 0.66, 0); body.add(shoulder);
+    // Blote armen (mouwloze top): ronde schouder, slanke boven- en onderarm, gouden armband om de bovenarm
+    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.045, 20, 14), skin); pad.scale.set(1, 0.85, 0.9); pad.position.set(side * -0.012, -0.02, 0); shoulder.add(pad);
+    const upperGeo = new THREE.LatheGeometry([[0.001, -0.31], [0.03, -0.305], [0.034, -0.27], [0.038, -0.17], [0.042, -0.07], [0.044, -0.02], [0.001, 0.0]].map(([x, y]) => new THREE.Vector2(x, y)), 20);
+    const upper = cast(new THREE.Mesh(upperGeo, skin)); shoulder.add(upper);
+    const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.041, 0.005, 6, 24), gold); cuff.rotation.x = Math.PI / 2; cuff.position.y = -0.1; shoulder.add(cuff);
+    const cuff2 = cuff.clone(); cuff2.position.y = -0.115; shoulder.add(cuff2);
     const elbow = new THREE.Group(); elbow.position.y = -0.33; shoulder.add(elbow);
-    const lower = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.22, 6, 12), jacket)); lower.position.y = -0.14; elbow.add(lower);
-    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.04, 12), shirt); cuff.position.y = -0.29; elbow.add(cuff);
-    const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.012, 12), gold); stripe.position.y = -0.255; elbow.add(stripe);
-    const hand = new THREE.Group(); hand.position.y = -0.34; elbow.add(hand);
-    const palm = cast(new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.09, 0.035), skin)); palm.position.y = -0.03; hand.add(palm);
-    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.035, 4, 8), skin); thumb.position.set(side * -0.04, -0.02, 0.015); thumb.rotation.z = side * 0.6; hand.add(thumb);
-    const fingers = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.03), skin); fingers.position.y = -0.095; fingers.rotation.x = 0.25; hand.add(fingers);
+    const elbowBall = new THREE.Mesh(new THREE.SphereGeometry(0.031, 14, 10), skin); elbow.add(elbowBall);
+    const lowerGeo = new THREE.LatheGeometry([[0.001, -0.29], [0.024, -0.285], [0.026, -0.25], [0.032, -0.12], [0.032, -0.04], [0.03, 0.0], [0.001, 0.01]].map(([x, y]) => new THREE.Vector2(x, y)), 20);
+    const lower = cast(new THREE.Mesh(lowerGeo, skin)); elbow.add(lower);
+    const bracelet = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.0055, 6, 20), gold); bracelet.rotation.x = Math.PI / 2; bracelet.position.y = -0.26; elbow.add(bracelet);
+    const hand = new THREE.Group(); hand.position.y = -0.31; elbow.add(hand);
+    const palm = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.024, 0.03, 4, 10), skin)); palm.scale.set(1.2, 1, 0.55); palm.position.y = -0.03; hand.add(palm);
+    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.03, 4, 8), skin); thumb.position.set(side * -0.032, -0.02, 0.012); thumb.rotation.z = side * 0.6; hand.add(thumb);
+    const fingers = new THREE.Group(); fingers.position.y = -0.068; fingers.rotation.x = 0.25; hand.add(fingers);
+    const nail = new THREE.MeshStandardMaterial({ color: '#d8435a', roughness: 0.25, metalness: 0.1 });
+    [-0.021, -0.007, 0.007, 0.021].forEach((fx, i) => {
+      const len = [0.032, 0.04, 0.038, 0.028][i];
+      const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0075, len, 4, 8), skin); f.position.set(fx * side, -0.025, 0); fingers.add(f);
+      const n = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), nail); n.scale.set(1, 1.4, 0.5); n.position.set(fx * side, -0.025 - len / 2 - 0.002, 0.004); fingers.add(n);
+    });
     return { shoulder, elbow, hand };
   };
   const armL = arm(1), armR = arm(-1);
-  // Benen
+  // Benen met gouden pumps (hakje en puntneus)
   const leg = side => {
-    const hip = new THREE.Group(); hip.position.set(side * 0.1, 0.98, 0); root.add(hip);
-    const upper = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.34, 6, 12), trousers)); upper.position.y = -0.22; hip.add(upper);
+    const hip = new THREE.Group(); hip.position.set(side * 0.085, 0.98, 0); root.add(hip);
+    // Wijde satijnen broekspijpen met een gouden bies aan de buitenkant
+    const upper = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.074, 0.36, 6, 16), satin)); upper.position.y = -0.21; upper.scale.set(1, 1, 0.92); hip.add(upper);
     const knee = new THREE.Group(); knee.position.y = -0.46; hip.add(knee);
-    const lower = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.34, 6, 12), trousers)); lower.position.y = -0.21; knee.add(lower);
-    const shoe = cast(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.26), shoes)); shoe.position.set(0, -0.47, 0.05); knee.add(shoe);
-    const toe = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), shoes); toe.scale.set(1, 0.7, 1); toe.position.set(0, -0.48, 0.17); knee.add(toe);
+    const flare = new THREE.LatheGeometry([[0.001, -0.455], [0.082, -0.45], [0.078, -0.36], [0.07, -0.22], [0.064, -0.1], [0.062, 0.0], [0.064, 0.04], [0.001, 0.06]].map(([x, y]) => new THREE.Vector2(x, y)), 28);
+    const lower = cast(new THREE.Mesh(flare, satin)); knee.add(lower);
+    const stripeU = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.4, 0.012), gold); stripeU.position.set(side * 0.074, -0.22, 0); hip.add(stripeU);
+    const stripeL = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.46, 0.012), gold); stripeL.position.set(side * 0.072, -0.2, 0); stripeL.rotation.z = side * -0.04; knee.add(stripeL);
+    const shoe = new THREE.Group(); shoe.position.set(0, -0.455, 0.03); shoe.rotation.x = -0.28; knee.add(shoe);
+    const sole = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.034, 0.15, 4, 12), gold)); sole.rotation.x = Math.PI / 2; sole.scale.set(1, 1, 0.7); sole.position.z = 0.06; shoe.add(sole);
+    const heel = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.06, 8), gold); heel.position.set(0, -0.04, -0.035); heel.rotation.x = 0.28; shoe.add(heel);
     const jet = glow('#ffe27a', 0.3, 0); jet.position.set(0, -0.5, 0); knee.add(jet);
     return { hip, knee, jet };
   };
   const legL = leg(1), legR = leg(-1);
-  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 20), trousers); belt.scale.z = 0.75; belt.position.y = 0.02; body.add(belt);
-  const hips = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.06, 6, 16), trousers)); hips.scale.set(1.15, 1, 0.8); hips.position.y = -0.04; body.add(hips);
 
   // Gezicht tekenen (transparant, de huid eronder blijft zichtbaar)
   const faceState = { mood: 'happy', talk: 0, blink: 0 };
+  // Vaste wenkbrauwhaartjes (anders trillen ze elk frame)
+  const browHairs = Array.from({ length: 34 }, (_, i) => ({ f: i / 33, off: (Math.random() - 0.5) * 6, len: 7 + Math.random() * 6, a: Math.random() }));
   function drawFace(t) {
     const g = faceC.getContext('2d'), m = faceState.mood;
     g.clearRect(0, 0, 256, 256);
     const ey = 92, ex = 46, open = !(faceState.blink > 0);
     const browLift = { shock: -16, hype: -10, happy: -4, wink: -4, sad: 4, tense: 6, cool: -2 }[m] ?? 0;
     const browTilt = { sad: -0.35, tense: 0.3, cool: 0.15 }[m] ?? 0;
-    // Wenkbrauwen
-    g.strokeStyle = '#3a2214'; g.lineWidth = 9; g.lineCap = 'round';
+    const smile = m === 'happy' || m === 'hype' || m === 'wink';
+    // Zachte schaduw en blos: geeft het gezicht diepte
+    const soft = (x, y, r, col) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); };
     for (const side of [-1, 1]) {
-      g.beginPath();
-      const bx = 128 + side * ex, by = ey - 30 + browLift + (m === 'cool' && side > 0 ? -8 : 0);
-      g.moveTo(bx - 22, by + side * browTilt * 14 * -1); g.quadraticCurveTo(bx, by - 8, bx + 22, by + side * browTilt * 14);
-      g.stroke();
+      soft(128 + side * 62, 150, 42, smile ? 'rgba(240,110,125,.24)' : 'rgba(235,115,125,.17)');  // blush
+      soft(128 + side * 70, 122, 20, 'rgba(255,235,220,.12)');                                       // highlighter op de jukbeenderen
+      // Oogschaduw: violet met een gouden glans richting de wenkbrauw
+      soft(128 + side * (ex + 3), ey - 10, 26, 'rgba(130,70,190,.42)');
+      soft(128 + side * (ex - 2), ey - 22, 16, 'rgba(255,215,140,.28)');
     }
-    // Ogen
+    // Wenkbrauwen: losse haartjes langs een boog
+    for (const side of [-1, 1]) {
+      const bx = 128 + side * ex, by = ey - 30 + browLift + (m === 'cool' && side > 0 ? -8 : 0);
+      for (const h of browHairs) {
+        const u = h.f * 2 - 1, x = bx + u * 23, y = by - 3 + side * browTilt * 14 * u - Math.max(0, 1 - Math.abs(u - side * 0.35) * 1.3) * 10 + (side * u > 0.4 ? 1.5 : 0) + h.off * 0.5;
+        const thick = 1 - Math.abs(u + side * 0.45) * 0.75;
+        g.strokeStyle = `rgba(${60 + h.a * 25},${30 + h.a * 15},${18 + h.a * 8},${0.7 + h.a * 0.25})`; g.lineWidth = 1.8 * thick + 0.7;
+        g.beginPath(); g.moveTo(x, y + 4); g.lineTo(x + side * h.len * 0.55 * (u * side > 0 ? 1 : 0.6), y - h.len * 0.35); g.stroke();
+      }
+    }
+    // Ogen: amandelvorm, iris met verloop en ring, twee lichtpuntjes, wimperlijn
     for (const side of [-1, 1]) {
       const x = 128 + side * ex, wink = m === 'wink' && side > 0;
-      if (!open || wink) { g.strokeStyle = '#2a1a10'; g.lineWidth = 5; g.beginPath(); g.arc(x, ey - 2, 14, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke(); continue; }
-      const big = m === 'shock' ? 1.3 : 1;
-      g.fillStyle = '#fff'; g.beginPath(); g.ellipse(x, ey, 19 * big, (m === 'happy' || m === 'hype' ? 11 : 14) * big, 0, 0, TAU); g.fill();
-      g.fillStyle = '#3b6e8f'; g.beginPath(); g.arc(x + Math.sin(t * 0.7) * 2, ey + 1, 9 * big, 0, TAU); g.fill();
-      g.fillStyle = '#0d0a08'; g.beginPath(); g.arc(x + Math.sin(t * 0.7) * 2, ey + 1, 4.5 * big, 0, TAU); g.fill();
-      g.fillStyle = '#fff'; g.beginPath(); g.arc(x + 3, ey - 3, 2.5, 0, TAU); g.fill();
-      g.strokeStyle = '#2a1a10'; g.lineWidth = 3.5; g.beginPath(); g.ellipse(x, ey, 19 * big, (m === 'happy' || m === 'hype' ? 11 : 14) * big, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
+      if (!open || wink) {
+        g.strokeStyle = '#2a1810'; g.lineWidth = 4.5; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(x - 18, ey); g.quadraticCurveTo(x, ey + (wink || smile ? 9 : 5), x + 18, ey); g.stroke();
+        g.lineWidth = 2; g.beginPath(); g.moveTo(x + side * 17, ey + 1); g.lineTo(x + side * 21, ey + 4); g.stroke();
+        continue;
+      }
+      const big = m === 'shock' ? 1.25 : 1, w = 19 * big, top = (smile ? 10 : 13) * big, bot = (smile ? 6 : 9) * big;
+      const lookX = Math.sin(t * 0.7) * 2.2;
+      const eye = () => { g.beginPath(); g.moveTo(x - w, ey); g.bezierCurveTo(x - w * 0.5, ey - top * 1.35, x + w * 0.5, ey - top * 1.35, x + w, ey - 1); g.bezierCurveTo(x + w * 0.5, ey + bot * 1.3, x - w * 0.5, ey + bot * 1.3, x - w, ey); g.closePath(); };
+      g.save(); eye(); g.clip();
+      const sc = g.createLinearGradient(0, ey - top, 0, ey + bot); sc.addColorStop(0, '#d8cfc6'); sc.addColorStop(0.45, '#f7f2ec'); sc.addColorStop(1, '#ece3da');
+      g.fillStyle = sc; g.fillRect(x - w, ey - top * 1.4, w * 2, (top + bot) * 1.4);
+      const ix = x + lookX, iy = ey + 1, ir = 9.5 * big;
+      const iris = g.createRadialGradient(ix, iy, 1, ix, iy, ir);
+      iris.addColorStop(0, '#a07a30'); iris.addColorStop(0.3, '#5aa07a'); iris.addColorStop(0.8, '#2e6e58'); iris.addColorStop(1, '#13302a');
+      g.fillStyle = iris; g.beginPath(); g.arc(ix, iy, ir, 0, TAU); g.fill();
+      g.fillStyle = '#07090b'; g.beginPath(); g.arc(ix, iy, ir * (m === 'shock' ? 0.36 : 0.46), 0, TAU); g.fill();
+      // Schaduw van het bovenooglid
+      const lid = g.createLinearGradient(0, ey - top, 0, ey - top + 8); lid.addColorStop(0, 'rgba(60,30,20,.45)'); lid.addColorStop(1, 'rgba(60,30,20,0)');
+      g.fillStyle = lid; g.fillRect(x - w, ey - top * 1.4, w * 2, top * 1.4);
+      g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.arc(ix + 3.2, iy - 3.5, 2.6, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(ix - 3, iy + 3, 1.2, 0, TAU); g.fill();
+      g.restore();
+      // Wimperlijn (dik bovenaan, met een klein hoekje naar buiten) en een lichte onderrand
+      // Eyeliner met een vleugeltje en wimpers
+      g.strokeStyle = '#120a08'; g.lineWidth = 5; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(x - w, ey); g.bezierCurveTo(x - w * 0.5, ey - top * 1.35, x + w * 0.5, ey - top * 1.35, x + w, ey - 1); g.stroke();
+      g.fillStyle = '#120a08'; g.beginPath(); g.moveTo(x + side * (w - 3), ey - 4); g.lineTo(x + side * (w + 9), ey - 10); g.lineTo(x + side * (w - 1), ey + 1); g.closePath(); g.fill();
+      g.lineWidth = 1.8;
+      for (let k = 0; k < 7; k++) {
+        const f = 0.2 + k / 6 * 0.75, lx = x + side * (f * 2 - 1) * w, a = side * (f - 0.5) * 1.2;
+        const ly = ey - top * 1.35 * Math.sin(Math.PI * (0.08 + f * 0.84)) * 0.75;
+        g.beginPath(); g.moveTo(lx, ly); g.lineTo(lx + Math.sin(a) * 6 + side * 2 * f, ly - 6 - f * 2); g.stroke();
+      }
+      g.strokeStyle = 'rgba(150,80,70,.5)'; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(x + w, ey - 1); g.bezierCurveTo(x + w * 0.5, ey + bot * 1.3, x - w * 0.5, ey + bot * 1.3, x - w, ey); g.stroke();
+      // Ooglidplooi
+      g.strokeStyle = 'rgba(120,60,45,.35)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(x - w * 0.85, ey - top * 0.9); g.quadraticCurveTo(x, ey - top * 1.75, x + w * 0.9, ey - top * 0.9); g.stroke();
     }
-    // Snor-loze, gladgeschoren mond
+    // Mond: echte lippen in plaats van een lijntje
     const talk = faceState.talk > 0 ? (Math.sin(t * 19) * 0.5 + 0.5) * (0.6 + Math.sin(t * 7.3) * 0.4) : 0;
-    const my = 196;
-    g.fillStyle = '#5a1a1a'; g.strokeStyle = '#7a2a24'; g.lineWidth = 5;
-    if (m === 'shock') { g.beginPath(); g.ellipse(128, my, 16, 20 + talk * 6, 0, 0, TAU); g.fill(); }
-    else if (m === 'sad') { g.beginPath(); g.arc(128, my + 18, 26, Math.PI * 1.2, Math.PI * 1.8); g.stroke(); }
-    else if (talk > 0.05 || m === 'hype') {
-      const h = Math.max(talk * 26, m === 'hype' ? 14 : 4);
-      g.beginPath(); g.moveTo(98, my - 4); g.quadraticCurveTo(128, my + h * 1.4, 158, my - 4); g.quadraticCurveTo(128, my + 2, 98, my - 4); g.fill();
-      g.fillStyle = '#fff'; g.beginPath(); g.moveTo(104, my - 2); g.quadraticCurveTo(128, my + 4, 152, my - 2); g.lineTo(150, my + 2); g.quadraticCurveTo(128, my + 7, 106, my + 2); g.fill();
-    } else if (m === 'tense') { g.beginPath(); g.moveTo(104, my); g.lineTo(152, my); g.stroke(); }
-    else { g.beginPath(); g.moveTo(100, my - 6); g.quadraticCurveTo(128, my + (m === 'cool' ? 6 : 14), 156, my - (m === 'cool' ? 12 : 6)); g.stroke(); }
+    const my = 214, lipU = '#b8283f', lipL = '#d23a52';
+    const lipsClosed = curve => {
+      // bovenlip met cupidoboog
+      g.fillStyle = lipU; g.beginPath(); g.moveTo(101, my - curve); g.quadraticCurveTo(115, my - 13, 124, my - 11); g.quadraticCurveTo(128, my - 8, 132, my - 11); g.quadraticCurveTo(141, my - 13, 155, my - curve);
+      g.quadraticCurveTo(128, my + 1 - curve * 0.2, 102, my - curve); g.fill();
+      // onderlip
+      const lg2 = g.createLinearGradient(0, my, 0, my + 14); lg2.addColorStop(0, lipL); lg2.addColorStop(1, '#a8203a');
+      g.fillStyle = lg2; g.beginPath(); g.moveTo(105, my - curve + 1); g.quadraticCurveTo(128, my + 3 - curve * 0.2, 151, my - curve + 1); g.quadraticCurveTo(128, my + 18 - curve * 0.4, 105, my - curve + 1); g.fill();
+      g.fillStyle = 'rgba(255,235,235,.55)'; g.beginPath(); g.ellipse(128, my + 7 - curve * 0.3, 8, 2.4, 0, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255,235,235,.35)'; g.beginPath(); g.ellipse(124, my - 8, 4, 1.4, 0, 0, TAU); g.fill();
+      g.strokeStyle = '#7a1428'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(102, my - curve); g.quadraticCurveTo(128, my + 2 - curve * 0.2, 154, my - curve); g.stroke();
+    };
+    const openMouth = (h, wide = 1) => {
+      const L = 128 - 27 * wide, R = 128 + 27 * wide;
+      g.fillStyle = '#3a1210'; g.beginPath(); g.moveTo(L, my - 4); g.quadraticCurveTo(128, my - 9, R, my - 4); g.quadraticCurveTo(128, my + h * 1.5, L, my - 4); g.fill();
+      g.save(); g.clip();
+      g.fillStyle = '#f4efe8'; g.fillRect(L, my - 9, R - L, 7);                      // tanden
+      g.fillStyle = '#b0444a'; g.beginPath(); g.ellipse(128, my + h * 1.1, 14 * wide, 7, 0, 0, TAU); g.fill(); // tong
+      g.restore();
+      g.strokeStyle = lipU; g.lineWidth = 4; g.beginPath(); g.moveTo(L, my - 4); g.quadraticCurveTo(128, my - 10, R, my - 4); g.stroke();
+      g.strokeStyle = lipL; g.lineWidth = 5; g.beginPath(); g.moveTo(L + 2, my - 3); g.quadraticCurveTo(128, my + h * 1.5 + 3, R - 2, my - 3); g.stroke();
+    };
+    if (m === 'shock') {
+      g.fillStyle = '#3a1210'; g.beginPath(); g.ellipse(128, my + 2, 13, 17 + talk * 5, 0, 0, TAU); g.fill();
+      g.strokeStyle = lipL; g.lineWidth = 5; g.stroke();
+    } else if (m === 'sad') {
+      g.save(); g.translate(0, 8); g.scale(1, -1); g.translate(0, -2 * my); lipsClosed(-3); g.restore();
+    } else if (talk > 0.05 || m === 'hype') openMouth(Math.max(talk * 16, m === 'hype' ? 10 : 3), m === 'hype' ? 1.08 : 0.95);
+    else if (m === 'tense') lipsClosed(0);
+    else lipsClosed(m === 'cool' ? 3 : 7);
+    // Mondhoekjes
+    if (smile && !(talk > 0.05) && m !== 'hype') for (const side of [-1, 1]) { soft(128 + side * 26, my - 7, 6, 'rgba(150,50,60,.3)'); }
     faceT.needsUpdate = true;
   }
   drawFace(0);
@@ -1803,7 +2111,9 @@ const sfx = (() => {
     portal() { tone(60, 2.5, { type: 'sawtooth', vol: 0.12, to: 400 }); noise(2.5, { vol: 0.25, from: 100, to: 5000, q: 0.5 }); },
     flip() { for (let i = 0; i < 14; i++) tone(900 + i * 40, 0.04, { type: 'square', vol: 0.05, delay: i * 0.12 + Math.random() * 0.03 }); },
     drum() { for (let i = 0; i < 20; i++) noise(0.06, { vol: 0.12 + i * 0.008, from: 900, to: 300, delay: i * 0.07 }); },
-    blip() { tone(880, 0.08, { type: 'sine', vol: 0.12 }); }
+    blip() { tone(880, 0.08, { type: 'sine', vol: 0.12 }); },
+    peg(n) { tone(520 + n * 75, 0.08, { type: 'triangle', vol: 0.13 }); tone(2100 + n * 60, 0.03, { type: 'square', vol: 0.035 }); },
+    rumble() { noise(2.6, { vol: 0.32, from: 120, to: 2400, q: 0.6 }); tone(48, 2.6, { type: 'sawtooth', vol: 0.09, to: 140 }); }
   };
 })();
 
@@ -2090,7 +2400,7 @@ const SHOTS = {
   // Langzame boog langs de studio (links of rechts)
   arcL: t => { const a = lerp(-0.75, -0.35, ease(t / 8)); return { pos: V(Math.sin(a) * 14, 5.5, Math.cos(a) * 14), look: V(0, 4.8, -6), fov: 46 }; },
   arcR: t => { const a = lerp(0.75, 0.35, ease(t / 8)); return { pos: V(Math.sin(a) * 14, 5.5, Math.cos(a) * 14), look: V(0, 4.8, -6), fov: 46 }; },
-  // Max en het rad samen in beeld
+  // Stella en het rad samen in beeld
   hostTwo: (t, ctx) => {
     const h = hostPos(), side = ctx.side ?? (ctx.side = h.x >= 0 ? 1 : -1), head = h.clone().add(V(0, 1.75, 0));
     return { pos: h.clone().add(V(2.6 * side + Math.sin(t * 0.15) * 0.4, 2.1, 5.2)), look: head.lerp(WHEEL_POS, 0.4), fov: 44 };
@@ -2155,7 +2465,7 @@ function playlist(t) {
   }
   if (pk === 'bonus' && b) {
     const key = `b-${r.id}-${b.type}-${b.stage}`;
-    // Vanaf een vast punt bij het station zien we Max aan komen lopen (geen meedraaiende camera)
+    // Vanaf een vast punt bij het station zien we Stella aan komen lopen (geen meedraaiende camera)
     if (b.stage === 'travel') return { key, list: [[{ coin: 'coinWide', meteor: 'meteorWide', hunt: 'huntWide', worm: 'portal' }[b.type], 99, 1]] };
     if (b.type === 'coin') {
       if (b.stage === 'reveal') return { key, list: [['coinClose', 99, 1]] };
@@ -2212,7 +2522,7 @@ function updateCamera(t, dt) {
   const [name, , cut] = list[idx];
   const shotId = `${key}#${idx}#${Math.floor(((t - shotStart) / 1000) / total)}`;
   const isNew = cam.shotId !== shotId;
-  if (isNew) cam.ctx = {}; // per shot vaste keuzes (zoals aan welke kant van Max)
+  if (isNew) cam.ctx = {}; // per shot vaste keuzes (zoals aan welke kant van Stella)
   const shot = SHOTS[name](into, cam.ctx);
   cam.shotId = shotId;
   // Harde knip (of te ver weg: ook knippen in plaats van door de ruimte te vliegen)
@@ -2299,7 +2609,7 @@ function updateHost(t, dt) {
   else { const f = host.faceAt.clone().sub(root.position); yaw = Math.atan2(f.x, f.z); }
   let dy = yaw - root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   root.rotation.y += dy * (1 - Math.exp(-dt * 6));
-  // Portaal: Max wordt kleiner als hij erin stapt
+  // Portaal: Stella wordt kleiner als ze erin stapt
   const r = rnd(), b = r && r.bonus;
   const intoPortal = host.world === 'station' && b && b.type === 'worm' && b.stage === 'portal';
   const sc = intoPortal ? clamp(dist / 2, 0.05, 1) : 1;
@@ -2406,7 +2716,8 @@ function updateBonus(t, dt) {
     coin.disc.position.y = coin.homeY + Math.sin(ts * 1.4) * 0.12;
     coin.disc.rotation.y = Math.sin(ts * 0.6) * 0.5; coin.disc.rotation.x = 0;
   }
-  if (!b) { meteor.ball.visible = false; meteor.trail.forEach(x => { x.visible = false; }); return; }
+  meteor.tick(dt);
+  if (!b) { meteor.ball.visible = false; meteor.trailOff(); return; }
 
   if (b.type === 'coin') {
     if (b.stage === 'reveal' && b.red) {
@@ -2432,38 +2743,100 @@ function updateBonus(t, dt) {
   }
 
   if (b.type === 'meteor') {
-    if (meteorRound !== r.id && b.slots) { meteorRound = r.id; meteor.setFactor(1); meteor.setValues(b.slots); }
+    if (meteorRound !== r.id && b.slots) { meteorRound = r.id; meteor.setFactor(1); meteor.setValues(b.slots); meteor.hover(-1); }
     const ph = b.stage === 'drop' || b.stage === 'done' ? meteorPhase(t) : null;
-    if (!ph) { meteor.ball.visible = b.stage === 'setup'; if (meteor.ball.visible) meteor.ball.position.set(0, meteor.topY + 0.5 + Math.sin(ts * 3) * 0.1, 0.3); }
-    else {
+    const ball = meteor.ball, sw = meteor.sw, topBall = meteor.topY + 0.5;
+    if (!ph && b.stage === 'setup' && b.stageAt) {
+      // Aankomst: de meteoor komt van ver uit de ruimte aanvliegen en slaat zich vast boven de muur
+      const ARR = 2700, into = t - b.stageAt, u = clamp(into / ARR, 0, 1), e = easeOut(u);
+      const key = `${r.id}-arrive`;
+      if (meteor.arriving !== key) { meteor.arriving = key; meteor.trailOff(); if (u < 0.5) sfx.rumble(); }
+      ball.visible = true;
+      if (u < 1) {
+        const p0 = V(-18, 24, -34), p1 = V(-7, 18, 4), p2 = V(0, topBall, 0.3);
+        const q0 = p0.clone().lerp(p1, e), q1 = p1.clone().lerp(p2, e);
+        ball.position.copy(q0.lerp(q1, e));
+        ball.scale.setScalar(lerp(2.4, 1, e));
+        meteor.trailPush(); meteor.puff();
+        const at = ball.getWorldPosition(new THREE.Vector3());
+        particles.burst(at, { count: 4, speed: 1.2, colors: ['#ff8a3d', '#ffe08a', '#ff5a10'], lifeS: 0.9 });
+      } else {
+        if (meteor.locked !== key) {
+          meteor.locked = key; meteor.trailOff(); meteor.pulseFrame(1); shake(0.3); sfx.boom(true);
+          particles.burst(meteor.local(0, topBall), { count: 160, speed: 6, colors: ['#ffe08a', '#ff7a1a', '#ffffff', '#ff3a0a'] });
+        }
+        ball.scale.setScalar(1);
+        ball.position.set(Math.sin(ts * 1.7) * 0.05, topBall + Math.sin(ts * 3) * 0.1, 0.3);
+        if (Math.random() < 0.5) particles.burst(ball.getWorldPosition(new THREE.Vector3()), { count: 1, speed: 0.6, colors: ['#ff8a3d', '#ffb347'], lifeS: 0.8 });
+      }
+    } else if (!ph) {
+      ball.visible = false; meteor.trailOff();
+    } else {
       const { d, part, into, holdMs, fallMs } = ph;
-      meteor.ball.visible = true;
+      const dropKey = `${r.id}-${ph.i}`;
+      ball.visible = true;
       meteor.setFactor(d.factor * (part === 'land' && d.double ? 2 : 1));
-      const sx = (d.start - 7.5) * meteor.sw;
-      if (part === 'hold') { meteor.ball.position.set(sx, meteor.topY + 0.5, 0.3); meteor.flash(-1); }
-      else if (part === 'fall') {
-        const f = (into - holdMs) / fallMs * d.path.length, row = Math.min(d.path.length - 1, Math.floor(f)), frac = f - row;
+      const sx = (d.start - 7.5) * sw;
+      let trailing = true, embers = 0;
+      if (part === 'hold') {
+        // Naar de startplek boven de muur (eerste keer kort, na een DUBBEL schiet hij opnieuw van boven in)
+        if (meteor.entered !== dropKey) {
+          meteor.entered = dropKey; meteor.hover(-1);
+          meteor.holdFrom = ph.i === 0 && meteor.locked === `${r.id}-arrive` ? ball.position.clone() : V(sx - 1.6, topBall + 5, 0.3);
+          if (ph.i > 0) { meteor.trailOff(); sfx.whoosh(); }
+        }
+        const e = easeOut(clamp(into / holdMs, 0, 1));
+        ball.position.copy(meteor.holdFrom).lerp(V(sx, topBall, 0.3), e);
+        ball.position.y += Math.sin(e * Math.PI) * 0.25;
+        ball.scale.setScalar(ph.i === 0 ? 1 : 0.5 + 0.5 * e);
+        meteor.flash(-1);
+        embers = 2;
+        if (e > 0.98 && meteor.arrived !== dropKey) { meteor.arrived = dropKey; meteor.pulseFrame(0.6); sfx.whoosh(); particles.burst(meteor.local(sx, topBall), { count: 40, speed: 2.8, colors: ['#ffe08a', '#ff7a1a', '#fff'], lifeS: 0.6 }); }
+      } else if (part === 'fall') {
+        // De laatste drie rijen gaan langzamer: spanning in welk vak hij valt
+        const n = d.path.length, slow = 3, wSlow = 2.2, totalW = (n - slow) + slow * wSlow;
+        let wLeft = clamp((into - holdMs) / fallMs, 0, 1) * totalW, f = 0;
+        for (let k = 0; k < n; k++) { const w = k >= n - slow ? wSlow : 1; if (wLeft >= w) { wLeft -= w; f++; } else { f += wLeft / w; break; } }
+        f = Math.min(n - 1e-6, f);
+        const row = Math.floor(f), frac = f - row;
         let x = d.start;
         for (let k = 0; k < row; k++) x += d.path[k] ? 0.5 : -0.5;
         const nx = x + (d.path[row] ? 0.5 : -0.5);
-        const px = lerp(x, nx, frac), py = meteor.topY + 0.5 - (row + frac) * meteor.rowH - (row === 0 ? 0 : 0) + Math.sin(frac * Math.PI) * 0.18;
-        meteor.ball.position.set((px - 7.5) * meteor.sw, py, 0.3);
-        const rowKey = `${r.id}-${ph.i}-${row}`;
-        if (meteor.lastRow !== rowKey) { meteor.lastRow = rowKey; sfx.tick(); particles.burst(meteor.local((px - 7.5) * meteor.sw, py), { count: 6, speed: 1.5, colors: ['#ffb347'], lifeS: 0.4 }); }
+        // Kleine boog per pin: omhoog na de tik, dan zwaarder naar beneden
+        const px = lerp(x, nx, easeOut(frac)), py = topBall - (row + frac * frac) * meteor.rowH + Math.sin(frac * Math.PI) * 0.28;
+        ball.position.set((px - 7.5) * sw, py, 0.3);
+        ball.scale.setScalar(1);
+        meteor.hover(row >= n - 4 ? clamp(Math.round(px), 0, 15) : -1);
+        const rowKey = `${dropKey}-${row}`;
+        if (meteor.lastRow !== rowKey) {
+          meteor.lastRow = rowKey; sfx.peg(row);
+          const hx = (x - 7.5) * sw, hy = topBall - row * meteor.rowH - 0.22;
+          meteor.pegHit(hx, hy); meteor.pulseFrame(0.25 + row / n * 0.35);
+          particles.burst(meteor.local(hx, hy), { count: 22, speed: 3, colors: ['#ffe08a', '#ff8a3d', '#ffffff'], lifeS: 0.5, up: 1.2 });
+          if (row >= n - slow) shake(0.08);
+        }
+        embers = 2;
       } else {
         const pr = clamp((into - holdMs - fallMs) / 400, 0, 1);
-        meteor.ball.position.set((d.slot - 7.5) * meteor.sw, lerp(meteor.topY + 0.5 - d.path.length * meteor.rowH, meteor.slotY + 0.1, pr), 0.3);
-        const landKey = `${r.id}-${ph.i}`;
-        if (meteor.landed !== landKey && pr >= 1) {
-          meteor.landed = landKey; meteor.flash(d.slot);
-          particles.burst(meteor.local((d.slot - 7.5) * meteor.sw, meteor.slotY), { count: d.double ? 260 : 140, speed: 7, colors: d.double ? ['#f2c14e', '#fff'] : ['#ff7a2a', '#fff', '#ffd27a'] });
-          if (d.double) { sfx.double(); flash(); shake(0.4); } else sfx.boom(false);
+        const x = (d.slot - 7.5) * sw;
+        ball.position.set(x, lerp(topBall - d.path.length * meteor.rowH, meteor.slotY + 0.1, pr * pr), 0.3);
+        if (meteor.landed !== dropKey && pr >= 1) {
+          meteor.landed = dropKey; meteor.hover(-1); meteor.flash(d.slot); meteor.impact(d.slot, d.double);
+          const at = meteor.local(x, meteor.slotY);
+          particles.burst(at, { count: d.double ? 320 : 200, speed: 8, colors: d.double ? ['#f2c14e', '#fff', '#ffe27a'] : ['#ff7a2a', '#fff', '#ffd27a'] });
+          particles.burst(at, { count: 90, speed: 4.5, up: 6, colors: ['#ff5a10', '#7a1408', '#ffb347', '#ffe08a'], lifeS: 2 });
+          for (let k = 0; k < 10; k++) meteor.puff(true);
+          if (d.double) { sfx.double(); flash(); shake(0.55); } else { sfx.boom(true); shake(0.32); }
         }
+        // Na de inslag: kleine nagloeiende rots in het vak
+        if (pr >= 1) { trailing = false; ball.scale.setScalar(lerp(ball.scale.x, 0.6, 0.1)); }
+        else embers = 3;
       }
-      // Staart
-      meteor.trail.forEach((tr, i) => { tr.visible = part === 'fall'; tr.position.lerp(i === 0 ? meteor.ball.position : meteor.trail[i - 1].position, 0.5); });
+      if (trailing) { meteor.trailPush(); meteor.puff(); } else meteor.trailOff();
+      // Sintels die van de meteoor afvallen
+      if (embers) particles.burst(ball.getWorldPosition(new THREE.Vector3()), { count: embers, speed: 0.7, colors: ['#ff8a3d', '#ffb347', '#ff5a10'], lifeS: 0.8 });
     }
-  } else { meteor.ball.visible = false; meteor.trail.forEach(x => { x.visible = false; }); }
+  } else { meteor.ball.visible = false; meteor.trailOff(); meteor.hover(-1); }
 
   if (b.type === 'hunt') {
     if (huntRound !== r.id && b.symbols) { huntRound = r.id; huntOrder = null; hunt.setSymbols(b.symbols); }
@@ -2560,7 +2933,7 @@ function applyState(data) {
   if (mine && r.phase === 'result' && typeof mine.balance === 'number' && !dirty && !syncing) balance = mine.balance;
   if (mine && mine.total && r.phase !== 'betting') lastBets = { ...mine.bets }, saveSettings();
   if (mine && mine.choice !== null && mine.choice !== undefined) myChoice = mine.choice;
-  // Max praat
+  // Stella praat
   if (data.host && data.host.id !== lastSpeechId) {
     const fresh = lastSpeechId !== 0 || true;
     lastSpeechId = data.host.id;
@@ -2738,6 +3111,7 @@ function renderSync() {
 function renderUser() {
   const box = $('user');
   box.replaceChildren();
+  $('stageBal').hidden = !linked();
   if (!linked()) { box.hidden = true; return; }
   box.hidden = false;
   const img = el('img', { alt: '' }); if (me.user.avatar) img.src = me.user.avatar;
@@ -2751,7 +3125,10 @@ function renderBalance() {
   if (!node) return;
   const v = shownBalance();
   node.textContent = `${fmt(v)} punten`;
-  if (lastShownBal !== null && v > lastShownBal) { node.classList.add('up'); setTimeout(() => node.classList.remove('up'), 600); }
+  const sb = $('stageBal');
+  $('stageBalNum').textContent = fmt(v);
+  sb.title = `${fmt(v)} punten`;
+  if (lastShownBal !== null && v > lastShownBal) { node.classList.add('up'); sb.classList.add('up'); setTimeout(() => { node.classList.remove('up'); sb.classList.remove('up'); }, 600); }
   lastShownBal = v;
 }
 function renderStats() {
@@ -2852,7 +3229,7 @@ async function choose(i) {
 
 // HUD bovenaan
 const BONUS_STAGE_TXT = {
-  travel: 'Op weg naar de bonus…', reveal: 'De kanten worden geladen', flip: 'De munt vliegt!', setup: 'Max pakt een meteoor',
+  travel: 'Op weg naar de bonus…', reveal: 'De kanten worden geladen', flip: 'De munt vliegt!', setup: 'Stella pakt een meteoor',
   drop: 'De meteoor valt!', shuffle: 'De doelen worden geschud', pick: 'Kies!', portal: 'Door het portaal!', spin: 'Het reuzenrad draait', done: 'Uitslag!'
 };
 function renderHud(t) {
@@ -2880,7 +3257,7 @@ function renderHud(t) {
   if (urgent && pk === 'betting' && Math.ceil((r.bettingEndsAt - t) / 1000) !== renderHud.lastSec) { renderHud.lastSec = Math.ceil((r.bettingEndsAt - t) / 1000); sfx.blip(); }
 }
 
-// Ballon boven Max's hoofd
+// Ballon boven Stella's hoofd
 const bubblePos = { x: 16, y: 300, docked: true, init: false };
 function placeBubble() {
   const box = $('bubble');
@@ -2984,6 +3361,7 @@ function frame() {
   const p = performance.now(), dt = Math.min(0.05, (p - lastFrame) / 1000);
   lastFrame = p;
   if (!cfg) return;
+  glLive = true;
   const t = now();
   updateWheels(t, dt);
   checkEvents(t);
