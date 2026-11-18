@@ -36,6 +36,7 @@
  *   POST /api/roulette/bet          eigen fiches voor deze ronde vervangen (eerste fiche opent een ronde)
  *   GET  /api/sterrenrad/status     instellingen, saldo en eigen stats
  *   GET  /api/sterrenrad/stream     Server-Sent Events met de gedeelde show
+ *   GET  /api/sterrenrad/time       servertijd, voor de klokmeting van de browser
  *   POST /api/sterrenrad/bet        eigen fiches voor deze ronde vervangen (eerste fiche opent een ronde)
  *   POST /api/sterrenrad/choose     keuze in een bonus (doel in de Sterrenjacht, wijzer in het Wormgat)
  *   GET  /api/afwas/status          instellingen, saldo en eigen stats
@@ -457,6 +458,10 @@ function createCasinoWebHandler() {
         }
         case '/api/sterrenrad/stream':
           handleStream(req, res, streams.sterrenrad);
+          return true;
+        case '/api/sterrenrad/time':
+          // Klokmeting (heen-en-terug) zodat de show in elke browser gelijk loopt met de server
+          sendJson(res, 200, { serverNow: Date.now() });
           return true;
         case '/afwas':
         case '/afwas/':

@@ -112,6 +112,9 @@
   @keyframes onair { 50% { opacity: .35; } }
   .bubble.mood-shock { --bc: rgba(242,193,78,.75); --bg1: rgba(64,44,12,.92); --tc: #f2c14e; }
   .bubble.mood-hype { --bc: rgba(255,79,163,.7); --bg1: rgba(70,18,60,.92); --tc: #ff8ac4; }
+  .bubble.mood-jackpot { --bc: rgba(255,214,90,.95); --bg1: rgba(120,70,0,.94); --bg2: rgba(60,10,40,.94); --tc: #ffe27a;
+    font-weight: 900; letter-spacing: .3px; animation: pop .35s cubic-bezier(.3,1.6,.5,1), bubbleShake .12s linear .35s 18; }
+  @keyframes bubbleShake { 25% { rotate: -2deg; } 75% { rotate: 2deg; } }
   .bubble.mood-sad { --bc: rgba(120,160,220,.55); --bg1: rgba(18,30,60,.9); --tc: #9fc0ff; }
   .bubble.pop { animation: pop .35s cubic-bezier(.3,1.6,.5,1); }
   @keyframes pop { from { scale: .7; opacity: 0; } }
@@ -1716,7 +1719,10 @@ const astro = (() => {
   const hairT = canvasTex(hairC); hairT.wrapS = hairT.wrapT = THREE.RepeatWrapping; hairT.repeat.set(3, 1);
   const hairM = new THREE.MeshPhysicalMaterial({ color: '#ffffff', map: hairT, bumpMap: hairT, bumpScale: 1.2, roughness: 0.45, sheen: 1, sheenRoughness: 0.3, sheenColor: new THREE.Color('#d08a50'), side: THREE.DoubleSide });
 
-  const body = new THREE.Group(); body.position.y = 1.0; root.add(body);
+  // Draaipunt op heuphoogte, zodat saltos om het zwaartepunt draaien (lichaam en benen hangen eronder)
+  const flip = new THREE.Group(); flip.position.y = 1.0; flip.rotation.order = 'YXZ'; root.add(flip);
+  const rig = new THREE.Group(); rig.position.y = -1.0; flip.add(rig);
+  const body = new THREE.Group(); body.position.y = 1.0; rig.add(body);
   // Satijn voor de broek: zwart met een zachte zilveren glans
   const satin = new THREE.MeshPhysicalMaterial({ color: '#0d0d12', roughness: 0.32, metalness: 0.1, sheen: 1, sheenRoughness: 0.4, sheenColor: new THREE.Color('#9aa4b0'), clearcoat: 0.45, clearcoatRoughness: 0.3, side: THREE.DoubleSide });
   const lathe = (pts, mat, seg = 64) => { const m = cast(new THREE.Mesh(new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg, Math.PI, TAU), mat)); m.scale.set(1.12, 1, 0.74); return m; };
@@ -1930,7 +1936,7 @@ const astro = (() => {
   const armL = arm(1), armR = arm(-1);
   // Benen met gouden pumps (hakje en puntneus)
   const leg = side => {
-    const hip = new THREE.Group(); hip.position.set(side * 0.085, 0.98, 0); root.add(hip);
+    const hip = new THREE.Group(); hip.position.set(side * 0.085, 0.98, 0); rig.add(hip);
     // Wijde satijnen broekspijpen met een gouden bies aan de buitenkant
     const upper = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.074, 0.36, 6, 16), satin)); upper.position.y = -0.21; upper.scale.set(1, 1, 0.92); hip.add(upper);
     const knee = new THREE.Group(); knee.position.y = -0.46; hip.add(knee);
@@ -2056,7 +2062,7 @@ const astro = (() => {
     faceT.needsUpdate = true;
   }
   drawFace(0);
-  return { root, body, headPivot, armL, armR, legL, legR, chestGlow, tipGlow, drawFace, face: faceState, headWorld: () => headPivot.getWorldPosition(new THREE.Vector3()).add(V(0, 0.06, 0)) };
+  return { root, flip, body, headPivot, armL, armR, legL, legR, chestGlow, tipGlow, drawFace, face: faceState, headWorld: () => headPivot.getWorldPosition(new THREE.Vector3()).add(V(0, 0.06, 0)) };
 })();
 
 // =====================================================
@@ -2192,6 +2198,8 @@ const sfx = (() => {
     flip() { for (let i = 0; i < 14; i++) tone(900 + i * 40, 0.04, { type: 'square', vol: 0.05, delay: i * 0.12 + Math.random() * 0.03 }); },
     drum() { for (let i = 0; i < 20; i++) noise(0.06, { vol: 0.12 + i * 0.008, from: 900, to: 300, delay: i * 0.07 }); },
     blip() { tone(880, 0.08, { type: 'sine', vol: 0.12 }); },
+    scream() { tone(520, 1.1, { type: 'sawtooth', vol: 0.11, to: 990 }); tone(784, 1.1, { type: 'square', vol: 0.045, to: 1480, delay: 0.04 }); noise(1.1, { vol: 0.22, from: 1200, to: 3800, q: 0.8 }); },
+    airhorn() { [0, 0.32, 0.64].forEach(d => { tone(233, 0.26, { type: 'sawtooth', vol: 0.13, delay: d }); tone(294, 0.26, { type: 'sawtooth', vol: 0.09, delay: d }); tone(349, 0.26, { type: 'sawtooth', vol: 0.07, delay: d }); }); },
     peg(n) { tone(520 + n * 75, 0.08, { type: 'triangle', vol: 0.13 }); tone(2100 + n * 60, 0.03, { type: 'square', vol: 0.035 }); },
     rumble() { noise(2.6, { vol: 0.32, from: 120, to: 2400, q: 0.6 }); tone(48, 2.6, { type: 'sawtooth', vol: 0.09, to: 140 }); }
   };
@@ -2233,10 +2241,61 @@ try { lastBets = JSON.parse(localStorage.getItem('sterrenrad_last') || '{}') || 
 try { autoCam = localStorage.getItem('sterrenrad_cam') !== 'fixed'; } catch (error) { /* geen opslag */ }
 function saveSettings() { try { localStorage.setItem('sterrenrad_settings', JSON.stringify(settings)); localStorage.setItem('sterrenrad_last', JSON.stringify(lastBets)); } catch (error) { /* geen opslag */ } }
 
-let clockOffset = 0;
-const clockSamples = [];
-function addClockSample(sample) { clockSamples.push(sample); if (clockSamples.length > 12) clockSamples.shift(); clockOffset = Math.max(...clockSamples); }
-const now = () => Date.now() + clockOffset;
+// ---- Servertijd ----
+// Elke meting geeft een venster waarin het verschil (servertijd − eigen klok) moet liggen:
+//   livestream: serverNow − ontvangen        → ondergrens (het bericht was even onderweg)
+//   tijd-ping:  serverNow − ontvangen … serverNow − verstuurd → onder- én bovengrens
+// We nemen de doorsnede van recente metingen. Oude metingen vervallen, en als de eigen klok verspringt
+// (slaapstand, klok gelijkgezet) gooien we alles weg. De weergegeven klok schuift geleidelijk bij, zodat
+// het rad niet hapert; alleen grote fouten worden in één keer rechtgezet.
+const CLOCK_WINDOW_MS = 90000, CLOCK_SNAP_MS = 1200, CLOCK_SLEW = 0.25;
+const clockSamples = []; // { lo, hi, at }
+let clockTarget = 0, clockOffset = 0, clockReady = false, clockTickAt = performance.now();
+let wallBase = Date.now() - performance.now();
+function checkClockJump() {
+  const base = Date.now() - performance.now();
+  const jumped = Math.abs(base - wallBase) > 1000;
+  wallBase = base;
+  if (jumped) {
+    // Klok verzet of apparaat sliep: oude metingen zijn niets meer waard, meteen opnieuw meten
+    clockSamples.length = 0;
+    clockReady = false;
+    pingClock();
+  }
+}
+function addClockSample(lo, hi = Infinity) {
+  checkClockJump();
+  const at = performance.now();
+  clockSamples.push({ lo, hi, at });
+  while (clockSamples.length > 40 || (clockSamples.length > 1 && at - clockSamples[0].at > CLOCK_WINDOW_MS)) clockSamples.shift();
+  let lo2 = -Infinity, hi2 = Infinity;
+  for (const s of clockSamples) { lo2 = Math.max(lo2, s.lo); hi2 = Math.min(hi2, s.hi); }
+  if (hi2 < lo2) {
+    // Metingen spreken elkaar tegen (klok verloopt of netwerk raar): alleen de nieuwste telt
+    clockSamples.splice(0, clockSamples.length - 1);
+    lo2 = lo; hi2 = hi;
+  }
+  clockTarget = Number.isFinite(hi2) ? (lo2 + hi2) / 2 : lo2;
+  if (!clockReady) { clockOffset = clockTarget; clockReady = true; }
+}
+function now() {
+  checkClockJump();
+  const p = performance.now(), dt = p - clockTickAt;
+  clockTickAt = p;
+  const diff = clockTarget - clockOffset;
+  if (Math.abs(diff) > CLOCK_SNAP_MS) clockOffset = clockTarget;
+  else if (diff) { const step = Math.max(0, dt) * CLOCK_SLEW; clockOffset += Math.max(-step, Math.min(step, diff)); }
+  return Date.now() + clockOffset;
+}
+async function pingClock() {
+  try {
+    const t0 = Date.now();
+    const res = await fetch(`/api/sterrenrad/time?t=${t0}`, { credentials: 'same-origin', cache: 'no-store' });
+    const data = await res.json();
+    const t1 = Date.now();
+    if (typeof data.serverNow === 'number' && t1 - t0 < 5000) addClockSample(data.serverNow - t1, data.serverNow - t0);
+  } catch (error) { /* volgende keer beter */ }
+}
 const sumBets = b => Object.values(b).reduce((a, v) => a + v, 0);
 const linked = () => Boolean(me && me.linked);
 const myId = () => (linked() ? me.user.id : null);
@@ -2247,7 +2306,8 @@ function phaseKey() {
   const r = rnd();
   if (!r || r.phase === 'cancelled') return 'open';
   if (r.phase === 'betting') return now() < r.bettingEndsAt - 250 ? 'betting' : 'closing';
-  if (r.phase === 'result') return now() < r.nextAt ? 'result' : 'open';
+  // Kleine marge: liever een tel later fiches leggen dan "even wachten" van de server krijgen
+  if (r.phase === 'result') return now() < r.nextAt + 300 ? 'result' : 'open';
   return r.phase;
 }
 const canEdit = () => linked() && ['open', 'betting'].includes(phaseKey());
@@ -2283,11 +2343,70 @@ async function post(path, body = {}) {
     return await res.json();
   } catch (error) { return { ok: false, message: 'Geen verbinding met de server.' }; }
 }
+// ---- Livestream ----
+// De server stuurt elke 15 s minstens een tijdbericht. Blijft het langer stil (slaapstand, mobiel netwerk,
+// proxy die de verbinding half laat hangen), dan is de verbinding dood ook al zegt de browser "open":
+// dan openen we een nieuwe en krijgen we meteen de volledige, actuele show van de server.
+const STREAM_SILENT_MS = 35000, STALE_GRACE_MS = 12000, PING_EVERY_MS = 30000;
+let es = null, lastStreamAt = 0, lastReconnectAt = 0, lastPingAt = 0;
 function connect() {
-  const es = new EventSource('/api/sterrenrad/stream');
-  es.onmessage = event => { const data = JSON.parse(event.data); addClockSample(data.serverNow - Date.now()); applyState(data); };
-  es.addEventListener('time', event => addClockSample(JSON.parse(event.data).serverNow - Date.now()));
+  if (es) es.close();
+  lastReconnectAt = lastStreamAt = performance.now();
+  es = new EventSource('/api/sterrenrad/stream');
+  const source = es;
+  es.onmessage = event => {
+    if (source !== es) return;
+    lastStreamAt = performance.now();
+    let data;
+    try { data = JSON.parse(event.data); } catch (error) { return; }
+    addClockSample(data.serverNow - Date.now());
+    applyState(data);
+  };
+  es.addEventListener('time', event => {
+    if (source !== es) return;
+    lastStreamAt = performance.now();
+    try { addClockSample(JSON.parse(event.data).serverNow - Date.now()); } catch (error) { /* negeren */ }
+  });
+  es.addEventListener('open', () => { if (source === es) { lastStreamAt = performance.now(); pingClock(); } });
 }
+function reconnect(minGapMs = 4000) {
+  if (!cfg || performance.now() - lastReconnectAt < minGapMs) return;
+  connect();
+  pingClock();
+}
+// Uiterlijk wanneer de server na deze fase iets nieuws had moeten sturen (servertijd)
+function phaseDeadline(r) {
+  if (!r) return null;
+  if (r.phase === 'betting') return r.bettingEndsAt + 2000;
+  if (r.phase === 'comets') return r.cometsAt + ((r.comets && r.comets.length) || 3) * cfg.cometStepMs + 5000;
+  if (r.phase === 'spinning' || r.phase === 'landed') return r.landAt + 8000;
+  if (r.phase !== 'bonus' || !r.bonus) return null;
+  const b = r.bonus;
+  if (b.stageEndsAt) return b.stageEndsAt + 2000;
+  if (b.stage === 'drop' && b.drops) return b.dropStartAt + b.drops.length * (cfg.meteorDropMs + cfg.meteorDoubleMs) + 2000;
+  if (b.stage === 'spin' && b.spins) return b.spinStartAt + b.spins.length * (cfg.wormSpinMs + cfg.wormBetweenMs) + 2000;
+  if (b.stage === 'done') return b.stageAt + 8000;
+  return null;
+}
+setInterval(() => {
+  if (!cfg) return;
+  const p = performance.now();
+  checkClockJump();
+  if (p - lastStreamAt > STREAM_SILENT_MS) return reconnect();
+  // De show hoort al verder te zijn dan wat wij zien: we missen iets, dus de stand opnieuw ophalen
+  const deadline = phaseDeadline(rnd());
+  if (deadline && now() > deadline + STALE_GRACE_MS) return reconnect(30000);
+  if (!document.hidden && p - lastPingAt > PING_EVERY_MS) { lastPingAt = p; pingClock(); }
+}, 2000);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !cfg) return;
+  // Terug in beeld: oude praatjes weg, klok opnieuw meten en bij twijfel opnieuw verbinden
+  speechQueue.length = 0;
+  checkClockJump();
+  lastPingAt = performance.now(); pingClock();
+  if (performance.now() - lastStreamAt > 20000 || !es || es.readyState === EventSource.CLOSED) reconnect();
+});
+addEventListener('online', () => reconnect());
 addEventListener('focus', () => { if (me && !dirty && !syncing) loadStatus(); });
 
 function scheduleSync() {
@@ -2501,6 +2620,10 @@ const SHOTS = {
   wheel: t => ({ pos: V(0, 5.6, 6 - t * 0.25), look: WHEEL_POS, fov: 55 }),
   pointer: t => ({ pos: V(0.6, WHEEL_POS.y + WHEEL_R + 0.8, -2.6 - Math.min(t, 4) * 0.35), look: V(0, WHEEL_POS.y + WHEEL_R - 0.3, -8), fov: 36 }),
   comets: () => ({ pos: V(0, COMET_Y - 0.4, 2.5), look: V(0, COMET_Y, -8.6), fov: 58 }),
+  hostParty: t => {
+    const h = hostPos(), a = astro.root.rotation.y + Math.sin(t * 0.35) * 0.75;
+    return { pos: h.clone().add(V(Math.sin(a) * 5.6, 2.3, Math.cos(a) * 5.6)), look: h.clone().add(V(0, 1.55, 0)), fov: 48 };
+  },
   host: (t, ctx) => { const h = hostPos(), side = ctx.side ?? (ctx.side = h.x >= 0 ? 1 : -1); return { pos: h.clone().add(V(-0.8 * side, 1.9, 3.4 - t * 0.05)), look: h.clone().add(V(0, 1.6, 0)), fov: 38 }; },
   hostWide: () => { const h = hostPos(); return { pos: h.clone().add(V(3.5, 3, 7)), look: h.clone().add(V(-1, 2, -3)), fov: 48 }; },
   follow: () => { const h = hostPos(), f = hostFwd(); return { pos: h.clone().addScaledVector(f, -5).add(V(1.5, 3.2, 0)), look: h.clone().addScaledVector(f, 4).add(V(0, 1.5, 0)), fov: 52 }; },
@@ -2540,6 +2663,7 @@ function playlist(t) {
   }
   if (pk === 'landed') return { key: `land-${r.id}`, list: [['pointer', 2.8], ['hostTwo', 99]] };
   if (pk === 'result') {
+    if (host.frenzy) return { key: `res-party-${r.id}`, list: [['hostParty', 99]] };
     if (inWormWorld()) return { key: `res-w-${r.id}`, list: [['wormWide', 99]] };
     return { key: `res-${r.id}`, list: [['hostTwo', 4], ['establish', 99, 1]] };
   }
@@ -2631,13 +2755,15 @@ function updateCamera(t, dt) {
 // =====================================================
 // MAX: LOPEN, KIJKEN, GEBAREN
 // =====================================================
-const host = { target: V(2.5, 0, -2), faceAt: null, gesture: null, talkUntil: 0, blinkAt: 0, walkPhase: 0, speed: 0, hidden: false, world: 'station', wanderAt: 0, wanderIdx: 0 };
+const host = { target: V(2.5, 0, -2), faceAt: null, gesture: null, frenzy: null, talkUntil: 0, blinkAt: 0, walkPhase: 0, speed: 0, hidden: false, world: 'station', wanderAt: 0, wanderIdx: 0 };
 const WANDER = [V(-3, 0, -2.5), V(3.2, 0, -1.5), V(4.8, 0, -5.4), V(-4.6, 0, -5.2), V(0.5, 0, 1)];
 const MOOD_GESTURES = {
   hype: ['cheer', 'dance', 'pump'], shock: ['headHands', 'cheer', 'jump'], happy: ['wave', 'clap', 'point'],
   sad: ['shrug', 'facepalm'], tense: ['think', 'rub'], wink: ['point', 'wave', 'bow'], cool: ['cool', 'point']
 };
 function gesture(name, dur = 1.8) { host.gesture = { name, start: performance.now() / 1000, dur }; }
+// Jackpot-show van ±9,5 s (zie updateHost)
+function startFrenzy() { host.frenzy = { start: performance.now() / 1000, dur: 9.5, fired: new Set() }; shotKey = ''; }
 function inWormWorld() { return host.world === 'worm'; }
 
 function hostPlan(t) {
@@ -2671,6 +2797,7 @@ function hostPlan(t) {
       if (b.type === 'coin' && b.stage === 'flip') faceAt = coin.disc.getWorldPosition(new THREE.Vector3());
     } else target = V(2.4, 0, -3);
   }
+  if (host.frenzy) { target = astro.root.position.clone(); faceAt = camPos.clone(); }
   host.target = target; host.faceAt = faceAt;
 }
 
@@ -2728,6 +2855,63 @@ function updateHost(t, dt) {
       }
     }
   }
+  // JACKPOT: schreeuwen, salto, wild dansen met pirouettes, salto met schroef, jumping jacks, eindpose
+  let flipX = 0, spinY = 0, lift = 0, tuck = 0, spread = 0, kickL = 0, kickR = 0;
+  const F = host.frenzy;
+  if (F) {
+    const ft = ts - F.start;
+    if (ft > F.dur) host.frenzy = null;
+    else {
+      host.gesture = null;
+      const seg = (a, b) => clamp((ft - a) / (b - a), 0, 1), ease = x => x * x * (3 - 2 * x);
+      const env = Math.min(1, ft * 6, (F.dur - ft) * 3), set = (key, v) => { pose[key] = lerp(pose[key], v, env); };
+      const o = Math.sin(ft * 16), o2 = Math.sin(ft * 8);
+      const fire = (key, fn) => { if (!F.fired.has(key)) { F.fired.add(key); fn(); } };
+      const feet = () => astro.root.position.clone().add(V(0, 0.15, 0));
+      const land = () => { shake(0.35); sfx.boom(true); particles.burst(feet(), { count: 120, speed: 5, up: 2, colors: ['#f2c14e', '#ffffff', '#5fe0a8'] }); };
+      if (ft < 1.3) {
+        // Schreeuwen: handen naar het hoofd, schudden, op en neer stuiteren
+        fire('start', () => { sfx.scream(); sfx.airhorn(); popConfetti(320); flash(); });
+        set('lz', 2.3); set('rz', -2.3); set('lx', -0.5); set('rx', -0.5); set('le', -2.3); set('re', -2.3);
+        set('headX', -0.35 + o * 0.1); pose.bodyZ = o * 0.14 * env; lift = Math.abs(Math.sin(ft * 10)) * 0.2;
+        astro.face.mood = 'shock';
+      } else if (ft < 2.5) {
+        // Achterwaartse salto, knieën ingetrokken
+        const p = seg(1.3, 2.5);
+        fire('flip1', () => sfx.whoosh());
+        lift = Math.sin(p * Math.PI) * 1.5; flipX = -ease(p) * TAU; tuck = Math.sin(p * Math.PI);
+        set('lz', 2.6 * (1 - tuck) + 0.3); set('rz', -(2.6 * (1 - tuck) + 0.3)); set('lx', -1.3 * tuck); set('rx', -1.3 * tuck); set('le', -1.6 * tuck); set('re', -1.6 * tuck);
+        if (p >= 0.97) fire('land1', land);
+      } else if (ft < 4.8) {
+        // Wild dansen: zwaaiende armen, heupen, schoppen en twee pirouettes
+        fire('dance', () => { sfx.scream(); popConfetti(200); });
+        astro.face.mood = Math.sin(ft * 3) > 0 ? 'hype' : 'shock';
+        set('lz', 1.4 + o * 1.2); set('rz', -1.4 + Math.sin(ft * 16 + 1.5) * 1.2); set('le', -0.6 + o2 * 0.6); set('re', -0.6 - o2 * 0.6);
+        set('headZ', Math.sin(ft * 8) * 0.3); pose.bodyZ = Math.sin(ft * 8) * 0.3 * env; pose.bodyY = Math.sin(ft * 4) * 0.5 * env;
+        spinY = ease(seg(3.1, 4.3)) * TAU * 2; lift = Math.abs(Math.sin(ft * 8)) * 0.16;
+        kickL = Math.max(0, Math.sin(ft * 8)) * 0.9; kickR = Math.max(0, -Math.sin(ft * 8)) * 0.9;
+        if (Math.random() < dt * 6) particles.burst(astro.headWorld().add(V(0, 0.5, 0)), { count: 24, speed: 3.5, colors: ['#f2c14e', '#ff7ad9', '#5fe0a8', '#fff'] });
+      } else if (ft < 6.0) {
+        // Salto met schroef
+        const p = seg(4.8, 6.0);
+        fire('flip2', () => { sfx.whoosh(); sfx.scream(); });
+        lift = Math.sin(p * Math.PI) * 1.75; flipX = -ease(p) * TAU; spinY = ease(p) * TAU; tuck = Math.sin(p * Math.PI) * 0.8;
+        set('lz', 2.7); set('rz', -2.7); set('le', -0.2); set('re', -0.2);
+        if (p >= 0.97) fire('land2', () => { land(); popConfetti(220); flash(); });
+      } else if (ft < 8.3) {
+        // Jumping jacks met gejuich
+        fire('jacks', () => sfx.airhorn());
+        const j = Math.abs(Math.sin(ft * 6.5));
+        lift = j * 0.38; spread = j * 0.45; set('lz', 0.3 + j * 2.6); set('rz', -(0.3 + j * 2.6)); set('le', -0.1); set('re', -0.1); set('headX', -0.2);
+        astro.face.mood = 'hype';
+      } else {
+        // Eindpose: armen omhoog, laatste grote sprong
+        const p = seg(8.3, F.dur);
+        lift = Math.sin(Math.min(1, p * 1.7) * Math.PI) * 0.8; set('lz', 2.8); set('rz', -2.8); set('le', -0.15); set('re', -0.15); set('headX', -0.3);
+        if (p > 0.55) fire('end', () => { popConfetti(260); sfx.win(); });
+      }
+    }
+  }
   const A = astro;
   const k = 1 - Math.exp(-dt * 14);
   A.armL.shoulder.rotation.x = lerp(A.armL.shoulder.rotation.x, pose.lx, k);
@@ -2746,7 +2930,17 @@ function updateHost(t, dt) {
   A.legL.hip.rotation.x = -sw * 0.6 * w; A.legR.hip.rotation.x = sw * 0.6 * w;
   A.legL.knee.rotation.x = Math.max(0, Math.sin(host.walkPhase + 1.2)) * 0.8 * w;
   A.legR.knee.rotation.x = Math.max(0, Math.sin(host.walkPhase + 1.2 + Math.PI)) * 0.8 * w;
-  A.legL.jet.material.opacity = A.legR.jet.material.opacity = pose.jump > 0.05 ? 0.9 : 0;
+  A.legL.jet.material.opacity = A.legR.jet.material.opacity = pose.jump > 0.05 || lift > 0.35 ? 0.9 : 0;
+  // Saltos en pirouettes draaien om het zwaartepunt; buiten het feest veert alles terug
+  const kf = F ? 1 : 1 - Math.exp(-dt * 8);
+  A.flip.rotation.x = lerp(A.flip.rotation.x, flipX, kf);
+  A.flip.rotation.y = F ? spinY : lerp(A.flip.rotation.y % TAU, 0, kf);
+  A.flip.position.y = 1.0 + lerp(A.flip.position.y - 1.0, lift, F ? 1 : kf);
+  if (F) {
+    A.legL.hip.rotation.x += -1.7 * tuck - kickL; A.legR.hip.rotation.x += -1.7 * tuck - kickR;
+    A.legL.knee.rotation.x = Math.max(A.legL.knee.rotation.x, 2.3 * tuck + kickL * 0.4); A.legR.knee.rotation.x = Math.max(A.legR.knee.rotation.x, 2.3 * tuck + kickR * 0.4);
+  }
+  A.legL.hip.rotation.z = lerp(A.legL.hip.rotation.z, spread, k); A.legR.hip.rotation.z = lerp(A.legR.hip.rotation.z, -spread, k);
   // Hoofd kijkt naar de camera als hij stilstaat
   const toCam = camera.position.clone().sub(A.headWorld());
   const localYaw = Math.atan2(toCam.x, toCam.z) - astro.root.rotation.y - A.body.rotation.y;
@@ -2757,7 +2951,7 @@ function updateHost(t, dt) {
   // Gezicht
   if (ts > host.blinkAt) { astro.face.blink = 0.12; host.blinkAt = ts + 2 + Math.random() * 3.5; }
   if (astro.face.blink > 0) astro.face.blink -= dt;
-  astro.face.talk = talking() ? 1 : 0;
+  astro.face.talk = talking() || host.frenzy ? 1 : 0;
   astro.drawFace(ts);
   astro.chestGlow.material.opacity = 0.6 + Math.sin(ts * 4) * 0.3;
   astro.tipGlow.material.opacity = talking() ? 0.6 + Math.sin(ts * 20) * 0.4 : 0.7;
@@ -3043,7 +3237,10 @@ function applyState(data) {
   if (data.host && data.host.id !== lastSpeechId) {
     const fresh = lastSpeechId !== 0 || true;
     lastSpeechId = data.host.id;
-    if (fresh && Date.now() + clockOffset - data.host.at < 8000) speak(data.host.text, data.host.mood);
+    if (fresh && !document.hidden && now() - data.host.at < 8000) {
+      speak(data.host.text, data.host.mood);
+      if (data.host.category === 'jackpot') startFrenzy();
+    }
   }
   renderSpots(); renderPlayers(); renderHistory(); renderPicker(); renderBalance(); renderSync();
 }
@@ -3071,7 +3268,8 @@ function showSpeech(text, mood) {
   typeTimer = setInterval(() => { i += 1; out.textContent = text.slice(0, i); if (i >= text.length) clearInterval(typeTimer); }, 30);
   host.talkUntil = performance.now() + text.length * 30 + 300;
   bubbleHideAt = performance.now() + Math.max(5500, text.length * 95);
-  astro.face.mood = mood;
+  astro.face.mood = mood === 'jackpot' ? 'shock' : mood;
+  if (host.frenzy) return;
   const options = MOOD_GESTURES[mood] || ['wave'];
   if (Math.random() < 0.85) gesture(options[Math.floor(Math.random() * options.length)], mood === 'hype' || mood === 'shock' ? 2.2 : 1.7);
 }
