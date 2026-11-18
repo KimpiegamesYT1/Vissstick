@@ -2,17 +2,17 @@
 zabbix_export:
   version: '6.0'
   groups:
-    - uuid: '0cc90412f76454fd972bf3c2d67db24b'
+    - uuid: '0cc90412f76444fd972bf3c2d67db24b'
       name: 'Templates/Applications'
   templates:
-    - uuid: '2e6e6daee3a15eb39d031e5a62243702'
+    - uuid: '2e6e6daee3a14eb39d031e5a62243702'
       template: 'Vissstick Discord Bot'
       name: 'Vissstick Discord Bot'
       description: 'White-box monitoring van de Vissstick Discord bot (proces, Discord gateway, webserver/casino, SQLite, back-ups en alle periodieke taken). Vereist zabbix/userparameter_vissstick.conf op de agent. Gegenereerd door zabbix/generate-template.js.'
       groups:
         - name: 'Templates/Applications'
       items:
-        - uuid: '31af51716ac65012ac621f78cb8da0da'
+        - uuid: '31af51716ac64012ac621f78cb8da0da'
           name: 'Bot: metrics snapshot (JSON)'
           key: 'vissstick.metrics[{$VISSSTICK.METRICS.PORT}]'
           history: '0'
@@ -22,20 +22,20 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'raw'
-        - uuid: 'ba005231012a5c4ca345daf5f4b6c5ec'
+        - uuid: 'ba005231012a4c4ca345daf5f4b6c5ec'
           name: 'Proces: aantal bot-processen'
           key: 'proc.num[node,,,bot.js]'
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'bc8e1cec897c598995bd92264157007b'
+        - uuid: 'bc8e1cec897c498995bd92264157007b'
           name: 'Proces: geheugen volgens OS (RSS)'
           key: 'proc.mem[node,,,bot.js,rss]'
           units: 'B'
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: '26d4308e32ad53bc8ed3855cce5aee5d'
+        - uuid: '26d4308e32ad43bc8ed3855cce5aee5d'
           name: 'Proces: CPU volgens OS'
           key: 'proc.cpu.util[node,,,bot.js]'
           value_type: 'FLOAT'
@@ -43,7 +43,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: '8e7a2f7d0a1b5cda814929d876828319'
+        - uuid: '8e7a2f7d0a1b4cda814929d876828319'
           name: 'Web: poort {$VISSSTICK.WEB.PORT} luistert'
           key: 'net.tcp.listen[{$VISSSTICK.WEB.PORT}]'
           valuemap:
@@ -51,7 +51,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: 'e450f81337415f5d9fea81ddf0bbb0a4'
+        - uuid: 'e450f81337414f5d9fea81ddf0bbb0a4'
           name: 'Web: laadtijd /api/public/hok/status'
           key: 'web.page.perf[127.0.0.1,/api/public/hok/status,{$VISSSTICK.WEB.PORT}]'
           value_type: 'FLOAT'
@@ -60,14 +60,14 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '2574fd171e0056b39c2aaaaae0bd87b6'
+        - uuid: '2574fd171e0046b39c2aaaaae0bd87b6'
           name: 'Tunnel: aantal cloudflared-processen'
           key: 'proc.num[cloudflared]'
           description: 'Zet {$VISSSTICK.CLOUDFLARED.MIN} op 0 als cloudflared niet in deze LXC draait.'
           tags:
             - tag: 'component'
               value: 'tunnel'
-        - uuid: 'f761dbebe86b5440b82650728987ab5f'
+        - uuid: 'f761dbebe86b4440b82650728987ab5f'
           name: 'Bot: healthy'
           type: 'DEPENDENT'
           key: 'vissstick.healthy'
@@ -85,7 +85,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'health'
-        - uuid: '52fa0990d43e57b9b3d879a26e2a89a7'
+        - uuid: '52fa0990d43e47b9b3d879a26e2a89a7'
           name: 'Bot: aantal problemen'
           type: 'DEPENDENT'
           key: 'vissstick.problem_count'
@@ -101,7 +101,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'health'
-        - uuid: 'b7222c4fbece55b5821edb951407e3fb'
+        - uuid: 'b7222c4fbece45b5821edb951407e3fb'
           name: 'Bot: problemen'
           type: 'DEPENDENT'
           key: 'vissstick.problems'
@@ -121,7 +121,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'health'
-        - uuid: '109946fde2d6579295a4e0b8dd7248e1'
+        - uuid: '109946fde2d6479295a4e0b8dd7248e1'
           name: 'Proces: uptime'
           type: 'DEPENDENT'
           key: 'vissstick.uptime'
@@ -138,7 +138,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'db3b4795c8975dbeb2b03836f7ffb667'
+        - uuid: 'db3b4795c8974dbeb2b03836f7ffb667'
           name: 'Proces: Node.js versie'
           type: 'DEPENDENT'
           key: 'vissstick.node_version'
@@ -158,7 +158,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'b0d0906cebe05ea7af109dbdf2e6b704'
+        - uuid: 'b0d0906cebe04ea7af109dbdf2e6b704'
           name: 'Proces: geheugen (RSS)'
           type: 'DEPENDENT'
           key: 'vissstick.rss'
@@ -175,7 +175,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: '9568b50cca2b5a3d837c7804c9c282ae'
+        - uuid: '9568b50cca2b4a3d837c7804c9c282ae'
           name: 'Proces: heap gebruikt'
           type: 'DEPENDENT'
           key: 'vissstick.heap_used'
@@ -192,7 +192,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'd349d25d3bae5181a1ae683bf2e39f1a'
+        - uuid: 'd349d25d3bae4181a1ae683bf2e39f1a'
           name: 'Proces: heap totaal'
           type: 'DEPENDENT'
           key: 'vissstick.heap_total'
@@ -209,7 +209,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'a60626a0cb3656e28815ce4613c382ce'
+        - uuid: 'a60626a0cb3646e28815ce4613c382ce'
           name: 'Proces: extern geheugen (buffers, native)'
           type: 'DEPENDENT'
           key: 'vissstick.external'
@@ -226,7 +226,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'ac3b90215bd9504cabdf983e2c4ff4f2'
+        - uuid: 'ac3b90215bd9404cabdf983e2c4ff4f2'
           name: 'Proces: CPU user'
           type: 'DEPENDENT'
           key: 'vissstick.cpu_user'
@@ -243,7 +243,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'cdac7add9d955a9ebfebe871d53d5c9c'
+        - uuid: 'cdac7add9d954a9ebfebe871d53d5c9c'
           name: 'Proces: CPU system'
           type: 'DEPENDENT'
           key: 'vissstick.cpu_system'
@@ -260,7 +260,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: '6e3b9143a43655b7b8334b480fe52f0e'
+        - uuid: '6e3b9143a43645b7b8334b480fe52f0e'
           name: 'Proces: event loop lag gemiddeld'
           type: 'DEPENDENT'
           key: 'vissstick.loop.mean'
@@ -277,7 +277,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'f0d7bc2ed8275e4e9724fc3f29355775'
+        - uuid: 'f0d7bc2ed8274e4e9724fc3f29355775'
           name: 'Proces: event loop lag p99'
           type: 'DEPENDENT'
           key: 'vissstick.loop.p99'
@@ -294,7 +294,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'bc8d1808db025697a92b897018dcac47'
+        - uuid: 'bc8d1808db024697a92b897018dcac47'
           name: 'Proces: event loop lag max'
           type: 'DEPENDENT'
           key: 'vissstick.loop.max'
@@ -311,7 +311,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'db650d0a40e65274974e007114ed9c8a'
+        - uuid: 'db650d0a40e64274974e007114ed9c8a'
           name: 'Proces: actieve handles'
           type: 'DEPENDENT'
           key: 'vissstick.handles'
@@ -327,7 +327,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'e1ade3b3d23f5ce8b920b40761756eed'
+        - uuid: 'e1ade3b3d23f4ce8b920b40761756eed'
           name: 'Proces: gelogde fouten per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.errors'
@@ -346,7 +346,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: '7f857b4253c85971953e89bed57f70cf'
+        - uuid: '7f857b4253c84971953e89bed57f70cf'
           name: 'Proces: gelogde waarschuwingen per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.warnings'
@@ -365,7 +365,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: '54d602488cf75033a6b72a658e1e83c9'
+        - uuid: '54d602488cf74033a6b72a658e1e83c9'
           name: 'Proces: unhandled rejections per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.unhandled_rejections'
@@ -384,7 +384,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: 'bb06b9b086ec5fba8e09ba87f6173477'
+        - uuid: 'bb06b9b086ec4fba8e09ba87f6173477'
           name: 'Proces: laatste foutmelding'
           type: 'DEPENDENT'
           key: 'vissstick.last_error'
@@ -404,7 +404,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'process'
-        - uuid: '9aaf853715285fc3a2f6043f0621e4b7'
+        - uuid: '9aaf853715284fc3a2f6043f0621e4b7'
           name: 'Discord: verbonden'
           type: 'DEPENDENT'
           key: 'vissstick.discord.ready'
@@ -422,7 +422,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '4b112af04bb450a3a101c77b3efb97ad'
+        - uuid: '4b112af04bb440a3a101c77b3efb97ad'
           name: 'Discord: gateway status'
           type: 'DEPENDENT'
           key: 'vissstick.discord.ws_status'
@@ -440,7 +440,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: 'fbef6c0b11f657de8db9660920fcae34'
+        - uuid: 'fbef6c0b11f647de8db9660920fcae34'
           name: 'Discord: gateway ping'
           type: 'DEPENDENT'
           key: 'vissstick.discord.ping'
@@ -457,7 +457,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: 'f6a8820c658d57978ea1aca5b291aa86'
+        - uuid: 'f6a8820c658d47978ea1aca5b291aa86'
           name: 'Discord: servers'
           type: 'DEPENDENT'
           key: 'vissstick.discord.guilds'
@@ -473,7 +473,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '03117a08d24d5ae5a6329ac9b893e4e9'
+        - uuid: '03117a08d24d4ae5a6329ac9b893e4e9'
           name: 'Discord: gebruikers in cache'
           type: 'DEPENDENT'
           key: 'vissstick.discord.cached_users'
@@ -489,7 +489,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '6825b5c4ec4c5bcfb38b711fa1dcabc2'
+        - uuid: '6825b5c4ec4c4bcfb38b711fa1dcabc2'
           name: 'Discord: voice verbindingen'
           type: 'DEPENDENT'
           key: 'vissstick.discord.voice'
@@ -505,7 +505,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: 'ab12cc94ca025409beff62fb6834cab6'
+        - uuid: 'ab12cc94ca024409beff62fb6834cab6'
           name: 'Discord: verbonden sinds'
           type: 'DEPENDENT'
           key: 'vissstick.discord.ready_since'
@@ -522,7 +522,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '24af0e5891a65b7fbfec2649d6fcb08d'
+        - uuid: '24af0e5891a64b7fbfec2649d6fcb08d'
           name: 'Discord: disconnects per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.discord.disconnects'
@@ -541,7 +541,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: 'e0e2af90ceac54f18462a67a88935d34'
+        - uuid: 'e0e2af90ceac44f18462a67a88935d34'
           name: 'Discord: reconnects per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.discord.reconnects'
@@ -560,7 +560,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: 'f4c32aa060d059b896d7350a89179d45'
+        - uuid: 'f4c32aa060d049b896d7350a89179d45'
           name: 'Discord: shard errors per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.discord.shard_errors'
@@ -579,7 +579,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '07ef738cdfde5d4bbf89fcded4f853eb'
+        - uuid: '07ef738cdfde4d4bbf89fcded4f853eb'
           name: 'Discord: client errors per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.discord.client_errors'
@@ -598,7 +598,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '2c82c000051f5614bd8ae7cba4a933a1'
+        - uuid: '2c82c000051f4614bd8ae7cba4a933a1'
           name: 'Discord: sessie ongeldig verklaard (totaal)'
           type: 'DEPENDENT'
           key: 'vissstick.discord.invalidated'
@@ -614,7 +614,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '0d42208c3bd850a0b092b49bebc9d536'
+        - uuid: '0d42208c3bd840a0b092b49bebc9d536'
           name: 'Discord: REST rate limits per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.discord.rest_rate_limits'
@@ -633,7 +633,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '8d23caaf48b05b6fb9c900b4ee85ba2c'
+        - uuid: '8d23caaf48b04b6fb9c900b4ee85ba2c'
           name: 'Discord: berichten ontvangen per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.discord.messages'
@@ -652,7 +652,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '32c08fa77ab35e209569711f819b30f9'
+        - uuid: '32c08fa77ab34e209569711f819b30f9'
           name: 'Discord: interacties per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.discord.interactions'
@@ -671,7 +671,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'discord'
-        - uuid: '4dcedc1c90a5503fbb95378a7ea57ccc'
+        - uuid: '4dcedc1c90a5403fbb95378a7ea57ccc'
           name: 'Web: luistert'
           type: 'DEPENDENT'
           key: 'vissstick.http.listening'
@@ -689,7 +689,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '2705acb8c9e75c4fa4f5d0e89b52c908'
+        - uuid: '2705acb8c9e74c4fa4f5d0e89b52c908'
           name: 'Web: requests per seconde'
           type: 'DEPENDENT'
           key: 'vissstick.http.rps'
@@ -709,7 +709,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '10419df176a458ccb7a6169818f76e4f'
+        - uuid: '10419df176a448ccb7a6169818f76e4f'
           name: 'Web: lopende requests'
           type: 'DEPENDENT'
           key: 'vissstick.http.active'
@@ -725,7 +725,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: 'f7848cd049655f50bc9c130a1a02c70d'
+        - uuid: 'f7848cd049654f50bc9c130a1a02c70d'
           name: 'Web: 2xx per seconde'
           type: 'DEPENDENT'
           key: 'vissstick.http.2xx'
@@ -745,7 +745,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '7df5636dd7de5323ace60c6d3bb91cab'
+        - uuid: '7df5636dd7de4323ace60c6d3bb91cab'
           name: 'Web: 3xx per seconde'
           type: 'DEPENDENT'
           key: 'vissstick.http.3xx'
@@ -765,7 +765,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: 'f98ca65f1f3a571c815feb562fce37b7'
+        - uuid: 'f98ca65f1f3a471c815feb562fce37b7'
           name: 'Web: 4xx per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.http.4xx'
@@ -784,7 +784,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '6b05068803055ab1b45fd7035bf401a6'
+        - uuid: '6b05068803054ab1b45fd7035bf401a6'
           name: 'Web: 5xx per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.http.5xx'
@@ -803,7 +803,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '7cc9db4a443e5277af9755ec8240183d'
+        - uuid: '7cc9db4a443e4277af9755ec8240183d'
           name: 'Web: rate limited (429) per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.http.429'
@@ -822,7 +822,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '5bd47017c5b050a89bcb590e97744abc'
+        - uuid: '5bd47017c5b040a89bcb590e97744abc'
           name: 'Web: afgebroken requests per minuut'
           type: 'DEPENDENT'
           key: 'vissstick.http.aborted'
@@ -841,7 +841,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '3bfeae89e6ab5b6ab9152f363e7ca7d7'
+        - uuid: '3bfeae89e6ab4b6ab9152f363e7ca7d7'
           name: 'Web: responstijd gemiddeld (5 min)'
           type: 'DEPENDENT'
           key: 'vissstick.http.latency.avg'
@@ -858,7 +858,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: 'ddc4a1c79286505f81d39634a79cab86'
+        - uuid: 'ddc4a1c79286405f81d39634a79cab86'
           name: 'Web: responstijd p95 (5 min)'
           type: 'DEPENDENT'
           key: 'vissstick.http.latency.p95'
@@ -875,7 +875,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: 'bba0fb0c7d1951028f0f16cbbb9549f6'
+        - uuid: 'bba0fb0c7d1941028f0f16cbbb9549f6'
           name: 'Web: responstijd p99 (5 min)'
           type: 'DEPENDENT'
           key: 'vissstick.http.latency.p99'
@@ -892,7 +892,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '0e2f80892b48531995d62b12fae573ac'
+        - uuid: '0e2f80892b48431995d62b12fae573ac'
           name: 'Web: responstijd max (5 min)'
           type: 'DEPENDENT'
           key: 'vissstick.http.latency.max'
@@ -909,7 +909,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '99c3478c562153558ab1883917d2a40d'
+        - uuid: '99c3478c562143558ab1883917d2a40d'
           name: 'Web: live verbindingen (SSE) totaal'
           type: 'DEPENDENT'
           key: 'vissstick.http.sse_clients'
@@ -925,7 +925,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '8f08c41800505fc2a75489a7421626d2'
+        - uuid: '8f08c41800504fc2a75489a7421626d2'
           name: 'Web: live verbindingen (SSE) limiet'
           type: 'DEPENDENT'
           key: 'vissstick.http.sse_limit'
@@ -941,7 +941,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '25719adcb3505bfba33022f08d7457a4'
+        - uuid: '25719adcb3504bfba33022f08d7457a4'
           name: 'Web: live verbindingen Rocket'
           type: 'DEPENDENT'
           key: 'vissstick.http.sse.rocket'
@@ -957,7 +957,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '14bca9baae0452fcb036cd942aa38dae'
+        - uuid: '14bca9baae0442fcb036cd942aa38dae'
           name: 'Web: live verbindingen Blackjack'
           type: 'DEPENDENT'
           key: 'vissstick.http.sse.blackjack'
@@ -973,7 +973,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: 'c9eb920072515ff08f4e4fe0d8a526a7'
+        - uuid: 'c9eb920072514ff08f4e4fe0d8a526a7'
           name: 'Web: live verbindingen Roulette'
           type: 'DEPENDENT'
           key: 'vissstick.http.sse.roulette'
@@ -989,7 +989,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '868fba87742554ddbcbb427007422724'
+        - uuid: '868fba87742544ddbcbb427007422724'
           name: 'Web: live verbindingen Sterrenrad'
           type: 'DEPENDENT'
           key: 'vissstick.http.sse.sterrenrad'
@@ -1005,7 +1005,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '88e324981cfa546bb8cbd3bf44609253'
+        - uuid: '88e324981cfa446bb8cbd3bf44609253'
           name: 'Web: spelers online'
           type: 'DEPENDENT'
           key: 'vissstick.http.online_users'
@@ -1021,7 +1021,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'web'
-        - uuid: '6fb94a95ad7653c18868dbfda34d91e1'
+        - uuid: '6fb94a95ad7643c18868dbfda34d91e1'
           name: 'Database: bereikbaar'
           type: 'DEPENDENT'
           key: 'vissstick.db.ok'
@@ -1039,7 +1039,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'database'
-        - uuid: '19489d69fad854f0aad32ce59fcabd08'
+        - uuid: '19489d69fad844f0aad32ce59fcabd08'
           name: 'Database: query tijd'
           type: 'DEPENDENT'
           key: 'vissstick.db.latency'
@@ -1056,7 +1056,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'database'
-        - uuid: '3ebf9e5aea235044b4a633f900c7df17'
+        - uuid: '3ebf9e5aea234044b4a633f900c7df17'
           name: 'Database: bestandsgrootte'
           type: 'DEPENDENT'
           key: 'vissstick.db.size'
@@ -1073,7 +1073,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'database'
-        - uuid: '82ed9cbcf5f350dbb1c05a9b00e19f06'
+        - uuid: '82ed9cbcf5f340dbb1c05a9b00e19f06'
           name: 'Database: WAL grootte'
           type: 'DEPENDENT'
           key: 'vissstick.db.wal_size'
@@ -1090,7 +1090,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'database'
-        - uuid: '6bc85b288669531896de0e4f3662f5ac'
+        - uuid: '6bc85b288669431896de0e4f3662f5ac'
           name: 'Database: tabellen'
           type: 'DEPENDENT'
           key: 'vissstick.db.tables'
@@ -1106,7 +1106,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'database'
-        - uuid: '031fa60c7d47545093305709c1848b6c'
+        - uuid: '031fa60c7d47445093305709c1848b6c'
           name: 'Database: laatste fout'
           type: 'DEPENDENT'
           key: 'vissstick.db.error'
@@ -1126,7 +1126,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'database'
-        - uuid: '6a87695572a45247bce5672bed9b4842'
+        - uuid: '6a87695572a44247bce5672bed9b4842'
           name: 'Back-ups: map leesbaar'
           type: 'DEPENDENT'
           key: 'vissstick.backup.readable'
@@ -1144,7 +1144,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'backup'
-        - uuid: '07a2dc0e4b4550828ffd0fe020a2786f'
+        - uuid: '07a2dc0e4b4540828ffd0fe020a2786f'
           name: 'Back-ups: aantal'
           type: 'DEPENDENT'
           key: 'vissstick.backup.count'
@@ -1160,7 +1160,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'backup'
-        - uuid: '6117bf1efbaf56d0bed868aaf50f56c9'
+        - uuid: '6117bf1efbaf46d0bed868aaf50f56c9'
           name: 'Back-ups: totale grootte'
           type: 'DEPENDENT'
           key: 'vissstick.backup.size'
@@ -1177,7 +1177,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'backup'
-        - uuid: 'aab5b702a68a55ffb456a4a69bea12ee'
+        - uuid: 'aab5b702a68a45ffb456a4a69bea12ee'
           name: 'Back-ups: leeftijd nieuwste'
           type: 'DEPENDENT'
           key: 'vissstick.backup.age'
@@ -1194,7 +1194,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'backup'
-        - uuid: 'd90a32fa01f05b5ba773e2a7d7e4125e'
+        - uuid: 'd90a32fa01f04b5ba773e2a7d7e4125e'
           name: 'Hok: open'
           type: 'DEPENDENT'
           key: 'vissstick.hok.open'
@@ -1212,7 +1212,7 @@ zabbix_export:
           tags:
             - tag: 'component'
               value: 'hok'
-        - uuid: '03a6b55a7c445612af92e88cb4ef32e2'
+        - uuid: '03a6b55a7c444612af92e88cb4ef32e2'
           name: 'Hok: laatste statuswijziging geleden'
           type: 'DEPENDENT'
           key: 'vissstick.hok.updated_age'
@@ -1230,7 +1230,7 @@ zabbix_export:
             - tag: 'component'
               value: 'hok'
       discovery_rules:
-        - uuid: 'd8cbbf729bdb5d14b9e870b3f6c6c5fe'
+        - uuid: 'd8cbbf729bdb4d14b9e870b3f6c6c5fe'
           name: 'Taken discovery (cron, pollers, chatbot)'
           type: 'DEPENDENT'
           key: 'vissstick.jobs.discovery'
@@ -1238,7 +1238,7 @@ zabbix_export:
           lifetime: '7d'
           description: 'Elke periodieke taak in de bot: quiz, rekensom, spin-meldingen, hok-sync, rooster-check, pauze-meldingen, maandreset, chatbot, ...'
           item_prototypes:
-            - uuid: '90f5040e2a5459f9b5610e9119287ccc'
+            - uuid: '90f5040e2a5449f9b5610e9119287ccc'
               name: 'Taak {#JOB}: mislukt op rij'
               type: 'DEPENDENT'
               key: 'vissstick.job.consecutive_failures[{#JOB}]'
@@ -1254,7 +1254,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'jobs'
-            - uuid: 'd71cf70e98675f64ac66c610c055d972'
+            - uuid: 'd71cf70e98674f64ac66c610c055d972'
               name: 'Taak {#JOB}: mislukte runs per minuut'
               type: 'DEPENDENT'
               key: 'vissstick.job.failures[{#JOB}]'
@@ -1273,7 +1273,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'jobs'
-            - uuid: '9d0be71f05875d0da09338135cce36ed'
+            - uuid: '9d0be71f05874d0da09338135cce36ed'
               name: 'Taak {#JOB}: runs per minuut'
               type: 'DEPENDENT'
               key: 'vissstick.job.runs[{#JOB}]'
@@ -1292,7 +1292,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'jobs'
-            - uuid: '7d867bd6361759b8ba40915c84f4873d'
+            - uuid: '7d867bd6361749b8ba40915c84f4873d'
               name: 'Taak {#JOB}: laatste succes geleden'
               type: 'DEPENDENT'
               key: 'vissstick.job.last_success[{#JOB}]'
@@ -1309,7 +1309,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'jobs'
-            - uuid: '8c39d8e9c8ca537896f071b830acace6'
+            - uuid: '8c39d8e9c8ca437896f071b830acace6'
               name: 'Taak {#JOB}: duur laatste run'
               type: 'DEPENDENT'
               key: 'vissstick.job.duration[{#JOB}]'
@@ -1326,7 +1326,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'jobs'
-            - uuid: '6d72b24db85d5e8d9cdb6c4ee6da3a7a'
+            - uuid: '6d72b24db85d4e8d9cdb6c4ee6da3a7a'
               name: 'Taak {#JOB}: te lang niet geslaagd'
               type: 'DEPENDENT'
               key: 'vissstick.job.stale[{#JOB}]'
@@ -1344,7 +1344,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'jobs'
-            - uuid: '0be3522ba26d56748c50d647814b9e7f'
+            - uuid: '0be3522ba26d46748c50d647814b9e7f'
               name: 'Taak {#JOB}: laatste fout'
               type: 'DEPENDENT'
               key: 'vissstick.job.last_error[{#JOB}]'
@@ -1365,7 +1365,7 @@ zabbix_export:
                 - tag: 'component'
                   value: 'jobs'
           trigger_prototypes:
-            - uuid: '531517acbb2b5bc0885d2330d7354029'
+            - uuid: '531517acbb2b4bc0885d2330d7354029'
               expression: 'last(/Vissstick Discord Bot/vissstick.job.consecutive_failures[{#JOB}])>={$VISSSTICK.JOB.FAILS.MAX:"{#JOB}"}'
               name: 'Vissstick: taak {#JOB} mislukt {ITEM.LASTVALUE1}x op rij'
               opdata: '{ITEM.LASTVALUE1}'
@@ -1374,7 +1374,7 @@ zabbix_export:
               tags:
                 - tag: 'scope'
                   value: 'jobs'
-            - uuid: '7355bdbcfda65c18bee58ba7ccef9c30'
+            - uuid: '7355bdbcfda64c18bee58ba7ccef9c30'
               expression: 'last(/Vissstick Discord Bot/vissstick.job.stale[{#JOB}])=1'
               name: 'Vissstick: taak {#JOB} draait niet meer (te lang geen succes)'
               priority: 'AVERAGE'
@@ -1391,7 +1391,7 @@ zabbix_export:
             - type: 'JSONPATH'
               parameters:
                 - '$.jobs'
-        - uuid: '079e9155aa6b512f906517576338ac45'
+        - uuid: '079e9155aa6b412f906517576338ac45'
           name: 'Webroutes discovery'
           type: 'DEPENDENT'
           key: 'vissstick.routes.discovery'
@@ -1399,7 +1399,7 @@ zabbix_export:
           lifetime: '7d'
           description: 'Routegroepen van de webserver: page, static, sse, hok_api, api_<spel>, other.'
           item_prototypes:
-            - uuid: '690d4eabca685dbb928da945eab04c1d'
+            - uuid: '690d4eabca684dbb928da945eab04c1d'
               name: 'Route {#ROUTE}: requests per seconde'
               type: 'DEPENDENT'
               key: 'vissstick.route.rps[{#ROUTE}]'
@@ -1419,7 +1419,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'web'
-            - uuid: 'b4bae761265e5c3dbc4fef943186968a'
+            - uuid: 'b4bae761265e4c3dbc4fef943186968a'
               name: 'Route {#ROUTE}: 4xx per minuut'
               type: 'DEPENDENT'
               key: 'vissstick.route.4xx[{#ROUTE}]'
@@ -1438,7 +1438,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'web'
-            - uuid: '1445e643f96553509feb994d138d7e3f'
+            - uuid: '1445e643f96543509feb994d138d7e3f'
               name: 'Route {#ROUTE}: 5xx per minuut'
               type: 'DEPENDENT'
               key: 'vissstick.route.5xx[{#ROUTE}]'
@@ -1457,7 +1457,7 @@ zabbix_export:
               tags:
                 - tag: 'component'
                   value: 'web'
-            - uuid: 'c6e5bcefb5d8515ea9de6a7fbfddc89b'
+            - uuid: 'c6e5bcefb5d8415ea9de6a7fbfddc89b'
               name: 'Route {#ROUTE}: gemiddelde responstijd (sinds start)'
               type: 'DEPENDENT'
               key: 'vissstick.route.latency[{#ROUTE}]'
@@ -1475,7 +1475,7 @@ zabbix_export:
                 - tag: 'component'
                   value: 'web'
           trigger_prototypes:
-            - uuid: 'f06c2c61277e5b529e48dc1b36e1e24d'
+            - uuid: 'f06c2c61277e4b529e48dc1b36e1e24d'
               expression: 'sum(/Vissstick Discord Bot/vissstick.route.5xx[{#ROUTE}],5m)>{$VISSSTICK.HTTP.5XX.MAX}'
               name: 'Vissstick: route {#ROUTE} geeft 5xx fouten'
               priority: 'WARNING'
@@ -1569,7 +1569,7 @@ zabbix_export:
           value: '1'
           description: 'Draait één keer per dag/maand/start'
       valuemaps:
-        - uuid: '593758c9ef3b5fd1a397b92a45616d1f'
+        - uuid: '593758c9ef3b4fd1a397b92a45616d1f'
           name: 'Discord gateway status'
           mappings:
             - value: '-1'
@@ -1592,14 +1592,14 @@ zabbix_export:
               newvalue: 'Identifying'
             - value: '8'
               newvalue: 'Resuming'
-        - uuid: 'ed9ed01eebe758259970d58a4dcb1a59'
+        - uuid: 'ed9ed01eebe748259970d58a4dcb1a59'
           name: 'Vissstick healthy'
           mappings:
             - value: '0'
               newvalue: 'Problemen'
             - value: '1'
               newvalue: 'OK'
-        - uuid: 'ff24e4571c4e5c81b83e49bb56a81780'
+        - uuid: 'ff24e4571c4e4c81b83e49bb56a81780'
           name: 'Vissstick yes/no'
           mappings:
             - value: '-1'
@@ -1609,7 +1609,7 @@ zabbix_export:
             - value: '1'
               newvalue: 'Ja'
   triggers:
-    - uuid: 'e37f421e932a51d496e99afae137f0b6'
+    - uuid: 'e37f421e932a41d496e99afae137f0b6'
       expression: 'last(/Vissstick Discord Bot/proc.num[node,,,bot.js])=0'
       name: 'Vissstick: bot-proces draait niet'
       priority: 'HIGH'
@@ -1617,7 +1617,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'availability'
-    - uuid: '8d8aa58b10d255519d09b8228833e656'
+    - uuid: '8d8aa58b10d245519d09b8228833e656'
       expression: 'nodata(/Vissstick Discord Bot/vissstick.uptime,5m)=1'
       name: 'Vissstick: geen monitoring data (bot reageert niet)'
       priority: 'HIGH'
@@ -1628,7 +1628,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'availability'
-    - uuid: 'ac3b7d63f3c05cb4be5e28c302977b25'
+    - uuid: 'ac3b7d63f3c04cb4be5e28c302977b25'
       expression: 'last(/Vissstick Discord Bot/vissstick.uptime)<600'
       name: 'Vissstick: bot is herstart'
       priority: 'INFO'
@@ -1637,7 +1637,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '87d927bde0ea5069990e449f3abd7b5a'
+    - uuid: '87d927bde0ea4069990e449f3abd7b5a'
       expression: 'max(/Vissstick Discord Bot/vissstick.discord.ready,5m)=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
       name: 'Vissstick: Discord gateway niet verbonden'
       priority: 'HIGH'
@@ -1648,7 +1648,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'availability'
-    - uuid: 'bb10ca6013355969b45b5661bd939981'
+    - uuid: 'bb10ca6013354969b45b5661bd939981'
       expression: 'min(/Vissstick Discord Bot/vissstick.discord.ping,10m)>{$VISSSTICK.DISCORD.PING.MAX}'
       name: 'Vissstick: hoge Discord ping (>{$VISSSTICK.DISCORD.PING.MAX} ms)'
       priority: 'WARNING'
@@ -1658,14 +1658,14 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '6c007551b5b65219b728f0925c5d933d'
+    - uuid: '6c007551b5b64219b728f0925c5d933d'
       expression: 'sum(/Vissstick Discord Bot/vissstick.discord.reconnects,1h)>{$VISSSTICK.DISCORD.RECONNECTS.MAX}'
       name: 'Vissstick: Discord gateway reconnect vaak (>{$VISSSTICK.DISCORD.RECONNECTS.MAX} per uur)'
       priority: 'WARNING'
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '5a688ac4fc6655528a44701fbb365850'
+    - uuid: '5a688ac4fc6645528a44701fbb365850'
       expression: 'sum(/Vissstick Discord Bot/vissstick.discord.rest_rate_limits,15m)>{$VISSSTICK.DISCORD.RATELIMITS.MAX}'
       name: 'Vissstick: Discord REST rate limits (>{$VISSSTICK.DISCORD.RATELIMITS.MAX} per 15 min)'
       priority: 'WARNING'
@@ -1673,7 +1673,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '2e97d532e0595c358ee970edfd220c44'
+    - uuid: '2e97d532e0594c358ee970edfd220c44'
       expression: 'last(/Vissstick Discord Bot/net.tcp.listen[{$VISSSTICK.WEB.PORT}])=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
       name: 'Vissstick: webserver luistert niet op poort {$VISSSTICK.WEB.PORT}'
       priority: 'HIGH'
@@ -1683,7 +1683,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'availability'
-    - uuid: 'd7743c8fac94556a800a8fa2362ecb5f'
+    - uuid: 'd7743c8fac94456a800a8fa2362ecb5f'
       expression: 'max(/Vissstick Discord Bot/web.page.perf[127.0.0.1,/api/public/hok/status,{$VISSSTICK.WEB.PORT}],5m)=0 or nodata(/Vissstick Discord Bot/web.page.perf[127.0.0.1,/api/public/hok/status,{$VISSSTICK.WEB.PORT}],5m)=1'
       name: 'Vissstick: hok API geeft geen antwoord'
       priority: 'AVERAGE'
@@ -1694,14 +1694,14 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '69c77b9b29cb515a9a25aa0e51617fd9'
+    - uuid: '69c77b9b29cb415a9a25aa0e51617fd9'
       expression: 'min(/Vissstick Discord Bot/web.page.perf[127.0.0.1,/api/public/hok/status,{$VISSSTICK.WEB.PORT}],5m)>{$VISSSTICK.WEB.LOADTIME.MAX}'
       name: 'Vissstick: hok API traag (>{$VISSSTICK.WEB.LOADTIME.MAX}s)'
       priority: 'WARNING'
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '57f4b7b4d71d5a6ab5df9ef5a287be4c'
+    - uuid: '57f4b7b4d71d4a6ab5df9ef5a287be4c'
       expression: 'sum(/Vissstick Discord Bot/vissstick.http.5xx,5m)>{$VISSSTICK.HTTP.5XX.MAX}'
       name: 'Vissstick: webserver geeft 5xx fouten (>{$VISSSTICK.HTTP.5XX.MAX} in 5 min)'
       priority: 'AVERAGE'
@@ -1712,7 +1712,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '96538c57e10a5168acf8d384cd8b6c14'
+    - uuid: '96538c57e10a4168acf8d384cd8b6c14'
       expression: 'min(/Vissstick Discord Bot/vissstick.http.latency.p95,5m)>{$VISSSTICK.HTTP.P95.MAX}'
       name: 'Vissstick: webserver traag (p95 >{$VISSSTICK.HTTP.P95.MAX} ms)'
       priority: 'WARNING'
@@ -1722,7 +1722,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: 'e2799e8a4d155076989987667d6494f8'
+    - uuid: 'e2799e8a4d154076989987667d6494f8'
       expression: 'sum(/Vissstick Discord Bot/vissstick.http.429,5m)>{$VISSSTICK.HTTP.429.MAX}'
       name: 'Vissstick: veel rate-limited requests (>{$VISSSTICK.HTTP.429.MAX} in 5 min)'
       priority: 'INFO'
@@ -1730,7 +1730,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: 'd77ad0f62dc95c92ab5444e72eed7114'
+    - uuid: 'd77ad0f62dc94c92ab5444e72eed7114'
       expression: 'last(/Vissstick Discord Bot/vissstick.http.sse_clients)>=last(/Vissstick Discord Bot/vissstick.http.sse_limit)*0.9 and last(/Vissstick Discord Bot/vissstick.http.sse_limit)>0'
       name: 'Vissstick: live verbindingen bijna op limiet'
       priority: 'WARNING'
@@ -1738,7 +1738,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '58f61c819ada56a8a232622e3f663998'
+    - uuid: '58f61c819ada46a8a232622e3f663998'
       expression: 'min(/Vissstick Discord Bot/vissstick.loop.p99,5m)>{$VISSSTICK.LOOP.P99.MAX}'
       name: 'Vissstick: event loop geblokkeerd (p99 >{$VISSSTICK.LOOP.P99.MAX} ms)'
       priority: 'WARNING'
@@ -1749,7 +1749,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '5e15689d7a2253bd91a02b6bc0a61c1a'
+    - uuid: '5e15689d7a2243bd91a02b6bc0a61c1a'
       expression: 'min(/Vissstick Discord Bot/vissstick.rss,15m)>{$VISSSTICK.RSS.MAX}'
       name: 'Vissstick: hoog geheugengebruik (>{$VISSSTICK.RSS.MAX})'
       priority: 'WARNING'
@@ -1760,7 +1760,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '0c6c70d8988056c48a0c78dde355a8f3'
+    - uuid: '0c6c70d8988046c48a0c78dde355a8f3'
       expression: 'sum(/Vissstick Discord Bot/vissstick.errors,10m)>{$VISSSTICK.ERRORS.MAX}'
       name: 'Vissstick: veel fouten in de log (>{$VISSSTICK.ERRORS.MAX} in 10 min)'
       priority: 'WARNING'
@@ -1771,7 +1771,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '948e1fc14f9052948e151ddeecacc902'
+    - uuid: '948e1fc14f9042948e151ddeecacc902'
       expression: 'sum(/Vissstick Discord Bot/vissstick.unhandled_rejections,1h)>0'
       name: 'Vissstick: unhandled promise rejection'
       priority: 'WARNING'
@@ -1780,7 +1780,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '8c70cd7f8c0b5100bd8adf1342c9084a'
+    - uuid: '8c70cd7f8c0b4100bd8adf1342c9084a'
       expression: 'max(/Vissstick Discord Bot/vissstick.db.ok,3m)=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
       name: 'Vissstick: database niet bereikbaar'
       priority: 'HIGH'
@@ -1791,14 +1791,14 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'availability'
-    - uuid: '5ca88bf18c8f59c295e5994f57b59902'
+    - uuid: '5ca88bf18c8f49c295e5994f57b59902'
       expression: 'min(/Vissstick Discord Bot/vissstick.db.latency,5m)>{$VISSSTICK.DB.LATENCY.MAX}'
       name: 'Vissstick: database traag (>{$VISSSTICK.DB.LATENCY.MAX} ms)'
       priority: 'WARNING'
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '666209ed66c45ea6b2206c0face6e4bd'
+    - uuid: '666209ed66c44ea6b2206c0face6e4bd'
       expression: 'last(/Vissstick Discord Bot/vissstick.db.wal_size)>{$VISSSTICK.DB.WAL.MAX}'
       name: 'Vissstick: SQLite WAL bestand groot (>{$VISSSTICK.DB.WAL.MAX})'
       priority: 'WARNING'
@@ -1806,7 +1806,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: 'f0355db8824b5272bedd5fe5562f6036'
+    - uuid: 'f0355db8824b4272bedd5fe5562f6036'
       expression: 'last(/Vissstick Discord Bot/vissstick.backup.age)>{$VISSSTICK.BACKUP.AGE.MAX}'
       name: 'Vissstick: laatste database back-up ouder dan {$VISSSTICK.BACKUP.AGE.MAX}'
       priority: 'WARNING'
@@ -1814,7 +1814,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '93c105e12db650e388e843bf3b034f1c'
+    - uuid: '93c105e12db640e388e843bf3b034f1c'
       expression: 'last(/Vissstick Discord Bot/vissstick.backup.readable)=0 and last(/Vissstick Discord Bot/vissstick.uptime)>300'
       name: 'Vissstick: back-up map niet leesbaar'
       priority: 'INFO'
@@ -1822,7 +1822,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '4482a8d74702577e8fd2e10dc5dc3f32'
+    - uuid: '4482a8d74702477e8fd2e10dc5dc3f32'
       expression: 'max(/Vissstick Discord Bot/vissstick.healthy,5m)=0'
       name: 'Vissstick: bot meldt problemen'
       priority: 'INFO'
@@ -1833,7 +1833,7 @@ zabbix_export:
       tags:
         - tag: 'scope'
           value: 'performance'
-    - uuid: '82b63613296f5d9c927d2460265cf07c'
+    - uuid: '82b63613296f4d9c927d2460265cf07c'
       expression: 'last(/Vissstick Discord Bot/proc.num[cloudflared])<{$VISSSTICK.CLOUDFLARED.MIN}'
       name: 'Vissstick: cloudflared tunnel draait niet'
       priority: 'HIGH'
@@ -1842,7 +1842,7 @@ zabbix_export:
         - tag: 'scope'
           value: 'availability'
   graphs:
-    - uuid: '1a846f7069855fdb8586a8670df761fe'
+    - uuid: '1a846f7069854fdb8586a8670df761fe'
       name: 'Vissstick: geheugen'
       graph_items:
         - sortorder: '0'
@@ -1865,7 +1865,7 @@ zabbix_export:
           item:
             host: 'Vissstick Discord Bot'
             key: 'vissstick.external'
-    - uuid: 'bbab9d9fdc9d5e5a9b48a3de42fdece6'
+    - uuid: 'bbab9d9fdc9d4e5a9b48a3de42fdece6'
       name: 'Vissstick: event loop lag'
       graph_items:
         - sortorder: '0'
@@ -1883,7 +1883,7 @@ zabbix_export:
           item:
             host: 'Vissstick Discord Bot'
             key: 'vissstick.loop.max'
-    - uuid: 'ac1753af9ab45a068239be62d0257dfe'
+    - uuid: 'ac1753af9ab44a068239be62d0257dfe'
       name: 'Vissstick: CPU'
       graph_items:
         - sortorder: '0'
@@ -1896,7 +1896,7 @@ zabbix_export:
           item:
             host: 'Vissstick Discord Bot'
             key: 'vissstick.cpu_system'
-    - uuid: '54484d46b2c857db9e4bbc662a99cb2a'
+    - uuid: '54484d46b2c847db9e4bbc662a99cb2a'
       name: 'Vissstick: webverkeer'
       graph_items:
         - sortorder: '0'
@@ -1914,7 +1914,7 @@ zabbix_export:
           item:
             host: 'Vissstick Discord Bot'
             key: 'vissstick.http.3xx'
-    - uuid: 'ff6d652940745ccca915ca91553be899'
+    - uuid: 'ff6d652940744ccca915ca91553be899'
       name: 'Vissstick: webfouten'
       graph_items:
         - sortorder: '0'
@@ -1937,7 +1937,7 @@ zabbix_export:
           item:
             host: 'Vissstick Discord Bot'
             key: 'vissstick.http.aborted'
-    - uuid: 'ab426ef82d845e88b4af84d5aa3aba22'
+    - uuid: 'ab426ef82d844e88b4af84d5aa3aba22'
       name: 'Vissstick: responstijd'
       graph_items:
         - sortorder: '0'
@@ -1955,7 +1955,7 @@ zabbix_export:
           item:
             host: 'Vissstick Discord Bot'
             key: 'vissstick.http.latency.p99'
-    - uuid: '315e69add51f5a769035dc53ed800344'
+    - uuid: '315e69add51f4a769035dc53ed800344'
       name: 'Vissstick: live spelers'
       graph_items:
         - sortorder: '0'
@@ -1983,7 +1983,7 @@ zabbix_export:
           item:
             host: 'Vissstick Discord Bot'
             key: 'vissstick.http.sse.sterrenrad'
-    - uuid: '12cca74fe8a9575b9da037f475beadb9'
+    - uuid: '12cca74fe8a9475b9da037f475beadb9'
       name: 'Vissstick: Discord'
       graph_items:
         - sortorder: '0'
@@ -2001,7 +2001,7 @@ zabbix_export:
           item:
             host: 'Vissstick Discord Bot'
             key: 'vissstick.discord.interactions'
-    - uuid: 'd9c748c766b75cb8a7adbb99d6b7d440'
+    - uuid: 'd9c748c766b74cb8a7adbb99d6b7d440'
       name: 'Vissstick: database'
       graph_items:
         - sortorder: '0'

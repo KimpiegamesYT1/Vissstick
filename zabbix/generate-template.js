@@ -21,7 +21,7 @@ const OUT = path.join(__dirname, 'vissstick_template.yaml');
 
 function uuid(seed) {
   const hash = crypto.createHash('sha1').update(`vissstick:${seed}`).digest('hex').slice(0, 32).split('');
-  hash[12] = '5'; // versie 5 (naam-gebaseerd)
+  hash[12] = '4'; // Zabbix accepteert alleen UUIDv4-opmaak (vast afgeleid van de naam)
   hash[16] = ((parseInt(hash[16], 16) & 0x3) | 0x8).toString(16);
   return hash.join('');
 }
