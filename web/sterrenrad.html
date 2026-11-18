@@ -1735,7 +1735,7 @@ const astro = (() => {
     return Math.max(0.001, 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3));
   };
   // Boezem: twee ronde koepels die in het midden in elkaar overlopen (decolleté)
-  const BUST = { x: 0.07, y: 0.5, rx: 0.084, ryT: 0.105, ryB: 0.078, A: 0.1 };
+  const BUST = { x: 0.068, y: 0.5, rx: 0.078, ryT: 0.098, ryB: 0.072, A: 0.075 };
   const bustBump = (x, y) => {
     let b = 0;
     for (const sd of [-1, 1]) {
