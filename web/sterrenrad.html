@@ -1214,7 +1214,7 @@ const coin = (() => {
   disc.position.y = 3.2;
   group.add(disc);
   const halo = glow('#9fdcff', 4, 0.5); halo.position.y = 3.2; group.add(halo);
-  return { group, disc, halo, drawFace, homeY: 3.2 };
+  return { group, disc, back: backFace, halo, drawFace, homeY: 3.2, spin: 0 };
 })();
 
 // --- Meteorenmuur ---
@@ -1722,38 +1722,118 @@ const astro = (() => {
   const lathe = (pts, mat, seg = 64) => { const m = cast(new THREE.Mesh(new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg, Math.PI, TAU), mat)); m.scale.set(1.12, 1, 0.74); return m; };
   // Blote taille tussen crop top en broek
   const midriff = lathe([[0.001, 0.25], [0.147, 0.26], [0.143, 0.3], [0.15, 0.35], [0.157, 0.4], [0.162, 0.425], [0.001, 0.43]], skin);
-  // Crop top: glinsterend, met een vloeiende boezem in de vorm zelf en een gouden bies langs de onderrand
-  const topProfile = [[0.16, 0.392], [0.172, 0.43], [0.181, 0.5], [0.171, 0.58], [0.168, 0.65], [0.161, 0.7], [0.128, 0.745], [0.072, 0.775], [0.001, 0.787]];
-  const topGeo = new THREE.LatheGeometry(topProfile.map(([x, y]) => new THREE.Vector2(x, y)), 64, Math.PI, TAU);
-  {
-    const p = topGeo.attributes.position, v = new THREE.Vector3();
+  // Crop top met V-hals. Het profiel wordt fijn (gelijkmatig in hoogte) bemonsterd, zodat de boezem rond wordt in plaats van puntig,
+  // en zodat de V-hals precies via de uv-hoogte uit de stof geknipt kan worden.
+  const topPts = [[0.16, 0.392], [0.172, 0.43], [0.181, 0.5], [0.171, 0.58], [0.168, 0.65], [0.161, 0.7], [0.128, 0.745], [0.072, 0.775], [0.001, 0.787]];
+  const TOP_Y0 = 0.392, TOP_Y1 = 0.787, TOP_ROWS = 72;
+  const rAt = y => {
+    // Catmull-Rom over de profielpunten (r als functie van y)
+    const P = topPts, n = P.length;
+    let i = 1; while (i < n - 1 && y > P[i][1]) i++;
+    const p0 = P[Math.max(0, i - 2)][0], p1 = P[i - 1][0], p2 = P[i][0], p3 = P[Math.min(n - 1, i + 1)][0];
+    const t = clamp((y - P[i - 1][1]) / (P[i][1] - P[i - 1][1]), 0, 1), t2 = t * t, t3 = t2 * t;
+    return Math.max(0.001, 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3));
+  };
+  // Boezem: twee ronde koepels die in het midden in elkaar overlopen (decolleté)
+  const BUST = { x: 0.072, y: 0.5, rx: 0.094, ryT: 0.118, ryB: 0.09, A: 0.17 };
+  const bustBump = (x, y) => {
+    let b = 0;
+    for (const sd of [-1, 1]) {
+      const dx = (x - sd * BUST.x) / BUST.rx, dy = (y - BUST.y) / (y > BUST.y ? BUST.ryT : BUST.ryB), d2 = dx * dx + dy * dy;
+      if (d2 < 1) b = Math.max(b, Math.pow(1 - d2, 1.15));
+    }
+    return b * BUST.A;
+  };
+  // Stof valt losser dan de huid: overbrugt het decolleté en hangt onder de boezem recht naar beneden
+  const drapeBump = (x, y) => {
+    const ax = Math.abs(x), bridge = ax < BUST.x;
+    let b = bustBump((x < 0 ? -1 : 1) * (bridge ? BUST.x : ax), Math.max(y, BUST.y));
+    if (bridge) b *= 0.86 + 0.14 * (ax / BUST.x);
+    if (y < BUST.y) b *= 1 - 0.12 * (BUST.y - y) / (BUST.y - TOP_Y0);
+    return b;
+  };
+  const EASE = 0.007;
+  const bodyLathe = (shrink, mat, bump = bustBump, ease = 0) => {
+    const prof = Array.from({ length: TOP_ROWS }, (_, j) => { const y = TOP_Y0 + (TOP_Y1 - TOP_Y0) * j / (TOP_ROWS - 1); return new THREE.Vector2(rAt(y) * shrink + ease * clamp((0.77 - y) / 0.05, 0, 1), y); });
+    const geo = new THREE.LatheGeometry(prof, 96, Math.PI, TAU);
+    const p = geo.attributes.position, v = new THREE.Vector3();
     for (let i = 0; i < p.count; i++) {
       v.fromBufferAttribute(p, i);
       if (v.z <= 0) continue;
-      const fy = Math.exp(-(((v.y - 0.5) / (v.y > 0.5 ? 0.095 : 0.068)) ** 2));
-      const fx = Math.exp(-(((v.x - 0.07) / 0.064) ** 2)) + Math.exp(-(((v.x + 0.07) / 0.064) ** 2));
-      const k = 1 + 0.9 * fy * Math.min(1, fx) * (v.z / Math.hypot(v.x, v.z));
-      p.setXYZ(i, v.x * (1 + (k - 1) * 0.12), v.y, v.z * k);
+      p.setZ(i, v.z + bump(v.x, v.y) * shrink * (v.z / Math.hypot(v.x, v.z)));
     }
-    topGeo.computeVertexNormals();
+    geo.computeVertexNormals();
+    const m = cast(new THREE.Mesh(geo, mat)); m.scale.set(1.12, 1, 0.74); return m;
+  };
+  // V-hals: halve breedte per hoogte; onderste punt net boven het midden van de boezem, zodat er net wat decolleté te zien is
+  const V_BOTTOM = 0.47, vHalf = y => Math.min(rAt(y) * 0.92, 0.003 + Math.max(0, y - V_BOTTOM) * 0.3);
+  // Halter-model: twee panelen over de buste die als bandjes naar de nek lopen, blote schouders en een lage rug.
+  // Uitgeknipt met een alphaMap in uv-ruimte (u = hoek rond het lichaam, v = hoogte).
+  const BACK_TOP = 0.555;
+  const strapOuter = y => vHalf(y) + 0.036 + Math.max(0, 0.67 - y) ** 1.25 * 2.4;
+  const vCut = makeCanvas(512, 512), vg = vCut.getContext('2d');
+  const vImg = vg.createImageData(512, 512);
+  for (let py = 0; py < 512; py++) {
+    const y = TOP_Y0 + (TOP_Y1 - TOP_Y0) * (1 - py / 511), r = rAt(y);
+    for (let px = 0; px < 512; px++) {
+      const phi = Math.PI + (px / 511) * TAU, x = Math.sin(phi) * r, front = Math.cos(phi) > 0, ax = Math.abs(x);
+      let keep = true;
+      if (front) {
+        if (y >= V_BOTTOM && ax < vHalf(y)) keep = false;          // V-hals
+        else if (y > BACK_TOP && ax > strapOuter(y)) keep = false;   // armsgat / blote schouder
+      } else if (y > BACK_TOP) keep = false;                        // lage rug
+      const o = (py * 512 + px) * 4;
+      vImg.data[o] = vImg.data[o + 1] = vImg.data[o + 2] = keep ? 255 : 0; vImg.data[o + 3] = 255;
+    }
   }
-  const torso = cast(new THREE.Mesh(topGeo, dress)); torso.scale.set(1.12, 1, 0.74);
-  const topHem = new THREE.Mesh(new THREE.TorusGeometry(0.161, 0.005, 6, 64), gold); topHem.rotation.x = Math.PI / 2; topHem.scale.set(1.12, 0.74, 1); topHem.position.y = 0.393;
+  vg.putImageData(vImg, 0, 0);
+  const vAlpha = new THREE.CanvasTexture(vCut);
+  const topMat = dress.clone(); topMat.alphaMap = vAlpha; topMat.alphaTest = 0.5;
+  const torso = bodyLathe(1, topMat, drapeBump, EASE);
+  const chestSkin = bodyLathe(0.985, skin);   // huid onder de top, zichtbaar in de V
+  // Gouden bies langs beide randen van de V
+  const vTrim = [-1, 1].map(sd => {
+    const pts = [];
+    for (let k = 0; k <= 24; k++) {
+      const y = V_BOTTOM + (0.772 - V_BOTTOM) * k / 24, x = sd * vHalf(y), r = rAt(y) + EASE * clamp((0.77 - y) / 0.05, 0, 1), z0 = Math.sqrt(Math.max(0, r * r - x * x));
+      pts.push(V(x, y, z0 + drapeBump(x, y) * (z0 / Math.max(r, 1e-4)) + 0.003));
+    }
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.0032, 6), gold); m.scale.set(1.12, 1, 0.74); return m;
+  });
+  const strapTrim = [-1, 1].map(sd => {
+    const pts = [];
+    for (let k = 0; k <= 28; k++) {
+      const y = BACK_TOP + 0.006 + (0.772 - BACK_TOP - 0.006) * k / 28, r = rAt(y) + EASE * clamp((0.77 - y) / 0.05, 0, 1);
+      const x = sd * Math.min(r * 0.985, strapOuter(y)), z0 = Math.sqrt(Math.max(0, r * r - x * x));
+      pts.push(V(x, y, z0 + drapeBump(x, y) * (z0 / Math.max(r, 1e-4)) + 0.003));
+    }
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 56, 0.0032, 6), gold); m.scale.set(1.12, 1, 0.74); return m;
+  });
+  const halter = new THREE.Mesh(new THREE.TorusGeometry(0.0505, 0.0045, 8, 48), gold); halter.rotation.x = Math.PI / 2 - 0.3; halter.position.set(0, 0.8, -0.002);
+  const halterRing = new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.003, 6, 16), gold); halterRing.position.set(0, 0.786, 0.05); halterRing.rotation.x = -0.3;
+  // Bies langs de bovenrand van de lage rug
+  const backPts = [];
+  for (let k = 0; k <= 40; k++) {
+    const phi = Math.PI / 2 + 0.05 + (Math.PI - 0.1) * k / 40, r = rAt(BACK_TOP) + EASE;
+    backPts.push(V(Math.sin(phi) * r * 1.01, BACK_TOP, Math.cos(phi) * r * 1.01));
+  }
+  const backTrim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(backPts), 64, 0.0032, 6), gold); backTrim.scale.set(1.12, 1, 0.74);
+  const hemPts = [];
+  for (let k = 0; k < 96; k++) {
+    const phi = k / 96 * TAU, r = rAt(TOP_Y0) + EASE, x = Math.sin(phi) * r, z = Math.cos(phi) * r;
+    hemPts.push(V(x, TOP_Y0 + 0.001, z > 0 ? z + drapeBump(x, TOP_Y0) * (z / r) : z));
+  }
+  const topHem = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hemPts, true), 192, 0.005, 6, true), gold); topHem.scale.set(1.12, 1, 0.74);
   // Hoge broek: taille tot net onder de navel, heupen die aansluiten op de pijpen
   const trousers = lathe([[0.149, 0.285], [0.146, 0.22], [0.156, 0.12], [0.168, 0.03], [0.166, -0.04], [0.15, -0.1], [0.12, -0.14], [0.001, -0.15]], satin); trousers.scale.set(1.04, 1, 0.78);
   // Gouden riem met een stralende sterbroche
   const belt = new THREE.Mesh(new THREE.TorusGeometry(0.151, 0.01, 8, 56), gold); belt.rotation.x = Math.PI / 2; belt.scale.set(1.12, 0.74, 1); belt.position.y = 0.265;
   const pin = new THREE.Mesh(new THREE.OctahedronGeometry(0.024), new THREE.MeshBasicMaterial({ color: '#ffe27a' })); pin.position.set(0, 0.265, 0.116); pin.scale.z = 0.4;
   const chestGlow = glow('#ffe27a', 0.2, 0.8); chestGlow.position.set(0, 0.265, 0.128);
-  // Ronde halslijn met gouden bies, en een kettinkje met hangertje
-  const neckline = new THREE.Mesh(new THREE.CircleGeometry(0.05, 32, Math.PI, Math.PI), skin); neckline.position.set(0, 0.765, 0.084); neckline.rotation.x = -0.45; neckline.scale.x = 1.15;
-  const neckTrim = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.0035, 6, 32, Math.PI), gold); neckTrim.position.copy(neckline.position); neckTrim.rotation.set(-0.45, 0, Math.PI); neckTrim.scale.x = 1.15;
-  const chain = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.0022, 4, 32, Math.PI), gold); chain.rotation.set(-0.2, 0, Math.PI); chain.position.set(0, 0.79, 0.05);
-  const pendant = new THREE.Mesh(new THREE.OctahedronGeometry(0.008), new THREE.MeshBasicMaterial({ color: '#fff3b0' })); pendant.position.set(0, 0.742, 0.094);
   // Navelpiercing met een sterretje
   const navel = new THREE.Mesh(new THREE.OctahedronGeometry(0.006), new THREE.MeshBasicMaterial({ color: '#fff3b0' })); navel.position.set(0, 0.315, 0.108);
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.043, 0.052, 0.13, 16), skin); neck.position.y = 0.79;
-  body.add(midriff, torso, topHem, trousers, belt, pin, chestGlow, neckline, neckTrim, chain, pendant, navel, neck);
+  body.add(midriff, chestSkin, torso, ...vTrim, ...strapTrim, backTrim, halter, halterRing, topHem, trousers, belt, pin, chestGlow, navel, neck);
 
   // Hoofd: één vervormde bol (smalle kaak, fijne kin); de gezichtstextuur krijgt dezelfde vorm
   const headPivot = new THREE.Group(); headPivot.position.y = 0.86; body.add(headPivot);
@@ -2714,7 +2794,10 @@ function updateBonus(t, dt) {
   // Munt zweeft rustig
   if (!b || b.type !== 'coin') {
     coin.disc.position.y = coin.homeY + Math.sin(ts * 1.4) * 0.12;
-    coin.disc.rotation.y = Math.sin(ts * 0.6) * 0.5; coin.disc.rotation.x = 0;
+    // Langzaam rond draaien zodat je beide kanten (rood en blauw) ziet
+    coin.spin = (coin.spin + dt * 0.9) % TAU;
+    coin.disc.rotation.y = coin.spin; coin.disc.rotation.x = 0; coin.disc.rotation.z = 0;
+    coin.back.rotation.set(0, Math.PI, 0);
   }
   meteor.tick(dt);
   if (!b) { meteor.ball.visible = false; meteor.trailOff(); return; }
@@ -2730,14 +2813,23 @@ function updateBonus(t, dt) {
         if (rolling) sfx.blip();
         else { sfx.land(); particles.burst(coin.disc.getWorldPosition(new THREE.Vector3()), { count: 80, colors: ['#e8493a', '#2a62d8', '#fff'] }); }
       }
-      coin.disc.rotation.y = Math.sin(ts * 2.2) * 1.2;
+      // Rustig om de as draaien: rood en blauw komen om de beurt in beeld
+      coin.spin = (coin.spin + dt * 1.6) % TAU;
+      coin.disc.rotation.set(0, coin.spin, 0);
+      coin.back.rotation.set(0, Math.PI, 0);
       coin.disc.position.y = coin.homeY;
     } else if ((b.stage === 'flip' || b.stage === 'done') && b.flipAt) {
       if (coinRolled !== `${r.id}-final`) { coin.drawFace(0, `${b.red}×`); coin.drawFace(1, `${b.blue}×`); coinRolled = `${r.id}-final`; }
       const p = clamp((t - b.flipAt) / (b.landAt - b.flipAt), 0, 1);
+      // Kop-over-kop flippen om de X-as: de achterkant moet dan ook om X gedraaid staan,
+      // anders landt blauw ondersteboven.
+      coin.back.rotation.set(Math.PI, 0, 0);
       const turns = 9 * TAU + (b.side === 'blue' ? Math.PI : 0);
       coin.disc.rotation.x = turns * easeOut(p);
-      coin.disc.rotation.y = lerp(coin.disc.rotation.y, 0, 0.1);
+      // Vanuit de draaistand soepel terug naar recht voor de camera (via de kortste weg)
+      if (p < 1) { const y = ((coin.spin % TAU) + TAU) % TAU; coin.spin = y > Math.PI ? y - TAU : y; coin.spin *= Math.exp(-dt * 6); }
+      else coin.spin = 0;
+      coin.disc.rotation.y = coin.spin; coin.disc.rotation.z = 0;
       coin.disc.position.y = coin.homeY + Math.sin(p * Math.PI) * 7 + (p >= 1 ? Math.abs(Math.sin(ts * 3)) * 0.05 : 0);
     }
   }
