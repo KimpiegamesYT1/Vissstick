@@ -25,16 +25,14 @@ const STRIKE_LIMIT = 8;           // zoveel overtredingen binnen STRIKE_WINDOW_M
 const MUTE_MS = [30 * 1000, 2 * 60 * 1000, 10 * 60 * 1000];
 const MUTE_MEMORY_MS = 30 * 60 * 1000;
 
-// Scheldwoorden. 'exact' = alleen het hele woord (met evt. meervoud), 'stem' = ook in samenstellingen (kankerlijer).
+// Alleen extreme discriminerende scheldwoorden (racisme e.d.) worden vervangen door sterretjes; gewoon schelden mag.
+// 'exact' = alleen het hele woord (met evt. meervoud), 'prefix' = ook in samenstellingen.
 // Woorden staan hier in gewone spelling; ze worden op dezelfde manier genormaliseerd als de berichten.
-const EXACT_WORDS = [
-  'kut', 'lul', 'hoer', 'slet', 'trut', 'eikel', 'mongool', 'flikker', 'neger',
-  'fuck', 'shit', 'bitch', 'cunt', 'asshole', 'retard', 'faggot', 'slut', 'whore'
-];
-// Begint een woord hiermee, dan telt het ook (kankerlijer, klootzak, teringlijer)
-const PREFIX_WORDS = ['kanker', 'kloot', 'tering', 'tyfus', 'godver', 'nigger', 'nigga'];
+const EXACT_WORDS = ['neger', 'negers', 'faggot', 'nigger', 'nigga'];
+// Begint een woord hiermee, dan telt het ook (niggers, niggaz)
+const PREFIX_WORDS = ['nigger', 'nigga'];
 // Ook als het ergens middenin een woord zit
-const INFIX_WORDS = ['kanker', 'fuck', 'klootzak'];
+const INFIX_WORDS = ['nigger'];
 // Woorden die op een scheldwoord lijken maar gewoon zijn (kutter = vissersboot!)
 const SAFE_WORDS = ['kutter', 'kutters', 'kloof', 'klooster', 'shiitake'];
 
