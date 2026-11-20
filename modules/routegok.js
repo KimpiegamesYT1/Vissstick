@@ -185,6 +185,21 @@ function scoreGuess(guess, minutes) {
   return { error, mult: 0, tier: 'mis', label: 'Mis' };
 }
 
+/** 10 landen om uit te kiezen: het juiste land plus 9 willekeurige, door elkaar */
+function pickCountryOptions(correct, count = 10) {
+  const others = Object.keys(COUNTRIES).filter(c => c !== correct);
+  for (let i = others.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [others[i], others[j]] = [others[j], others[i]];
+  }
+  const list = others.slice(0, count - 1).concat(correct);
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
 // =====================================================
 // PUBLIEKE STATUS
 // =====================================================
@@ -215,6 +230,7 @@ function getPublicState() {
       revealEndAt: r.revealEndAt,
       nextAt: r.nextAt,
       votes,
+      countryOptions: r.countryOptions || [],
       players: [...r.players.values()].map(p => ({
         userId: p.userId,
         username: p.username,
@@ -438,6 +454,7 @@ function startRound(user) {
     await Promise.race([prefetchTiles(route), new Promise(res => setTimeout(res, PREFETCH_MS))]);
     if (round !== r) return;
     r.route = route;
+    r.countryOptions = pickCountryOptions(route.country);
     r.phase = 'betting';
     r.openedAt = Date.now();
     r.bettingEndsAt = r.openedAt + BETTING_MS;
@@ -480,10 +497,10 @@ function placeGuess(user, input) {
   const country = input && input.country ? String(input.country) : null;
   if (!Number.isInteger(guess) || guess < 0 || guess > MAX_GUESS) return { ok: false, message: 'Vul een geldig aantal minuten in (hele minuten).' };
   if (!Number.isInteger(amount) || amount < MIN_BET || amount > MAX_BET) return { ok: false, message: `Je inzet moet tussen ${MIN_BET} en ${MAX_BET} punten liggen.` };
-  if (country && !Object.prototype.hasOwnProperty.call(COUNTRIES, country)) return { ok: false, message: 'Onbekend land.' };
+  if (country && !(r.countryOptions || []).includes(country)) return { ok: false, message: 'Onbekend land.' };
 
   const existing = r.players.get(user.id);
-  if (existing && existing.ready) return { ok: false, message: 'Je hebt je gok al vastgezet.' };
+  if (existing && existing.ready) return { ok: false, message: 'Je hebt al gegokt.' };
   if (!existing && r.players.size >= MAX_PLAYERS) return { ok: false, message: `Vol: er spelen al ${MAX_PLAYERS} spelers mee.` };
 
   casino.getOrCreateUser(user.id, user.username);
@@ -509,8 +526,8 @@ function placeGuess(user, input) {
     clearTimeout(r.closeTimer);
     r.closeTimer = setTimeout(() => safeClose(r), Math.max(0, r.bettingEndsAt - Date.now()));
   }
-  emitUpdate();
-  return { ok: true, message: '', roundId: r.id, guess, amount, country };
+  setReady(user); // een gok staat direct vast (geeft zelf een update)
+  return { ok: true, message: '', roundId: r.id, guess, amount, country, ready: true };
 }
 
 /** Geheime spiekfunctie voor de eigenaar: het antwoord tijdens het gokken */

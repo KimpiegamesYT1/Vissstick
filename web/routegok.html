@@ -78,14 +78,13 @@
   .minutes button, .stake button { border: 1px solid var(--line); background: var(--raise); border-radius: 9px; font-weight: 800; font-size: 13px; cursor: pointer; }
   .minutes button:hover:not(:disabled), .stake button:hover:not(:disabled) { filter: brightness(1.25); }
   .minutes input { width: 100%; min-width: 0; text-align: center; font-size: 26px; font-weight: 900; padding: 8px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--field); font-variant-numeric: tabular-nums; }
-  .minutes input:focus, .stake input:focus, .csearch:focus { outline: 2px solid var(--teal); outline-offset: -1px; }
+  .minutes input:focus, .stake input:focus { outline: 2px solid var(--teal); outline-offset: -1px; }
   .hint { font-size: 12px; color: var(--muted); margin-top: 5px; min-height: 16px; }
   .stake { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
   .stake button { padding: 8px 0; font-variant-numeric: tabular-nums; }
   .stake button.active { background: var(--gold); color: #16181b; border-color: var(--gold); }
   .stake input { grid-column: 1 / -1; width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-  .csearch { width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); margin-bottom: 6px; }
   .clist { max-height: 210px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding-right: 2px; }
   .cbtn { display: flex; align-items: center; gap: 6px; padding: 6px 7px; border-radius: 8px; border: 1px solid var(--line); background: var(--field); cursor: pointer; font-size: 12px; font-weight: 700; text-align: left; min-width: 0; }
   .cbtn span.n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -128,9 +127,6 @@
   .stat { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
   .stat small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
   .stat b { display: block; font-size: 16px; margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .odds { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .odds td { padding: 4px 0; border-bottom: 1px solid var(--line); color: var(--muted); }
-  .odds td:last-child { text-align: right; color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; }
   .win { color: var(--green); }
   .loss { color: var(--red); }
   .hist { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -199,74 +195,6 @@
   .tier.super, .tier.goed { background: var(--green); color: #062612; }
   .tier.mis { background: var(--red); color: #fff; }
 
-  /* Bowlingbaan-schermanimaties (expres goedkoop) */
-  #bowl { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
-  .bl { position: absolute; inset: 0; display: grid; place-items: center; animation: blin .25s steps(2) both, blout .35s steps(3) forwards; }
-  @keyframes blin { from { opacity: 0; } }
-  @keyframes blout { to { opacity: 0; transform: scale(1.4); } }
-  .bl .bg { position: absolute; inset: -50%; opacity: .78; }
-  .bg.burst { background: repeating-conic-gradient(from 0deg, #ffe600 0 10deg, #ff7a00 10deg 20deg); animation: rot 2s steps(16) infinite; }
-  .bg.tunnel { background: repeating-radial-gradient(circle, #ff0040 0 30px, #ffae00 30px 60px, #fff200 60px 90px, #00d26a 90px 120px, #0077ff 120px 150px, #a200ff 150px 180px); animation: tun 1s steps(6) infinite; }
-  .bg.checker { background: repeating-conic-gradient(#000 0 25%, #fff 0 50%) 0 0 / 120px 120px; animation: chk .6s steps(4) infinite; opacity: .55; }
-  .bg.lava { background: radial-gradient(circle at 30% 30%, #ff00d4, transparent 40%), radial-gradient(circle at 70% 60%, #00f0ff, transparent 40%), radial-gradient(circle at 50% 80%, #fff700, transparent 40%), #3a0066; animation: rot 3s steps(12) infinite; }
-  .bg.sad { background: repeating-linear-gradient(45deg, #333 0 40px, #555 40px 80px); opacity: .6; animation: chk 2s steps(3) infinite; }
-  @keyframes rot { to { transform: rotate(360deg); } }
-  @keyframes tun { from { transform: scale(1); } to { transform: scale(1.35); } }
-  @keyframes chk { to { background-position: 120px 120px; } }
-  .wa { position: relative; z-index: 2; margin: 0 16px; text-align: center; line-height: .95; font-family: Impact, "Arial Black", "Comic Sans MS", "Comic Sans", sans-serif; font-weight: 900; font-style: italic;
-    font-size: clamp(44px, 10vw, 140px); letter-spacing: 2px; text-transform: uppercase;
-    background: linear-gradient(180deg, #fff 0%, #fff700 20%, #ff9d00 45%, #ff0080 62%, #8c00ff 85%, #00e5ff 100%); background-size: 100% 200%;
-    -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 3px #1a0030;
-    filter: drop-shadow(5px 6px 0 #000) drop-shadow(-2px -2px 0 #fff) drop-shadow(0 0 18px rgba(255,255,255,.65));
-    animation: wagrad .4s steps(2) infinite alternate; }
-  .wa small { display: block; font-size: .32em; letter-spacing: 3px; margin-top: 10px; -webkit-text-stroke: 1.5px #1a0030; }
-  @keyframes wagrad { to { background-position: 0 100%; } }
-  .in-spin { animation: inspin 1s steps(10) both; }
-  @keyframes inspin { from { transform: perspective(600px) rotateY(-900deg) scale(.1); } 70% { transform: perspective(600px) rotateY(20deg) scale(1.2); } }
-  .in-zoom { animation: inzoom .7s steps(7) both; }
-  @keyframes inzoom { from { transform: scale(8) rotate(30deg); opacity: 0; } 60% { transform: scale(.8) rotate(-6deg); opacity: 1; } 80% { transform: scale(1.15); } }
-  .in-slide { animation: inslide .6s steps(6) both; }
-  @keyframes inslide { from { transform: translateX(-130vw) skewX(-30deg); } 70% { transform: translateX(6vw) skewX(20deg); } }
-  .in-drop { animation: indrop .9s steps(9) both; }
-  @keyframes indrop { from { transform: translateY(-110vh); } 50% { transform: translateY(0) scaleY(.6) scaleX(1.3); } 65% { transform: translateY(-14vh); } 80% { transform: translateY(0) scaleY(.85); } }
-  .in-droop { animation: indroop 1.8s steps(8) both; }
-  @keyframes indroop { from { transform: translateY(-40px) rotate(0); opacity: 0; } 40% { opacity: 1; } to { transform: translateY(40px) rotate(12deg) scaleY(.8); } }
-  .wobble { animation: wobble .3s steps(2) infinite alternate; }
-  @keyframes wobble { from { transform: rotate(-4deg) scale(1); } to { transform: rotate(4deg) scale(1.06); } }
-  .spr { position: absolute; z-index: 3; font-size: clamp(36px, 6vw, 80px); line-height: 1; filter: drop-shadow(3px 4px 0 #000); }
-  .spr.dance { animation: dance .3s steps(2) infinite alternate; }
-  @keyframes dance { from { transform: translateY(0) rotate(-15deg); } to { transform: translateY(-30px) rotate(15deg) scaleX(-1); } }
-  .spr.rain { top: -15%; animation: rain 1.6s steps(8) forwards; }
-  @keyframes rain { to { transform: translateY(130vh) rotate(720deg); } }
-  .spr.flyx { animation: flyx 1.6s steps(10) both; }
-  @keyframes flyx { from { transform: translateX(-120vw) rotate(0); } to { transform: translateX(120vw) rotate(1080deg); } }
-  .spr.spin { animation: spinb .5s steps(6) infinite; }
-  @keyframes spinb { to { transform: rotate(360deg) scale(1.2); } }
-  .spr.pop { animation: popx .9s steps(5) both; }
-  @keyframes popx { from { transform: scale(0); } 40% { transform: scale(1.8) rotate(25deg); } to { transform: scale(1) translate(var(--dx), var(--dy)) rotate(-20deg); opacity: 0; } }
-  .comic { position: absolute; z-index: 1; width: min(80vw, 760px); aspect-ratio: 1.6; background: #ffe100; border: 6px solid #000;
-    clip-path: polygon(50% 0, 58% 22%, 80% 5%, 74% 30%, 100% 28%, 82% 48%, 100% 70%, 74% 66%, 80% 96%, 58% 76%, 48% 100%, 40% 76%, 16% 94%, 24% 66%, 0 72%, 18% 50%, 2% 26%, 26% 32%, 20% 4%, 42% 22%);
-    animation: comic .25s steps(2) infinite; }
-  @keyframes comic { 50% { background: #ff3b00; transform: scale(1.04) rotate(2deg); } }
-  .lane { position: absolute; left: 0; right: 0; bottom: 12%; height: 26%; z-index: 1; background: repeating-linear-gradient(90deg, #c98b4c 0 60px, #b57a3f 60px 120px); border-top: 6px solid #6b3f1a; border-bottom: 6px solid #6b3f1a; }
-  .ball { position: absolute; z-index: 3; bottom: 18%; left: -20%; width: clamp(60px, 9vw, 120px); aspect-ratio: 1; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #6b7cff, #1a1f6b 60%, #05071f); box-shadow: 0 6px 0 rgba(0,0,0,.5); animation: ballroll 1s steps(10) forwards; }
-  .ball::before { content: ''; position: absolute; left: 30%; top: 25%; width: 12%; height: 12%; border-radius: 50%; background: #000; box-shadow: 18px 4px 0 #000, 8px 18px 0 #000; }
-  @keyframes ballroll { to { left: 62%; transform: rotate(900deg); } }
-  .ball.gutter { animation: ballgutter 1.6s steps(12) forwards; }
-  @keyframes ballgutter { 50% { left: 40%; bottom: 18%; } to { left: 110%; bottom: 4%; transform: rotate(1500deg); } }
-  .pin { position: absolute; z-index: 2; bottom: 20%; width: clamp(18px, 2.6vw, 34px); height: clamp(52px, 7.5vw, 96px);
-    background: linear-gradient(180deg, #fff 0 18%, #e31b23 18% 24%, #fff 24% 30%, #e31b23 30% 36%, #fff 36%); border-radius: 50% 50% 42% 42% / 30% 30% 70% 70%; box-shadow: inset -4px 0 0 rgba(0,0,0,.15), 0 4px 0 rgba(0,0,0,.4); }
-  .pin.fly { animation: pinfly 1.2s steps(8) .9s forwards; }
-  @keyframes pinfly { to { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: .2; } }
-  .flare { position: absolute; z-index: 2; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, #fff 0 8%, rgba(255,255,255,.6) 12%, rgba(255,200,0,.3) 30%, transparent 60%); mix-blend-mode: screen; animation: flare 1.2s steps(6) infinite; }
-  @keyframes flare { 50% { transform: scale(1.6) rotate(45deg); } }
-  .bubble { position: absolute; z-index: 70; padding: 6px 12px; border-radius: 14px; background: #fff; color: #000; font-family: "Comic Sans MS", "Comic Sans", system-ui, sans-serif; font-weight: 900; font-size: 15px;
-    border: 3px solid #000; box-shadow: 4px 4px 0 #000; transform: translate(-50%, -100%); white-space: nowrap; animation: bub 1.6s steps(6) forwards; }
-  @keyframes bub { from { transform: translate(-50%, -60%) scale(0); } 20% { transform: translate(-50%, -100%) scale(1.3) rotate(-6deg); } 80% { opacity: 1; } to { transform: translate(-50%, -190%) scale(1); opacity: 0; } }
-  .marquee { position: absolute; z-index: 3; left: 0; right: 0; top: 8%; text-align: center; font-family: "Courier New", monospace; font-weight: 900; font-size: clamp(16px, 2.4vw, 28px); color: #39ff14; text-shadow: 0 0 8px #39ff14; letter-spacing: 4px;
-    animation: blink .2s steps(2) infinite; }
-  @keyframes blink { 50% { opacity: .3; } }
 
   /* Grote overlays */
   .overlay { position: fixed; inset: 0; z-index: 50; display: none; }
@@ -299,7 +227,6 @@
     .timeline { left: 12px; right: 12px; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .bl, .bl * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
     body.shake { animation: none; }
   }
 </style>
@@ -331,13 +258,13 @@
         <button class="play teal" id="startBtn" type="button" hidden>Nieuwe route zoeken</button>
         <div class="login" id="login" hidden>
           <h3>Niet ingelogd</h3>
-          <p>Je kijkt mee. Wil je spelen? Typ <code>/routegok</code> in Discord en klik op de link. Dit hoef je maar één keer te doen.</p>
+          <p>Typ <code>/routegok</code> in Discord om mee te spelen.</p>
         </div>
       </div>
 
       <div class="box" id="controls" hidden>
         <div class="field" style="margin-top:0">
-          <label for="minutes">Hoeveel minuten van A naar B? <b id="minutesNice"></b></label>
+          <label for="minutes">Minuten <b id="minutesNice"></b></label>
           <div class="minutes">
             <button type="button" data-step="-10">−10</button>
             <button type="button" data-step="-1">−1</button>
@@ -352,22 +279,16 @@
           <div class="stake" id="stake"></div>
         </div>
         <div class="field">
-          <label>In welk land ligt de route? <b id="countryShown">geen</b></label>
-          <input class="csearch" id="csearch" type="search" placeholder="Zoek een land…" autocomplete="off">
+          <label>Land <b id="countryShown">geen</b></label>
           <div class="clist" id="clist"></div>
         </div>
         <button class="play" id="guessBtn" type="button">Gok plaatsen</button>
-        <button class="play alt" id="readyBtn" type="button">Klaar! Vastzetten</button>
         <div class="note" id="note"></div>
       </div>
 
       <div class="box side">
         <h2><span>SPELERS</span><span id="playerCount"></span></h2>
         <div class="players" id="players"><div class="empty">Nog niemand.</div></div>
-      </div>
-      <div class="box side">
-        <h2><span>UITBETALING</span></h2>
-        <table class="odds" id="odds"></table>
       </div>
       <div class="box side" id="statsBox" hidden>
         <h2><span>JOUW STATS</span></h2>
@@ -398,7 +319,6 @@
   </div>
 </div>
 
-<div id="bowl" aria-hidden="true"></div>
 <div class="overlay" id="laugh" aria-hidden="true"><canvas id="laughCanvas"></canvas><button class="skip" type="button" data-skip="laugh">Overslaan</button></div>
 <div class="overlay" id="space" aria-hidden="true"><canvas id="spaceCanvas"></canvas></div>
 <div class="overlay" id="boom" aria-hidden="true"><canvas id="boomCanvas"></canvas><canvas id="boomSparks"></canvas><div id="boomText"></div><div class="boomcap" id="boomCap"></div><button class="skip" type="button" data-skip="boom">Overslaan</button></div>
@@ -499,9 +419,8 @@
   const myEntry = () => { const r = rnd(); return r && myId() ? r.players.find(p => p.userId === myId()) || null : null; };
   const canGuess = () => {
     const r = rnd();
-    return linked() && r && r.phase === 'betting' && serverNow() < (r.closeAt || r.bettingEndsAt) - 500 && !(mine && mine.ready);
+    return linked() && r && r.phase === 'betting' && serverNow() < (r.closeAt || r.bettingEndsAt) - 500 && !mine;
   };
-  const dirtyGuess = () => !mine || mine.guess !== Number(draft.minutes) || mine.amount !== draft.amount || (mine.country || null) !== (draft.country || null);
 
   // =====================================================
   // SERVER
@@ -524,8 +443,6 @@
     }
     if (first) {
       buildStake();
-      buildCountries();
-      renderOdds();
       connect();
     }
     renderAll();
@@ -596,22 +513,13 @@
     posting = false;
     if (typeof res.balance === 'number') balance = res.balance;
     if (res.ok) {
-      mine = { roundId: res.roundId, guess: res.guess, amount: res.amount, country: res.country, ready: false };
+      mine = { roundId: res.roundId, guess: res.guess, amount: res.amount, country: res.country, ready: true };
       sfx.chip();
-      setNote(`Gok staat: ${fmt(res.guess)} min${res.country ? ` · ${flag(res.country)} ${cfg.countries[res.country]}` : ''}. Druk op Klaar als je zeker bent.`, true);
+      mine.ready = true;
+      setNote('Gok geplaatst!', true);
     } else {
       toast(res.message || 'Gok niet gelukt.', false);
     }
-    renderAll();
-  }
-
-  async function setReady() {
-    if (posting || !mine || mine.ready) return;
-    posting = true;
-    const res = await post('/api/routegok/ready');
-    posting = false;
-    if (res.ok) { mine.ready = true; sfx.lock(); setNote('Vastgezet! Wachten op de rest…', true); }
-    else toast(res.message, false);
     renderAll();
   }
 
@@ -1112,7 +1020,6 @@
     const now = serverNow();
     if (r.phase === 'betting' && fire(`${id}:open`)) {
       if (now - r.openedAt < 5000) {
-        bowl.play(r.moon ? 'moon' : 'route', { mode: r.mode });
         sfx.fanfare();
       }
     }
@@ -1123,7 +1030,6 @@
     if ((r.phase === 'reveal' || r.phase === 'result') && fire(`${id}:reveal`)) {
       buildTimeline(r);
       if (now < r.revealStartAt + 1500) {
-        bowl.play('closed');
         sfx.strike();
         sfx.engine(r.mode, (r.revealEndAt - now) / 1000);
       }
@@ -1133,12 +1039,10 @@
       }
       prefetchEarth();
     }
-    if (r.phase === 'reveal' && info && info.u > 0.02 && fire(`${id}:go`) && info.u < 0.2) bowl.play('go', { mode: r.mode });
     if (r.phase === 'result') {
       const t = now - r.revealEndAt;
       if (fire(`${id}:arrive`)) {
         if (t < 3000) {
-          bowl.play(r.moon ? 'moonland' : 'arrive');
           sfx.boom(0.5);
           burstConfetti(W / 2, H / 2, 90);
         }
@@ -1149,11 +1053,9 @@
       }
       const p = myEntry();
       if (p && t < 3500 && t > 1100 && fire(`${id}:tier`)) {
-        bowl.play(p.tier, { payout: p.payout, mult: p.mult });
         sfx.tier(p.tier);
       }
       if (p && p.countryRight && t > 2600 && t < 5000 && fire(`${id}:country`)) {
-        bowl.play('country', { code: r.result.country });
         sfx.fanfare();
       }
       const o = r.outcome;
@@ -1209,9 +1111,6 @@
         tk.passed = true;
         tk.node.classList.add('passed', 'pop');
         if (info.p < 1) {
-          const rect = tk.node.getBoundingClientRect();
-          const lines = ['VOORBIJ!', 'TE KORT!', 'DAAG!', 'HELAAS!', 'OEPS!'];
-          bowl.bubble(rect.left + rect.width / 2, rect.top - 4, `${tk.p.username} ${lines[Math.floor(Math.random() * lines.length)]}`);
           sfx.pass();
         }
       }
@@ -1296,20 +1195,20 @@
     if (ph === 'idle') {
       label = 'KLAAR VOOR VERTREK';
       title = 'Nieuwe route?';
-      sub = r && r.phase === 'cancelled' && r.message ? r.message : 'Iemand moet op de knop drukken. De route ligt ergens op aarde, met de auto, fiets of te voet.';
+      sub = r && r.phase === 'cancelled' && r.message ? r.message : '';
     } else if (ph === 'loading') {
       label = 'ZOEKEN';
       titleNode.append(el('span', { class: 'spinner' }));
       title = 'Route zoeken…';
-      sub = 'Ergens op de wereldbol wordt een plekje geprikt.';
+      sub = '';
     } else if (ph === 'betting') {
       label = 'GOKKEN';
       title = r.moon ? 'Naar de maan?!' : `Van A naar B ${MODE_EMOJI[r.mode]}`;
-      sub = 'Hoeveel minuten doe je erover volgens OpenStreetMap? Sleep en zoom op de kaart om te kijken.';
+      sub = 'Hoeveel minuten duurt de route?';
     } else if (ph === 'reveal') {
       label = 'ONDERWEG';
       title = 'Daar gaat ie!';
-      sub = 'De klok loopt mee. Wie zit het dichtst bij?';
+      sub = '';
     } else if (ph === 'result') {
       label = 'UITSLAG';
       title = `${fmt(r.result.minutes)} minuten`;
@@ -1368,20 +1267,17 @@
     renderControls();
   }
 
-  let countryButtons = [];
-  function buildCountries() {
-    const list = Object.entries(cfg.countries).sort((a, b) => a[1].localeCompare(b[1], 'nl'));
-    countryButtons = list.map(([code, name]) => {
+  let countryButtons = [], countryKey = '';
+  function buildCountries(codes) {
+    countryKey = codes.join(',');
+    countryButtons = codes.map(code => {
+      const name = cfg.countries[code];
       const node = el('button', { type: 'button', class: 'cbtn', title: name, onclick: () => {
         draft.country = draft.country === code ? null : code; sfx.click(); renderControls();
       } }, [el('span', { class: 'f', text: flag(code) }), el('span', { class: 'n', text: name }), el('span', { class: 'v', hidden: true })]);
       return { code, name, node };
     });
     $('clist').replaceChildren(...countryButtons.map(c => c.node));
-    $('csearch').addEventListener('input', e => {
-      const q = e.target.value.trim().toLowerCase();
-      countryButtons.forEach(c => { c.node.hidden = q && !c.name.toLowerCase().includes(q) && c.code.toLowerCase() !== q; });
-    });
   }
 
   function renderControls() {
@@ -1399,7 +1295,9 @@
     $('stakeShown').textContent = `${fmt(draft.amount)} punten`;
     const m = Number(draft.minutes);
     $('minutesNice').textContent = draft.minutes !== '' && Number.isFinite(m) ? niceDuration(m) : '';
-    $('minutesHint').textContent = r.moon ? 'Tip: de maan staat ~384.400 km ver weg.' : 'Hele minuten. Precies goed = JACKPOT!';
+    $('minutesHint').textContent = '';
+    const options = r.countryOptions || [];
+    if (options.join(',') !== countryKey) buildCountries(options);
     const votes = r.votes || {};
     countryButtons.forEach(c => {
       c.node.classList.toggle('sel', draft.country === c.code);
@@ -1409,14 +1307,9 @@
       v.textContent = votes[c.code] || '';
     });
     $('countryShown').textContent = draft.country ? `${flag(draft.country)} ${cfg.countries[draft.country]}` : 'geen';
-    const dirty = dirtyGuess();
     const gb = $('guessBtn');
-    gb.disabled = !can || draft.minutes === '' || !Number.isInteger(m) || m < 0 || (mine && !dirty) || draft.amount > balance + (mine ? mine.amount : 0);
-    gb.textContent = mine ? (dirty ? `Gok aanpassen (${fmt(draft.amount)})` : 'Gok geplaatst ✓') : `Gok plaatsen (${fmt(draft.amount)} punten)`;
-    if (mine && mine.ready) gb.textContent = 'Vastgezet 🔒';
-    const rb = $('readyBtn');
-    rb.hidden = !mine || mine.ready;
-    rb.disabled = posting || dirty || !canGuess();
+    gb.disabled = !can || draft.minutes === '' || !Number.isInteger(m) || m < 0 || draft.amount > balance;
+    gb.textContent = mine ? 'Gok geplaatst ✓' : 'Gok plaatsen';
   }
 
   $('minutes').addEventListener('input', e => { draft.minutes = e.target.value.replace(/[^\d]/g, ''); renderControls(); });
@@ -1438,7 +1331,6 @@
   });
 
   $('guessBtn').addEventListener('click', placeGuess);
-  $('readyBtn').addEventListener('click', setReady);
   $('startBtn').addEventListener('click', startRoute);
 
   function renderPlayers() {
@@ -1455,12 +1347,6 @@
       else right = el('div', { class: `rt ${p.payout > p.amount ? 'win' : 'loss'}` }, [document.createTextNode(`${p.payout - p.amount >= 0 ? '+' : ''}${fmt(p.payout - p.amount)}`), el('small', { text: `${fmt(p.guess)} min` })]);
       return el('div', { class: `pl${p.userId === myId() ? ' me' : ''}` }, [avatarEl(p), el('div', { class: 'nm' }, [document.createTextNode(p.username), el('small', { text: `inzet ${fmt(p.amount)}` })]), right]);
     }));
-  }
-
-  function renderOdds() {
-    const rows = [['Precies op de minuut', `×${cfg.jackpotMult} 💥`]].concat(cfg.tiers.map(t => [`≤ ${Math.round(t.maxError * 100)}% ernaast`, `×${String(t.mult).replace('.', ',')}`]));
-    rows.push(['Verder ernaast', '×0'], ['Goed land gestemd', `+${String(cfg.countryBonus).replace('.', ',')}× inzet`]);
-    $('odds').replaceChildren(...rows.map(([a, b]) => el('tr', {}, [el('td', { text: a }), el('td', { text: b })])));
   }
 
   function renderStats() {
@@ -1674,168 +1560,6 @@
   }
   $('mute').addEventListener('click', () => { settings.muted = !settings.muted; save(); renderMute(); });
   renderMute();
-
-  // =====================================================
-  // BOWLINGBAAN-ANIMATIES (expres zo goedkoop mogelijk)
-  // =====================================================
-  const bowl = (() => {
-    const root = $('bowl');
-    const rand = (a, b) => a + Math.random() * (b - a);
-    function layer(seconds) {
-      const node = el('div', { class: 'bl', style: `animation-delay:0s,${seconds - 0.35}s` });
-      root.append(node);
-      setTimeout(() => node.remove(), seconds * 1000);
-      return node;
-    }
-    function text(main, sub, entrance = 'in-zoom', wobble = true) {
-      const inner = el('div', { class: 'wa' }, sub ? [document.createTextNode(main), el('small', { text: sub })] : [document.createTextNode(main)]);
-      return el('div', { class: entrance, style: 'position:relative;z-index:2' }, [wobble ? el('div', { class: 'wobble' }, [inner]) : inner]);
-    }
-    function sprites(node, chars, kind, count, opts = {}) {
-      for (let i = 0; i < count; i++) {
-        const ch = chars[i % chars.length];
-        let style = '';
-        if (kind === 'dance') style = `left:${(i + 0.5) / count * 100 - 3}%;bottom:${opts.bottom ?? 6}%;animation-delay:${(i % 2) * 0.15}s`;
-        if (kind === 'rain') style = `left:${rand(0, 96)}%;animation-delay:${rand(0, opts.spread ?? 1)}s;animation-duration:${rand(1.1, 2)}s`;
-        if (kind === 'flyx') style = `left:0;top:${rand(10, 80)}%;animation-delay:${i * (opts.gap ?? 0.18)}s;animation-duration:${opts.dur ?? 1.6}s`;
-        if (kind === 'spin') style = `left:${rand(5, 90)}%;top:${rand(10, 75)}%;animation-duration:${rand(0.3, 0.8)}s`;
-        if (kind === 'pop') style = `left:${rand(20, 75)}%;top:${rand(20, 70)}%;--dx:${rand(-200, 200)}px;--dy:${rand(-200, 200)}px;animation-delay:${rand(0, 0.8)}s`;
-        node.append(el('span', { class: `spr ${kind}`, style, text: ch }));
-      }
-    }
-    function pins(node, flyAway) {
-      const lane = el('div', { class: 'lane' });
-      node.append(lane);
-      const rows = [[0], [-1, 1], [-2, 0, 2], [-3, -1, 1, 3]];
-      rows.forEach((row, ri) => row.forEach(c => {
-        node.append(el('div', {
-          class: `pin${flyAway ? ' fly' : ''}`,
-          style: `left:calc(70% + ${ri * 2.4}vw);bottom:calc(20% + ${c * 1.6}vw);--dx:${rand(-30, 60)}vw;--dy:${rand(-90, -30)}vh;--r:${rand(-900, 900)}deg;z-index:${4 - ri}`
-        }));
-      }));
-    }
-    function flares(node, n) { for (let i = 0; i < n; i++) node.append(el('div', { class: 'flare', style: `left:${rand(0, 85)}%;top:${rand(0, 75)}%;animation-delay:${rand(0, 0.6)}s` })); }
-    function marquee(node, msg) { node.append(el('div', { class: 'marquee', text: msg })); }
-
-    const RECIPES = {
-      route(o) {
-        const n = layer(2.9);
-        n.append(el('div', { class: 'bg tunnel' }));
-        n.append(text('NIEUWE ROUTE!', `${{ car: 'MET DE AUTO', bike: 'OP DE FIETS', foot: 'TE VOET' }[o.mode] || ''} ${MODE_EMOJI[o.mode] || ''}`, 'in-spin'));
-        sprites(n, [MODE_EMOJI[o.mode] || '🚗', '🌍', '✨'], 'dance', 7);
-        flares(n, 3);
-        marquee(n, '★ ★ ★  WAAR OP AARDE?  ★ ★ ★');
-      },
-      moon() {
-        const n = layer(3.4);
-        n.append(el('div', { class: 'bg lava' }));
-        n.append(text('OMLEIDING!!', 'VIA DE MAAN 🌙', 'in-drop'));
-        sprites(n, ['🚀', '🌙', '👽', '🛸'], 'flyx', 8);
-        marquee(n, '!!! 1% KANS !!!  NIET NORMAAL  !!!');
-      },
-      closed() {
-        const n = layer(2.9);
-        n.append(el('div', { class: 'bg checker' }));
-        pins(n, true);
-        n.append(el('div', { class: 'ball' }));
-        n.append(text('RIEN NE VA PLUS!', 'GOKKEN GESLOTEN', 'in-drop'));
-      },
-      go(o) {
-        const n = layer(2.1);
-        n.append(text('DAAR GAAT IE!', null, 'in-slide'));
-        sprites(n, ['🏁', MODE_EMOJI[o.mode] || '🚗'], 'flyx', 5, { gap: 0.12, dur: 1.2 });
-      },
-      arrive() {
-        const n = layer(2.3);
-        n.append(el('div', { class: 'comic' }));
-        n.append(text('AANGEKOMEN!', null, 'in-zoom'));
-        sprites(n, ['💥', '⭐', '🏁'], 'pop', 10);
-        shake(600);
-      },
-      moonland() {
-        const n = layer(2.8);
-        n.append(el('div', { class: 'comic' }));
-        n.append(text('TOUCHDOWN!', 'OP DE MAAN 🌕', 'in-zoom'));
-        sprites(n, ['🌕', '👨‍🚀', '💥'], 'pop', 12);
-        shake(700);
-      },
-      strike(o) {
-        const n = layer(3.2);
-        n.append(el('div', { class: 'bg burst' }));
-        pins(n, true);
-        n.append(el('div', { class: 'ball' }));
-        n.append(text('VOLTREFFER!', `+${fmt(o.payout)} PUNTEN`, 'in-spin'));
-        sprites(n, ['🎆', '✨', '🎉', '⭐'], 'rain', 24);
-        flares(n, 4);
-      },
-      super(o) {
-        const n = layer(3);
-        n.append(el('div', { class: 'bg tunnel' }));
-        n.append(text('SUPER!!', `×${o.mult} · +${fmt(o.payout)}`, 'in-zoom'));
-        sprites(n, ['👍', '😎', '🔥'], 'spin', 9);
-        marquee(n, '>>> WAT EEN GOK <<<');
-      },
-      goed(o) {
-        const n = layer(2.8);
-        n.append(el('div', { class: 'bg burst' }));
-        n.append(text('GOED ZO!', `×${String(o.mult).replace('.', ',')}`, 'in-drop'));
-        sprites(n, ['🕺', '💃', '🎳'], 'dance', 8);
-      },
-      aardig(o) {
-        const n = layer(2.6);
-        n.append(el('div', { class: 'bg checker' }));
-        n.append(text('AARDIG!', `×${String(o.mult).replace('.', ',')}`, 'in-slide'));
-        sprites(n, ['🙂', '👌'], 'pop', 8);
-      },
-      net(o) {
-        const n = layer(2.6);
-        n.append(text('NET AAN!', `×${String(o.mult).replace('.', ',')}`, 'in-zoom'));
-        sprites(n, ['😅', '😬'], 'pop', 8);
-      },
-      mwah() {
-        const n = layer(2.8);
-        n.append(el('div', { class: 'bg sad' }));
-        n.append(text('MWAH…', 'HALVE INZET TERUG', 'in-droop', false));
-        sprites(n, ['🐌'], 'flyx', 2, { dur: 2.8, gap: 0.6 });
-      },
-      mis() {
-        const n = layer(3.2);
-        n.append(el('div', { class: 'bg sad' }));
-        n.append(el('div', { class: 'lane' }));
-        n.append(el('div', { class: 'ball gutter' }));
-        n.append(text('GOOT!!', 'VOLGENDE KEER BETER', 'in-droop', false));
-        sprites(n, ['💩', '😭', '🗑️'], 'rain', 14, { spread: 1.4 });
-      },
-      jackpot(o) {
-        const n = layer(3.6);
-        n.append(el('div', { class: 'bg lava' }));
-        n.append(el('div', { class: 'bg tunnel', style: 'opacity:.45;mix-blend-mode:screen' }));
-        n.append(text('JACKPOT!!!', o.payout ? `+${fmt(o.payout)} PUNTEN` : 'PRECIES GOED', 'in-spin'));
-        sprites(n, ['💰', '🪙', '💎', '🤑', '💸'], 'rain', 40, { spread: 1.8 });
-        flares(n, 6);
-        marquee(n, '$$$ JACKPOT $$$ JACKPOT $$$ JACKPOT $$$');
-        shake(1500);
-      },
-      country(o) {
-        const n = layer(2.8);
-        n.append(el('div', { class: 'bg burst' }));
-        n.append(text('LAND GOED!', `${flag(o.code)} ${cfg.countries[o.code]} · +${String(cfg.countryBonus).replace('.', ',')}× INZET`, 'in-slide'));
-        sprites(n, [flag(o.code)], 'dance', 8);
-      }
-    };
-    return {
-      play(kind, opts = {}) {
-        if (matchMedia('(prefers-reduced-motion: reduce)').matches && kind !== 'jackpot') return;
-        const recipe = RECIPES[kind];
-        if (recipe) recipe(opts);
-      },
-      bubble(x, y, msg) {
-        const b = el('div', { class: 'bubble', style: `left:${x}px;top:${y}px`, text: msg });
-        document.body.append(b);
-        setTimeout(() => b.remove(), 1700);
-      }
-    };
-  })();
 
   let shakeTimer = null;
   function shake(ms) {
@@ -2720,7 +2444,6 @@
     const camSmooth = { d: 4.6, c: [0, 0, 0] };
     let frameTimes = [];
 
-    bowl.play('jackpot', { payout: winners.reduce((s, p) => s + p.payout, 0) });
     sfx.coins();
     if (route) flyTo({ x: (route.mx0 + route.mx1) / 2, y: (route.my0 + route.my1) / 2, z: 0.4 }, Math.max(300, JP_ZOOM * 1000 - offsetMs));
     prefetchEarth();
