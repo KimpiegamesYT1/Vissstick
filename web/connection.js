@@ -1185,6 +1185,14 @@
       });
     }
 
+    // In volledig scherm toont de browser alleen dat element (bijv. het Sterrenrad), dus de chat verhuist er tijdelijk in mee
+    const followFullscreen = () => {
+      const target = document.fullscreenElement || document.webkitFullscreenElement || document.body;
+      if (root.parentNode !== target) target.append(root);
+    };
+    document.addEventListener('fullscreenchange', followFullscreen);
+    document.addEventListener('webkitfullscreenchange', followFullscreen);
+
     loadHistory();
     checkLogin();
     let wasOpen = false;
