@@ -127,6 +127,9 @@
   .stat { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
   .stat small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
   .stat b { display: block; font-size: 16px; margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .odds { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .odds td { padding: 4px 0; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .odds td:last-child { text-align: right; color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; }
   .win { color: var(--green); }
   .loss { color: var(--red); }
   .hist { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -298,6 +301,10 @@
         <h2><span>LAATSTE ROUTES</span></h2>
         <div class="hist" id="hist"><span class="empty">Nog geen routes.</span></div>
       </div>
+      <div class="box side">
+        <h2><span>UITBETALING</span></h2>
+        <table class="odds" id="odds"></table>
+      </div>
     </aside>
 
     <main class="main" id="main">
@@ -443,6 +450,7 @@
     }
     if (first) {
       buildStake();
+      renderOdds();
       connect();
     }
     renderAll();
@@ -1347,6 +1355,12 @@
       else right = el('div', { class: `rt ${p.payout > p.amount ? 'win' : 'loss'}` }, [document.createTextNode(`${p.payout - p.amount >= 0 ? '+' : ''}${fmt(p.payout - p.amount)}`), el('small', { text: `${fmt(p.guess)} min` })]);
       return el('div', { class: `pl${p.userId === myId() ? ' me' : ''}` }, [avatarEl(p), el('div', { class: 'nm' }, [document.createTextNode(p.username), el('small', { text: `inzet ${fmt(p.amount)}` })]), right]);
     }));
+  }
+
+  function renderOdds() {
+    const rows = [['Precies op de minuut', `×${cfg.jackpotMult} 💥`]].concat(cfg.tiers.map(t => [`≤ ${Math.round(t.maxError * 100)}% ernaast`, `×${String(t.mult).replace('.', ',')}`]));
+    rows.push(['Verder ernaast', '×0'], ['Goed land gestemd', `+${String(cfg.countryBonus).replace('.', ',')}× inzet`]);
+    $('odds').replaceChildren(...rows.map(([a, b]) => el('tr', {}, [el('td', { text: a }), el('td', { text: b })])));
   }
 
   function renderStats() {
