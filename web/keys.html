@@ -48,13 +48,17 @@
   .user button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px 8px; border-radius: 999px; }
   .user button:hover { background: var(--raise); color: var(--text); }
 
-  /* Titel */
-  .intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 4px 2px 16px; flex-wrap: wrap; }
-  .intro h1 { margin: 0; font-size: 26px; letter-spacing: .3px; }
-  .intro p { margin: 6px 0 0; color: var(--muted); font-size: 14px; max-width: 560px; line-height: 1.5; }
-  .total { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px 8px 10px; font-size: 13px; color: var(--muted); }
-  .total svg { width: 22px; height: 22px; }
-  .total b { color: var(--text); font-size: 16px; font-variant-numeric: tabular-nums; }
+  /* Achtergrond met leven */
+  @property --ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  :root { --k: 1; }
+  body { background: transparent; }
+  .bg { position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none; background: radial-gradient(ellipse at 50% 0%, #17151f, var(--bg) 65%); }
+  .bg i { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(100px); opacity: .26; animation: drift 26s ease-in-out infinite alternate; }
+  .bg i:nth-child(1) { background: #c98b4d; left: -14vmax; top: 6vmax; }
+  .bg i:nth-child(2) { background: #6f8fb8; right: -16vmax; top: -10vmax; animation-delay: -9s; }
+  .bg i:nth-child(3) { background: #f2c14e; left: 28vw; bottom: -28vmax; animation-delay: -16s; }
+  @keyframes drift { to { transform: translate(9vmax, -7vmax) scale(1.18); } }
+  #dust { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
 
   .login { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; max-width: 520px; }
   .login h3 { margin: 0 0 8px; font-size: 18px; }
@@ -62,65 +66,69 @@
   code { background: var(--raise); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 700; }
 
   /* De drie kisten */
-  .crates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .crates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px; align-items: center; min-height: calc(100vh - 130px); padding: 0 0 30px; perspective: 1300px; }
   .crate {
-    --accent: #b07a45; --accent2: rgba(176,122,69,.18);
-    position: relative; overflow: hidden; border-radius: 18px; padding: 20px 18px 18px; text-align: center;
-    background: linear-gradient(180deg, var(--panel), #121416); border: 1px solid var(--line);
-    transition: transform .2s ease, border-color .2s ease, box-shadow .25s ease;
+    --accent: #c98b4d; --accent2: rgba(201,139,77,.3);
+    position: relative; text-align: center; padding: 34px 22px 26px; border-radius: 28px;
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.012));
+    border: 1px solid rgba(255,255,255,.07); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .25s ease, box-shadow .4s ease;
   }
-  .crate.k-wood { --accent: #c98b4d; --accent2: rgba(201,139,77,.22); }
-  .crate.k-iron { --accent: #9fb4cc; --accent2: rgba(159,180,204,.22); }
-  .crate.k-gold { --accent: #f2c14e; --accent2: rgba(242,193,78,.26); }
-  .crate .aura { position: absolute; left: 50%; top: 26%; width: 120%; aspect-ratio: 1; transform: translate(-50%, -50%);
-    background: radial-gradient(circle, var(--accent2), transparent 62%); opacity: .35; transition: opacity .3s; pointer-events: none; }
-  .crate.has { border-color: color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent), 0 14px 40px rgba(0,0,0,.4); }
-  .crate.has .aura { opacity: 1; }
-  .crate.has:hover { transform: translateY(-4px); }
-  .crate .art { position: relative; width: min(230px, 80%); margin: 0 auto 6px; animation: floaty 4s ease-in-out infinite; }
-  .crate:nth-child(2) .art { animation-delay: -1.3s; }
-  .crate:nth-child(3) .art { animation-delay: -2.6s; }
-  .crate:not(.has) .art { filter: saturate(.35) brightness(.7); animation: none; }
-  @keyframes floaty { 50% { transform: translateY(-6px); } }
+  .crate.k-iron { --accent: #9fc2e8; --accent2: rgba(159,194,232,.3); }
+  .crate.k-gold { --accent: #f2c14e; --accent2: rgba(242,193,78,.34); }
+  .crate.has { box-shadow: 0 30px 80px color-mix(in srgb, var(--accent) 22%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent); }
+  /* draaiende gloeirand */
+  .crate.has::before { content: ''; position: absolute; inset: -1px; border-radius: 29px; padding: 2px; pointer-events: none;
+    background: conic-gradient(from var(--ang), transparent 0 55%, var(--accent) 80%, #fff 90%, transparent 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+    animation: spinAng 5s linear infinite; }
+  @keyframes spinAng { to { --ang: 360deg; } }
+  .crate .stagebox { position: relative; width: min(290px, 86%); margin: 0 auto; }
+  .crate .aura { position: absolute; left: 50%; top: 52%; width: 130%; aspect-ratio: 1; transform: translate(-50%, -50%);
+    background: radial-gradient(circle, var(--accent2), transparent 62%); opacity: .25; pointer-events: none; }
+  .crate.has .aura { opacity: 1; animation: breathe 3.2s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: translate(-50%, -50%) scale(1.14); opacity: .7; } }
+  .crate .rays { position: absolute; left: 50%; top: 52%; width: 150%; aspect-ratio: 1; margin: -75% 0 0 -75%; pointer-events: none; opacity: 0;
+    background: repeating-conic-gradient(from 0deg, var(--accent) 0 5deg, transparent 5deg 15deg);
+    -webkit-mask-image: radial-gradient(circle, #000 0, transparent 62%); mask-image: radial-gradient(circle, #000 0, transparent 62%);
+    animation: spinRays 30s linear infinite; transition: opacity .5s; }
+  .crate.has .rays { opacity: .16; }
+  .crate.has:hover .rays { opacity: .34; }
+  .crate .art { position: relative; transform: translateZ(40px); animation: floaty 4.2s ease-in-out infinite; }
+  .crate:nth-child(2) .art { animation-delay: -1.4s; }
+  .crate:nth-child(3) .art { animation-delay: -2.8s; }
+  .crate:not(.has) .art { filter: saturate(.3) brightness(.62); animation: none; }
+  @keyframes floaty { 50% { transform: translateZ(40px) translateY(-9px); } }
   .crate .art svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .crate h3 { position: relative; margin: 0; font-size: 20px; letter-spacing: .3px; }
-  .crate .have { position: relative; display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 4px; padding: 6px 14px 6px 8px; border-radius: 999px; background: var(--field); border: 1px solid var(--line); }
-  .crate .have svg { width: 34px; height: 16px; }
-  .crate .have b { font-size: 20px; font-variant-numeric: tabular-nums; }
-  .crate .have span { font-size: 12px; color: var(--muted); font-weight: 700; }
-  .crate.has .have b { color: var(--accent); }
-  .crate .range { position: relative; color: var(--muted); font-size: 13px; margin-top: 6px; }
-  .crate .range b { color: var(--text); font-variant-numeric: tabular-nums; }
-  .pips { position: relative; display: flex; justify-content: center; gap: 3px; margin: 10px auto 0; max-width: 200px; }
-  .pips i { flex: 1; height: 6px; border-radius: 3px; opacity: .85; }
+  .crate.has:hover .chest .lid { transform: rotate(-10deg) translate(-1px, -2px); }
+  .crate.has:hover .chest .glow { opacity: .7; }
+  .crate .sp { position: absolute; left: var(--x); bottom: 30%; width: var(--s); aspect-ratio: 1; background: var(--accent); opacity: 0; pointer-events: none;
+    clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); filter: drop-shadow(0 0 6px var(--accent));
+    animation: rise var(--t) ease-out infinite; animation-delay: var(--d); }
+  .crate:not(.has) .sp { display: none; }
+  @keyframes rise { 0% { transform: translateY(0) scale(.3) rotate(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-150px) scale(1) rotate(160deg); opacity: 0; } }
+  .crate h3 { position: relative; margin: 16px 0 0; font-size: 24px; letter-spacing: .6px; transform: translateZ(20px); }
+  .crate .tag { position: relative; display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--muted); font-size: 13px; font-weight: 700; }
+  .crate .tag svg { width: 15px; height: 15px; }
+  .crate .have { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; margin: 16px 0 0; transform: translateZ(30px); }
+  .crate .have svg { width: 46px; height: 20px; }
+  .crate .have b { font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .crate.has .have b { color: #fff; text-shadow: 0 0 22px var(--accent); }
+  .crate:not(.has) .have svg { filter: grayscale(1) opacity(.5); }
   .crate .open {
-    position: relative; width: 100%; margin-top: 16px; border: 0; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 800; cursor: pointer;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent)); color: #241600;
-    box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 -3px 0 rgba(0,0,0,.18);
-    transition: transform .06s, filter .15s; animation: ready 2.2s ease-in-out infinite;
+    position: relative; overflow: hidden; width: 100%; margin-top: 20px; border: 0; border-radius: 14px; padding: 16px; font-size: 17px; font-weight: 800; letter-spacing: .5px; cursor: pointer;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 65%, #fff), var(--accent)); color: #241600;
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 38%, transparent), inset 0 -3px 0 rgba(0,0,0,.18);
+    transition: transform .06s, filter .15s; animation: ready 2.4s ease-in-out infinite; transform: translateZ(30px);
   }
-  @keyframes ready { 50% { box-shadow: 0 8px 34px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 -3px 0 rgba(0,0,0,.18); } }
-  .crate .open:hover:not(:disabled) { filter: brightness(1.07); }
-  .crate .open:active:not(:disabled) { transform: scale(.98); }
-  .crate .open:disabled { background: var(--raise); color: var(--muted); box-shadow: none; cursor: default; animation: none; }
-
-  /* Onder de kisten */
-  .below { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
-  .box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
-  .box h2 { margin: 0 0 12px; font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 800; }
-  .hist { display: flex; flex-direction: column; gap: 6px; }
-  .hist .row { display: flex; align-items: center; gap: 10px; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 14px; }
-  .hist .row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 10px currentColor; }
-  .hist .row .what { flex: 1; min-width: 0; font-weight: 700; }
-  .hist .row .what small { display: block; font-weight: 600; color: var(--muted); font-size: 11px; }
-  .hist .row b { font-variant-numeric: tabular-nums; }
-  .hist .empty, .rules { color: var(--muted); font-size: 13px; line-height: 1.6; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
-  .stat small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
-  .stat b { display: block; font-size: 17px; margin-top: 3px; font-variant-numeric: tabular-nums; }
-  .rules { margin: 14px 0 0; padding: 0 0 0 16px; }
-  .rules b { color: var(--text); }
+  .crate .open::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; transform: skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); animation: sheen 3.2s ease-in-out infinite; }
+  @keyframes sheen { 0%, 55% { left: -60%; } 100% { left: 140%; } }
+  @keyframes ready { 50% { box-shadow: 0 10px 44px color-mix(in srgb, var(--accent) 80%, transparent), inset 0 -3px 0 rgba(0,0,0,.18); } }
+  .crate .open:hover:not(:disabled) { filter: brightness(1.08); }
+  .crate .open:active:not(:disabled) { transform: translateZ(30px) scale(.98); }
+  .crate .open:disabled { background: rgba(255,255,255,.06); color: var(--muted); box-shadow: none; cursor: default; animation: none; }
+  .crate .open:disabled::after { display: none; }
 
   /* Het podium (openen) */
   .stage { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; overflow: hidden;
@@ -218,8 +226,7 @@
   .toast.err { background: #3a1a17; border: 1px solid var(--red); color: #fbd8d3; }
 
   @media (max-width: 900px) {
-    .crates { grid-template-columns: minmax(0, 1fr); max-width: 420px; margin: 0 auto; }
-    .below { grid-template-columns: minmax(0, 1fr); }
+    .crates { grid-template-columns: minmax(0, 1fr); max-width: 420px; margin: 0 auto; min-height: 0; gap: 22px; }
   }
   @media (max-width: 520px) {
     .app { padding: 10px; }
@@ -227,10 +234,9 @@
     .brand .word { display: none; }
     .user { margin-left: auto; }
     .nav { order: 3; width: 100%; margin: 0; }
-    .intro h1 { font-size: 22px; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .crate .art, .crate .open { animation: none; }
+    .crate .art, .crate .open, .crate .aura, .bg i { animation: none; }
   }
 </style>
 <script src="/connection.js?v=13"></script>
@@ -256,39 +262,11 @@
     <p>Keys krijg je van een admin. Heb je er een, dan open je hier een kist en draai je aan het rad.</p>
   </div>
 
-  <div id="content" hidden>
-    <div class="intro">
-      <div>
-        <h1>Jouw keys</h1>
-        <p>Elke key opent één kist. Daarna draait het rad: het vak waar hij stopt is je prijs. Hoe edeler de kist, hoe groter de prijzen.</p>
-      </div>
-      <div class="total" id="total"></div>
-    </div>
-
-    <div class="crates" id="crates"></div>
-
-    <div class="below">
-      <div class="box">
-        <h2>LAATSTE OPENINGEN</h2>
-        <div class="hist" id="hist"></div>
-      </div>
-      <div class="box">
-        <h2>JOUW CIJFERS</h2>
-        <div class="grid">
-          <div class="stat"><small>Kisten geopend</small><b id="sOpened">0</b></div>
-          <div class="stat"><small>Verdiend</small><b id="sEarned" style="color:var(--green)">+0</b></div>
-          <div class="stat"><small>Beste prijs</small><b id="sBest">0</b></div>
-          <div class="stat"><small>Keys over</small><b id="sKeys">0</b></div>
-        </div>
-        <ul class="rules">
-          <li>Keys deelt alleen een <b>admin</b> uit.</li>
-          <li>De uitslag wordt op de server bepaald, het rad is alleen de show.</li>
-          <li>Een open kist is meteen uitbetaald, ook als je het tabblad sluit.</li>
-        </ul>
-      </div>
-    </div>
-  </div>
+  <div id="content" hidden><div class="crates" id="crates"></div></div>
 </div>
+
+<div class="bg"><i></i><i></i><i></i></div>
+<canvas id="dust"></canvas>
 
 <div class="stage" id="stage" hidden>
   <div class="rays" id="rays"></div>
@@ -569,64 +547,67 @@
     $('content').hidden = !linked;
     if (!linked) return;
     renderCrates();
-    renderBelow();
   }
 
+  let crateSig = '';
   function renderCrates() {
+    const sig = cfg.crates.map(c => `${c.key}:${(me.keys && me.keys[c.key]) || 0}`).join('|') + (busy ? '|busy' : '');
+    if (sig === crateSig && $('crates').children.length) return;
+    crateSig = sig;
     const box = $('crates');
     box.replaceChildren();
-    let all = 0;
     cfg.crates.forEach(c => {
       const n = (me.keys && me.keys[c.key]) || 0;
-      all += n;
-      const pts = c.segments.map(s => s.points);
-      const top = c.segments.reduce((a, s) => (s.points > a.points ? s : a), c.segments[0]);
+      const top = Math.max(...c.segments.map(sg => sg.points));
       const card = el('article', { class: `crate k-${c.key}${n > 0 ? ' has' : ''}` });
+      const sparks = Array.from({ length: 7 }, (_, i) =>
+        `<i class="sp" style="--x:${12 + i * 12}%;--s:${8 + (i * 5) % 9}px;--t:${2.6 + (i % 4) * .7}s;--d:${-i * .6}s"></i>`).join('');
       card.append(
-        el('div', { class: 'aura' }),
-        el('div', { class: 'art', html: chestSVG(c.key) }),
+        el('div', { class: 'stagebox' }, [
+          el('div', { class: 'aura' }), el('div', { class: 'rays' }),
+          el('div', { class: 'art', html: chestSVG(c.key) }),
+          el('div', { html: sparks })
+        ]),
         el('h3', { text: c.name }),
-        el('div', { class: 'have', html: keySVG(c.key, true) + `<b>${n}</b><span>${n === 1 ? c.keyName : c.keyNamePlural}</span>` }),
-        el('div', { class: 'range', html: `Prijzen <b>${fmt(Math.min(...pts))} tot ${fmt(Math.max(...pts))}</b> punten` }),
-        el('div', { class: 'pips', html: c.segments.map(s => `<i style="background:${RARITY[s.rarity].color}"></i>`).join('') }),
-        el('div', { class: 'range', html: `Hoofdprijs <b>${fmt(top.points)}</b> · kans <b>${(top.chance * 100).toLocaleString('nl-NL', { maximumFractionDigits: 1 })}%</b>` }),
+        el('div', { class: 'tag', html: `${coinSVG()}<span>tot ${fmt(top)}</span>` }),
+        el('div', { class: 'have', html: `${keySVG(c.key, true)}<b>${n}</b>` }),
         el('button', { class: 'open', type: 'button', text: n > 0 ? 'Openen' : 'Geen key', disabled: n < 1 || busy, onclick: () => openCrate(c.key) })
       );
+      // Kantelen met de muis
+      card.addEventListener('pointermove', e => {
+        if (e.pointerType !== 'mouse') return;
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--ry', `${((e.clientX - r.left) / r.width - .5) * 12}deg`);
+        card.style.setProperty('--rx', `${-((e.clientY - r.top) / r.height - .5) * 10}deg`);
+      });
+      card.addEventListener('pointerleave', () => { card.style.setProperty('--rx', '0deg'); card.style.setProperty('--ry', '0deg'); });
       box.append(card);
     });
-    $('total').innerHTML = `${keySVG('gold', true)}<span>Keys over <b>${fmt(all)}</b></span>`;
   }
 
-  function ago(ms) {
-    const s = Math.max(0, Math.round((now() - ms) / 1000));
-    if (s < 60) return 'zojuist';
-    const m = Math.round(s / 60);
-    if (m < 60) return `${m} min geleden`;
-    const h = Math.round(m / 60);
-    if (h < 24) return `${h} uur geleden`;
-    return `${Math.round(h / 24)} d geleden`;
-  }
-
-  function renderBelow() {
-    const hist = $('hist');
-    hist.replaceChildren();
-    const rows = (me.history || []);
-    if (!rows.length) hist.append(el('div', { class: 'empty', text: 'Nog niets geopend. Zodra je een key hebt, verschijnt je prijs hier.' }));
-    rows.forEach(r => {
-      const c = crateCfg(r.kind);
-      const rar = RARITY[r.rarity] || RARITY.common;
-      hist.append(el('div', { class: 'row' }, [
-        el('span', { class: 'dot', style: `background:${rar.color};color:${rar.color}` }),
-        el('div', { class: 'what', html: `${c ? c.name : r.kind}<small>${ago(r.openedAt)}</small>` }),
-        el('b', { text: `+${fmt(r.points)}`, style: `color:${rar.color}` })
-      ]));
-    });
-    const s = me.stats || { opened: 0, earned: 0, best: 0 };
-    $('sOpened').textContent = fmt(s.opened);
-    $('sEarned').textContent = `+${fmt(s.earned)}`;
-    $('sBest').textContent = fmt(s.best);
-    $('sKeys').textContent = fmt(Object.values(me.keys || {}).reduce((a, b) => a + b, 0));
-  }
+  // Zwevend gouddust op de achtergrond
+  (function dust() {
+    const cv = $('dust'), g = cv.getContext('2d');
+    let w = 0, h = 0, d = 1;
+    const dots = Array.from({ length: 55 }, () => ({ x: Math.random(), y: Math.random(), r: rand(.6, 2.2), v: rand(.01, .035), ph: rand(0, TAU), c: Math.random() < .6 ? '255,214,120' : '190,215,255' }));
+    function fit() { d = Math.min(2, devicePixelRatio || 1); w = cv.width = Math.round(innerWidth * d); h = cv.height = Math.round(innerHeight * d); }
+    fit(); addEventListener('resize', fit);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let last = performance.now();
+    (function frame(t) {
+      const dt = Math.min(.05, (t - last) / 1000); last = t;
+      if ($('stage').hidden) {
+        g.clearRect(0, 0, w, h);
+        for (const p of dots) {
+          p.y -= p.v * dt * 3; p.ph += dt * 1.6;
+          if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
+          g.beginPath(); g.arc(p.x * w, p.y * h, p.r * d, 0, TAU);
+          g.fillStyle = `rgba(${p.c},${.25 + .45 * Math.abs(Math.sin(p.ph))})`; g.fill();
+        }
+      }
+      requestAnimationFrame(frame);
+    })(last);
+  })();
 
   // =====================================================
   // HET OPENEN

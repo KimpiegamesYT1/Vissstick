@@ -130,19 +130,44 @@ function removeKeys(userId, kind, amount) {
   return { removed, count: have - removed };
 }
 
-/** Keyall: iedereen die ooit met het casino heeft gespeeld krijgt de key(s). Geeft de ontvangers terug. */
+// Wie telt als casinospeler: iemand die op de website is ingelogd of ergens heeft gespeeld.
+// De users-tabel is te ruim (daar staat ook wie alleen een quiz of weddenschap deed), dus we kijken naar deze tabellen.
+const PLAYER_SOURCES = [
+  'rocket_web_sessions', 'rocket_stats', 'blackjack_stats', 'plinko_stats', 'slots_stats', 'roulette_stats',
+  'sterrenrad_stats', 'routegok_stats', 'mines_stats', 'afwas_stats', 'fuik_stats', 'daily_spin_log', 'crate_log'
+];
+
+function getCasinoPlayers() {
+  const db = getDatabase();
+  const ids = new Set();
+  for (const table of PLAYER_SOURCES) {
+    try {
+      for (const row of db.prepare(`SELECT DISTINCT user_id FROM ${table}`).all()) ids.add(row.user_id);
+    } catch (error) {
+      // tabel bestaat nog niet (bijv. mines_stats voordat iemand ooit mines speelde)
+    }
+  }
+  const names = new Map(db.prepare('SELECT user_id, username FROM users').all().map(r => [r.user_id, r.username]));
+  return [...ids].map(id => ({ id, username: names.get(id) || 'speler' }));
+}
+
+/**
+ * Keyall: alle casinospelers krijgen de key(s). Wie nooit in het casino kwam, krijgt niets.
+ * Geeft { recipients, skipped } terug (skipped = mensen in users die niet meetellen).
+ */
 function addKeysToAll(kind, amount) {
   if (!isKind(kind)) throw new Error('Onbekende soort key.');
   if (!Number.isInteger(amount) || amount < 1 || amount > MAX_PER_GRANT) throw new Error('Ongeldig aantal.');
   const db = getDatabase();
   return db.transaction(() => {
-    const recipients = db.prepare('SELECT user_id AS id, username FROM users').all();
+    const recipients = getCasinoPlayers();
     const upsert = db.prepare(`
       INSERT INTO crate_keys (user_id, kind, count) VALUES (?, ?, ?)
       ON CONFLICT(user_id, kind) DO UPDATE SET count = count + excluded.count
     `);
     for (const r of recipients) upsert.run(r.id, kind, amount);
-    return recipients;
+    const known = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+    return { recipients, skipped: Math.max(0, known - recipients.length) };
   })();
 }
 
@@ -182,6 +207,7 @@ module.exports = {
   getStatus,
   addKeys,
   removeKeys,
+  getCasinoPlayers,
   addKeysToAll,
   open
 };

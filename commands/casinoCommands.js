@@ -536,7 +536,7 @@ const casinoCommands = [
           },
           {
             name: 'all',
-            description: 'Keyall: geef iedereen een key (iedereen die ooit met het casino speelde)',
+            description: 'Keyall: geef alle casinospelers een key (ingelogd op de website of ooit gespeeld)',
             type: 1,
             options: [
               { name: 'soort', description: 'Soort key', type: 3, required: true, choices: KEY_CHOICES },
@@ -796,12 +796,12 @@ async function runKeysAdmin(client, config, subCommand, options, actorName) {
 
     if (subCommand === 'all') {
       if (!options.bevestig) return 'Keyall niet uitgevoerd: zet bevestig op True.';
-      const recipients = crates.addKeysToAll(kind, amount);
-      await sendLog(client, logChannelId, `${actorName} deelde ${amount} ${crates.CRATES[kind].keyNamePlural} uit aan ${recipients.length} spelers (keyall)`);
+      const { recipients, skipped } = crates.addKeysToAll(kind, amount);
+      await sendLog(client, logChannelId, `${actorName} deelde ${amount} ${crates.CRATES[kind].keyNamePlural} uit aan ${recipients.length} casinospelers (keyall, ${skipped} anderen in de database overgeslagen)`);
       sendKeyDmsInBackground(client, config, recipients, kind, amount, actorName).catch(error => console.error('Keyall DM-wachtrij mislukt:', error));
       announceKeyall(client, config, kind, amount).catch(() => {});
       const seconds = Math.ceil(recipients.length * KEY_DM_DELAY_MS / 1000);
-      return `${amount} ${crates.CRATES[kind].keyNamePlural} uitgedeeld aan ${recipients.length} spelers. De DM's gaan op de achtergrond de deur uit (ongeveer ${seconds} seconden), de samenvatting komt in het logkanaal.`;
+      return `${amount} ${crates.CRATES[kind].keyNamePlural} uitgedeeld aan ${recipients.length} casinospelers (${skipped} anderen overgeslagen, die kwamen nooit in het casino). De DM's gaan op de achtergrond de deur uit (ongeveer ${seconds} seconden), de samenvatting komt in het logkanaal.`;
     }
 
     if (subCommand === 'check') {
