@@ -949,90 +949,90 @@
   const CHAT_MAX_SHOWN = 60;
   const CHAT_PREVIEW_MS = 6000;
   const CHAT_CSS = `
-    .vsc { position: fixed; right: 16px; bottom: 16px; z-index: 2147481000; font-family: inherit; color: var(--text, #eceae6); pointer-events: none;
+    .vch { position: fixed; right: 16px; bottom: 16px; z-index: 2147481000; font-family: inherit; color: var(--text, #eceae6); pointer-events: none;
       display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-    .vsc > * { pointer-events: auto; }
-    .vsc-btn { display: flex; align-items: center; justify-content: center; gap: 0; height: 38px; min-width: 38px; max-width: 280px; padding: 0 10px; box-sizing: border-box; border-radius: 999px; cursor: pointer;
+    .vch > * { pointer-events: auto; }
+    .vch-btn { display: flex; align-items: center; justify-content: center; gap: 0; height: 38px; min-width: 38px; max-width: 280px; padding: 0 10px; box-sizing: border-box; border-radius: 999px; cursor: pointer;
       background: color-mix(in srgb, var(--panel, #16181b) 62%, transparent); border: 1px solid var(--line, rgba(255,255,255,.07));
       backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
       color: var(--muted, #8d9299); font: inherit; font-size: 13px; font-weight: 700; opacity: .55;
       box-shadow: 0 6px 20px rgba(0,0,0,.25); transition: opacity .25s ease, background .25s ease, color .25s ease; }
-    .vsc-btn:hover, .vsc-btn:focus-visible, .vsc.open .vsc-btn, .vsc.peek .vsc-btn { opacity: 1; color: var(--text, #eceae6); }
-    .vsc-btn svg { width: 17px; height: 17px; flex: none; }
-    .vsc-peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; opacity: 0;
+    .vch-btn:hover, .vch-btn:focus-visible, .vch.open .vch-btn, .vch.peek .vch-btn { opacity: 1; color: var(--text, #eceae6); }
+    .vch-btn svg { width: 17px; height: 17px; flex: none; }
+    .vch-peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; opacity: 0;
       transition: max-width .35s ease, opacity .25s ease; font-weight: 600; }
-    .vsc-peek b { color: var(--gold, #f2c14e); font-weight: 800; }
-    .vsc.peek:not(.open) .vsc-peek { max-width: 210px; opacity: 1; margin-left: 8px; }
-    .vsc-badge { margin-left: 6px; }
-    .vsc-badge { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: var(--gold, #f2c14e); color: #1a1405;
+    .vch-peek b { color: var(--gold, #f2c14e); font-weight: 800; }
+    .vch.peek:not(.open) .vch-peek { max-width: 210px; opacity: 1; margin-left: 8px; }
+    .vch-badge { margin-left: 6px; }
+    .vch-badge { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: var(--gold, #f2c14e); color: #1a1405;
       font-size: 11px; font-weight: 900; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
-    .vsc-badge[hidden] { display: none; }
-    .vsc-panel { width: 300px; max-width: calc(100vw - 32px); display: flex; flex-direction: column; border-radius: 16px; overflow: hidden;
+    .vch-badge[hidden] { display: none; }
+    .vch-panel { width: 300px; max-width: calc(100vw - 32px); display: flex; flex-direction: column; border-radius: 16px; overflow: hidden;
       background: color-mix(in srgb, var(--side, #1b1d21) 88%, transparent); border: 1px solid var(--line, rgba(255,255,255,.07));
       backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 16px 40px rgba(0,0,0,.5);
       transform-origin: bottom right; transition: opacity .18s ease, transform .18s ease; }
-    .vsc-panel[hidden] { display: none; }
-    .vsc-panel.pre { opacity: 0; transform: translateY(8px) scale(.97); }
-    .vsc-head { display: flex; align-items: center; padding: 9px 12px 7px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #8d9299); }
-    .vsc-head button { margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
-    .vsc-head button:hover { color: var(--text, #eceae6); }
-    .vsc-list { height: 220px; overflow-y: auto; padding: 2px 12px 8px; display: flex; flex-direction: column; gap: 5px; overscroll-behavior: contain;
+    .vch-panel[hidden] { display: none; }
+    .vch-panel.pre { opacity: 0; transform: translateY(8px) scale(.97); }
+    .vch-head { display: flex; align-items: center; padding: 9px 12px 7px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #8d9299); }
+    .vch-head button { margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+    .vch-head button:hover { color: var(--text, #eceae6); }
+    .vch-list { height: 220px; overflow-y: auto; padding: 2px 12px 8px; display: flex; flex-direction: column; gap: 5px; overscroll-behavior: contain;
       scrollbar-width: thin; scrollbar-color: var(--raise, #262a2f) transparent; }
-    .vsc-msg { font-size: 13px; line-height: 1.35; font-weight: 500; overflow-wrap: anywhere; }
-    .vsc-msg b { font-weight: 800; margin-right: 6px; }
-    .vsc-empty { margin: auto; font-size: 12px; color: var(--muted, #8d9299); text-align: center; }
-    .vsc-note { padding: 0 12px 6px; font-size: 12px; font-weight: 600; color: var(--red, #ef5b4c); min-height: 0; }
-    .vsc-note:empty { display: none; }
-    .vsc-note.info { color: var(--gold, #f2c14e); }
-    .vsc-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line, rgba(255,255,255,.07)); }
-    .vsc-form input { flex: 1; min-width: 0; height: 32px; padding: 0 11px; border-radius: 999px; font: inherit; font-size: 13px; color: var(--text, #eceae6);
+    .vch-msg { font-size: 13px; line-height: 1.35; font-weight: 500; overflow-wrap: anywhere; }
+    .vch-msg b { font-weight: 800; margin-right: 6px; }
+    .vch-empty { margin: auto; font-size: 12px; color: var(--muted, #8d9299); text-align: center; }
+    .vch-note { padding: 0 12px 6px; font-size: 12px; font-weight: 600; color: var(--red, #ef5b4c); min-height: 0; }
+    .vch-note:empty { display: none; }
+    .vch-note.info { color: var(--gold, #f2c14e); }
+    .vch-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line, rgba(255,255,255,.07)); }
+    .vch-form input { flex: 1; min-width: 0; height: 32px; padding: 0 11px; border-radius: 999px; font: inherit; font-size: 13px; color: var(--text, #eceae6);
       background: var(--field, rgba(0,0,0,.25)); border: 1px solid var(--line, rgba(255,255,255,.07)); outline: none; }
-    .vsc-form input:focus { border-color: var(--gold, #f2c14e); }
-    .vsc-form input::placeholder { color: var(--muted, #8d9299); }
-    .vsc-form button { height: 32px; padding: 0 12px; border-radius: 999px; border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 800;
+    .vch-form input:focus { border-color: var(--gold, #f2c14e); }
+    .vch-form input::placeholder { color: var(--muted, #8d9299); }
+    .vch-form button { height: 32px; padding: 0 12px; border-radius: 999px; border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 800;
       background: var(--raise, #262a2f); color: var(--text, #eceae6); }
-    .vsc-form button:hover { background: var(--gold, #f2c14e); color: #1a1405; }
-    .vsc-form button:disabled, .vsc-form input:disabled { opacity: .5; cursor: not-allowed; }
+    .vch-form button:hover { background: var(--gold, #f2c14e); color: #1a1405; }
+    .vch-form button:disabled, .vch-form input:disabled { opacity: .5; cursor: not-allowed; }
     @media (max-width: 640px) {
-      .vsc { right: 10px; bottom: 10px; }
-      .vsc-list { height: 180px; }
+      .vch { right: 10px; bottom: 10px; }
+      .vch-list { height: 180px; }
     }
-    @media (prefers-reduced-motion: reduce) { .vsc *, .vsc { transition: none !important; } }
+    @media (prefers-reduced-motion: reduce) { .vch *, .vch { transition: none !important; } }
   `;
   const CHAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/></svg>';
 
   function initChat() {
-    if (document.getElementById('vsc-root')) return;
+    if (document.getElementById('vch-root')) return;
     const style = document.createElement('style');
     style.textContent = CHAT_CSS;
     document.head.append(style);
     const root = document.createElement('div');
-    root.id = 'vsc-root';
-    root.className = 'vsc';
+    root.id = 'vch-root';
+    root.className = 'vch';
     root.innerHTML = `
-      <div class="vsc-panel" hidden role="dialog" aria-label="Chat">
-        <div class="vsc-head"><span>Chat</span><button type="button" class="vsc-close" aria-label="Sluiten" title="Sluiten">×</button></div>
-        <div class="vsc-list" aria-live="polite"></div>
-        <div class="vsc-note" role="status"></div>
-        <form class="vsc-form" autocomplete="off">
+      <div class="vch-panel" hidden role="dialog" aria-label="Chat">
+        <div class="vch-head"><span>Chat</span><button type="button" class="vch-close" aria-label="Sluiten" title="Sluiten">×</button></div>
+        <div class="vch-list" aria-live="polite"></div>
+        <div class="vch-note" role="status"></div>
+        <form class="vch-form" autocomplete="off">
           <input type="text" maxlength="200" placeholder="Typ een bericht…" aria-label="Bericht">
           <button type="submit">Stuur</button>
         </form>
       </div>
-      <button class="vsc-btn" type="button" aria-expanded="false" title="Chat">
-        ${CHAT_ICON}<span class="vsc-peek"></span><span class="vsc-badge" hidden></span>
+      <button class="vch-btn" type="button" aria-expanded="false" title="Chat">
+        ${CHAT_ICON}<span class="vch-peek"></span><span class="vch-badge" hidden></span>
       </button>`;
     document.body.append(root);
 
-    const panel = root.querySelector('.vsc-panel');
-    const list = root.querySelector('.vsc-list');
-    const note = root.querySelector('.vsc-note');
-    const form = root.querySelector('.vsc-form');
+    const panel = root.querySelector('.vch-panel');
+    const list = root.querySelector('.vch-list');
+    const note = root.querySelector('.vch-note');
+    const form = root.querySelector('.vch-form');
     const input = form.querySelector('input');
     const sendBtn = form.querySelector('button');
-    const btn = root.querySelector('.vsc-btn');
-    const peek = root.querySelector('.vsc-peek');
-    const badge = root.querySelector('.vsc-badge');
+    const btn = root.querySelector('.vch-btn');
+    const peek = root.querySelector('.vch-peek');
+    const badge = root.querySelector('.vch-badge');
 
     let open = false;
     let unread = 0;
@@ -1068,10 +1068,10 @@
       if (!msg || seen.has(msg.id)) return;
       seen.add(msg.id);
       lastId = Math.max(lastId, msg.id);
-      list.querySelector('.vsc-empty')?.remove();
+      list.querySelector('.vch-empty')?.remove();
       const stick = nearBottom();
       const row = document.createElement('div');
-      row.className = 'vsc-msg';
+      row.className = 'vch-msg';
       const name = document.createElement('b');
       name.textContent = msg.username;
       name.style.color = colorFor(String(msg.username));
@@ -1096,7 +1096,7 @@
     function renderEmpty() {
       if (list.children.length) return;
       const empty = document.createElement('div');
-      empty.className = 'vsc-empty';
+      empty.className = 'vch-empty';
       empty.textContent = 'Nog geen berichten. Zeg eens hallo!';
       list.append(empty);
     }
@@ -1137,11 +1137,11 @@
       } else {
         panel.hidden = true;
       }
-      try { localStorage.setItem('vsc-open', value ? '1' : '0'); } catch (error) { /* privémodus */ }
+      try { localStorage.setItem('vch-open', value ? '1' : '0'); } catch (error) { /* privémodus */ }
     }
 
     btn.addEventListener('click', () => setOpen(!open));
-    root.querySelector('.vsc-close').addEventListener('click', () => setOpen(false));
+    root.querySelector('.vch-close').addEventListener('click', () => setOpen(false));
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && open) setOpen(false); });
     // Toetsen in het invoerveld mogen nooit de sneltoetsen van een spel activeren (spatie, pijltjes, enz.)
     for (const type of ['keydown', 'keyup', 'keypress']) panel.addEventListener(type, event => event.stopPropagation());
@@ -1196,7 +1196,7 @@
     loadHistory();
     checkLogin();
     let wasOpen = false;
-    try { wasOpen = localStorage.getItem('vsc-open') === '1'; } catch (error) { /* privémodus */ }
+    try { wasOpen = localStorage.getItem('vch-open') === '1'; } catch (error) { /* privémodus */ }
     if (wasOpen && window.innerWidth > 640) setOpen(true);
   }
 
