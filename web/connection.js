@@ -952,7 +952,7 @@
     .vsc { position: fixed; right: 16px; bottom: 16px; z-index: 2147481000; font-family: inherit; color: var(--text, #eceae6); pointer-events: none;
       display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
     .vsc > * { pointer-events: auto; }
-    .vsc-btn { display: flex; align-items: center; gap: 8px; height: 38px; max-width: 280px; padding: 0 13px 0 11px; border-radius: 999px; cursor: pointer;
+    .vsc-btn { display: flex; align-items: center; justify-content: center; gap: 0; height: 38px; min-width: 38px; max-width: 280px; padding: 0 10px; box-sizing: border-box; border-radius: 999px; cursor: pointer;
       background: color-mix(in srgb, var(--panel, #16181b) 62%, transparent); border: 1px solid var(--line, rgba(255,255,255,.07));
       backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
       color: var(--muted, #8d9299); font: inherit; font-size: 13px; font-weight: 700; opacity: .55;
@@ -962,7 +962,8 @@
     .vsc-peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; opacity: 0;
       transition: max-width .35s ease, opacity .25s ease; font-weight: 600; }
     .vsc-peek b { color: var(--gold, #f2c14e); font-weight: 800; }
-    .vsc.peek:not(.open) .vsc-peek { max-width: 210px; opacity: 1; }
+    .vsc.peek:not(.open) .vsc-peek { max-width: 210px; opacity: 1; margin-left: 8px; }
+    .vsc-badge { margin-left: 6px; }
     .vsc-badge { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: var(--gold, #f2c14e); color: #1a1405;
       font-size: 11px; font-weight: 900; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
     .vsc-badge[hidden] { display: none; }
