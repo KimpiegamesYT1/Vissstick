@@ -43,7 +43,7 @@
  *   GET  /api/routegok/status       instellingen, saldo, eigen stats en eigen (geheime) gok
  *   GET  /api/routegok/stream       Server-Sent Events met de gedeelde ronde
  *   GET  /api/routegok/tile/z/x/y.jpg  satelliettegel (proxy + cache, alleen rond de routes)
- *   POST /api/routegok/{start,guess,ready}  nieuwe route zoeken / gok plaatsen / gok vastzetten
+ *   POST /api/routegok/{start,guess}  nieuwe route zoeken / gok plaatsen
  *   GET  /api/afwas/status          instellingen, saldo en eigen stats
  *   GET  /api/stats                 leaderboard + stats per speler (iedereen, 'me' gemarkeerd als ingelogd)
  *   POST /api/afwas/{plate,clean,reject}  nieuw bord / bord schoon (+1) / bord afgekeurd
@@ -377,7 +377,6 @@ function createCasinoWebHandler() {
       case 'sterrenrad/choose': result = sterrenrad.choose(user, body.choice); break;
       case 'routegok/start': result = routegok.startRound(user); break;
       case 'routegok/guess': result = routegok.placeGuess(user, body); break;
-      case 'routegok/ready': result = routegok.setReady(user); break;
       case 'routegok/peek': result = routegok.peek(user); break;
       case 'afwas/plate': result = afwas.nextPlate(user); break;
       case 'afwas/clean': result = afwas.cleanPlate(user, body.plate); break;
@@ -642,7 +641,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|routegok\/(?:start|guess|ready|peek)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|routegok\/(?:start|guess|peek)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

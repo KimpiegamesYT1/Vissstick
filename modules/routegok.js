@@ -38,8 +38,6 @@ const MAX_GUESS = 99999999;
 const MAX_PLAYERS = 30;
 const HISTORY_SIZE = 12;
 const BETTING_MS = 45000;
-const MIN_BETTING_MS = 15000;      // eerder sluiten (iedereen klaar) kan pas na zoveel ms
-const READY_GRACE_MS = 1500;
 const CLOSE_MARGIN_MS = 400;     // net voor het sluiten geen nieuwe gokken meer
 const PREFETCH_MS = 3000;
 const PEEK_USERNAMES = ['kimpiegamesyt']; // mogen tijdens het gokken het antwoord zien (typ 'stijn' op de pagina)        // zo lang mag de server tegels voorladen voor het gokken begint
@@ -517,7 +515,7 @@ function placeGuess(user, input) {
 
   r.players.set(user.id, {
     userId: user.id, username: user.username, avatar: user.avatar || null,
-    guess, amount, country, ready: false,
+    guess, amount, country, ready: true,
     payout: null, mult: null, tier: null, error: null, countryRight: null, rank: null
   });
   // Er is weer iemand niet klaar: dan niet meer vroeg sluiten
@@ -526,7 +524,7 @@ function placeGuess(user, input) {
     clearTimeout(r.closeTimer);
     r.closeTimer = setTimeout(() => safeClose(r), Math.max(0, r.bettingEndsAt - Date.now()));
   }
-  setReady(user); // een gok staat direct vast (geeft zelf een update)
+  emitUpdate();
   return { ok: true, message: '', roundId: r.id, guess, amount, country, ready: true };
 }
 
@@ -536,26 +534,6 @@ function peek(user) {
   const r = round;
   if (!r || r.phase !== 'betting' || !r.route) return { ok: false, message: 'Er is nu geen route om te spieken.' };
   return { ok: true, message: '', minutes: r.route.minutes, country: r.route.country, countryName: COUNTRIES[r.route.country], place: r.route.place, moon: r.route.moon };
-}
-
-/** Gok vastzetten. Staat iedereen klaar, dan sluit de ronde vroeger. */
-function setReady(user) {
-  const r = round;
-  if (!r || r.phase !== 'betting' || Date.now() >= (r.closeAt || r.bettingEndsAt)) return { ok: false, code: 'closed', message: 'Er kan nu niet gegokt worden.' };
-  const p = r.players.get(user.id);
-  if (!p) return { ok: false, message: 'Plaats eerst een gok.' };
-  p.ready = true;
-  const allReady = [...r.players.values()].every(x => x.ready);
-  if (allReady && !r.closeAt) {
-    const closeAt = Math.max(Date.now() + READY_GRACE_MS, r.openedAt + MIN_BETTING_MS);
-    if (closeAt < r.bettingEndsAt) {
-      r.closeAt = closeAt;
-      clearTimeout(r.closeTimer);
-      r.closeTimer = setTimeout(() => safeClose(r), closeAt - Date.now());
-    }
-  }
-  emitUpdate();
-  return { ok: true, message: '', ready: true };
 }
 
 function safeClose(r) {
@@ -745,7 +723,6 @@ module.exports = {
   getPublicState,
   startRound,
   placeGuess,
-  setReady,
   peek,
   isTileAllowed,
   getTile,
