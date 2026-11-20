@@ -459,6 +459,26 @@ CREATE TABLE IF NOT EXISTS fuik_book (
     PRIMARY KEY (user_id, species)
 );
 
+-- Keys (kistjes): alleen een admin deelt keys uit, op de website open je er een kist mee en draai je aan het rad
+CREATE TABLE IF NOT EXISTS crate_keys (
+    user_id TEXT NOT NULL,
+    kind TEXT NOT NULL, -- wood | iron | gold
+    count INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, kind)
+);
+
+CREATE TABLE IF NOT EXISTS crate_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    segment INTEGER NOT NULL, -- plek op het rad
+    points INTEGER NOT NULL,
+    opened_at INTEGER NOT NULL -- ms sinds epoch
+);
+
+CREATE INDEX IF NOT EXISTS idx_crate_log_user ON crate_log(user_id, id);
+
 -- Inzetten die nog in een lopend spel zitten (Rocket, blackjack, mines, ...).
 -- Bij het opstarten van de bot wordt alles wat hier nog staat teruggestort,
 -- zodat een herstart midden in een spel geen punten kost.

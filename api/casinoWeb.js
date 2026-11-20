@@ -49,6 +49,9 @@
  *   POST /api/afwas/{plate,clean,reject}  nieuw bord / bord schoon (+1) / bord afgekeurd
  *   GET  /api/fuik/status           instellingen, eigen fuiken, stats en vangstboek
  *   POST /api/fuik/{tap,all}        één fuik aantikken (uitzetten/ophalen) / alles ophalen
+ *   GET  /keys                      Keys: kisten openen en aan het rad draaien
+ *   GET  /api/keys/status           kisten, eigen keys, stats en laatste openingen
+ *   POST /api/keys/open             een kist openen met een key (de server bepaalt de uitslag)
  *   POST /api/logout
  */
 
@@ -64,6 +67,7 @@ const sterrenrad = require('../modules/sterrenrad');
 const routegok = require('../modules/routegok');
 const afwas = require('../modules/afwas');
 const fuik = require('../modules/fuik');
+const crates = require('../modules/crates');
 const rocketAuth = require('../modules/rocketAuth');
 const casino = require('../modules/casino');
 const stats = require('../modules/stats');
@@ -90,9 +94,10 @@ const ONLINE_GAMES = {
   spin: 'Daily spin',
   afwas: 'Afwassen',
   fuik: 'Fuiken',
+  keys: 'Keys',
   stats: 'Stats'
 };
-const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/sterrenrad', '/routegok', '/afwas', '/fuik', '/stats'];
+const LOGIN_TARGETS = ['/rocket', '/spin', '/blackjack', '/plinko', '/slots', '/roulette', '/sterrenrad', '/routegok', '/afwas', '/fuik', '/keys', '/stats'];
 const VENDOR_FILES = {
   'three.module.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.module.js'),
   'three.core.js': path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.core.js')
@@ -194,6 +199,7 @@ function createCasinoWebHandler() {
     routegok: fs.readFileSync(path.join(WEB_DIR, 'routegok.html')),
     afwas: fs.readFileSync(path.join(WEB_DIR, 'afwas.html')),
     fuik: fs.readFileSync(path.join(WEB_DIR, 'fuik.html')),
+    keys: fs.readFileSync(path.join(WEB_DIR, 'keys.html')),
     stats: fs.readFileSync(path.join(WEB_DIR, 'stats.html'))
   };
   const staticCache = new Map();
@@ -383,6 +389,7 @@ function createCasinoWebHandler() {
       case 'afwas/reject': result = afwas.rejectPlate(user, body.plate); break;
       case 'fuik/tap': result = fuik.tap(user, body.slot); break;
       case 'fuik/all': result = fuik.tapAll(user); break;
+      case 'keys/open': result = crates.open(user, body.kind); break;
       case 'blackjack/insurance': result = blackjackTable.insurance(user, Boolean(body.take)); break;
       case 'spin/reminder':
         dailySpin.setReminder(user.id, Boolean(body.enabled));
@@ -547,6 +554,20 @@ function createCasinoWebHandler() {
           sendJson(res, 200, payload);
           return true;
         }
+        case '/keys':
+        case '/keys/':
+          sendPage(res, pages.keys);
+          return true;
+        case '/api/keys/status': {
+          const user = getUser(req);
+          const payload = { linked: Boolean(user), config: crates.getConfig(), serverNow: Date.now() };
+          if (user) {
+            casino.getOrCreateUser(user.id, user.username);
+            Object.assign(payload, { user, balance: casino.getUserBalance(user.id), ...crates.getStatus(user.id) });
+          }
+          sendJson(res, 200, payload);
+          return true;
+        }
         case '/stats':
         case '/stats/':
           sendPage(res, pages.stats);
@@ -641,7 +662,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|routegok\/(?:start|guess|peek)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|routegok\/(?:start|guess|peek)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|keys\/open|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

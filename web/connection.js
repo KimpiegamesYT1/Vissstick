@@ -5,7 +5,7 @@
  * zelf opnieuw verbinding probeert te maken. Is de server terug, dan wordt de pagina herladen zodat alles
  * (saldo, lopende rondes) weer klopt met de server.
  *
- * Bouwt ook de navigatie op (Casino-menu met alle spellen + Daily spin + Fuiken + Afwassen + Stats), zie GAMES hieronder.
+ * Bouwt ook de navigatie op (Casino-menu met alle spellen, incl. Fuiken, + Daily spin + Keys + Afwassen + Stats), zie GAMES hieronder.
  *
  * Daarnaast regelt dit script de "Afwassen" knop in de navigatie: die is verborgen, behalve als je
  * minder dan 50 punten hebt. Het saldo komt uit /api/me en uit elke actie die een saldo teruggeeft.
@@ -328,11 +328,12 @@
     { key: 'slots', name: 'Slots', desc: 'Draai de rollen en mik op drie op een rij' },
     { key: 'roulette', name: 'Roulette', desc: 'Europese roulette: zet in op je geluksgetal', live: true },
     { key: 'sterrenrad', name: 'Sterrenrad', desc: 'Gameshow in de ruimte met vier bonusspellen', live: true },
-    { key: 'routegok', name: 'Routegok', desc: 'Raad de reistijd van een route ergens op aarde', live: true }
+    { key: 'routegok', name: 'Routegok', desc: 'Raad de reistijd van een route ergens op aarde', live: true },
+    { key: 'fuik', name: 'Fuiken', desc: 'Zet je fuiken uit en haal elk kwartier je vangst op' }
   ];
   const NAV_LINKS = [
     { key: 'spin', name: 'Daily spin' },
-    { key: 'fuik', name: 'Fuiken' },
+    { key: 'keys', name: 'Keys' },
     { key: 'afwas', name: 'Afwassen', cls: 'wash-link locked' },
     { key: 'stats', name: 'Stats' }
   ];
@@ -491,7 +492,38 @@
     </svg>`;
   }
 
-  const GAME_ART = { rocket: rocketArt, blackjack: blackjackArt, plinko: plinkoArt, slots: slotsArt, roulette: rouletteArt, sterrenrad: sterrenradArt, routegok: routegokArt };
+
+  function fuikArt() {
+    const bubbles = [[22, 70, 2.2], [30, 56, 1.4], [128, 64, 2], [138, 48, 1.3], [118, 30, 1.6], [48, 24, 1.2], [96, 74, 1.5]]
+      .map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#bff3e4" stroke-opacity=".55" stroke-width=".9"/>`).join('');
+    const hoops = [42, 56, 70, 84, 98].map((x, i) => {
+      const ry = 17 - i * 1.8;
+      return `<ellipse cx="${x}" cy="52" rx="4.2" ry="${ry}" fill="none" stroke="#c8b58a" stroke-width="1.7"/>`;
+    }).join('');
+    return `<svg viewBox="0 0 160 90" aria-hidden="true"><defs>
+      <linearGradient id="vn-fk-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f7f86"/><stop offset=".55" stop-color="#0f4a5c"/><stop offset="1" stop-color="#082a38"/></linearGradient>
+      <linearGradient id="vn-fk-net" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e7d9b0" stop-opacity=".5"/><stop offset="1" stop-color="#b9a46f" stop-opacity=".22"/></linearGradient>
+      <linearGradient id="vn-fk-fish" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#e49b2c"/></linearGradient></defs>
+      <rect width="160" height="90" fill="url(#vn-fk-bg)"/>
+      <path d="M0 0H160V9Q140 4 120 9T80 9T40 9T0 9Z" fill="#8fe3d0" opacity=".35"/>
+      <path d="M30 0L52 90H18ZM92 0L120 90H84Z" fill="#fff" opacity=".05"/>
+      <path d="M0 84Q40 76 80 82T160 80V90H0Z" fill="#0a1f29"/>
+      <path d="M26 86c1-8 0-12-2-16M138 88c0-9 2-14 4-18" stroke="#2f8f64" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+      <path d="M112 48L152 40V64L112 56Z" fill="#000" opacity=".15"/>
+      <path d="M36 36L106 40V64L36 68Z" fill="url(#vn-fk-net)" stroke="#c8b58a" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M36 44H106M36 52H106M36 60H106" stroke="#e7d9b0" stroke-opacity=".28" stroke-width=".7"/>
+      ${hoops}
+      <path d="M36 36Q20 52 36 68" fill="none" stroke="#c8b58a" stroke-width="2" stroke-linecap="round"/>
+      <path d="M34 40Q56 52 34 64" fill="#06202b" fill-opacity=".85" stroke="#c8b58a" stroke-width="1.3"/>
+      <g transform="translate(62 50)"><path d="M0 4c4-6 10-7 15-3l5-4v11l-5-4c-5 4-11 3-15-0z" fill="url(#vn-fk-fish)"/><circle cx="4.5" cy="2.6" r="1.1" fill="#3b2400"/></g>
+      <g transform="translate(78 57) scale(.7)"><path d="M0 4c4-6 10-7 15-3l5-4v11l-5-4c-5 4-11 3-15-0z" fill="#b9c6cf"/><circle cx="4.5" cy="2.6" r="1.1" fill="#26323a"/></g>
+      <path d="M106 52C122 46 136 30 140 12" fill="none" stroke="#e7d9b0" stroke-width="1.4" stroke-dasharray="3 2.2"/>
+      <circle cx="140" cy="9" r="5.2" fill="#ef5b4c" stroke="#fff" stroke-width="1.2"/><path d="M134.8 9h10.4" stroke="#fff" stroke-width="1.2"/>
+      ${bubbles}
+    </svg>`;
+  }
+
+  const GAME_ART = { rocket: rocketArt, blackjack: blackjackArt, plinko: plinkoArt, slots: slotsArt, roulette: rouletteArt, sterrenrad: sterrenradArt, routegok: routegokArt, fuik: fuikArt };
 
   const NAV_CSS = `
     .nav { display: flex; align-items: center; gap: 4px; background: var(--nav-bg, var(--panel, #16181b)); border: 1px solid var(--line, rgba(255,255,255,.07));

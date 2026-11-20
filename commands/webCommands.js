@@ -18,6 +18,7 @@ const PAGES = {
   sterrenrad: { path: '/sterrenrad', label: 'Naar het Sterrenrad', intro: '🌌 Het **Sterrenrad** staat op de website: een gameshow in de ruimte met host Astro, kometen en vier bonusspellen. Speel mee met iedereen, tot 20.000x je inzet.' },
   routegok: { path: '/routegok', label: 'Naar Routegok', intro: '🗺️ **Routegok** staat op de website: een willekeurige route ergens op de wereld, met de auto, fiets of te voet. Raad hoeveel minuten hij duurt en in welk land hij ligt. Precies goed = JACKPOT (25x).' },
   fuik: { path: '/fuik', label: 'Naar de vijver', intro: '🎣 **Fuiken** staan op de website: zet je fuiken uit, haal ze elke 15 minuten op voor een paar punten. Wacht niet te lang, anders zwemt je vangst weg!' },
+  keys: { path: '/keys', label: 'Naar de kisten', intro: 'Je **keys** staan op de website: open een kist en draai aan het rad voor punten.' },
   afwassen: { path: '/afwas', label: 'Naar de keuken', intro: '🧽 **Afwassen** doe je op de website: heb je minder dan 50 punten, dan verdien je 10 punten per schoon bord.' }
 };
 
@@ -62,6 +63,7 @@ const webCommands = [
   { name: 'sterrenrad', description: 'Krijg je link naar de Sterrenrad gameshow op de website' },
   { name: 'routegok', description: 'Krijg je link naar Routegok: raad de reistijd van een route ergens op de wereld' },
   { name: 'fuik', description: 'Zet je fuiken uit en haal elk kwartier je vangst op voor punten' },
+  { name: 'keys', description: 'Open je kisten met keys en draai aan het rad voor punten' },
   { name: 'afwassen', description: 'Blut? Was borden af in de keuken voor punten (onder 50 punten)' }
 ];
 

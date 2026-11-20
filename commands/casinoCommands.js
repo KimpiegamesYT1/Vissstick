@@ -8,6 +8,7 @@ const quiz = require('../modules/quiz');
 const blackjack = require('../modules/blackjack');
 const { renderBlackjackTable } = require('../modules/cardRenderer');
 const mines = require('../modules/mines');
+const crates = require('../modules/crates');
 const { getDatabase } = require('../database');
 
 // =====================================================
@@ -383,6 +384,12 @@ function resetMinesTimeout(gameId, interaction) {
 }
 
 // Casino slash commands
+const KEY_CHOICES = [
+  { name: 'Houten', value: 'wood' },
+  { name: 'IJzeren', value: 'iron' },
+  { name: 'Gouden', value: 'gold' }
+];
+
 const casinoCommands = [
   {
     name: 'casino',
@@ -498,6 +505,51 @@ const casinoCommands = [
                 type: 4, // INTEGER
                 required: true
               }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'keys',
+        description: 'Beheer keys voor de kisten',
+        type: 2, // SUB_COMMAND_GROUP
+        options: [
+          {
+            name: 'add',
+            description: 'Geef keys aan een user',
+            type: 1,
+            options: [
+              { name: 'soort', description: 'Soort key', type: 3, required: true, choices: KEY_CHOICES },
+              { name: 'user', description: 'De user', type: 6, required: true },
+              { name: 'aantal', description: 'Aantal keys (standaard 1)', type: 4, min_value: 1, max_value: crates.MAX_PER_GRANT }
+            ]
+          },
+          {
+            name: 'remove',
+            description: 'Haal keys weg bij een user',
+            type: 1,
+            options: [
+              { name: 'soort', description: 'Soort key', type: 3, required: true, choices: KEY_CHOICES },
+              { name: 'user', description: 'De user', type: 6, required: true },
+              { name: 'aantal', description: 'Aantal keys (standaard 1)', type: 4, min_value: 1, max_value: crates.MAX_PER_GRANT }
+            ]
+          },
+          {
+            name: 'all',
+            description: 'Keyall: geef iedereen een key (iedereen die ooit met het casino speelde)',
+            type: 1,
+            options: [
+              { name: 'soort', description: 'Soort key', type: 3, required: true, choices: KEY_CHOICES },
+              { name: 'bevestig', description: 'Zet op True om te bevestigen: dit gaat naar iedereen', type: 5, required: true },
+              { name: 'aantal', description: 'Aantal keys per persoon (standaard 1)', type: 4, min_value: 1, max_value: crates.MAX_PER_GRANT }
+            ]
+          },
+          {
+            name: 'check',
+            description: 'Bekijk de keys van een user',
+            type: 1,
+            options: [
+              { name: 'user', description: 'De user', type: 6, required: true }
             ]
           }
         ]
@@ -687,6 +739,95 @@ async function updateCasinoEmbed(client, casinoChannelId) {
 /**
  * Stuur log naar log kanaal
  */
+// =====================================================
+// KEYS (admin)
+// =====================================================
+const KEY_DM_DELAY_MS = 1500; // rustig achter elkaar sturen, anders ziet Discord het als spam
+
+function userDisplayName(user, fallback) {
+  return (user && (user.globalName || user.username)) || fallback || 'speler';
+}
+
+function keyDmText(name, kind, amount, total) {
+  const c = crates.CRATES[kind];
+  const what = amount === 1 ? `een ${c.keyName}` : `${amount} ${c.keyNamePlural}`;
+  return `Beste ${name}, je hebt ${what} ontvangen. Je hebt er nu ${total}. Open je kist op de website met /keys.`;
+}
+
+async function sendKeyDm(client, userId, fallbackName, kind, amount) {
+  try {
+    const user = await client.users.fetch(userId);
+    await user.send(keyDmText(userDisplayName(user, fallbackName), kind, amount, crates.getKeys(userId)[kind]));
+    return true;
+  } catch (error) {
+    return false; // DM's staan uit of de gebruiker is weg: de key staat gewoon op de website
+  }
+}
+
+// Keyall: DM's één voor één, op de achtergrond; de samenvatting komt in het logkanaal
+async function sendKeyDmsInBackground(client, config, recipients, kind, amount, actorName) {
+  let sent = 0;
+  for (let i = 0; i < recipients.length; i++) {
+    if (await sendKeyDm(client, recipients[i].id, recipients[i].username, kind, amount)) sent++;
+    if (i < recipients.length - 1) await new Promise(resolve => setTimeout(resolve, KEY_DM_DELAY_MS));
+  }
+  await sendLog(client, config.LOG_CHANNEL_ID, `Keyall van ${actorName} klaar: ${sent} DM's verstuurd, ${recipients.length - sent} niet bezorgd (DM's dicht, die zien de key op de website).`);
+}
+
+async function runKeysAdmin(client, config, subCommand, options, actorName) {
+  const kind = options.soort;
+  if (subCommand !== 'check' && !crates.isKind(kind)) return 'Onbekende soort key.';
+  const amount = options.aantal || 1;
+  const logChannelId = config.LOG_CHANNEL_ID;
+
+  try {
+    if (subCommand === 'add') {
+      const total = crates.addKeys(options.user.id, options.user.username, kind, amount);
+      const dm = await sendKeyDm(client, options.user.id, options.user.username, kind, amount);
+      await sendLog(client, logChannelId, `${actorName} gaf ${amount} ${crates.CRATES[kind].keyNamePlural} aan ${options.user.username}`);
+      return `${amount} ${crates.CRATES[kind].keyNamePlural} gegeven aan ${options.user.username} (heeft er nu ${total}). ${dm ? 'DM verstuurd.' : 'DM kon niet worden bezorgd.'}`;
+    }
+
+    if (subCommand === 'remove') {
+      const { removed, count } = crates.removeKeys(options.user.id, kind, amount);
+      await sendLog(client, logChannelId, `${actorName} haalde ${removed} ${crates.CRATES[kind].keyNamePlural} weg bij ${options.user.username}`);
+      return `${removed} ${crates.CRATES[kind].keyNamePlural} weggehaald bij ${options.user.username} (heeft er nu ${count}).`;
+    }
+
+    if (subCommand === 'all') {
+      if (!options.bevestig) return 'Keyall niet uitgevoerd: zet bevestig op True.';
+      const recipients = crates.addKeysToAll(kind, amount);
+      await sendLog(client, logChannelId, `${actorName} deelde ${amount} ${crates.CRATES[kind].keyNamePlural} uit aan ${recipients.length} spelers (keyall)`);
+      sendKeyDmsInBackground(client, config, recipients, kind, amount, actorName).catch(error => console.error('Keyall DM-wachtrij mislukt:', error));
+      announceKeyall(client, config, kind, amount).catch(() => {});
+      const seconds = Math.ceil(recipients.length * KEY_DM_DELAY_MS / 1000);
+      return `${amount} ${crates.CRATES[kind].keyNamePlural} uitgedeeld aan ${recipients.length} spelers. De DM's gaan op de achtergrond de deur uit (ongeveer ${seconds} seconden), de samenvatting komt in het logkanaal.`;
+    }
+
+    if (subCommand === 'check') {
+      const keys = crates.getKeys(options.user.id);
+      const stats = crates.getStats(options.user.id);
+      const lines = crates.KINDS.map(k => `${crates.CRATES[k].keyNamePlural}: ${keys[k]}`);
+      return `Keys van ${options.user.username}\n${lines.join('\n')}\nGeopend: ${stats.opened}, verdiend: ${stats.earned} punten, beste prijs: ${stats.best}`;
+    }
+  } catch (error) {
+    console.error('Keys admin mislukt:', error);
+    return `Mislukt: ${error.message}`;
+  }
+  return 'Onbekend keys-commando.';
+}
+
+// Eén kort bericht in het casinokanaal (verdwijnt vanzelf, net als de hok-melding)
+async function announceKeyall(client, config, kind, amount) {
+  if (!config.CASINO_CHANNEL_ID) return;
+  const channel = await client.channels.fetch(config.CASINO_CHANNEL_ID);
+  if (!channel) return;
+  const c = crates.CRATES[kind];
+  const message = await channel.send(`Keyall! Iedereen heeft ${amount === 1 ? `een ${c.keyName}` : `${amount} ${c.keyNamePlural}`} gekregen. Open je kist met /keys.`);
+  setTimeout(() => message.delete().catch(() => {}), 30000);
+}
+
+
 async function sendLog(client, logChannelId, message, embed = null) {
   try {
     const channel = await client.channels.fetch(logChannelId);
@@ -893,6 +1034,15 @@ async function handleCasinoCommands(interaction, client, config) {
         const user = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
         commandDescription = `⚙️ Zet balance van ${user.username} naar ${amount} punten`;
+      } else if (subCommandGroup === 'keys') {
+        const kSoort = interaction.options.getString('soort');
+        const kAantal = interaction.options.getInteger('aantal') || 1;
+        const kLabel = kSoort && crates.isKind(kSoort) ? crates.CRATES[kSoort].keyNamePlural : '';
+        const kUser = interaction.options.getUser('user');
+        if (subCommand === 'add') commandDescription = `Geef ${kAantal} ${kLabel} aan ${kUser.username}`;
+        else if (subCommand === 'remove') commandDescription = `Haal ${kAantal} ${kLabel} weg bij ${kUser.username}`;
+        else if (subCommand === 'all') commandDescription = `KEYALL: ${kAantal} ${kLabel} voor iedereen`;
+        else commandDescription = `Keys van ${kUser.username} bekijken`;
       } else if (subCommandGroup === 'quiz' && subCommand === 'start') {
         commandDescription = `📝 Start dagelijkse quiz`;
       } else if (subCommandGroup === 'quiz' && subCommand === 'test') {
@@ -921,7 +1071,10 @@ async function handleCasinoCommands(interaction, client, config) {
           user: interaction.options.getUser('user'),
           amount: interaction.options.getInteger('amount'),
           tijd: interaction.options.getInteger('tijd'),
-          resetType: interaction.options.getString('type')
+          resetType: interaction.options.getString('type'),
+          soort: interaction.options.getString('soort'),
+          aantal: interaction.options.getInteger('aantal'),
+          bevestig: interaction.options.getBoolean('bevestig')
         },
         timestamp: Date.now(),
         interaction
@@ -1100,6 +1253,19 @@ async function handleCasinoCommands(interaction, client, config) {
       return true;
     }
     
+    // /admin keys *
+    if (subCommandGroup === 'keys') {
+      await interaction.deferReply({ flags: 64 });
+      const message = await runKeysAdmin(client, config, subCommand, {
+        soort: interaction.options.getString('soort'),
+        user: interaction.options.getUser('user'),
+        aantal: interaction.options.getInteger('aantal'),
+        bevestig: interaction.options.getBoolean('bevestig')
+      }, interaction.user.username);
+      await interaction.editReply({ content: message });
+      return true;
+    }
+
     // /admin balance add
     if (subCommandGroup === 'balance' && subCommand === 'add') {
       const user = interaction.options.getUser('user');
@@ -3150,6 +3316,10 @@ async function handleApprovalButton(interaction, client, config) {
           await updateCasinoEmbed(client, casinoChannelId);
         }
         
+      } else if (subCommandGroup === 'keys') {
+        const message = await runKeysAdmin(client, config, subCommand, options, `${approval.requesterName} (goedgekeurd door super admin)`);
+        await interaction.followUp({ content: message });
+
       } else if (subCommandGroup === 'balance' && subCommand === 'add') {
         const newBalance = casino.addBalance(options.user.id, options.user.username, options.amount, 'Admin add');
         
