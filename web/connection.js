@@ -978,7 +978,9 @@
     .vch-peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; opacity: 0;
       transition: max-width .35s ease, opacity .25s ease; font-weight: 600; }
     .vch-peek b { color: var(--gold, #f2c14e); font-weight: 800; }
-    .vch.peek:not(.open) .vch-peek { max-width: 210px; opacity: 1; margin-left: 8px; }
+    .vch.peek:not(.open) .vch-peek { max-width: 230px; opacity: 1; margin-left: 8px; white-space: normal; overflow-wrap: anywhere; text-align: left; line-height: 1.35;
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8; line-clamp: 8; }
+    .vch.peek:not(.open) .vch-btn { height: auto; min-height: 38px; padding: 8px 12px; border-radius: 19px; }
     .vch-badge { margin-left: 6px; }
     .vch-badge { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: var(--gold, #f2c14e); color: #1a1405;
       font-size: 11px; font-weight: 900; display: grid; place-items: center; font-variant-numeric: tabular-nums; }

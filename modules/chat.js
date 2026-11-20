@@ -16,13 +16,13 @@ const events = new EventEmitter();
 
 const HISTORY_SIZE = 50;
 const MAX_LENGTH = 200;
-const MIN_GAP_MS = 1200;          // minimaal tussen twee berichten van dezelfde speler
+const MIN_GAP_MS = 500;           // minimaal tussen twee berichten van dezelfde speler
 const BURST_WINDOW_MS = 20000;
-const BURST_MAX = 6;              // max berichten per BURST_WINDOW_MS
-const DUPLICATE_WINDOW_MS = 30000;
+const BURST_MAX = 12;             // max berichten per BURST_WINDOW_MS
+const DUPLICATE_WINDOW_MS = 10000;
 const STRIKE_WINDOW_MS = 5 * 60 * 1000;
-const STRIKE_LIMIT = 4;           // zoveel overtredingen binnen STRIKE_WINDOW_MS → time-out
-const MUTE_MS = [60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
+const STRIKE_LIMIT = 8;           // zoveel overtredingen binnen STRIKE_WINDOW_MS → time-out
+const MUTE_MS = [30 * 1000, 2 * 60 * 1000, 10 * 60 * 1000];
 const MUTE_MEMORY_MS = 30 * 60 * 1000;
 
 // Scheldwoorden. 'exact' = alleen het hele woord (met evt. meervoud), 'stem' = ook in samenstellingen (kankerlijer).
@@ -64,7 +64,7 @@ function isBadWord(word) {
   return PREFIXES.some(stem => norm.startsWith(stem)) || INFIXES.some(stem => norm.includes(stem));
 }
 
-const LINK_PATTERN = /(https?:\/\/|www\.|discord\.gg|discord(?:app)?\.com\/invite|\b[a-z0-9-]{2,}\s?(?:\.|\(dot\)|\[dot\])\s?(?:com|nl|net|org|io|gg|me|xyz|ru|tk|ly|be|de|co|app|tv)\b)/i;
+const LINK_PATTERN = /(https?:\/\/|www\.|discord\.gg|discord(?:app)?\.com\/invite|\b[a-z0-9-]{2,}(?:\.|\s?\(dot\)\s?|\s?\[dot\]\s?)(?:com|nl|net|org|io|gg|xyz|ru|tk|ly|be|de|co|app|tv)\b(?![a-z]))/i;
 
 const messages = [];
 let nextId = 1;
