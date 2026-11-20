@@ -206,6 +206,12 @@
   const ONLINE_URL = '/api/online';
   const ONLINE_POLL_MS = 15000;
   const ONLINE_AVATARS = 4;
+  const IDLE_MS = 10 * 60 * 1000; // zo lang geen input → je staat als idle in de lijst en telt niet mee
+  let lastInput = Date.now();
+  const markInput = () => { lastInput = Date.now(); };
+  for (const type of ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'pointerdown', 'scroll']) {
+    window.addEventListener(type, markInput, { passive: true, capture: true });
+  }
   const ONLINE_CSS = `
     .vso { position: relative; pointer-events: auto; font-family: inherit; }
     .vso[hidden] { display: none; }
@@ -239,6 +245,9 @@
     a.vso-row .vso-game { color: var(--green, #4cd47b); }
     .vso-bal { margin-left: auto; padding-left: 8px; flex: none; font-size: 12px; font-weight: 800; color: var(--gold, #f2c14e);
       font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .vso-row.idle { opacity: .55; }
+    .vso-row.idle .vso-av { filter: grayscale(1); }
+    .vso-idle { margin-left: auto; padding-left: 8px; flex: none; font-size: 12px; font-weight: 700; color: var(--muted, #8d9299); }
     .vso-more { padding: 6px 8px; font-size: 12px; color: var(--muted, #8d9299); }
     @media (max-width: 640px) {
       .vso { margin-left: auto; }
@@ -312,8 +321,8 @@
     if (!onlineUi) return;
     const users = Array.isArray(data.users) ? data.users : [];
     const count = Number(data.count) || 0;
-    onlineUi.root.hidden = count === 0;
-    onlineUi.stack.replaceChildren(...users.slice(0, ONLINE_AVATARS).map(avatarEl));
+    onlineUi.root.hidden = users.length === 0;
+    onlineUi.stack.replaceChildren(...users.filter(user => !user.idle).slice(0, ONLINE_AVATARS).map(avatarEl));
     onlineUi.count.innerHTML = '';
     onlineUi.count.append(String(count));
     const label = document.createElement('span');
@@ -326,7 +335,7 @@
       // Met een bekend spel wordt de rij een link naar dat spel
       const game = user.game && typeof user.game.path === 'string' && user.game.path.startsWith('/') ? user.game : null;
       const row = document.createElement(game ? 'a' : 'div');
-      row.className = 'vso-row';
+      row.className = user.idle ? 'vso-row idle' : 'vso-row';
       if (game) {
         row.href = game.path;
         row.title = `Naar ${game.name}`;
@@ -343,7 +352,13 @@
         info.append(where);
       }
       row.append(avatarEl(user), info);
-      if (Number.isFinite(user.balance)) {
+      if (user.idle) {
+        const tag = document.createElement('span');
+        tag.className = 'vso-idle';
+        tag.textContent = 'Idle';
+        tag.title = 'Pagina staat open maar doet al een tijdje niets';
+        row.append(tag);
+      } else if (Number.isFinite(user.balance)) {
         const bal = document.createElement('span');
         bal.className = 'vso-bal';
         bal.textContent = `${user.balance.toLocaleString('nl-NL')} pt`;
@@ -352,10 +367,11 @@
       }
       return row;
     }));
-    if (count > users.length) {
+    const shownActive = users.filter(user => !user.idle).length;
+    if (count > shownActive) {
       const more = document.createElement('div');
       more.className = 'vso-more';
-      more.textContent = `+ ${count - users.length} meer`;
+      more.textContent = `+ ${count - shownActive} meer`;
       onlineUi.list.append(more);
     }
   }
@@ -365,7 +381,7 @@
     // Een verborgen tabblad telt niet als actief en hoeft ook niets op te halen
     if (!document.hidden && !down) {
       try {
-        const res = await nativeFetch(`${ONLINE_URL}?active=1&page=${encodeURIComponent(location.pathname)}&t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
+        const res = await nativeFetch(`${ONLINE_URL}?active=1&page=${encodeURIComponent(location.pathname)}&idle=${Date.now() - lastInput >= IDLE_MS ? 1 : 0}&t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
         if (res.ok) renderOnline(await res.json());
       } catch (error) {
         // Storingen worden al door de verbindingsbewaking afgehandeld

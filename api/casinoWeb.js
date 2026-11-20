@@ -268,12 +268,13 @@ function createCasinoWebHandler() {
   // Wie er online is: alleen ingelogde spelers met een zichtbaar tabblad (connection.js pingt elke 15 s)
   const online = new Map();
 
-  function markOnline(user, page) {
+  function markOnline(user, page, idle) {
     const game = String(page || '').replace(/^\/+|\/+$/g, '').split('/')[0];
     online.set(user.id, {
       username: user.username,
       avatar: user.avatar,
       game: Object.prototype.hasOwnProperty.call(ONLINE_GAMES, game) ? game : null,
+      idle: Boolean(idle),
       lastSeen: Date.now()
     });
   }
@@ -285,12 +286,14 @@ function createCasinoWebHandler() {
       if (entry.lastSeen < cutoff) online.delete(id);
       else users.push({ id, ...entry });
     }
-    users.sort((a, b) => b.lastSeen - a.lastSeen);
+    // Actieve spelers eerst; wie 10+ min niets doet staat als idle onderaan en telt niet mee
+    users.sort((a, b) => (a.idle - b.idle) || (b.lastSeen - a.lastSeen));
     return {
-      count: users.length,
-      users: users.slice(0, MAX_ONLINE_SHOWN).map(({ id, username, avatar, game }) => ({
+      count: users.filter(u => !u.idle).length,
+      users: users.slice(0, MAX_ONLINE_SHOWN).map(({ id, username, avatar, game, idle }) => ({
         username,
         avatar,
+        idle,
         balance: casino.getUserBalance(id),
         game: game ? { name: ONLINE_GAMES[game], path: `/${game}` } : null
       }))
@@ -445,7 +448,7 @@ function createCasinoWebHandler() {
   function getMonitoringStats() {
     const cutoff = Date.now() - ONLINE_WINDOW_MS;
     let onlineUsers = 0;
-    for (const entry of online.values()) if (entry.lastSeen >= cutoff) onlineUsers++;
+    for (const entry of online.values()) if (entry.lastSeen >= cutoff && !entry.idle) onlineUsers++;
     const perStream = {};
     let sseClients = 0;
     for (const [name, stream] of Object.entries(streams)) {
@@ -660,7 +663,7 @@ function createCasinoWebHandler() {
           return true;
         case '/api/online': {
           const user = getUser(req);
-          if (user && url.searchParams.get('active') === '1') markOnline(user, url.searchParams.get('page'));
+          if (user && url.searchParams.get('active') === '1') markOnline(user, url.searchParams.get('page'), url.searchParams.get('idle') === '1');
           sendJson(res, 200, getOnline());
           return true;
         }
