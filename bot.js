@@ -184,6 +184,7 @@ let activeQuizMessages = new Map(); // Store active quiz message references
 let hokState = null; // State voor hok monitoring
 const chatbotChannelQueues = new Map(); // Voorkom overlappende chatbot requests per kanaal
 let publicApiServer = null;
+let casinoWebHandler = null;
 
 function startPublicApiServer() {
   if (!PUBLIC_API_ENABLED) {
@@ -198,7 +199,7 @@ function startPublicApiServer() {
     rateLimitMaxRequests: PUBLIC_API_RATE_LIMIT_MAX_REQUESTS,
   });
 
-  const casinoWebHandler = createCasinoWebHandler();
+  casinoWebHandler = createCasinoWebHandler();
   metrics.setCasinoStatsProvider(casinoWebHandler.getMonitoringStats);
 
   publicApiServer = http.createServer((req, res) => {
@@ -244,6 +245,7 @@ function startPublicApiServer() {
 }
 
 function closePublicApiServer() {
+  if (casinoWebHandler) casinoWebHandler.announceRestart();
   metrics.closeMetricsServer();
   if (!publicApiServer) return;
   metrics.setPublicServerListening(false);

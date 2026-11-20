@@ -424,7 +424,18 @@ function createCasinoWebHandler() {
     return { streams: perStream, sseClients, sseLimit: MAX_STREAM_CLIENTS, onlineUsers };
   }
 
+  // Laat alle open pagina's meteen weten dat de bot herstart, zodat ze direct de herstart-melding tonen
+  function announceRestart() {
+    const message = `event: restart\ndata: {}\n\n`;
+    for (const stream of Object.values(streams)) {
+      for (const res of stream.clients) {
+        try { res.write(message); } catch (error) { /* verbinding is al weg */ }
+      }
+    }
+  }
+
   handleCasinoWeb.getMonitoringStats = getMonitoringStats;
+  handleCasinoWeb.announceRestart = announceRestart;
   return handleCasinoWeb;
 
   function handleCasinoWeb(req, res, url) {

@@ -22,14 +22,18 @@
   'use strict';
 
   const PROBE_URL = '/api/me';
-  const STREAM_GRACE_MS = 3000;   // zo lang mag een live-verbinding weg zijn voor we gaan controleren
-  const RETRY_MIN_MS = 2000;
-  const RETRY_MAX_MS = 8000;
+  const OUTSIDE_URL = 'https://www.gstatic.com/generate_204';  // om te zien of het aan jouw internet ligt
+  const BLIP_PROBES = 3;          // zo vaak controleren we een haperende verbinding voor we een melding tonen
+  const BLIP_GAP_MS = 1200;
+  const RETRY_RESTART_MS = 1000;  // bot herstart: elke seconde proberen
+  const RETRY_OFFLINE_MS = 3000;  // geen internet: elke 3 seconden
   const HEARTBEAT_MS = 15000;
-  const DOWN_STATUS = new Set([502, 503, 504]);
+  // 5xx van de server/proxy/Cloudflare betekent: de bot is er niet (herstart). Meteen melden, geen wachttijd.
+  const DOWN_STATUS = new Set([502, 503, 504, 521, 522, 523, 524, 530]);
 
   const nativeFetch = window.fetch.bind(window);
   let down = false;
+  let kind = 'restart';           // 'restart' = server herstart, 'offline' = jij hebt geen internet
   let checking = false;
   let attempts = 0;
   let retryTimer = null;
@@ -37,33 +41,69 @@
   let nextRetryAt = 0;
   let ui = null;
 
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
   // =====================================================
   // CONTROLEREN
   // =====================================================
-  async function serverReachable() {
+  // 'ok' | 'restart' (server geeft aan er niet te zijn) | 'fail' (helemaal geen antwoord)
+  async function probe() {
     try {
       const res = await nativeFetch(`${PROBE_URL}?t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
-      return !DOWN_STATUS.has(res.status) && res.status < 500;
+      return res.status < 500 ? 'ok' : 'restart';
+    } catch (error) {
+      return 'fail';
+    }
+  }
+
+  async function internetReachable() {
+    if (navigator.onLine === false) return false;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4000);
+      await nativeFetch(`${OUTSIDE_URL}?t=${Date.now()}`, { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(timer);
+      return true;
     } catch (error) {
       return false;
     }
   }
 
-  // Eén mislukt verzoek is nog geen storing: eerst zelf controleren
+  // null = alles goed, anders de soort storing. Een herstart wordt meteen herkend,
+  // een haperende verbinding krijgt een paar kansen om vanzelf te herstellen.
+  async function diagnose() {
+    let result = await probe();
+    for (let i = 1; result === 'fail' && i < BLIP_PROBES; i++) {
+      await sleep(BLIP_GAP_MS);
+      result = await probe();
+    }
+    if (result === 'ok') return null;
+    if (result === 'restart') return 'restart';
+    return (await internetReachable()) ? 'restart' : 'offline';
+  }
+
   async function suspect() {
     if (down || checking) return;
     checking = true;
-    const ok = navigator.onLine !== false && await serverReachable();
+    const found = await diagnose();
     checking = false;
-    if (!ok) goDown();
+    if (found) goDown(found);
   }
 
-  function goDown() {
-    if (down) return;
+  function goDown(why) {
+    if (down) {
+      if (why && why !== kind) { kind = why; render(); }
+      return;
+    }
     down = true;
+    kind = why || 'restart';
     attempts = 0;
     show();
-    scheduleRetry(RETRY_MIN_MS);
+    scheduleRetry(retryDelay());
+  }
+
+  function retryDelay() {
+    return kind === 'offline' ? RETRY_OFFLINE_MS : RETRY_RESTART_MS;
   }
 
   function scheduleRetry(ms) {
@@ -77,12 +117,15 @@
     clearTimeout(retryTimer);
     attempts++;
     setStatus('Verbinden…', true);
-    const ok = navigator.onLine !== false && await serverReachable();
-    if (ok) {
+    const result = await probe();
+    if (result === 'ok') {
       recovered();
       return;
     }
-    scheduleRetry(Math.min(RETRY_MAX_MS, RETRY_MIN_MS * 1.5 ** attempts));
+    if (result === 'fail') kind = (await internetReachable()) ? 'restart' : 'offline';
+    else kind = 'restart';
+    render();
+    scheduleRetry(retryDelay());
   }
 
   function recovered() {
@@ -117,15 +160,12 @@
     class WatchedEventSource extends NativeEventSource {
       constructor(url, options) {
         super(url, options);
-        let timer = null;
+        // De server meldt zelf dat hij herstart: dan hoeft er niets meer gecontroleerd te worden
+        this.addEventListener('restart', () => goDown('restart'));
+        // Verbinding weg: meteen controleren. Een herstart wordt direct gemeld, een hapering krijgt een paar kansen.
         this.addEventListener('error', () => {
-          if (this.readyState === NativeEventSource.OPEN || timer) return;
-          timer = setTimeout(() => {
-            timer = null;
-            if (this.readyState !== NativeEventSource.OPEN) suspect();
-          }, STREAM_GRACE_MS);
+          if (this.readyState !== NativeEventSource.OPEN) suspect();
         });
-        this.addEventListener('open', () => { clearTimeout(timer); timer = null; });
       }
     }
     window.EventSource = WatchedEventSource;
@@ -136,7 +176,7 @@
     if (!down && !checking && !document.hidden) suspect();
   }, HEARTBEAT_MS);
 
-  window.addEventListener('offline', () => goDown());
+  window.addEventListener('offline', () => suspect());
   window.addEventListener('online', () => { if (down) retry(); });
 
   // =====================================================
@@ -719,6 +759,9 @@
     .vsc-icon::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(239,91,76,.5);
       animation: vsc-pulse 1.6s ease-out infinite; }
     .vsc-icon svg { width: 36px; height: 36px; }
+    .vsc-box.restart .vsc-icon { background: rgba(242, 193, 78, .13); color: #f2c14e; }
+    .vsc-box.restart .vsc-icon::after { border-color: rgba(242,193,78,.5); }
+    .vsc-box.restart .vsc-icon svg { animation: vsc-rot 2.4s linear infinite; }
     .vsc-box.ok .vsc-icon { background: rgba(76, 212, 123, .14); color: #4cd47b; }
     .vsc-box.ok .vsc-icon::after { border-color: rgba(76,212,123,.5); }
     .vsc-title { margin: 0 0 8px; font-size: 21px; font-weight: 800; }
@@ -738,7 +781,8 @@
     @keyframes vsc-pulse { from { transform: scale(.92); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
     @keyframes vsc-rot { to { transform: rotate(360deg); } }
   `;
-  const ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const ICON_RESTART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_OFFLINE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
   function build() {
     const style = document.createElement('style');
@@ -750,10 +794,10 @@
     ov.setAttribute('aria-live', 'assertive');
     ov.innerHTML = `
       <div class="vsc-box">
-        <div class="vsc-icon">${ICON}</div>
+        <div class="vsc-icon"></div>
         <h2 class="vsc-title"></h2>
         <p class="vsc-text"></p>
-        <p class="vsc-safe">Je punten zijn veilig. Inzetten van spellen die door een herstart zijn afgebroken, worden automatisch teruggestort.</p>
+        <p class="vsc-safe"></p>
         <div class="vsc-status"><span class="vsc-spin" hidden></span><span class="vsc-msg"></span></div>
         <button class="vsc-btn" type="button">Nu opnieuw proberen</button>
       </div>`;
@@ -761,7 +805,9 @@
     ui = {
       ov,
       box: ov.querySelector('.vsc-box'),
+      icon: ov.querySelector('.vsc-icon'),
       title: ov.querySelector('.vsc-title'),
+      safe: ov.querySelector('.vsc-safe'),
       text: ov.querySelector('.vsc-text'),
       spin: ov.querySelector('.vsc-spin'),
       msg: ov.querySelector('.vsc-msg'),
@@ -772,17 +818,27 @@
 
   function show() {
     if (!ui) build();
-    const offline = navigator.onLine === false;
-    ui.box.classList.remove('ok');
-    ui.title.textContent = offline ? 'Geen internetverbinding' : 'Verbinding met de server kwijt';
-    ui.text.textContent = offline
-      ? 'Je apparaat is offline. Zodra je weer internet hebt, gaan we verder.'
-      : 'De server is even niet bereikbaar, waarschijnlijk wordt de bot herstart. We proberen het automatisch opnieuw.';
+    render();
     ui.button.hidden = false;
     ui.ov.hidden = false;
     requestAnimationFrame(() => ui.ov.classList.add('show'));
     clearInterval(countdownTimer);
     countdownTimer = setInterval(tickCountdown, 250);
+  }
+
+  // Twee meldingen: de bot herstart (geeft de server aan) of jij hebt zelf geen internet
+  function render() {
+    if (!ui || ui.box.classList.contains('ok')) return;
+    const restart = kind === 'restart';
+    ui.box.classList.toggle('restart', restart);
+    ui.icon.innerHTML = restart ? ICON_RESTART : ICON_OFFLINE;
+    ui.title.textContent = restart ? 'De bot wordt herstart' : 'Je bent offline';
+    ui.text.textContent = restart
+      ? 'De server is zo weer terug, meestal binnen een minuut. Je hoeft niets te doen: de pagina laadt vanzelf opnieuw.'
+      : 'Er is geen verbinding met internet. Controleer je wifi of mobiele data; zodra je weer online bent gaan we verder.';
+    ui.safe.textContent = restart
+      ? 'Je punten zijn veilig. Inzetten van spellen die door de herstart zijn afgebroken, worden automatisch teruggestort.'
+      : 'Je punten zijn veilig. Er gaat niets verloren terwijl je offline bent.';
   }
 
   function setStatus(text, spinning) {
