@@ -172,7 +172,7 @@ async function handleHokCommands(interaction, client, config, hokState) {
   }
 
   if (commandName === 'hokupdate') {
-    if (!interaction.member.permissions.has('Administrator')) {
+    if (!interaction.member?.permissions?.has('Administrator')) {
       await interaction.reply({ 
         embeds: [
           new EmbedBuilder()
