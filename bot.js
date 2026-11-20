@@ -177,8 +177,17 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-process.on('SIGINT', closePublicApiServer);
-process.on('SIGTERM', closePublicApiServer);
+// Bij een update/herstart: eerst alle open pagina's laten weten dat de bot herstart (popup),
+// dan pas afsluiten. Zonder korte pauze zou het proces stoppen voordat de melding verstuurd is.
+let shuttingDown = false;
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  closePublicApiServer();
+  setTimeout(() => process.exit(0), 600);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 let activeQuizMessages = new Map(); // Store active quiz message references
 let hokState = null; // State voor hok monitoring

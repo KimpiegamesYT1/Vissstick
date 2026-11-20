@@ -84,6 +84,10 @@ function getKeys(userId) {
   return keys;
 }
 
+function countKeys(userId) {
+  return getDatabase().prepare('SELECT COALESCE(SUM(count), 0) AS n FROM crate_keys WHERE user_id = ?').get(userId).n;
+}
+
 function getStats(userId) {
   const row = getDatabase().prepare(`
     SELECT COUNT(*) AS opened, COALESCE(SUM(points), 0) AS earned, COALESCE(MAX(points), 0) AS best
@@ -204,6 +208,7 @@ module.exports = {
   isKind,
   getConfig,
   getKeys,
+  countKeys,
   getStatus,
   addKeys,
   removeKeys,

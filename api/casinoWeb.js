@@ -52,6 +52,8 @@
  *   GET  /keys                      Keys: kisten openen en aan het rad draaien
  *   GET  /api/keys/status           kisten, eigen keys, stats en laatste openingen
  *   POST /api/keys/open             een kist openen met een key (de server bepaalt de uitslag)
+ *   GET  /api/chat                  laatste chatberichten (chat zit rechtsonder op elke pagina, live via /api/live)
+ *   POST /api/chat/send             chatbericht plaatsen (met automatische moderatie)
  *   POST /api/logout
  */
 
@@ -71,6 +73,7 @@ const crates = require('../modules/crates');
 const rocketAuth = require('../modules/rocketAuth');
 const casino = require('../modules/casino');
 const stats = require('../modules/stats');
+const chat = require('../modules/chat');
 const { createRateLimiter, getClientIp } = require('./security');
 
 const WEB_DIR = path.join(__dirname, '..', 'web');
@@ -220,11 +223,33 @@ function createCasinoWebHandler() {
     routegok: { clients: new Set(), getState: routegok.getPublicState }
   };
 
+  // Lichte stream voor elke pagina: meldt een herstart en laat een nieuwe opstart herkennen (bootId)
+  const BOOT_ID = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const liveClients = new Set();
+
+  function handleLive(req, res) {
+    setBaseHeaders(res);
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    });
+    res.write('retry: 1000\n');
+    res.write(`data: ${JSON.stringify({ boot: BOOT_ID })}\n\n`);
+    liveClients.add(res);
+    req.on('close', () => liveClients.delete(res));
+  }
+
   function broadcast(stream) {
     const message = `data: ${JSON.stringify(stream.getState())}\n\n`;
     for (const res of stream.clients) res.write(message);
   }
 
+  chat.events.on('message', message => {
+    const text = `event: chat\ndata: ${JSON.stringify(message)}\n\n`;
+    for (const res of liveClients) res.write(text);
+  });
   rocketGame.events.on('update', () => broadcast(streams.rocket));
   blackjackTable.events.on('update', () => broadcast(streams.blackjack));
   roulette.events.on('update', () => broadcast(streams.roulette));
@@ -237,6 +262,7 @@ function createCasinoWebHandler() {
     for (const stream of Object.values(streams)) {
       for (const res of stream.clients) res.write(message);
     }
+    for (const res of liveClients) res.write(message);
   }, HEARTBEAT_MS).unref();
 
   // Wie er online is: alleen ingelogde spelers met een zichtbaar tabblad (connection.js pingt elke 15 s)
@@ -395,6 +421,11 @@ function createCasinoWebHandler() {
         dailySpin.setReminder(user.id, Boolean(body.enabled));
         result = { ok: true, message: body.enabled ? 'Je krijgt elke ochtend een DM als je spin klaarstaat.' : 'Ochtendmeldingen staan uit.' };
         break;
+      case 'chat/send': {
+        const sent = chat.send(user, body.text);
+        sendJson(res, sent.ok ? 200 : 400, { ok: sent.ok, message: sent.message, notice: sent.notice });
+        return;
+      }
       case 'logout':
         rocketAuth.deleteSession(parseCookies(req)[COOKIE_NAME]);
         res.setHeader('Set-Cookie', sessionCookie(req, '', 0));
@@ -427,10 +458,10 @@ function createCasinoWebHandler() {
   // Laat alle open pagina's meteen weten dat de bot herstart, zodat ze direct de herstart-melding tonen
   function announceRestart() {
     const message = `event: restart\ndata: {}\n\n`;
-    for (const stream of Object.values(streams)) {
-      for (const res of stream.clients) {
-        try { res.write(message); } catch (error) { /* verbinding is al weg */ }
-      }
+    const targets = [...liveClients];
+    for (const stream of Object.values(streams)) targets.push(...stream.clients);
+    for (const res of targets) {
+      try { res.write(message); } catch (error) { /* verbinding is al weg */ }
     }
   }
 
@@ -496,6 +527,9 @@ function createCasinoWebHandler() {
           sendJson(res, 200, payload);
           return true;
         }
+        case '/api/live':
+          handleLive(req, res);
+          return true;
         case '/api/roulette/stream':
           handleStream(req, res, streams.roulette);
           return true;
@@ -618,9 +652,12 @@ function createCasinoWebHandler() {
             return true;
           }
           casino.getOrCreateUser(user.id, user.username);
-          sendJson(res, 200, { linked: true, user, balance: casino.getUserBalance(user.id), washBelow: afwas.MAX_BALANCE, canWash: afwas.canWash(user.id) });
+          sendJson(res, 200, { linked: true, user, balance: casino.getUserBalance(user.id), washBelow: afwas.MAX_BALANCE, canWash: afwas.canWash(user.id), keys: crates.countKeys(user.id) });
           return true;
         }
+        case '/api/chat':
+          sendJson(res, 200, { messages: chat.getHistory(), max: chat.MAX_LENGTH });
+          return true;
         case '/api/online': {
           const user = getUser(req);
           if (user && url.searchParams.get('active') === '1') markOnline(user, url.searchParams.get('page'));
@@ -673,7 +710,7 @@ function createCasinoWebHandler() {
       }
     }
 
-    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|routegok\/(?:start|guess|peek)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|keys\/open|logout|rocket\/logout)$/);
+    const actionMatch = pathname.match(/^\/api\/(rocket\/(?:start|join|leave|cashout)|spin\/(?:spin|reminder)|blackjack\/(?:sit|leave|bet|act|insurance)|plinko\/drop|slots\/spin|roulette\/bet|sterrenrad\/(?:bet|choose)|routegok\/(?:start|guess|peek)|afwas\/(?:plate|clean|reject)|fuik\/(?:tap|all)|keys\/open|chat\/send|logout|rocket\/logout)$/);
     if (actionMatch && req.method === 'POST') {
       const action = actionMatch[1] === 'rocket/logout' ? 'logout' : actionMatch[1];
       handleAction(req, res, action).catch(error => {

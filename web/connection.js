@@ -16,6 +16,8 @@
  * Toont daarnaast in de menubalk hoeveel ingelogde spelers er nu actief zijn (met hun profielfoto's en saldo).
  * Alleen een zichtbaar tabblad meldt zich als actief, dus wie wegklikt verdwijnt vanzelf uit de lijst.
  *
+ * Rechtsonder zit op elke pagina een kleine chat (zie CHAT hieronder): doorzichtig in rust, volgt de kleuren van de pagina.
+ *
  * Daarnaast krijgen Firefox-gebruikers max. 1x per week een melding linksonder dat een Chromium-browser beter presteert.
  */
 (() => {
@@ -169,6 +171,25 @@
       }
     }
     window.EventSource = WatchedEventSource;
+  }
+
+  // Lichte live-verbinding op élke pagina: de server meldt hiermee een herstart (ook voor pagina's zonder eigen stream).
+  // Krijgen we na een verbinding een andere bootId, dan is de bot tussendoor herstart (ook als dat heel kort duurde).
+  let liveSource = null;
+  if (window.EventSource) {
+    let bootId = null;
+    const live = new window.EventSource('/api/live');
+    liveSource = live;
+    live.addEventListener('message', event => {
+      let boot = null;
+      try { boot = JSON.parse(event.data).boot; } catch (error) { return; }
+      if (!boot) return;
+      if (bootId && boot !== bootId) {
+        goDown('restart');
+        retry();
+      }
+      bootId = boot;
+    });
   }
 
   // Pagina's zonder live-verbinding merken een storing anders pas bij de volgende klik
@@ -702,12 +723,23 @@
     });
   }
 
+  // Pulse bij Keys in de navigatie zodra je een key hebt om een kist te openen
+  let keyCount = 0;
+  function setKeysLink(count) {
+    if (Number.isFinite(count)) keyCount = count;
+    document.querySelectorAll('.nav a[href="/keys"]').forEach(link => {
+      link.classList.toggle('has-keys', keyCount > 0);
+      link.title = keyCount > 0 ? (keyCount === 1 ? 'Je hebt 1 key: open een kist!' : `Je hebt ${keyCount} keys: open een kist!`) : '';
+    });
+  }
+
   async function refreshWashLink() {
     try {
       const res = await nativeFetch(`${PROBE_URL}?t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' });
       const me = await res.json();
       if (Number.isFinite(me.washBelow)) washBelow = me.washBelow;
       setWashLink(Boolean(me.canWash));
+      setKeysLink(me.linked === false ? 0 : Number(me.keys) || 0);
     } catch (error) { /* knop blijft zoals hij is */ }
   }
 
@@ -718,6 +750,7 @@
     if (!String(res.headers.get('content-type') || '').includes('application/json')) return;
     res.clone().json().then(data => {
       if (data && data.linked !== false && Number.isFinite(data.balance)) setWashLink(data.balance < washBelow);
+      if (data && data.keys && typeof data.keys === 'object') setKeysLink(Object.values(data.keys).reduce((a, b) => a + (Number(b) || 0), 0));
     }).catch(() => {});
   }
 
@@ -727,6 +760,14 @@
     .nav a.wash-link:not(.locked):not(.active)::after { content: ''; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px;
       border-radius: 50%; background: #7fd3ff; animation: vsc-bub 1.8s ease-out infinite; }
     .nav a.wash-link.locked { display: none; }
+    .nav a.has-keys { position: relative; color: #ffd978; animation: vsc-keyglow 2s ease-in-out infinite; }
+    .nav a.has-keys::before { content: ''; position: absolute; inset: 0; border-radius: 999px; pointer-events: none;
+      box-shadow: 0 0 0 0 rgba(242,193,78,.55); animation: vsc-keyring 2s ease-out infinite; }
+    .nav a.has-keys::after { content: ''; position: absolute; top: 4px; right: 5px; width: 7px; height: 7px; border-radius: 50%;
+      background: #f2c14e; box-shadow: 0 0 8px #f2c14e; animation: vsc-keydot 1s ease-in-out infinite; }
+    @keyframes vsc-keyring { 0% { box-shadow: 0 0 0 0 rgba(242,193,78,.55); } 70%, 100% { box-shadow: 0 0 0 10px rgba(242,193,78,0); } }
+    @keyframes vsc-keyglow { 50% { text-shadow: 0 0 12px rgba(242,193,78,.8); } }
+    @keyframes vsc-keydot { 50% { transform: scale(1.35); opacity: .65; } }
     @keyframes vsc-bub { 0% { box-shadow: 0 0 0 0 rgba(127,211,255,.6); } 100% { box-shadow: 0 0 0 7px rgba(127,211,255,0); } }
   `;
 
@@ -898,6 +939,260 @@
     document.body.append(box);
     requestAnimationFrame(() => box.classList.add('show'));
   }
+
+  // =====================================================
+  // CHAT (rechtsonder, op elke pagina)
+  // =====================================================
+  // Een klein glazen bolletje dat de kleuren van de pagina volgt (--panel/--line/--text/--raise/--gold).
+  // In rust is het doorzichtig; een nieuw bericht schuift er even naast uit en klapt daarna weer in.
+  // Berichten komen live binnen via de /api/live stream, versturen gaat via POST /api/chat/send.
+  const CHAT_MAX_SHOWN = 60;
+  const CHAT_PREVIEW_MS = 6000;
+  const CHAT_CSS = `
+    .vsc { position: fixed; right: 16px; bottom: 16px; z-index: 2147481000; font-family: inherit; color: var(--text, #eceae6); pointer-events: none;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    .vsc > * { pointer-events: auto; }
+    .vsc-btn { display: flex; align-items: center; gap: 8px; height: 38px; max-width: 280px; padding: 0 13px 0 11px; border-radius: 999px; cursor: pointer;
+      background: color-mix(in srgb, var(--panel, #16181b) 62%, transparent); border: 1px solid var(--line, rgba(255,255,255,.07));
+      backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
+      color: var(--muted, #8d9299); font: inherit; font-size: 13px; font-weight: 700; opacity: .55;
+      box-shadow: 0 6px 20px rgba(0,0,0,.25); transition: opacity .25s ease, background .25s ease, color .25s ease; }
+    .vsc-btn:hover, .vsc-btn:focus-visible, .vsc.open .vsc-btn, .vsc.peek .vsc-btn { opacity: 1; color: var(--text, #eceae6); }
+    .vsc-btn svg { width: 17px; height: 17px; flex: none; }
+    .vsc-peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; opacity: 0;
+      transition: max-width .35s ease, opacity .25s ease; font-weight: 600; }
+    .vsc-peek b { color: var(--gold, #f2c14e); font-weight: 800; }
+    .vsc.peek:not(.open) .vsc-peek { max-width: 210px; opacity: 1; }
+    .vsc-badge { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: var(--gold, #f2c14e); color: #1a1405;
+      font-size: 11px; font-weight: 900; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+    .vsc-badge[hidden] { display: none; }
+    .vsc-panel { width: 300px; max-width: calc(100vw - 32px); display: flex; flex-direction: column; border-radius: 16px; overflow: hidden;
+      background: color-mix(in srgb, var(--side, #1b1d21) 88%, transparent); border: 1px solid var(--line, rgba(255,255,255,.07));
+      backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 16px 40px rgba(0,0,0,.5);
+      transform-origin: bottom right; transition: opacity .18s ease, transform .18s ease; }
+    .vsc-panel[hidden] { display: none; }
+    .vsc-panel.pre { opacity: 0; transform: translateY(8px) scale(.97); }
+    .vsc-head { display: flex; align-items: center; padding: 9px 12px 7px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #8d9299); }
+    .vsc-head button { margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+    .vsc-head button:hover { color: var(--text, #eceae6); }
+    .vsc-list { height: 220px; overflow-y: auto; padding: 2px 12px 8px; display: flex; flex-direction: column; gap: 5px; overscroll-behavior: contain;
+      scrollbar-width: thin; scrollbar-color: var(--raise, #262a2f) transparent; }
+    .vsc-msg { font-size: 13px; line-height: 1.35; font-weight: 500; overflow-wrap: anywhere; }
+    .vsc-msg b { font-weight: 800; margin-right: 6px; }
+    .vsc-empty { margin: auto; font-size: 12px; color: var(--muted, #8d9299); text-align: center; }
+    .vsc-note { padding: 0 12px 6px; font-size: 12px; font-weight: 600; color: var(--red, #ef5b4c); min-height: 0; }
+    .vsc-note:empty { display: none; }
+    .vsc-note.info { color: var(--gold, #f2c14e); }
+    .vsc-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line, rgba(255,255,255,.07)); }
+    .vsc-form input { flex: 1; min-width: 0; height: 32px; padding: 0 11px; border-radius: 999px; font: inherit; font-size: 13px; color: var(--text, #eceae6);
+      background: var(--field, rgba(0,0,0,.25)); border: 1px solid var(--line, rgba(255,255,255,.07)); outline: none; }
+    .vsc-form input:focus { border-color: var(--gold, #f2c14e); }
+    .vsc-form input::placeholder { color: var(--muted, #8d9299); }
+    .vsc-form button { height: 32px; padding: 0 12px; border-radius: 999px; border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 800;
+      background: var(--raise, #262a2f); color: var(--text, #eceae6); }
+    .vsc-form button:hover { background: var(--gold, #f2c14e); color: #1a1405; }
+    .vsc-form button:disabled, .vsc-form input:disabled { opacity: .5; cursor: not-allowed; }
+    @media (max-width: 640px) {
+      .vsc { right: 10px; bottom: 10px; }
+      .vsc-list { height: 180px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .vsc *, .vsc { transition: none !important; } }
+  `;
+  const CHAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/></svg>';
+
+  function initChat() {
+    if (document.getElementById('vsc-root')) return;
+    const style = document.createElement('style');
+    style.textContent = CHAT_CSS;
+    document.head.append(style);
+    const root = document.createElement('div');
+    root.id = 'vsc-root';
+    root.className = 'vsc';
+    root.innerHTML = `
+      <div class="vsc-panel" hidden role="dialog" aria-label="Chat">
+        <div class="vsc-head"><span>Chat</span><button type="button" class="vsc-close" aria-label="Sluiten" title="Sluiten">×</button></div>
+        <div class="vsc-list" aria-live="polite"></div>
+        <div class="vsc-note" role="status"></div>
+        <form class="vsc-form" autocomplete="off">
+          <input type="text" maxlength="200" placeholder="Typ een bericht…" aria-label="Bericht">
+          <button type="submit">Stuur</button>
+        </form>
+      </div>
+      <button class="vsc-btn" type="button" aria-expanded="false" title="Chat">
+        ${CHAT_ICON}<span class="vsc-peek"></span><span class="vsc-badge" hidden></span>
+      </button>`;
+    document.body.append(root);
+
+    const panel = root.querySelector('.vsc-panel');
+    const list = root.querySelector('.vsc-list');
+    const note = root.querySelector('.vsc-note');
+    const form = root.querySelector('.vsc-form');
+    const input = form.querySelector('input');
+    const sendBtn = form.querySelector('button');
+    const btn = root.querySelector('.vsc-btn');
+    const peek = root.querySelector('.vsc-peek');
+    const badge = root.querySelector('.vsc-badge');
+
+    let open = false;
+    let unread = 0;
+    let lastId = 0;
+    let peekTimer = null;
+    let noteTimer = null;
+    let sending = false;
+    let loggedIn = null;
+    const seen = new Set();
+
+    const colorFor = name => {
+      let h = 0;
+      for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+      return `hsl(${h} 70% 68%)`;
+    };
+
+    function showNote(text, info) {
+      clearTimeout(noteTimer);
+      note.textContent = text || '';
+      note.classList.toggle('info', Boolean(info));
+      if (text) noteTimer = setTimeout(() => { note.textContent = ''; }, 5000);
+    }
+
+    function setLogin(value) {
+      loggedIn = value;
+      input.disabled = sendBtn.disabled = !value;
+      input.placeholder = value ? 'Typ een bericht…' : 'Log in via Discord om te chatten';
+    }
+
+    function nearBottom() { return list.scrollHeight - list.scrollTop - list.clientHeight < 40; }
+
+    function addMessage(msg, fresh) {
+      if (!msg || seen.has(msg.id)) return;
+      seen.add(msg.id);
+      lastId = Math.max(lastId, msg.id);
+      list.querySelector('.vsc-empty')?.remove();
+      const stick = nearBottom();
+      const row = document.createElement('div');
+      row.className = 'vsc-msg';
+      const name = document.createElement('b');
+      name.textContent = msg.username;
+      name.style.color = colorFor(String(msg.username));
+      row.append(name, document.createTextNode(msg.text));
+      list.append(row);
+      while (list.children.length > CHAT_MAX_SHOWN) list.firstChild.remove();
+      if (stick || !fresh) list.scrollTop = list.scrollHeight;
+      if (fresh && !open) {
+        unread++;
+        badge.hidden = false;
+        badge.textContent = unread > 9 ? '9+' : String(unread);
+        peek.replaceChildren();
+        const who = document.createElement('b');
+        who.textContent = msg.username;
+        peek.append(who, ` ${msg.text}`);
+        root.classList.add('peek');
+        clearTimeout(peekTimer);
+        peekTimer = setTimeout(() => root.classList.remove('peek'), CHAT_PREVIEW_MS);
+      }
+    }
+
+    function renderEmpty() {
+      if (list.children.length) return;
+      const empty = document.createElement('div');
+      empty.className = 'vsc-empty';
+      empty.textContent = 'Nog geen berichten. Zeg eens hallo!';
+      list.append(empty);
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await nativeFetch(`/api/chat?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        for (const msg of data.messages || []) addMessage(msg, false);
+        renderEmpty();
+      } catch (error) {
+        // Storingen worden al door de verbindingsbewaking afgehandeld
+      }
+    }
+
+    async function checkLogin() {
+      try {
+        const res = await nativeFetch('/api/me', { credentials: 'same-origin', cache: 'no-store' });
+        if (res.ok) setLogin(Boolean((await res.json()).linked));
+      } catch (error) { /* zie hierboven */ }
+    }
+
+    function setOpen(value) {
+      open = value;
+      root.classList.toggle('open', value);
+      btn.setAttribute('aria-expanded', String(value));
+      if (value) {
+        panel.hidden = false;
+        panel.classList.add('pre');
+        requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.remove('pre')));
+        unread = 0;
+        badge.hidden = true;
+        root.classList.remove('peek');
+        list.scrollTop = list.scrollHeight;
+        if (loggedIn === null) checkLogin();
+        if (loggedIn) setTimeout(() => input.focus(), 50);
+      } else {
+        panel.hidden = true;
+      }
+      try { localStorage.setItem('vsc-open', value ? '1' : '0'); } catch (error) { /* privémodus */ }
+    }
+
+    btn.addEventListener('click', () => setOpen(!open));
+    root.querySelector('.vsc-close').addEventListener('click', () => setOpen(false));
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && open) setOpen(false); });
+    // Toetsen in het invoerveld mogen nooit de sneltoetsen van een spel activeren (spatie, pijltjes, enz.)
+    for (const type of ['keydown', 'keyup', 'keypress']) panel.addEventListener(type, event => event.stopPropagation());
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text || sending || !loggedIn) return;
+      sending = true;
+      try {
+        const res = await window.fetch('/api/chat/send', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) setLogin(false);
+        if (data.ok) {
+          input.value = '';
+          if (data.notice) showNote(data.notice, true);
+        } else {
+          showNote(data.message || 'Versturen mislukt.');
+        }
+      } catch (error) {
+        showNote('Versturen mislukt.');
+      }
+      sending = false;
+      if (!input.disabled) input.focus();
+    });
+
+    if (liveSource) {
+      liveSource.addEventListener('chat', event => {
+        try { addMessage(JSON.parse(event.data), true); } catch (error) { /* kapot bericht */ }
+      });
+      // Na een herverbinding kunnen er berichten gemist zijn
+      let opened = false;
+      liveSource.addEventListener('open', () => {
+        if (opened) loadHistory();
+        opened = true;
+      });
+    }
+
+    loadHistory();
+    checkLogin();
+    let wasOpen = false;
+    try { wasOpen = localStorage.getItem('vsc-open') === '1'; } catch (error) { /* privémodus */ }
+    if (wasOpen && window.innerWidth > 640) setOpen(true);
+  }
+
+  if (document.body) initChat();
+  else document.addEventListener('DOMContentLoaded', initChat);
 
   if (document.body) showFirefoxNotice();
   else document.addEventListener('DOMContentLoaded', showFirefoxNotice);

@@ -132,15 +132,8 @@ process.on('exit', () => {
   closeDatabase();
 });
 
-process.on('SIGINT', () => {
-  closeDatabase();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  closeDatabase();
-  process.exit(0);
-});
+// SIGINT/SIGTERM worden door bot.js afgehandeld (eerst gebruikers waarschuwen, dan afsluiten).
+// Draait de database zonder bot.js, dan sluit 'exit' hierboven alsnog netjes af.
 
 module.exports = {
   initDatabase,
